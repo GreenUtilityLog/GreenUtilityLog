@@ -1,12 +1,14 @@
 {
   "name": "green-utility-log",
-  "version": "4.0.0",
-  "description": "Meter tracking app for VeChain sustainability rewards",
+  "version": "1.2.1",
   "type": "module",
+  "description": "Track home utilities and earn B3TR rewards on VeChain",
+  "main": "src/App.jsx",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "eslint src --ext .js,.jsx"
   },
   "dependencies": {
     "react": "^18.2.0",
@@ -15,5 +17,18 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^4.0.0",
     "vite": "^4.3.9"
-  }
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "keywords": [
+    "vechain",
+    "blockchain",
+    "utilities",
+    "b3tr",
+    "sustainability"
+  ],
+  "author": "Green Log Utility",
+  "license": "MIT"
 }
