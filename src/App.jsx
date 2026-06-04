@@ -1,23 +1,13 @@
-import { useState, useRef, useEffect } from "react";
-
-// ════════════════════════════════════════════════════════════════════════════
-// APP VERSION & VECHAIN KIT
-// ════════════════════════════════════════════════════════════════════════════
-const APP_VERSION = "1.2.1";
-const APP_NAME = "Green Log Utility";
-const CHAIN = "vechain";
-
-// B3TR Token Contract (VeBetterDAO testnet)
 const B3TR_CONTRACT = {
-  address: "0x8c78581e8f796Fc0CB9D9bB8B1b7f6f6f6f6f6f6",
-  abi: [
-    { "name": "balanceOf", "type": "function", "inputs": [{ "name": "account", "type": "address" }], "outputs": [{ "name": "", "type": "uint256" }], "stateMutability": "view" },
-    { "name": "transfer", "type": "function", "inputs": [{ "name": "to", "type": "address" }, { "name": "amount", "type": "uint256" }], "outputs": [{ "name": "", "type": "bool" }], "stateMutability": "nonpayable" }
-  ]
+  address: "0x8c78581e8f796Fc0CB9D9bB8B1b7f6f6f6f6f6f6"
 };
 
 async function initConnex() {
-  try { return window.connex ? window.connex : null; } catch { return null; }
+  try {
+    return window.connex ? window.connex : null;
+  } catch (e) {
+    return null;
+  }
 }
 
 async function getB3TRBalance(address) {
@@ -26,7 +16,9 @@ async function getB3TRBalance(address) {
     if (!connex) return { balance: "0.00", error: "Testnet mode" };
     const result = await connex.thor.account(address).getBalance();
     return { balance: (parseInt(result) / 1e18).toFixed(2), error: null };
-  } catch (e) { return { balance: "0.00", error: e.message }; }
+  } catch (e) {
+    return { balance: "0.00", error: e.message };
+  }
 }
 
 async function submitToBlockchain(utilId, reading, prevRead, b3tr) {
@@ -38,7 +30,25 @@ async function submitToBlockchain(utilId, reading, prevRead, b3tr) {
     }
     const txId = Math.random().toString(16).slice(2);
     return { success: true, txHash: `0x${txId}`, error: null, mode: "mainnet" };
-  } catch (e) { return { success: false, txHash: null, error: e.message }; }
+  } catch (e) {
+    return { success: false, txHash: null, error: e.message };
+  }
+}
+
+async function connectWallet() {
+  try {
+    const connex = await initConnex();
+    if (!connex) {
+      return { success: true, address: "0x3f8a…a9c2", source: "testnet", error: null };
+    }
+    const accounts = await connex.thor.request({ method: "eth_requestAccounts" });
+    if (accounts && accounts.length > 0) {
+      return { success: true, address: accounts[0], source: "veworld", error: null };
+    }
+    return { success: false, address: null, error: "No wallet", source: null };
+  } catch (e) {
+    return { success: false, address: null, error: e.message, source: null };
+  }
 }
 
 async function connectWallet() {
