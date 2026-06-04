@@ -5,6 +5,7 @@
 [build.environment]
   NODE_VERSION = "18"
   NODE_ENV = "production"
+  NPM_CONFIG_PRODUCTION = "false"
 
 [[redirects]]
   from = "/*"
