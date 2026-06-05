@@ -1,68 +1,146 @@
-const B3TR_CONTRACT = {
-  address: "0x8c78581e8f796Fc0CB9D9bB8B1b7f6f6f6f6f6f6"
+import { useState, useRef, useEffect } from "react";
+
+// ════════════════════════════════════════════════════════════════════════════
+// APP VERSION & VECHAIN KIT
+// ════════════════════════════════════════════════════════════════════════════
+const APP_VERSION = "1.3.0";
+const APP_NAME = "Green Log Utility";
+
+// ── VeBetterDAO MAINNET CONTRACT ADDRESSES (official) ──────────────────────
+const CONTRACTS = {
+  B3TR:              "0x5ef79995FE8a89e0812330E4378eB2660ceDe699",
+  X2EarnRewardsPool: "0x6Bee7DDab6c99d5B2Af0554EaEA484CE18F52631",
+  X2EarnApps:        "0x8392B7CCc763dB03b47afcD8E8f5e24F9cf0554D",
 };
 
+// ── YOUR APP ID — set this after registering on VeBetterDAO ───────────────
+// Get your App ID at: https://governance.vebetterdao.org
+// It is the keccak256 hash of your app name registered on-chain
+const VEBETTER_APP_ID = "0x0000000000000000000000000000000000000000000000000000000000000000";
+
+// ── ABI fragments needed ───────────────────────────────────────────────────
+const B3TR_ABI = [
+  { name:"balanceOf", type:"function", inputs:[{name:"account",type:"address"}], outputs:[{name:"",type:"uint256"}], stateMutability:"view" },
+];
+const X2EARN_ABI = [
+  { name:"distributeReward", type:"function",
+    inputs:[
+      {name:"appId",    type:"bytes32"},
+      {name:"amount",   type:"uint256"},
+      {name:"receiver", type:"address"},
+      {name:"proof",    type:"string"},
+    ],
+    outputs:[{name:"",type:"bool"}],
+    stateMutability:"nonpayable"
+  },
+  { name:"availableFunds", type:"function",
+    inputs:[{name:"appId",type:"bytes32"}],
+    outputs:[{name:"",type:"uint256"}],
+    stateMutability:"view"
+  },
+];
+
+// ── Connex helper — detects VeWorld or Sync2 ──────────────────────────────
 async function initConnex() {
   try {
-    return window.connex ? window.connex : null;
-  } catch (e) {
+    // VeWorld injects window.vechain (new) or window.connex (legacy)
+    if (window.vechain?.newConnexSigner) return { connex: window.connex, signer: window.vechain.newConnexSigner("main"), source: "veworld" };
+    if (window.connex)                   return { connex: window.connex, signer: null,                                  source: "connex"  };
     return null;
+  } catch { return null; }
+}
+
+// ── Connect wallet (VeWorld / Sync2) ──────────────────────────────────────
+async function connectWallet() {
+  try {
+    const cx = await initConnex();
+    if (!cx) return { success:false, address:null, error:"VeWorld not found. Please install VeWorld wallet.", source:null };
+
+    // VeWorld signer — request account
+    if (cx.signer) {
+      const { address } = await cx.signer.connect();
+      if (address) return { success:true, address, source:"veworld", error:null };
+    }
+
+    // Legacy Connex2 — vendor.sign("cert")
+    const cert = await cx.connex.vendor.sign("cert", {
+      purpose: "identification",
+      payload: { type:"text", content:"Connect to Green Log Utility" },
+    }).request();
+    if (cert?.annex?.signer) return { success:true, address:cert.annex.signer, source:"sync2", error:null };
+
+    return { success:false, address:null, error:"Connection rejected", source:null };
+  } catch (e) {
+    return { success:false, address:null, error:e.message || "Wallet connection failed", source:null };
   }
 }
 
+// ── Read B3TR balance from chain ──────────────────────────────────────────
 async function getB3TRBalance(address) {
   try {
-    const connex = await initConnex();
-    if (!connex) return { balance: "0.00", error: "Testnet mode" };
-    const result = await connex.thor.account(address).getBalance();
-    return { balance: (parseInt(result) / 1e18).toFixed(2), error: null };
-  } catch (e) {
-    return { balance: "0.00", error: e.message };
-  }
+    const cx = await initConnex();
+    if (!cx) return { balance:"0.00", error:"No wallet" };
+    const result = await cx.connex.thor
+      .account(CONTRACTS.B3TR)
+      .method(B3TR_ABI[0])
+      .call(address);
+    const raw = result?.decoded?.[0] || "0";
+    return { balance: (BigInt(raw) / BigInt("1000000000000000000")).toString(), error:null };
+  } catch (e) { return { balance:"0.00", error:e.message }; }
 }
 
-async function submitToBlockchain(utilId, reading, prevRead, b3tr) {
+// ── Submit proof + distribute B3TR reward via X2EarnRewardsPool ───────────
+async function submitToBlockchain(utilId, reading, prevRead, b3trAmount, userAddress) {
   try {
-    const connex = await initConnex();
-    if (!connex) {
-      const txId = Math.random().toString(16).slice(2);
-      return { success: true, txHash: `0x${txId}`, error: null, mode: "testnet" };
-    }
-    const txId = Math.random().toString(16).slice(2);
-    return { success: true, txHash: `0x${txId}`, error: null, mode: "mainnet" };
-  } catch (e) {
-    return { success: false, txHash: null, error: e.message };
-  }
-}
+    const cx = await initConnex();
+    if (!cx) return { success:false, txHash:null, error:"No wallet connected", mode:null };
 
-async function connectWallet() {
-  try {
-    const connex = await initConnex();
-    if (!connex) {
-      return { success: true, address: "0x3f8a…a9c2", source: "testnet", error: null };
-    }
-    const accounts = await connex.thor.request({ method: "eth_requestAccounts" });
-    if (accounts && accounts.length > 0) {
-      return { success: true, address: accounts[0], source: "veworld", error: null };
-    }
-    return { success: false, address: null, error: "No wallet", source: null };
-  } catch (e) {
-    return { success: false, address: null, error: e.message, source: null };
-  }
-}
+    // Build proof JSON — required by VeBetterDAO
+    const proof = JSON.stringify({
+      appId:     VEBETTER_APP_ID,
+      action:    "meter_reading",
+      utility:   utilId,
+      reading:   reading,
+      prevRead:  prevRead,
+      b3tr:      b3trAmount,
+      timestamp: new Date().toISOString(),
+      version:   APP_VERSION,
+    });
 
-async function connectWallet() {
-  try {
-    const connex = await initConnex();
-    if (!connex) {
-      return { success: true, address: "0x3f8a…a9c2", source: "testnet", error: null };
+    // Amount in wei (18 decimals)
+    const amountWei = BigInt(Math.round(b3trAmount * 1e18)).toString();
+
+    // Build clause: call distributeReward on X2EarnRewardsPool
+    const distributeMethod = cx.connex.thor
+      .account(CONTRACTS.X2EarnRewardsPool)
+      .method(X2EARN_ABI[0]);
+
+    const clause = distributeMethod.asClause(
+      VEBETTER_APP_ID,
+      amountWei,
+      userAddress,
+      proof
+    );
+
+    // Sign and send transaction
+    let txid;
+    if (cx.signer) {
+      // VeWorld new API
+      const result = await cx.signer.sendTransaction({ clauses:[clause] });
+      txid = result.txid;
+    } else {
+      // Legacy Connex2 vendor
+      const result = await cx.connex.vendor
+        .sign("tx", [clause])
+        .comment(`Green Log Utility — ${utilId} meter reading — earn ${b3trAmount} B3TR`)
+        .request();
+      txid = result.txid;
     }
-    const accounts = await connex.thor.request({ method: "eth_requestAccounts" });
-    if (accounts && accounts.length > 0) {
-      return { success: true, address: accounts[0], source: "veworld", error: null };
-    }
-    return { success: false, address: null, error: "No wallet", source: null };
-  } catch (e) { return { success: false, address: null, error: e.message, source: null }; }
+
+    return { success:true, txHash:txid, error:null, mode:"mainnet" };
+  } catch (e) {
+    return { success:false, txHash:null, error:e.message || "Transaction failed", mode:null };
+  }
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -1508,7 +1586,7 @@ export default function App() {
     }
 
     // Submit to blockchain
-    const blockchainResult = await submitToBlockchain(selUtil, reading, prevRead, earned);
+    const blockchainResult = await submitToBlockchain(selUtil, reading, prevRead, earned, wallet);
     
     if (blockchainResult.success) {
       const today = new Date();
