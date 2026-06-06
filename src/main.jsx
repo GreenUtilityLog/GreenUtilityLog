@@ -80,7 +80,11 @@ try {
           },
         }}
         loginMethods={[
-          { method: 'vechain', gridColumn: 4 },
+          // NOTE: the 'vechain' login method ("Login with VeChain") boots a
+          // Privy provider that crashed the page on load
+          // (TypeError: can't access property 3, r is undefined). We use only
+          // 'dappkit' — VeWorld, WalletConnect (mobile) and Sync2 — which is
+          // stable and covers wallet login without Privy.
           { method: 'dappkit', gridColumn: 4 },
         ]}
         darkMode={false}
