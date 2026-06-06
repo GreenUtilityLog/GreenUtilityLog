@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from "react";
+import { useWallet, useSendTransaction, useConnectModal, WalletButton } from "@vechain/vechain-kit";
+import { Clause, Address, ABIFunction } from "@vechain/sdk-core";
 
 // ════════════════════════════════════════════════════════════════════════════
 // APP VERSION & VECHAIN KIT
 // ════════════════════════════════════════════════════════════════════════════
 const APP_VERSION = "1.3.0";
-const APP_NAME = "Green Log Utility";
+const APP_NAME = "Green Utility Log";
 
 // ── VeBetterDAO MAINNET CONTRACT ADDRESSES (official) ──────────────────────
 const CONTRACTS = {
@@ -40,107 +42,40 @@ const X2EARN_ABI = [
   },
 ];
 
-// ── Connex helper — detects VeWorld or Sync2 ──────────────────────────────
-async function initConnex() {
-  try {
-    // VeWorld injects window.vechain (new) or window.connex (legacy)
-    if (window.vechain?.newConnexSigner) return { connex: window.connex, signer: window.vechain.newConnexSigner("main"), source: "veworld" };
-    if (window.connex)                   return { connex: window.connex, signer: null,                                  source: "connex"  };
-    return null;
-  } catch { return null; }
-}
+// ── Build the on-chain clause for a meter submission ──────────────────────
+// Wallet connection + signing are handled by VeChain Kit (VeWorld /
+// WalletConnect / Sync2) via the useWallet & useSendTransaction hooks.
+// This helper only builds the transaction clause that the Kit signs & sends,
+// so it works identically on desktop and mobile.
+function buildRewardClauses(utilId, reading, prevRead, b3trAmount, userAddress) {
+  // Build proof JSON — required by VeBetterDAO
+  const proof = JSON.stringify({
+    appId:     VEBETTER_APP_ID,
+    action:    "meter_reading",
+    utility:   utilId,
+    reading:   reading,
+    prevRead:  prevRead,
+    b3tr:      b3trAmount,
+    timestamp: new Date().toISOString(),
+    version:   APP_VERSION,
+  });
 
-// ── Connect wallet (VeWorld / Sync2) ──────────────────────────────────────
-async function connectWallet() {
-  try {
-    const cx = await initConnex();
-    if (!cx) return { success:false, address:null, error:"VeWorld not found. Please install VeWorld wallet.", source:null };
+  // Amount in wei (18 decimals)
+  const amountWei = BigInt(Math.round(b3trAmount * 1e18)).toString();
 
-    // VeWorld signer — request account
-    if (cx.signer) {
-      const { address } = await cx.signer.connect();
-      if (address) return { success:true, address, source:"veworld", error:null };
-    }
+  // distributeReward(appId, amount, receiver, proof) on X2EarnRewardsPool
+  const clause = Clause.callFunction(
+    Address.of(CONTRACTS.X2EarnRewardsPool),
+    new ABIFunction(X2EARN_ABI[0]),
+    [VEBETTER_APP_ID, amountWei, userAddress, proof]
+  );
 
-    // Legacy Connex2 — vendor.sign("cert")
-    const cert = await cx.connex.vendor.sign("cert", {
-      purpose: "identification",
-      payload: { type:"text", content:"Connect to Green Log Utility" },
-    }).request();
-    if (cert?.annex?.signer) return { success:true, address:cert.annex.signer, source:"sync2", error:null };
-
-    return { success:false, address:null, error:"Connection rejected", source:null };
-  } catch (e) {
-    return { success:false, address:null, error:e.message || "Wallet connection failed", source:null };
-  }
-}
-
-// ── Read B3TR balance from chain ──────────────────────────────────────────
-async function getB3TRBalance(address) {
-  try {
-    const cx = await initConnex();
-    if (!cx) return { balance:"0.00", error:"No wallet" };
-    const result = await cx.connex.thor
-      .account(CONTRACTS.B3TR)
-      .method(B3TR_ABI[0])
-      .call(address);
-    const raw = result?.decoded?.[0] || "0";
-    return { balance: (BigInt(raw) / BigInt("1000000000000000000")).toString(), error:null };
-  } catch (e) { return { balance:"0.00", error:e.message }; }
-}
-
-// ── Submit proof + distribute B3TR reward via X2EarnRewardsPool ───────────
-async function submitToBlockchain(utilId, reading, prevRead, b3trAmount, userAddress) {
-  try {
-    const cx = await initConnex();
-    if (!cx) return { success:false, txHash:null, error:"No wallet connected", mode:null };
-
-    // Build proof JSON — required by VeBetterDAO
-    const proof = JSON.stringify({
-      appId:     VEBETTER_APP_ID,
-      action:    "meter_reading",
-      utility:   utilId,
-      reading:   reading,
-      prevRead:  prevRead,
-      b3tr:      b3trAmount,
-      timestamp: new Date().toISOString(),
-      version:   APP_VERSION,
-    });
-
-    // Amount in wei (18 decimals)
-    const amountWei = BigInt(Math.round(b3trAmount * 1e18)).toString();
-
-    // Build clause: call distributeReward on X2EarnRewardsPool
-    const distributeMethod = cx.connex.thor
-      .account(CONTRACTS.X2EarnRewardsPool)
-      .method(X2EARN_ABI[0]);
-
-    const clause = distributeMethod.asClause(
-      VEBETTER_APP_ID,
-      amountWei,
-      userAddress,
-      proof
-    );
-
-    // Sign and send transaction
-    let txid;
-    if (cx.signer) {
-      // VeWorld new API
-      const result = await cx.signer.sendTransaction({ clauses:[clause] });
-      txid = result.txid;
-    } else {
-      // Legacy Connex2 vendor
-      const result = await cx.connex.vendor
-        .sign("tx", [clause])
-        .comment(`Green Log Utility — ${utilId} meter reading — earn ${b3trAmount} B3TR`)
-        .request();
-      txid = result.txid;
-    }
-
-    return { success:true, txHash:txid, error:null, mode:"mainnet" };
-  } catch (e) {
-    return { success:false, txHash:null, error:e.message || "Transaction failed", mode:null };
-  }
+  return [{
+    to: clause.to,
+    value: clause.value,
+    data: clause.data,
+    comment: `Green Utility Log — ${utilId} meter reading — earn ${b3trAmount} B3TR`,
+  }];
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -733,7 +668,7 @@ html,body{background:${T.bg};font-family:-apple-system,BlinkMacSystemFont,'Segoe
 
 function IntroScreen({ onStart }) {
   const slides = [
-    { icon: '🌱', title: 'Welcome to Green Log Utility', sub: 'Track your electric, gas, water & solar meters. Earn real B3TR rewards on VeChain.' },
+    { icon: '🌱', title: 'Welcome to Green Utility Log', sub: 'Track your electric, gas, water & solar meters. Earn real B3TR rewards on VeChain.' },
     { icon: '📸', title: 'Verify Your Meters', sub: 'Take a photo of your meter. AI-powered OCR verifies readings instantly.' },
     { icon: '💰', title: 'Earn B3TR Rewards', sub: 'Get paid in real cryptocurrency for every meter you log. Weekly payouts guaranteed.' },
     { icon: '🏆', title: 'Climb the Leaderboard', sub: 'Compete globally. Unlock achievement badges. Build your sustainability streak.' },
@@ -897,75 +832,6 @@ function Onboarding({ onDone }) {
         {isLast ? 'Start Tracking' : 'Continue →'}
       </button>
       {!isLast && <button className="ob-skip" onClick={onDone}>Skip</button>}
-    </div>
-  );
-}
-
-function WalletModal({ onConnect, onClose }) {
-  const [connecting, setConnecting] = useState(null);
-  const [error, setError] = useState(null);
-  
-  const connect = async (walletType) => {
-    setConnecting(walletType);
-    setError(null);
-    
-    try {
-      const result = await connectWallet();
-      
-      if (result.success) {
-        onConnect(result.address);
-        setTimeout(() => onClose(), 500);
-      } else {
-        setError(result.error || "Connection failed");
-      }
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setConnecting(null);
-    }
-  };
-
-  return (
-    <div className="modal-bg" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
-        <div className="modal-handle"/>
-        <div className="modal-title">Connect VeChain Wallet</div>
-        <div className="modal-sub">🌍 Blockchain-powered meter submissions</div>
-        
-        {error && <div style={{fontSize:10,color:"#c04040",background:"#ede0e0",borderRadius:4,padding:10,marginBottom:12}}>{error}</div>}
-        
-        <div className="modal-opt" onClick={() => connect("veworld")}>
-          <div className="modal-opt-icon">🌐</div>
-          <div>
-            <div className="modal-opt-name">VeWorld</div>
-            <div className="modal-opt-sub">Official VeChain wallet</div>
-          </div>
-          {connecting === "veworld" && <span className="spin-sm" style={{marginLeft:"auto"}} />}
-        </div>
-        
-        <div className="modal-opt" onClick={() => connect("sync2")}>
-          <div className="modal-opt-icon">🔐</div>
-          <div>
-            <div className="modal-opt-name">Vechain Sync²</div>
-            <div className="modal-opt-sub">Desktop wallet (advanced)</div>
-          </div>
-          {connecting === "sync2" && <span className="spin-sm" style={{marginLeft:"auto"}} />}
-        </div>
-
-        <div className="modal-opt" onClick={() => connect("testnet")}>
-          <div className="modal-opt-icon">🧪</div>
-          <div>
-            <div className="modal-opt-name">Testnet Mode</div>
-            <div className="modal-opt-sub">Development testing</div>
-          </div>
-          {connecting === "testnet" && <span className="spin-sm" style={{marginLeft:"auto"}} />}
-        </div>
-
-        <div style={{fontSize:9,color:"#7a9188",marginTop:14,padding:10,background:"#dce8e1",borderRadius:4,textAlign:"center"}}>
-          💚 Secured by VeChain<br/>
-          All transactions on-chain
-        </div>
-      </div>
     </div>
   );
 }
@@ -1539,8 +1405,15 @@ export default function App() {
   }, []);
 
   const [tab, setTab]               = useState("home");
-  const [wallet, setWallet]         = useState(null);
-  const [showWallet, setShowWallet] = useState(false);
+  // Wallet connection is fully managed by VeChain Kit (VeWorld / WalletConnect
+  // / Sync2 / Login with VeChain). We just read the connected address and
+  // open the Kit's ready-made connect modal where the old custom modal was.
+  const { account } = useWallet();
+  const wallet = account?.address || null;
+  const { open: openWalletModal } = useConnectModal();
+  // Arg-less wrapper so callers (incl. children that pass `true`) don't leak an
+  // unexpected argument into the Kit's open(initialContent?) signature.
+  const openConnectModal = () => openWalletModal();
   const [selUtil, setSelUtil]       = useState("electric");
   const [aiOk, setAiOk]            = useState(false);
   const [reading, setReading]       = useState("");
@@ -1555,6 +1428,12 @@ export default function App() {
 
   const u = getUtil(selUtil);
   const online = useOnlineStatus();
+
+  // VeChain Kit signs & broadcasts the transaction (works on desktop & mobile).
+  const { sendTransaction, status: txStatus, txReceipt, resetStatus } =
+    useSendTransaction({ signerAccountAddress: wallet });
+  // Holds the submission details while the wallet signs / confirms the tx.
+  const pendingRef = useRef(null);
 
   const showToast = (msg) => {
     setToast(msg);
@@ -1576,7 +1455,7 @@ export default function App() {
   const handleSubmit = async () => {
     setBusy(true);
     const earned = reward();
-    
+
     if (!online) {
       await saveOfflineSubmission({ type:selUtil, cur:reading, prev:prevRead, b3tr:earned });
       setAiOk(false); setReading(""); setPrevRead(""); setVerifyKey(k=>k+1);
@@ -1585,40 +1464,66 @@ export default function App() {
       return;
     }
 
-    // Submit to blockchain
-    const blockchainResult = await submitToBlockchain(selUtil, reading, prevRead, earned, wallet);
-    
-    if (blockchainResult.success) {
+    if (!wallet) {
+      setBusy(false);
+      openConnectModal();
+      return;
+    }
+
+    // Remember what we're submitting; it's finalised in the effect below once
+    // VeChain Kit reports the transaction as confirmed (works on any wallet).
+    pendingRef.current = { selUtil, reading, prevRead, earned };
+
+    try {
+      const clauses = buildRewardClauses(selUtil, reading, prevRead, earned, wallet);
+      await sendTransaction(clauses);
+    } catch (e) {
+      pendingRef.current = null;
+      setBusy(false);
+      showToast(`❌ Submission failed: ${e?.message || "Transaction error"}`);
+    }
+  };
+
+  // Finalise a submission once the wallet has confirmed / rejected the tx.
+  useEffect(() => {
+    if (!pendingRef.current) return;
+
+    if (txStatus === "success") {
+      const p = pendingRef.current;
+      pendingRef.current = null;
+      const txid = txReceipt?.meta?.txID || "";
       const today = new Date();
       const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      
-      setSubs(p=>[{
+
+      setSubs(prev=>[{
         id:Date.now(),
-        type:selUtil,
-        cur:reading,
-        prev:prevRead,
+        type:p.selUtil,
+        cur:p.reading,
+        prev:p.prevRead,
         date:dateStr,
-        b3tr:earned,
+        b3tr:p.earned,
         status:"confirmed",
-        txHash:blockchainResult.txHash,
+        txHash:txid,
         submittedAt:Date.now()
-      },...p]);
-      
-      setB3tr(b=>b+earned);
-      setCooldown(selUtil);
-      setAiOk(false); 
-      setReading(""); 
-      setPrevRead(""); 
+      },...prev]);
+
+      setB3tr(b=>b+p.earned);
+      setCooldown(p.selUtil);
+      setAiOk(false);
+      setReading("");
+      setPrevRead("");
       setVerifyKey(k=>k+1);
-      
-      const mode = blockchainResult.mode === "mainnet" ? "VeChain Mainnet" : "Testnet";
-      showToast(`✅ +${earned.toFixed(2)} B3TR on ${mode} • TX: ${blockchainResult.txHash.slice(0,10)}...`);
-    } else {
-      showToast(`❌ Submission failed: ${blockchainResult.error}`);
+
+      showToast(`✅ +${p.earned.toFixed(2)} B3TR on VeChain Mainnet${txid ? ` • TX: ${txid.slice(0,10)}...` : ""}`);
+      setBusy(false);
+      resetStatus();
+    } else if (txStatus === "error") {
+      pendingRef.current = null;
+      showToast("❌ Submission failed or cancelled");
+      setBusy(false);
+      resetStatus();
     }
-    
-    setBusy(false);
-  };
+  }, [txStatus, txReceipt]);
 
   return (
     <>
@@ -1627,7 +1532,6 @@ export default function App() {
       {needsBaselines && <BaselineOnboarding onDone={(bl) => { setBaselines(bl); setNeedsBaselines(false); }} existingBaselines={baselines} />}
       {!onboarded && <Onboarding onDone={(bl) => { setBaselines(bl); setOnboarded(true); setPrevRead(bl.electric||""); }} />}
       {toast && <div className="toast">{toast}</div>}
-      {showWallet && <WalletModal onConnect={addr=>{setWallet(addr);setShowWallet(false);showToast("VeWorld connected");}} onClose={()=>setShowWallet(false)}/>}
 
       <div className="app">
         <div className="z1 scr">
@@ -1635,7 +1539,7 @@ export default function App() {
             <div className="logo">
               <div className="logo-mark">GUL</div>
               <div>
-                <div className="logo-name">Green Log Utility</div>
+                <div className="logo-name">Green Utility Log</div>
                 <div style={{fontSize:7,fontWeight:700,color:T.textSoft,textTransform:"uppercase",letterSpacing:"0.8px",marginTop:2}}>VeBetterDAO Vechain • v{APP_VERSION}</div>
               </div>
             </div>
@@ -1647,19 +1551,21 @@ export default function App() {
               <button className="dark-toggle" onClick={()=>setDark(d=>!d)}>
                 {dark ? '☀️' : '🌙'}
               </button>
-              <div className={`wallet-pill ${wallet ? 'connected' : ''}`} onClick={() => setShowWallet(true)}>
-                <div className={`wdot ${wallet ? '' : 'off'}`}></div>
-                <div className="waddr">{wallet ? wallet.slice(0,6) + "…" + wallet.slice(-4) : "Connect"}</div>
-              </div>
+              {/* VeChain Kit's ready-made connect button — VeWorld, WalletConnect
+                  (mobile), Sync2 and Login with VeChain, all in one. */}
+              <WalletButton
+                mobileVariant="iconAndDomain"
+                desktopVariant="iconDomainAndAddress"
+              />
             </div>
           </div>
 
           {tab==="home"      && <HomeScreen b3tr={b3tr} streak={streak} subs={subs} setTab={setTab} T={T}/>}
-          {tab==="submit"    && <SubmitScreen u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevRead} busy={busy} usage={usage} reward={reward} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={setShowWallet} subs={subs} T={T} setTab={setTab}/>}
+          {tab==="submit"    && <SubmitScreen u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevRead} busy={busy} usage={usage} reward={reward} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} T={T} setTab={setTab}/>}
           {tab==="charts"    && <ChartsScreen subs={subs} T={T}/>}
           {tab==="leaderboard" && <LeaderboardScreen b3tr={b3tr} streak={streak} subs={subs} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}
-          {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} setShowWallet={setShowWallet} dark={dark} setDark={setDark} notifs={notifs} setNotifs={setNotifs} setOnboarded={setOnboarded} T={T}/>}
+          {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} setShowWallet={openConnectModal} dark={dark} setDark={setDark} notifs={notifs} setNotifs={setNotifs} setOnboarded={setOnboarded} T={T}/>}
         </div>
 
         <div className="bnav">
