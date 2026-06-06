@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useWallet, useSendTransaction, useConnectModal, WalletButton } from "@vechain/vechain-kit";
+import { useWallet, useSendTransaction, useConnectModal } from "@vechain/vechain-kit";
 import { Clause, Address, ABIFunction } from "@vechain/sdk-core";
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -1551,12 +1551,20 @@ export default function App() {
               <button className="dark-toggle" onClick={()=>setDark(d=>!d)}>
                 {dark ? '☀️' : '🌙'}
               </button>
-              {/* VeChain Kit's ready-made connect button — VeWorld, WalletConnect
-                  (mobile), Sync2 and Login with VeChain, all in one. */}
-              <WalletButton
-                mobileVariant="iconAndDomain"
-                desktopVariant="iconDomainAndAddress"
-              />
+              {/* Custom connect button. Opens VeChain Kit's connect modal
+                  (VeWorld, WalletConnect/mobile, Sync2, Login with VeChain) via
+                  the stable useConnectModal hook. We avoid the all-in-one
+                  <WalletButton> widget because its eager render crashed the page. */}
+              <button
+                className={`wallet-pill ${wallet ? "connected" : ""}`}
+                onClick={openConnectModal}
+                title={wallet || "Connect wallet"}
+              >
+                <span className={`wdot ${wallet ? "" : "off"}`} />
+                <span className="waddr">
+                  {wallet ? `${wallet.slice(0, 6)}…${wallet.slice(-4)}` : "Connect"}
+                </span>
+              </button>
             </div>
           </div>
 
