@@ -4,54 +4,83 @@ import { VeChainKitProvider } from '@vechain/vechain-kit'
 import App from './App.jsx'
 
 // ════════════════════════════════════════════════════════════════════════════
-// WALLETCONNECT PROJECT ID
-// ────────────────────────────────────────────────────────────────────────────
-// WalletConnect lets people log in from a mobile wallet (or any browser that
-// doesn't have the VeWorld extension). It needs a free "project ID".
-//
-// 👉 HOW TO GET YOURS (takes ~2 minutes, free, no credit card):
-//    1. Go to https://cloud.reown.com  (formerly WalletConnect Cloud)
-//    2. Sign up / log in and click "Create" → choose a "WalletKit" / AppKit project
-//    3. Give it a name (e.g. "Green Utility Log") and copy the "Project ID"
-//    4. Paste that ID below, replacing PASTE_WALLETCONNECT_PROJECT_ID_HERE
-//
-// Until you paste a real ID, desktop VeWorld still works, but WalletConnect
-// (mobile) logins will not connect.
+// WALLETCONNECT PROJECT ID  (free, from https://cloud.reown.com)
 // ════════════════════════════════════════════════════════════════════════════
 const WALLETCONNECT_PROJECT_ID = 'b1856bbf2965b4ff0b788450c06aba9c'
 
 const APP_ORIGIN = typeof window !== 'undefined' ? window.location.origin : ''
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <VeChainKitProvider
-      // Run against VeChain main-net (where real B3TR lives).
-      network={{ type: 'main' }}
-      // Self-custody wallets — this is what makes login work everywhere:
-      // VeWorld (extension + in-app browser) and WalletConnect (mobile).
-      dappKit={{
-        allowedWallets: ['veworld', 'wallet-connect', 'sync2'],
-        walletConnectOptions: {
-          projectId: WALLETCONNECT_PROJECT_ID,
-          metadata: {
-            name: 'Green Utility Log',
-            description: 'Track utilities and earn B3TR on VeChain',
-            url: APP_ORIGIN,
-            icons: [`${APP_ORIGIN}/favicon.ico`],
+// ════════════════════════════════════════════════════════════════════════════
+// TEMPORARY DIAGNOSTIC — show any startup error ON THE PAGE instead of a blank
+// white screen. This block can be removed once the site loads correctly.
+// ════════════════════════════════════════════════════════════════════════════
+function showError(label, err) {
+  const root = document.getElementById('root')
+  if (!root) return
+  // Don't overwrite a successfully-rendered app with a late/extension error.
+  if (root.dataset.appMounted === '1') return
+  const detail = (err && (err.stack || err.message)) || String(err)
+  root.innerHTML =
+    '<div style="font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;max-width:900px;margin:24px auto;padding:20px;border:2px solid #b00020;border-radius:10px;background:#fff5f5;color:#1a1a1a">' +
+    '<h2 style="margin:0 0 8px;color:#b00020">Opstartfout (diagnose)</h2>' +
+    '<p style="margin:0 0 12px">' + String(label) + '</p>' +
+    '<pre style="white-space:pre-wrap;word-break:break-word;background:#fff;border:1px solid #f0c0c0;border-radius:6px;padding:12px;margin:0;font:12px/1.4 monospace;color:#b00020">' +
+    String(detail).replace(/&/g, '&amp;').replace(/</g, '&lt;') +
+    '</pre></div>'
+}
+
+window.addEventListener('error', (e) => showError('window.onerror:', e.error || e.message))
+window.addEventListener('unhandledrejection', (e) => showError('unhandledrejection:', e.reason))
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = { error: null }
+  }
+  static getDerivedStateFromError(error) {
+    return { error }
+  }
+  componentDidCatch(error) {
+    showError('React render error:', error)
+  }
+  render() {
+    return this.state.error ? null : this.props.children
+  }
+}
+
+try {
+  ReactDOM.createRoot(document.getElementById('root')).render(
+    <ErrorBoundary>
+      <VeChainKitProvider
+        network={{ type: 'main' }}
+        dappKit={{
+          allowedWallets: ['veworld', 'wallet-connect', 'sync2'],
+          walletConnectOptions: {
+            projectId: WALLETCONNECT_PROJECT_ID,
+            metadata: {
+              name: 'Green Utility Log',
+              description: 'Track utilities and earn B3TR on VeChain',
+              url: APP_ORIGIN,
+              icons: [`${APP_ORIGIN}/favicon.ico`],
+            },
           },
-        },
-      }}
-      // Which buttons show inside the Kit's connect modal.
-      // - "dappkit"  → VeWorld / WalletConnect / Sync2 (self-custody)
-      // - "vechain"  → free "Login with VeChain" (email/social, no paid account)
-      loginMethods={[
-        { method: 'vechain', gridColumn: 4 },
-        { method: 'dappkit', gridColumn: 4 },
-      ]}
-      darkMode={false}
-      language="en"
-    >
-      <App />
-    </VeChainKitProvider>
-  </React.StrictMode>,
-)
+        }}
+        loginMethods={[
+          { method: 'vechain', gridColumn: 4 },
+          { method: 'dappkit', gridColumn: 4 },
+        ]}
+        darkMode={false}
+        language="en"
+      >
+        <App />
+      </VeChainKitProvider>
+    </ErrorBoundary>,
+  )
+  // Mark as mounted shortly after render so late errors don't wipe the app.
+  setTimeout(() => {
+    const root = document.getElementById('root')
+    if (root && root.children.length > 0) root.dataset.appMounted = '1'
+  }, 4000)
+} catch (err) {
+  showError('Crash tijdens opstarten (createRoot/render):', err)
+}
