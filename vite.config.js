@@ -15,6 +15,14 @@ export default defineConfig({
     }),
   ],
   build: {
-    outDir: 'dist'
-  }
+    outDir: 'dist',
+    // Some VeChain/WalletConnect dependencies (e.g. mersenne-twister, used for
+    // wallet avatars) are CommonJS modules that are imported from ES modules.
+    // Without transformMixedEsModules, Rollup leaves bare `require(...)` calls
+    // in the bundle, which throw "require is not defined" in the browser and
+    // produce a blank page. This converts those CommonJS requires for the browser.
+    commonjsOptions: {
+      transformMixedEsModules: true,
+    },
+  },
 })
