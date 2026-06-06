@@ -14,12 +14,26 @@ const APP_ORIGIN = typeof window !== 'undefined' ? window.location.origin : ''
 // TEMPORARY DIAGNOSTIC — show any startup error ON THE PAGE instead of a blank
 // white screen. This block can be removed once the site loads correctly.
 // ════════════════════════════════════════════════════════════════════════════
+function describeError(err) {
+  if (err == null) return 'Onbekende fout (null/undefined)'
+  if (typeof err === 'string') return err
+  const parts = []
+  // Firefox's error.stack does NOT include the name/message, so show it explicitly.
+  if (err.name || err.message) {
+    parts.push((err.name || 'Error') + ': ' + (err.message || '(geen melding)'))
+  } else {
+    try { parts.push(JSON.stringify(err)) } catch { parts.push(String(err)) }
+  }
+  if (err.stack) parts.push('--- stack ---\n' + err.stack)
+  return parts.join('\n\n')
+}
+
 function showError(label, err) {
   const root = document.getElementById('root')
   if (!root) return
   // Don't overwrite a successfully-rendered app with a late/extension error.
   if (root.dataset.appMounted === '1') return
-  const detail = (err && (err.stack || err.message)) || String(err)
+  const detail = describeError(err)
   root.innerHTML =
     '<div style="font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;max-width:900px;margin:24px auto;padding:20px;border:2px solid #b00020;border-radius:10px;background:#fff5f5;color:#1a1a1a">' +
     '<h2 style="margin:0 0 8px;color:#b00020">Opstartfout (diagnose)</h2>' +
