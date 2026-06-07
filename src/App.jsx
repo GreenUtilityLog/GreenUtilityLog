@@ -464,6 +464,9 @@ function makeCSS(T) {
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{background:${T.bg};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:${T.text};min-height:100vh;}
 .app{max-width:420px;margin:0 auto;min-height:100vh;background:${T.bg};position:relative;transition:background .25s;}
+/* dapp-kit's wallet modal defaults to z-index 100, which is BELOW our connect
+   gate (410) — so on tap it would open hidden behind the gate. Force it on top. */
+vdk-modal{--vdk-modal-z-index:99999 !important;}
 .z1{position:relative;z-index:1;}
 .scr{padding-bottom:85px;}
 
