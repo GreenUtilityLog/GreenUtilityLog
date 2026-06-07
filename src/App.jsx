@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useWallet, useWalletModal } from "@vechain/dapp-kit-react";
 import { Clause, Address, ABIFunction } from "@vechain/sdk-core";
+import { fetchOnChainLeaderboard } from "./leaderboard.js";
 
 // ════════════════════════════════════════════════════════════════════════════
 // APP VERSION & VECHAIN KIT
@@ -320,7 +321,6 @@ const LEADERBOARD_DATA = [
   { rank:1,  name:"GreenPioneer",  addr:"0x1a2b…c3d4", b3tr:312.4, streak:28, tier:"Platinum" },
   { rank:2,  name:"EcoWarrior_NL", addr:"0x5e6f…g7h8", b3tr:287.1, streak:21, tier:"Gold" },
   { rank:3,  name:"SolarKing",     addr:"0x9i0j…k1l2", b3tr:265.8, streak:19, tier:"Silver" },
-  { rank:4,  name:"EcoMeter_42",   addr:"0x3f8a…a9c2", b3tr:68.3,  streak:14, tier:"Moon", isMe:true },
   { rank:5,  name:"WaterWarden",   addr:"0x3m4n…o5p6", b3tr:201.3, streak:15, tier:"Star" },
   { rank:6,  name:"NatureFirst",   addr:"0x7q8r…s9t0", b3tr:188.7, streak:13, tier:"Star" },
   { rank:7,  name:"CleanEnergy99", addr:"0xu1v2…w3x4", b3tr:174.2, streak:11, tier:"Sun" },
@@ -328,6 +328,19 @@ const LEADERBOARD_DATA = [
   { rank:9,  name:"GreenGrid_EU",  addr:"0xc9d0…e1f2", b3tr:149.5, streak:9,  tier:"Sun" },
   { rank:10, name:"LeafLogger",    addr:"0xg3h4…i5j6", b3tr:138.1, streak:8,  tier:"Moon" },
 ];
+
+// Shorten a wallet address for display: 0x1234…abcd
+function shortAddr(a){ return a ? `${a.slice(0,6)}…${a.slice(-4)}` : "—"; }
+
+// Reward tiers, keyed off lifetime B3TR. Shared by the leaderboard and profile.
+const TIERS = [
+  { name: "Moon",     min: 0,   max: 99,       multiplier: 1.25, color: "#10386a" },
+  { name: "Sun",      min: 100, max: 199,      multiplier: 1.5,  color: "#8a4200" },
+  { name: "Star",     min: 200, max: 299,      multiplier: 1.75, color: "#7c3aed" },
+  { name: "Gold",     min: 300, max: 499,      multiplier: 2.0,  color: "#f59e0b" },
+  { name: "Platinum", min: 500, max: Infinity, multiplier: 2.5,  color: "#c0c0c0" },
+];
+function getTier(b3tr){ return TIERS.find(t => b3tr >= t.min && b3tr <= t.max) || TIERS[0]; }
 
 const CHART_DATA = {
   electric: [12.8,13.4,11.2,14.1,12.4,13.8,12.5],
@@ -616,6 +629,18 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .vr-retry{font-size:9px;font-weight:700;color:${T.green3};margin-top:7px;cursor:pointer;text-transform:uppercase;letter-spacing:.8px;}
 
 .form-card{margin:0 14px 14px;background:${T.card};border:1px solid ${T.border};border-radius:5px;padding:16px;box-shadow:0 2px 6px ${T.shadow};}
+.irow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.igroup{display:flex;flex-direction:column;gap:4px;}
+.ilabel{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:${T.textSoft};display:flex;align-items:center;gap:6px;}
+.utag{border-radius:1px;padding:1px 4px;font-size:7px;font-weight:700;background:var(--ubg);color:var(--uc);border:1px solid var(--uborder);text-transform:uppercase;letter-spacing:.6px;}
+.ifield{width:100%;background:${T.bg};border:1px solid ${T.border};border-radius:3px;padding:9px 10px;color:${T.text};font-family:'SF Mono',Menlo,'Courier New',monospace;font-size:15px;outline:none;transition:border-color .15s;}
+.ifield:focus{border-color:var(--uc,${T.green3});}
+.ifield::placeholder{color:${T.textSoft};opacity:.5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;}
+.reward-preview{background:${T.bgAlt};border:1px solid ${T.border};border-left:3px solid ${T.green3};border-radius:3px;padding:12px 13px;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.rp-label{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:${T.textSoft};}
+.rp-rate{font-size:10px;color:${T.textSoft};margin-top:3px;font-family:'SF Mono',Menlo,'Courier New',monospace;}
+.rp-val{font-size:28px;font-weight:500;color:${T.text};font-family:'SF Mono',Menlo,'Courier New',monospace;letter-spacing:-0.5px;}
+.rp-b3tr{font-size:9px;color:${T.textSoft};text-transform:uppercase;letter-spacing:1.4px;}
 .sbtn{width:100%;background:linear-gradient(135deg,${T.green1},${T.green2});border:none;border-radius:4px;padding:14px;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;letter-spacing:1px;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 12px rgba(26,51,38,0.2);}
 .sbtn:hover:not(:disabled){box-shadow:0 6px 20px rgba(26,51,38,0.3);transform:translateY(-1px);}
 .sbtn:disabled{opacity:.4;cursor:not-allowed;}
@@ -1246,6 +1271,30 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, reading, setReadi
       </div>
 
       <div className="form-card" style={{"--uc":T[u.id]||T.electric,"--ubg":getColorBg(u.id, T),"--uborder":T[u.id+"Border"]||T.electricBorder,marginTop:14}}>
+        <div className="irow">
+          <div className="igroup">
+            <div className="ilabel">Previous <span className="utag">{u.unit}</span></div>
+            <input className="ifield" type="number" placeholder={u.ph[0]} value={prevRead} onChange={e=>setPrevRead(e.target.value)}/>
+          </div>
+          <div className="igroup">
+            <div className="ilabel">Current <span className="utag">{u.unit}</span></div>
+            <input className="ifield" type="number" placeholder={u.ph[1]} value={reading} onChange={e=>setReading(e.target.value)}/>
+          </div>
+        </div>
+
+        {usage() > 0 && (
+          <div className="reward-preview">
+            <div>
+              <div className="rp-label">Estimated Reward</div>
+              <div className="rp-rate">{usage()} {u.unit} × {u.rate} B3TR/{u.unit}</div>
+            </div>
+            <div style={{textAlign:"right"}}>
+              <div className="rp-val">+{reward()}</div>
+              <div className="rp-b3tr">B3TR</div>
+            </div>
+          </div>
+        )}
+
         {!wallet
           ? <button className="sbtn" onClick={() => setShowWallet(true)}>Connect Wallet to Submit</button>
           : !meterNo
@@ -1290,22 +1339,61 @@ function ChartsScreen({ subs, T }) {
   );
 }
 
-function LeaderboardScreen({ b3tr, streak, subs, T }) {
-  const tiers = [
-    { name: "Moon", min: 0, max: 99, multiplier: 1.25, color: "#10386a" },
-    { name: "Sun", min: 100, max: 199, multiplier: 1.5, color: "#8a4200" },
-    { name: "Star", min: 200, max: 299, multiplier: 1.75, color: "#7c3aed" },
-    { name: "Gold", min: 300, max: 499, multiplier: 2.0, color: "#f59e0b" },
-    { name: "Platinum", min: 500, max: Infinity, multiplier: 2.5, color: "#c0c0c0" },
-  ];
-  
-  const currentTier = tiers.find(t => b3tr >= t.min && b3tr <= t.max) || tiers[0];
-  const nextTier = tiers[tiers.indexOf(currentTier) + 1];
+function LeaderboardScreen({ b3tr, streak, subs, wallet, T }) {
+  const currentTier = getTier(b3tr);
+  const nextTier = TIERS[TIERS.indexOf(currentTier) + 1];
   const progressPercent = nextTier ? Math.min(100, Math.round((b3tr - currentTier.min) / (nextTier.min - currentTier.min) * 100)) : 100;
   const b3trNeeded = nextTier ? Math.max(0, nextTier.min - b3tr) : 0;
   const dailyAvg = subs.length > 0 ? (b3tr / subs.length).toFixed(2) : "0.00";
   const withBonus = (parseFloat(dailyAvg) * currentTier.multiplier).toFixed(2);
   const bonusExtra = (withBonus - dailyAvg).toFixed(2);
+
+  // ── Real participant field ────────────────────────────────────────────────
+  // Pull the ranked field straight from chain (aggregated RewardDistributed
+  // events for our appId). Falls back to the sample field when the app isn't
+  // registered yet or the node is unreachable, so the screen never breaks.
+  const [chain, setChain] = useState({ status: "loading", rows: [], reason: null });
+  useEffect(() => {
+    let cancelled = false;
+    const ctrl = new AbortController();
+    fetchOnChainLeaderboard({
+      node: ACTIVE_NODE,
+      contract: CONTRACTS.X2EarnRewardsPool,
+      appId: VEBETTER_APP_ID,
+      signal: ctrl.signal,
+    })
+      .then(res => { if (!cancelled) setChain(res.ok ? { status: "live", rows: res.rows } : { status: "demo", rows: [], reason: res.reason }); })
+      .catch(() => { if (!cancelled) setChain({ status: "demo", rows: [], reason: "error" }); });
+    return () => { cancelled = true; ctrl.abort(); };
+  }, []);
+
+  const meAddr = wallet ? wallet.toLowerCase() : null;
+  const isLive = chain.status === "live" && chain.rows.length > 0;
+
+  let board;
+  if (isLive) {
+    // Rank the on-chain field; make sure the connected wallet always appears,
+    // even with no rewards yet, so the user can see where they stand.
+    const rows = chain.rows.map(r => ({
+      name: shortAddr(r.addr), addr: shortAddr(r.addr), rawAddr: r.addr,
+      b3tr: r.b3tr, count: r.count, isMe: meAddr && r.addr === meAddr,
+    }));
+    if (meAddr && !rows.some(r => r.isMe)) {
+      rows.push({ name: "You", addr: shortAddr(wallet), rawAddr: meAddr, b3tr: 0, count: 0, isMe: true });
+    }
+    board = rows.sort((a, b) => b.b3tr - a.b3tr).map((d, i) => ({ ...d, rank: i + 1 }));
+  } else {
+    // Sample field — splice the connected wallet in and rank by B3TR.
+    const competitors = LEADERBOARD_DATA.filter(d => !d.isMe);
+    const me = { name: "You", addr: shortAddr(wallet), b3tr: +b3tr.toFixed(2), streak, tier: currentTier.name, isMe: true };
+    board = [...competitors, me].sort((a, b) => b.b3tr - a.b3tr).map((d, i) => ({ ...d, rank: i + 1 }));
+  }
+
+  const myIndex = board.findIndex(d => d.isMe);
+  const myRank = myIndex + 1;
+  const myBoardB3tr = myIndex >= 0 ? board[myIndex].b3tr : b3tr;
+  const aheadOfMe = board[myIndex - 1];
+  const gapToNext = aheadOfMe ? Math.max(0, aheadOfMe.b3tr - myBoardB3tr) : 0;
   
   const weekAgo = new Date();
   weekAgo.setDate(weekAgo.getDate() - 7);
@@ -1325,12 +1413,12 @@ function LeaderboardScreen({ b3tr, streak, subs, T }) {
     <>
       <div className="lb-hero" style={{borderLeftColor:currentTier.color}}>
         <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:"2.2px",color:T.textSoft,marginBottom:10}}>Your Rank & Tier</div>
-        <div className="lb-hero-rank">#4</div>
+        <div className="lb-hero-rank">#{myRank}</div>
         <div style={{fontSize:12,fontWeight:700,color:currentTier.color,marginTop:8}}>{currentTier.name} Tier ({currentTier.multiplier}x bonus)</div>
-        <div style={{fontSize:11,color:T.textSoft,marginTop:5}}>{b3tr.toFixed(2)} B3TR · {streak} day streak</div>
-        
+        <div style={{fontSize:11,color:T.textSoft,marginTop:5}}>{(isLive ? myBoardB3tr : b3tr).toFixed(2)} B3TR · {streak} day streak</div>
+
         <div style={{fontSize:10,fontWeight:700,color:T.green3,marginTop:10,display:"flex",alignItems:"center",gap:6}}>
-          ↑ Rising! (+2 spots)
+          {myRank === 1 ? "🏆 Top of the leaderboard" : `↑ ${gapToNext.toFixed(2)} B3TR to reach #${myRank - 1}`}
         </div>
 
         {nextTier && (
@@ -1352,7 +1440,7 @@ function LeaderboardScreen({ b3tr, streak, subs, T }) {
         </div>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
           <div style={{fontSize:11,fontWeight:700,color:T.text}}>#1 Global Rank</div>
-          <div style={{fontSize:10,fontWeight:700,color:T.green3,fontFamily:"'SF Mono',monospace"}}>3 spots away</div>
+          <div style={{fontSize:10,fontWeight:700,color:T.green3,fontFamily:"'SF Mono',monospace"}}>{myRank === 1 ? "You're #1!" : `${myRank - 1} spots away`}</div>
         </div>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div style={{fontSize:11,fontWeight:700,color:T.text}}>30-Day Streak</div>
@@ -1389,17 +1477,25 @@ function LeaderboardScreen({ b3tr, streak, subs, T }) {
         ))}
       </div>
 
-      <div className="sec"><div className="sec-line"/><div className="sec-txt">Global Top 10</div><div className="sec-line"/></div>
-      {LEADERBOARD_DATA.map(item => (
-        <div key={item.rank} className={`lb-item ${item.isMe ? 'me' : ''}`}>
+      <div className="sec"><div className="sec-line"/><div className="sec-txt">Global Leaderboard</div><div className="sec-line"/></div>
+      <div style={{margin:"0 14px 10px",display:"flex",alignItems:"center",justifyContent:"center",gap:7,fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:chain.status==="live"?T.green3:T.textSoft}}>
+        {chain.status==="loading"
+          ? <><span className="spin-sm" style={{width:9,height:9,borderColor:`${T.border}`,borderTopColor:T.green3}}/> Loading on-chain rankings…</>
+          : chain.status==="live"
+            ? <><span style={{width:6,height:6,borderRadius:"50%",background:T.green3,animation:"pulse 2.5s infinite"}}/> Live · {board.length} on-chain participants</>
+            : <>● Sample field — {chain.reason==="unset_appid" ? "set your VeBetterDAO App ID for live data" : "live rankings load once submissions are on-chain"}</>
+        }
+      </div>
+      {board.slice(0, 25).map(item => (
+        <div key={item.isMe ? "me" : (item.rawAddr || item.name)} className={`lb-item ${item.isMe ? 'me' : ''}`}>
           <div className="lb-rank">{item.rank}</div>
           <div style={{flex:1}}>
             <div className="lb-name">{item.name} {item.isMe && <span style={{fontSize:7,fontWeight:700,background:T.green1,color:"#fff",borderRadius:1,padding:"1px 4px",letterSpacing:".8px"}}>YOU</span>}</div>
             <div style={{fontSize:9,color:T.textSoft,fontFamily:"'SF Mono',monospace"}}>{item.addr}</div>
           </div>
           <div style={{textAlign:"right"}}>
-            <div className="lb-b3tr">+{item.b3tr}</div>
-            <div style={{fontSize:9,color:T.textSoft}}>🔥 {item.streak}d</div>
+            <div className="lb-b3tr">+{Number(item.b3tr).toFixed(item.count!=null ? 2 : (item.isMe ? 2 : 1))}</div>
+            <div style={{fontSize:9,color:T.textSoft}}>{item.count!=null ? `📸 ${item.count}` : `🔥 ${item.streak}d`}</div>
           </div>
         </div>
       ))}
@@ -1429,13 +1525,14 @@ function HistoryScreen({ subs, T }) {
 }
 
 function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, notifs, setNotifs, setOnboarded, T }) {
+  const tier = getTier(b3tr);
   return (
     <>
       <div className="profile-hero">
         <div style={{fontSize:18}}>🌱</div>
-        <div className="pname">EcoMeter_42</div>
-        <div style={{fontSize:10,color:T.textSoft,fontFamily:"'SF Mono',monospace",marginTop:3}}>0x3f8a…a9c2</div>
-        <div style={{fontSize:8,fontWeight:700,background:T.bgAlt,color:T.green1,border:`1px solid ${T.border}`,borderRadius:2,padding:"3px 7px",marginTop:10,textTransform:"uppercase",letterSpacing:".8px"}}>Moon Tier</div>
+        <div className="pname">My Account</div>
+        <div style={{fontSize:10,color:T.textSoft,fontFamily:"'SF Mono',monospace",marginTop:3}}>{wallet ? shortAddr(wallet) : "Not connected"}</div>
+        <div style={{fontSize:8,fontWeight:700,background:T.bgAlt,color:tier.color,border:`1px solid ${T.border}`,borderRadius:2,padding:"3px 7px",marginTop:10,textTransform:"uppercase",letterSpacing:".8px"}}>{tier.name} Tier</div>
       </div>
       
       <div className="pstat-row">
@@ -1755,7 +1852,7 @@ export default function App() {
           {tab==="home"      && <HomeScreen b3tr={b3tr} streak={streak} subs={subs} setTab={setTab} T={T}/>}
           {tab==="submit"    && <SubmitScreen u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevRead} busy={busy} usage={usage} reward={reward} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab}/>}
           {tab==="charts"    && <ChartsScreen subs={subs} T={T}/>}
-          {tab==="leaderboard" && <LeaderboardScreen b3tr={b3tr} streak={streak} subs={subs} T={T}/>}
+          {tab==="leaderboard" && <LeaderboardScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}
           {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} setShowWallet={openConnectModal} dark={dark} setDark={toggleDark} notifs={notifs} setNotifs={setNotifs} setOnboarded={setOnboarded} T={T}/>}
         </div>
