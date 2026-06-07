@@ -666,6 +666,36 @@ html,body{background:${T.bg};font-family:-apple-system,BlinkMacSystemFont,'Segoe
 // COMPONENTS
 // ════════════════════════════════════════════════════════════════════════════
 
+// Full-screen gate shown after the intro until a wallet is connected, so the
+// user signs in BEFORE reaching the dashboard. Once connected, every meter
+// submission only needs a single signature (no separate login step).
+function WalletGate({ onConnect, online }) {
+  return (
+    <div className="intro-screen" style={{ zIndex: 410 }}>
+      <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", width:"100%" }}>
+        <div style={{ textAlign:"center" }}>
+          <div style={{ fontSize:72, marginBottom:20, animation:"intro-bounce 1.2s ease-in-out infinite" }}>🔐</div>
+          <h1 style={{ fontSize:30, fontWeight:800, color:"#fff", lineHeight:1.2, letterSpacing:"-0.6px", marginBottom:12, maxWidth:300 }}>Connect your wallet</h1>
+          <p style={{ fontSize:14, color:"rgba(255,255,255,0.8)", lineHeight:1.6, maxWidth:320, marginBottom:24 }}>
+            Sign in with VeWorld, WalletConnect or Sync2 to start logging meters and earning B3TR. After this, each submission just needs a single signature.
+          </p>
+        </div>
+      </div>
+      <button
+        className="intro-btn"
+        onClick={onConnect}
+        disabled={!online}
+        style={!online ? { opacity:0.5, cursor:"not-allowed" } : undefined}
+      >
+        {online ? "Connect Wallet" : "You're offline"}
+      </button>
+      <div style={{ marginTop:14, fontSize:11, color:"rgba(255,255,255,0.55)", textAlign:"center", maxWidth:300, lineHeight:1.5 }}>
+        Your wallet stays in your control — we never see your keys.
+      </div>
+    </div>
+  );
+}
+
 function IntroScreen({ onStart }) {
   const slides = [
     { icon: '🌱', title: 'Welcome to Green Utility Log', sub: 'Track your electric, gas, water & solar meters. Earn real B3TR rewards on VeChain.' },
@@ -1320,7 +1350,7 @@ function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, notif
           <div className="sr-icon">🌙</div>
           <div><div className="sr-label">Dark Mode</div><div className="sr-sub">{dark ? "On" : "Off"}</div></div>
         </div>
-        <div className="sr-right"><Toggle on={dark} onToggle={()=>setDark(d=>!d)}/></div>
+        <div className="sr-right"><Toggle on={dark} onToggle={(e)=>{ e?.stopPropagation?.(); setDark(d=>!d); }}/></div>
       </div>
 
       <div className="sec"><div className="sec-line"/><div className="sec-txt">Export</div><div className="sec-line"/></div>
@@ -1500,6 +1530,7 @@ export default function App() {
     <>
       <style>{CSS}</style>
       {showIntro && <IntroScreen onStart={() => { setShowIntro(false); localStorage.setItem('greenlog_seen_intro', 'true'); }} />}
+      {!showIntro && !wallet && <WalletGate onConnect={openConnectModal} online={online} />}
       {needsBaselines && <BaselineOnboarding onDone={(bl) => { setBaselines(bl); setNeedsBaselines(false); }} existingBaselines={baselines} />}
       {!onboarded && <Onboarding onDone={(bl) => { setBaselines(bl); setOnboarded(true); setPrevRead(bl.electric||""); }} />}
       {toast && <div className="toast">{toast}</div>}
