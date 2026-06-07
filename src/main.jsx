@@ -77,6 +77,9 @@ try {
         // Don't force an identity certificate just to connect; the user signs
         // when they actually submit a transaction.
         requireCertificate={false}
+        // Required prop: dapp-kit reads v2Api.enabled internally. Keep the
+        // default (false) for the widest wallet compatibility.
+        v2Api={{ enabled: false }}
         walletConnectOptions={{
           projectId: WALLETCONNECT_PROJECT_ID,
           metadata: {
