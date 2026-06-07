@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useWallet, useWalletModal } from "@vechain/dapp-kit-react";
 import { Clause, Address, ABIFunction } from "@vechain/sdk-core";
-import { fetchOnChainLeaderboard } from "./leaderboard.js";
+import { fetchOnChainLeaderboard, fetchWalletHistory } from "./leaderboard.js";
 
 // ════════════════════════════════════════════════════════════════════════════
 // APP VERSION & VECHAIN KIT
@@ -246,6 +246,31 @@ async function saveOfflineSubmission(data) {
   });
 }
 
+// Submissions captured while offline, still waiting to be broadcast.
+async function getUnsyncedSubmissions() {
+  const db = await initDB();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction("submissions", "readonly").objectStore("submissions").getAll();
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => resolve((req.result || []).filter(s => !s.synced));
+  });
+}
+
+// Mark a queued submission as broadcast so it isn't sent twice.
+async function markSynced(id, txHash) {
+  const db = await initDB();
+  return new Promise((resolve, reject) => {
+    const store = db.transaction("submissions", "readwrite").objectStore("submissions");
+    const get = store.get(id);
+    get.onerror = () => reject(get.error);
+    get.onsuccess = () => {
+      const v = get.result;
+      if (v) { v.synced = true; v.txHash = txHash || v.txHash; store.put(v); }
+      resolve();
+    };
+  });
+}
+
 function useOnlineStatus() {
   const [online, setOnline] = useState(navigator.onLine);
   useEffect(() => {
@@ -341,6 +366,20 @@ const TIERS = [
   { name: "Platinum", min: 500, max: Infinity, multiplier: 2.5,  color: "#c0c0c0" },
 ];
 function getTier(b3tr){ return TIERS.find(t => b3tr >= t.min && b3tr <= t.max) || TIERS[0]; }
+
+// Consecutive-day streak based on submission dates ("YYYY-MM-DD"). The streak
+// is allowed to end today OR yesterday, so it isn't reported as broken just
+// because today's reading hasn't been logged yet.
+function dayKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+function computeStreak(subs){
+  if (!subs || !subs.length) return 0;
+  const days = new Set(subs.map(s => s.date));
+  const d = new Date();
+  if (!days.has(dayKey(d))) { d.setDate(d.getDate() - 1); if (!days.has(dayKey(d))) return 0; }
+  let streak = 0;
+  while (days.has(dayKey(d))) { streak++; d.setDate(d.getDate() - 1); }
+  return streak;
+}
 
 const CHART_DATA = {
   electric: [12.8,13.4,11.2,14.1,12.4,13.8,12.5],
@@ -709,7 +748,8 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .modal-opt-icon{width:32px;height:32px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:16px;background:${T.bgAlt};border:1px solid ${T.border};}
 .modal-opt-name{font-size:13px;font-weight:700;color:${T.text};}
 
-.onboard{position:fixed;inset:0;background:${T.bg};z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px 28px 44px;}
+.onboard{position:fixed;inset:0;background:${T.bg};z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 28px;}
+.onboard::before,.onboard::after{content:"";display:block;flex:1 0 32px;}
 .ob-icon{font-size:56px;margin-bottom:20px;animation:obpop .3s ease;}
 .ob-title{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:28px;font-weight:800;text-align:center;line-height:1.2;margin-bottom:12px;letter-spacing:-0.6px;}
 .ob-sub{font-size:14px;color:${T.textMid};text-align:center;line-height:1.7;max-width:320px;}
@@ -1135,12 +1175,7 @@ function StreakCalendar({ subs }) {
 
   const dateStrs = new Set(subs.map(s => s.date));
   const todayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  const currentStreak = subs.filter((s, i) => {
-    const d = new Date(s.date);
-    const nextDate = i === 0 ? today : new Date(subs[i-1].date);
-    const diff = (nextDate.getTime() - d.getTime()) / (1000 * 60 * 60 * 24);
-    return diff <= 1;
-  }).length;
+  const currentStreak = computeStreak(subs);
 
   return (
     <div className="calendar">
@@ -1233,7 +1268,6 @@ function HomeScreen({ b3tr, streak, subs, setTab, T }) {
 
 function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, reading, setReading, prevRead, setPrevRead, busy, usage, reward, handleSubmit, verifyKey, wallet, setShowWallet, subs, meters, T, setTab }) {
   const meterNo  = (meters?.[selUtil] || "").trim();
-  const canSubmit = aiOk && !busy && !!meterNo;
 
   return (
     <>
@@ -1298,10 +1332,14 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, reading, setReadi
         {!wallet
           ? <button className="sbtn" onClick={() => setShowWallet(true)}>Connect Wallet to Submit</button>
           : !meterNo
-            ? <button className="sbtn" disabled style={{opacity:.6}}>Register this meter to submit</button>
-            : <button className="sbtn" disabled={!canSubmit} onClick={handleSubmit}>
-                {busy ? <><span className="spin-sm"/> Submitting on VeChain…</> : <>Submit & Earn B3TR</>}
-              </button>
+            ? <button className="sbtn" disabled style={{opacity:.55}}>Register this meter first</button>
+            : !aiOk
+              ? <button className="sbtn" disabled style={{opacity:.55}}>📸 Verify a meter photo to submit</button>
+              : usage() <= 0
+                ? <button className="sbtn" disabled style={{opacity:.55}}>Enter a current reading above</button>
+                : <button className="sbtn" disabled={busy} onClick={handleSubmit}>
+                    {busy ? <><span className="spin-sm"/> Submitting on VeChain…</> : <>Submit & Earn B3TR</>}
+                  </button>
         }
       </div>
     </>
@@ -1524,7 +1562,7 @@ function HistoryScreen({ subs, T }) {
   );
 }
 
-function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, notifs, setNotifs, setOnboarded, T }) {
+function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, notifs, setNotifs, setOnboarded, onEditMeters, meters, T }) {
   const tier = getTier(b3tr);
   return (
     <>
@@ -1548,6 +1586,13 @@ function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, notif
           <div><div className="sr-label">Dark Mode</div><div className="sr-sub">{dark ? "On" : "Off"}</div></div>
         </div>
         <div className="sr-right"><Toggle on={dark} onToggle={(e)=>{ e?.stopPropagation?.(); setDark(d=>!d); }}/></div>
+      </div>
+      <div className="setting-row" onClick={onEditMeters}>
+        <div className="sr-left">
+          <div className="sr-icon">🔢</div>
+          <div><div className="sr-label">Meters & Baselines</div><div className="sr-sub">{meters ? `${UTILS.filter(u=>(meters[u.id]||"").trim()).length} meter${UTILS.filter(u=>(meters[u.id]||"").trim()).length!==1?"s":""} registered` : "Edit meter numbers & readings"}</div></div>
+        </div>
+        <div className="sr-right" style={{fontSize:11,color:T.textSoft}}>→</div>
       </div>
 
       <div className="sec"><div className="sec-line"/><div className="sec-txt">Export</div><div className="sec-line"/></div>
@@ -1689,8 +1734,8 @@ export default function App() {
   const [busy, setBusy]             = useState(false);
   const [toast, setToast]           = useState(null);
   const [b3tr, setB3tr]             = useState(68.34);
-  const [streak, setStreak]         = useState(14);
   const [subs, setSubs]             = useState(HISTORY_SEED);
+  const streak = computeStreak(subs); // derived from real submission dates
   const [verifyKey, setVerifyKey]   = useState(0);
   const [notifs, setNotifs]         = useState({ daily:true, streak:true, rewards:false, lb:false });
 
@@ -1709,7 +1754,6 @@ export default function App() {
 
     setSubs([]);
     setB3tr(0);
-    setStreak(0);
     setReading(""); setPrevRead(""); setAiOk(false);
     setVerifyKey(k => k + 1);
     setTab("home");
@@ -1724,6 +1768,27 @@ export default function App() {
         localStorage.setItem(WALLET_KEY, addr);
       } catch {}
     }
+
+    // Restore this wallet's earnings and history straight from chain so the
+    // dashboard reflects real on-chain data across devices and reloads. Falls
+    // back silently to an empty slate when the app isn't registered yet or the
+    // node is unreachable.
+    let cancelled = false;
+    fetchWalletHistory({
+      node: ACTIVE_NODE,
+      contract: CONTRACTS.X2EarnRewardsPool,
+      appId: VEBETTER_APP_ID,
+      address: addr,
+    })
+      .then(res => {
+        if (cancelled || sessionWalletRef.current !== addr) return;
+        if (res.ok && res.rows.length) {
+          setSubs(res.rows);
+          setB3tr(res.rows.reduce((a, s) => a + (parseFloat(s.b3tr) || 0), 0));
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
   }, [account]);
 
   const u = getUtil(selUtil);
@@ -1733,6 +1798,43 @@ export default function App() {
     setToast(msg);
     setTimeout(() => setToast(null), 2400);
   };
+
+  // When connectivity returns (and a wallet is connected), broadcast any
+  // submissions that were queued while offline, then fold them into the
+  // dashboard. Each one prompts the wallet to sign its reward transaction.
+  const syncingRef = useRef(false);
+  useEffect(() => {
+    if (!online || !wallet) return;
+    let cancelled = false;
+    (async () => {
+      if (syncingRef.current) return;
+      syncingRef.current = true;
+      try {
+        const pending = await getUnsyncedSubmissions();
+        let synced = 0;
+        for (const item of pending) {
+          if (cancelled) break;
+          try {
+            const clauses = buildRewardClauses(item.type, item.cur, item.prev, item.b3tr, wallet, item.meterNo);
+            const { txid } = await requestTransaction(clauses);
+            await markSynced(item.id, txid);
+            if (cancelled) break;
+            setSubs(prev => [{
+              id: item.id, type: item.type, meterNo: item.meterNo || "",
+              cur: item.cur, prev: item.prev, date: dayKey(new Date(item.id)),
+              b3tr: item.b3tr, status: "confirmed", txHash: txid || "", submittedAt: item.id,
+            }, ...prev]);
+            setB3tr(b => b + (parseFloat(item.b3tr) || 0));
+            synced++;
+          } catch { /* keep it queued and retry on the next online event */ }
+        }
+        if (synced && !cancelled) showToast(`🔄 Synced ${synced} offline submission${synced > 1 ? "s" : ""} to ${NETWORK_LABEL}`);
+      } finally {
+        syncingRef.current = false;
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [online, wallet]);
 
   const handleSelUtil = (id) => {
     setSelUtil(id);
@@ -1854,7 +1956,7 @@ export default function App() {
           {tab==="charts"    && <ChartsScreen subs={subs} T={T}/>}
           {tab==="leaderboard" && <LeaderboardScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}
-          {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} setShowWallet={openConnectModal} dark={dark} setDark={toggleDark} notifs={notifs} setNotifs={setNotifs} setOnboarded={setOnboarded} T={T}/>}
+          {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} setShowWallet={openConnectModal} dark={dark} setDark={toggleDark} notifs={notifs} setNotifs={setNotifs} setOnboarded={setOnboarded} onEditMeters={()=>setNeedsBaselines(true)} meters={meters} T={T}/>}
         </div>
 
         <div className="bnav">
