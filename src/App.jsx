@@ -1465,6 +1465,25 @@ function Toggle({ on, onToggle }) {
 // MAIN APP
 // ════════════════════════════════════════════════════════════════════════════
 
+// Theme follows the device by default; an explicit toggle is remembered and
+// from then on overrides the system preference.
+const THEME_KEY = "greenlog_theme";
+// Remembers which wallet the on-screen data belongs to, so a different wallet
+// starts from a clean slate.
+const WALLET_KEY = "greenlog_wallet";
+function systemPrefersDark() {
+  try { return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches); }
+  catch { return false; }
+}
+function getInitialDark() {
+  try {
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved === "dark") return true;
+    if (saved === "light") return false;
+  } catch {}
+  return systemPrefersDark();
+}
+
 export default function App() {
   // Check if user has seen intro before
   const [showIntro, setShowIntro] = useState(() => {
@@ -1474,9 +1493,28 @@ export default function App() {
   const [onboarded, setOnboarded]   = useState(true);
   const [needsBaselines, setNeedsBaselines] = useState(false);
   const [baselines, setBaselines]   = useState({ electric:"", gas:"", water:"", solar:"" });
-  const [dark, setDark]             = useState(false);
+  const [dark, setDark]             = useState(getInitialDark);
   const T = dark ? DARK : LIGHT;
   const CSS = makeCSS(T);
+
+  // Flip the theme and remember the choice (overrides the system preference).
+  const toggleDark = () => setDark(prev => {
+    const next = !prev;
+    try { localStorage.setItem(THEME_KEY, next ? "dark" : "light"); } catch {}
+    return next;
+  });
+
+  // Keep following the device theme until the user has made an explicit choice.
+  useEffect(() => {
+    if (!window.matchMedia) return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = (e) => {
+      try { if (localStorage.getItem(THEME_KEY)) return; } catch {}
+      setDark(e.matches);
+    };
+    mq.addEventListener ? mq.addEventListener("change", onChange) : mq.addListener(onChange);
+    return () => { mq.removeEventListener ? mq.removeEventListener("change", onChange) : mq.removeListener(onChange); };
+  }, []);
 
   useEffect(() => {
     const stored = loadBaselines();
@@ -1506,6 +1544,36 @@ export default function App() {
   const [subs, setSubs]             = useState(HISTORY_SEED);
   const [verifyKey, setVerifyKey]   = useState(0);
   const [notifs, setNotifs]         = useState({ daily:true, streak:true, rewards:false, lb:false });
+
+  // The seed history/rewards are only a preview for the disconnected gate — they
+  // never belong to a real account. Whenever a wallet connects, start it at zero;
+  // a wallet we haven't seen on this browser also gets its baselines re-prompted.
+  const sessionWalletRef = useRef(undefined);
+  useEffect(() => {
+    if (!account) return;
+    const addr = account.toLowerCase();
+    if (sessionWalletRef.current === addr) return;
+    sessionWalletRef.current = addr;
+
+    let storedWallet = null;
+    try { storedWallet = localStorage.getItem(WALLET_KEY); } catch {}
+
+    setSubs([]);
+    setB3tr(0);
+    setStreak(0);
+    setReading(""); setPrevRead(""); setAiOk(false);
+    setVerifyKey(k => k + 1);
+    setTab("home");
+
+    if (storedWallet !== addr) {
+      setBaselines({ electric:"", gas:"", water:"", solar:"" });
+      setNeedsBaselines(true);
+      try {
+        localStorage.removeItem('greenlog_baselines');
+        localStorage.setItem(WALLET_KEY, addr);
+      } catch {}
+    }
+  }, [account]);
 
   const u = getUtil(selUtil);
   const online = useOnlineStatus();
@@ -1603,7 +1671,7 @@ export default function App() {
                 <div style={{width:6,height:6,borderRadius:"50%",background:online?T.green3:T.gas,animation:online?"pulse 2.5s infinite":"none"}}/>
                 {online ? "Online" : "Offline"}
               </div>
-              <button className="dark-toggle" onClick={()=>setDark(d=>!d)}>
+              <button className="dark-toggle" onClick={toggleDark}>
                 {dark ? '☀️' : '🌙'}
               </button>
               {/* Connect button — opens dapp-kit's wallet modal
@@ -1626,7 +1694,7 @@ export default function App() {
           {tab==="charts"    && <ChartsScreen subs={subs} T={T}/>}
           {tab==="leaderboard" && <LeaderboardScreen b3tr={b3tr} streak={streak} subs={subs} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}
-          {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} setShowWallet={openConnectModal} dark={dark} setDark={setDark} notifs={notifs} setNotifs={setNotifs} setOnboarded={setOnboarded} T={T}/>}
+          {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} setShowWallet={openConnectModal} dark={dark} setDark={toggleDark} notifs={notifs} setNotifs={setNotifs} setOnboarded={setOnboarded} T={T}/>}
         </div>
 
         <div className="bnav">
