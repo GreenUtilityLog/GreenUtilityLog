@@ -300,7 +300,7 @@ const UTILS = [
   { id:"electric", label:"Electric", unit:"kWh", rate:0.61, ph:["3834.8","3847.2"], hint:"Lights, appliances, boiler" },
   { id:"gas",      label:"Gas",      unit:"m³",  rate:0.84, ph:["521.4","523.1"],   hint:"Heating & cooking" },
   { id:"water",    label:"Water",    unit:"L",   rate:0.12, ph:["12320","12450"],    hint:"Household water usage" },
-  { id:"solar",    label:"Solar",    unit:"kWh", rate:0.72, ph:["130.1","142.3"],    hint:"Solar panel output" },
+  { id:"solar",    label:"Solar",    unit:"kWh", rate:0.72, ph:["130.1","142.3"],    hint:"Solar panel output", optional:true },
 ];
 
 const HISTORY_SEED = [
@@ -875,8 +875,9 @@ function BaselineOnboarding({ onDone, existingBaselines, existingMeters }) {
   const [meters, setMeters]       = useState(existingMeters || { electric:"", gas:"", water:"", solar:"" });
 
   // The meter number is what couples each reading to a declared physical meter,
-  // so it must be registered for every utility before setup can complete.
-  const allMetersFilled = UTILS.every(u => (meters[u.id] || "").trim().length > 0);
+  // so it's required for every utility the household actually has. Solar is
+  // optional — not everyone has panels.
+  const allMetersFilled = UTILS.filter(u => !u.optional).every(u => (meters[u.id] || "").trim().length > 0);
 
   const handleDone = () => {
     if (!allMetersFilled) return;
@@ -907,13 +908,13 @@ function BaselineOnboarding({ onDone, existingBaselines, existingMeters }) {
           <div key={u.id} style={{display:"flex",alignItems:"flex-start",gap:12,background:"rgba(26,51,38,0.06)",borderRadius:4,padding:"10px 14px",border:"1px solid rgba(26,51,38,0.12)"}}>
             <span style={{width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center",color:"#264d3a",flexShrink:0,marginTop:2}}>{UTIL_ICONS[u.id]}</span>
             <div style={{flex:1}}>
-              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"#7a9188",marginBottom:4}}>{u.label} <span style={{fontWeight:400}}>({u.unit})</span></div>
+              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"#7a9188",marginBottom:4}}>{u.label} <span style={{fontWeight:400}}>({u.unit})</span>{u.optional && <span style={{fontWeight:400,textTransform:"none",letterSpacing:0}}> · optional</span>}</div>
               <input
                 type="text"
-                placeholder="Meter / EAN number"
+                placeholder={u.optional ? "Meter / EAN number (optional)" : "Meter / EAN number"}
                 value={meters[u.id]}
                 onChange={e => setMeters(m => ({...m,[u.id]:e.target.value}))}
-                style={{width:"100%",background:"rgba(26,51,38,0.04)",border:`1px solid ${(meters[u.id]||"").trim() ? "rgba(26,51,38,0.15)" : "rgba(180,60,40,0.45)"}`,borderRadius:3,padding:"7px 10px",fontSize:13,fontFamily:"'DM Mono',monospace",color:"#0d1812",outline:"none",marginBottom:6}}
+                style={{width:"100%",background:"rgba(26,51,38,0.04)",border:`1px solid ${((meters[u.id]||"").trim() || u.optional) ? "rgba(26,51,38,0.15)" : "rgba(180,60,40,0.45)"}`,borderRadius:3,padding:"7px 10px",fontSize:13,fontFamily:"'DM Mono',monospace",color:"#0d1812",outline:"none",marginBottom:6}}
               />
               <input
                 type="number"
@@ -1568,7 +1569,7 @@ export default function App() {
     const storedMeters = loadMeters();
     // Registration is only complete once both the baselines and a meter number
     // for every utility exist; otherwise re-prompt the meter registration.
-    const metersComplete = storedMeters && UTILS.every(u => (storedMeters[u.id] || "").trim());
+    const metersComplete = storedMeters && UTILS.filter(u => !u.optional).every(u => (storedMeters[u.id] || "").trim());
     if (!stored || !metersComplete) {
       setNeedsBaselines(true);
     }
