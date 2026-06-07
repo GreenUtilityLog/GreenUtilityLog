@@ -69,12 +69,13 @@ const X2EARN_ABI = [
 // WalletConnect / Sync2) via dapp-kit's useWallet().requestTransaction.
 // This helper only builds the transaction clause that the Kit signs & sends,
 // so it works identically on desktop and mobile.
-function buildRewardClauses(utilId, reading, prevRead, b3trAmount, userAddress) {
+function buildRewardClauses(utilId, reading, prevRead, b3trAmount, userAddress, meterNo) {
   // Build proof JSON — required by VeBetterDAO
   const proof = JSON.stringify({
     appId:     VEBETTER_APP_ID,
     action:    "meter_reading",
     utility:   utilId,
+    meterNo:   meterNo || "",
     reading:   reading,
     prevRead:  prevRead,
     b3tr:      b3trAmount,
@@ -162,6 +163,20 @@ function loadBaselines() {
 
 function saveBaselines(baselines) {
   localStorage.setItem('greenlog_baselines', JSON.stringify(baselines));
+}
+
+// Meter numbers (EAN / serial) are registered once per meter and travel with
+// every reading. Tying a submission to a fixed, declared meter makes reward
+// farming with random photos far harder.
+function loadMeters() {
+  try {
+    const stored = localStorage.getItem('greenlog_meters');
+    return stored ? JSON.parse(stored) : null;
+  } catch { return null; }
+}
+
+function saveMeters(meters) {
+  localStorage.setItem('greenlog_meters', JSON.stringify(meters));
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -584,6 +599,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .vz-icon{font-size:26px;margin-bottom:2px;}
 .vz-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${T.text};}
 .vz-sub{font-size:10px;color:${T.textSoft};}
+.vz-meter{font-size:10px;font-weight:700;font-family:'DM Mono',monospace;color:${T.green1};background:${T.bgAlt};border:1px solid ${T.border};border-radius:3px;padding:2px 8px;letter-spacing:.4px;}
 .vz-verifying{display:flex;flex-direction:column;align-items:center;gap:12px;padding:26px;}
 .ai-ring{width:36px;height:36px;border-radius:50%;border:2px solid ${T.border};border-top-color:${T.green3};animation:spin .8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -854,34 +870,54 @@ function IntroScreen({ onStart }) {
   );
 }
 
-function BaselineOnboarding({ onDone, existingBaselines }) {
+function BaselineOnboarding({ onDone, existingBaselines, existingMeters }) {
   const [baselines, setBaselines] = useState(existingBaselines || { electric:"", gas:"", water:"", solar:"" });
-  
+  const [meters, setMeters]       = useState(existingMeters || { electric:"", gas:"", water:"", solar:"" });
+
+  // The meter number is what couples each reading to a declared physical meter,
+  // so it must be registered for every utility before setup can complete.
+  const allMetersFilled = UTILS.every(u => (meters[u.id] || "").trim().length > 0);
+
   const handleDone = () => {
+    if (!allMetersFilled) return;
     const filled = {
       electric: baselines.electric || "3834.8",
       gas:      baselines.gas      || "521.4",
       water:    baselines.water    || "12320",
       solar:    baselines.solar    || "130.1",
     };
+    const trimmedMeters = {
+      electric: meters.electric.trim(),
+      gas:      meters.gas.trim(),
+      water:    meters.water.trim(),
+      solar:    meters.solar.trim(),
+    };
     saveBaselines(filled);
-    onDone(filled);
+    saveMeters(trimmedMeters);
+    onDone(filled, trimmedMeters);
   };
 
   return (
     <div className="onboard">
       <div className="ob-icon">⚙️</div>
-      <div className="ob-title" style={{color:"#1a3326"}}>Register Your Meter Baselines</div>
-      <div className="ob-sub">Enter your current meter readings. This helps us calculate your accurate daily consumption.</div>
+      <div className="ob-title" style={{color:"#1a3326"}}>Register Your Meters</div>
+      <div className="ob-sub">Enter each meter number and its current reading. The meter number is logged with every submission to keep your readings verifiable.</div>
       <div style={{width:"100%",maxWidth:320,display:"flex",flexDirection:"column",gap:8,marginTop:20}}>
         {UTILS.map(u => (
-          <div key={u.id} style={{display:"flex",alignItems:"center",gap:12,background:"rgba(26,51,38,0.06)",borderRadius:4,padding:"10px 14px",border:"1px solid rgba(26,51,38,0.12)"}}>
-            <span style={{width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center",color:"#264d3a",flexShrink:0}}>{UTIL_ICONS[u.id]}</span>
+          <div key={u.id} style={{display:"flex",alignItems:"flex-start",gap:12,background:"rgba(26,51,38,0.06)",borderRadius:4,padding:"10px 14px",border:"1px solid rgba(26,51,38,0.12)"}}>
+            <span style={{width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center",color:"#264d3a",flexShrink:0,marginTop:2}}>{UTIL_ICONS[u.id]}</span>
             <div style={{flex:1}}>
               <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"#7a9188",marginBottom:4}}>{u.label} <span style={{fontWeight:400}}>({u.unit})</span></div>
               <input
+                type="text"
+                placeholder="Meter / EAN number"
+                value={meters[u.id]}
+                onChange={e => setMeters(m => ({...m,[u.id]:e.target.value}))}
+                style={{width:"100%",background:"rgba(26,51,38,0.04)",border:`1px solid ${(meters[u.id]||"").trim() ? "rgba(26,51,38,0.15)" : "rgba(180,60,40,0.45)"}`,borderRadius:3,padding:"7px 10px",fontSize:13,fontFamily:"'DM Mono',monospace",color:"#0d1812",outline:"none",marginBottom:6}}
+              />
+              <input
                 type="number"
-                placeholder={`e.g. ${u.ph[0]}`}
+                placeholder={`Current reading · e.g. ${u.ph[0]}`}
                 value={baselines[u.id]}
                 onChange={e => setBaselines(b => ({...b,[u.id]:e.target.value}))}
                 style={{width:"100%",background:"rgba(26,51,38,0.04)",border:"1px solid rgba(26,51,38,0.15)",borderRadius:3,padding:"7px 10px",fontSize:14,fontFamily:"'DM Mono',monospace",color:"#0d1812",outline:"none"}}
@@ -891,7 +927,8 @@ function BaselineOnboarding({ onDone, existingBaselines }) {
         ))}
       </div>
       <div style={{fontSize:11,color:"#7a9188",marginTop:16,textAlign:"center"}}>ℹ️ You can update these in Settings anytime.</div>
-      <button className="ob-btn" onClick={handleDone}>Complete Setup</button>
+      {!allMetersFilled && <div style={{fontSize:11,color:"#b43c28",marginTop:6,textAlign:"center"}}>Enter a meter number for every utility to continue.</div>}
+      <button className="ob-btn" onClick={handleDone} disabled={!allMetersFilled} style={!allMetersFilled?{opacity:.5,cursor:"not-allowed"}:undefined}>Complete Setup</button>
     </div>
   );
 }
@@ -919,7 +956,7 @@ function Onboarding({ onDone }) {
   );
 }
 
-function VerifyZone({ utilId, onVerified, onReset, reading, subs }) {
+function VerifyZone({ utilId, onVerified, onReset, reading, subs, meterNo }) {
   const [phase, setPhase] = useState("idle");
   const [result, setResult] = useState(null);
   const [secScore, setSecScore] = useState(null);
@@ -977,7 +1014,7 @@ function VerifyZone({ utilId, onVerified, onReset, reading, subs }) {
 
     const verified = fraudFlags.length === 0 && score >= 40;
     const summary  = verified
-      ? `${getUtil(utilId).label} meter verified. ${ocrResult.ocrNums?.length ? "OCR read: " + ocrResult.ocrNums.slice(0,2).join(", ") + "." : "Reading accepted."}`
+      ? `${getUtil(utilId).label} meter${meterNo ? ` #${meterNo}` : ""} verified. ${ocrResult.ocrNums?.length ? "OCR read: " + ocrResult.ocrNums.slice(0,2).join(", ") + "." : "Reading accepted."}`
       : (fraudReason || "Verification failed. Please retake the photo.");
 
     const finalResult = { verified, fraudFlags, fraudReason, summary, ocrNums: ocrResult.ocrNums, secScore: score, anomCheck, usageVal };
@@ -998,6 +1035,7 @@ function VerifyZone({ utilId, onVerified, onReset, reading, subs }) {
       <div className="vz-idle">
         <div className="vz-icon">📸</div>
         <div className="vz-title">Verify Meter</div>
+        {meterNo && <div className="vz-meter">Meter #{meterNo}</div>}
         <div className="vz-sub">{cooldownMs > 0 ? `Next submission in ${fmtCooldown(cooldownMs)}` : "Tap to photograph"}</div>
       </div>
       <input type="file" ref={fileInputRef} onChange={handleFile} accept="image/*" style={{display:"none"}} capture="environment" />
@@ -1111,7 +1149,7 @@ function HistItem({ s, T }) {
     <div className="hitem">
       <div className="hicon" style={{background: getColorBg(s.type, T), color: T[s.type] || T.electric}}>{UTIL_ICONS[s.type]}</div>
       <div className="hinfo">
-        <div className="htitle">{util.label}</div>
+        <div className="htitle">{util.label}{s.meterNo ? <span style={{fontWeight:400,color:T.textSoft,fontFamily:"'DM Mono',monospace",fontSize:9}}> · #{s.meterNo}</span> : null}</div>
         <div className="hdate">{s.date}</div>
         <div style={{color: T[s.type] || T.electric}}>{delta} {util.unit}</div>
       </div>
@@ -1167,8 +1205,9 @@ function HomeScreen({ b3tr, streak, subs, setTab, T }) {
   );
 }
 
-function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, reading, setReading, prevRead, setPrevRead, busy, usage, reward, handleSubmit, verifyKey, wallet, setShowWallet, subs, T, setTab }) {
-  const canSubmit = aiOk && !busy;
+function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, reading, setReading, prevRead, setPrevRead, busy, usage, reward, handleSubmit, verifyKey, wallet, setShowWallet, subs, meters, T, setTab }) {
+  const meterNo  = (meters?.[selUtil] || "").trim();
+  const canSubmit = aiOk && !busy && !!meterNo;
 
   return (
     <>
@@ -1186,7 +1225,12 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, reading, setReadi
         ))}
       </div>
 
-      <VerifyZone key={verifyKey} utilId={selUtil} reading={reading} subs={subs} onVerified={() => setAiOk(true)} onReset={() => setAiOk(false)} />
+      <div style={{margin:"0 14px 12px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"9px 12px",background:meterNo?getColorBg(selUtil,T):T.gasBg,border:`1px solid ${meterNo?(T[selUtil+"Border"]||T.electricBorder):T.gasBorder}`,borderRadius:6}}>
+        <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft}}>Registered meter</div>
+        <div style={{fontSize:12,fontWeight:700,fontFamily:"'DM Mono',monospace",color:meterNo?(T[selUtil]||T.text):T.gas}}>{meterNo || "Not registered"}</div>
+      </div>
+
+      <VerifyZone key={verifyKey} utilId={selUtil} reading={reading} subs={subs} meterNo={meterNo} onVerified={() => setAiOk(true)} onReset={() => setAiOk(false)} />
 
       <div style={{margin:"14px 14px 0",padding:12,background:T.waterBg,border:`1px solid ${T.waterBorder}`,borderRadius:6}}>
         <div style={{fontSize:12,fontWeight:700,color:T.water,marginBottom:8}}>💡 Tips for Successful Verification</div>
@@ -1203,9 +1247,11 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, reading, setReadi
       <div className="form-card" style={{"--uc":T[u.id]||T.electric,"--ubg":getColorBg(u.id, T),"--uborder":T[u.id+"Border"]||T.electricBorder,marginTop:14}}>
         {!wallet
           ? <button className="sbtn" onClick={() => setShowWallet(true)}>Connect Wallet to Submit</button>
-          : <button className="sbtn" disabled={!canSubmit} onClick={handleSubmit}>
-              {busy ? <><span className="spin-sm"/> Submitting on VeChain…</> : <>Submit & Earn B3TR</>}
-            </button>
+          : !meterNo
+            ? <button className="sbtn" disabled style={{opacity:.6}}>Register this meter to submit</button>
+            : <button className="sbtn" disabled={!canSubmit} onClick={handleSubmit}>
+                {busy ? <><span className="spin-sm"/> Submitting on VeChain…</> : <>Submit & Earn B3TR</>}
+              </button>
         }
       </div>
     </>
@@ -1493,6 +1539,7 @@ export default function App() {
   const [onboarded, setOnboarded]   = useState(true);
   const [needsBaselines, setNeedsBaselines] = useState(false);
   const [baselines, setBaselines]   = useState({ electric:"", gas:"", water:"", solar:"" });
+  const [meters, setMeters]         = useState({ electric:"", gas:"", water:"", solar:"" });
   const [dark, setDark]             = useState(getInitialDark);
   const T = dark ? DARK : LIGHT;
   const CSS = makeCSS(T);
@@ -1518,11 +1565,15 @@ export default function App() {
 
   useEffect(() => {
     const stored = loadBaselines();
-    if (!stored) {
+    const storedMeters = loadMeters();
+    // Registration is only complete once both the baselines and a meter number
+    // for every utility exist; otherwise re-prompt the meter registration.
+    const metersComplete = storedMeters && UTILS.every(u => (storedMeters[u.id] || "").trim());
+    if (!stored || !metersComplete) {
       setNeedsBaselines(true);
-    } else {
-      setBaselines(stored);
     }
+    if (stored) setBaselines(stored);
+    if (storedMeters) setMeters(storedMeters);
   }, []);
 
   const [tab, setTab]               = useState("home");
@@ -1567,9 +1618,11 @@ export default function App() {
 
     if (storedWallet !== addr) {
       setBaselines({ electric:"", gas:"", water:"", solar:"" });
+      setMeters({ electric:"", gas:"", water:"", solar:"" });
       setNeedsBaselines(true);
       try {
         localStorage.removeItem('greenlog_baselines');
+        localStorage.removeItem('greenlog_meters');
         localStorage.setItem(WALLET_KEY, addr);
       } catch {}
     }
@@ -1598,9 +1651,17 @@ export default function App() {
   const handleSubmit = async () => {
     setBusy(true);
     const earned = reward();
+    const meterNo = (meters[selUtil] || "").trim();
+
+    // A reading without its registered meter can't be verified — block it.
+    if (!meterNo) {
+      setBusy(false);
+      showToast("⚠️ Register this meter's number before submitting");
+      return;
+    }
 
     if (!online) {
-      await saveOfflineSubmission({ type:selUtil, cur:reading, prev:prevRead, b3tr:earned });
+      await saveOfflineSubmission({ type:selUtil, meterNo, cur:reading, prev:prevRead, b3tr:earned });
       setAiOk(false); setReading(""); setPrevRead(""); setVerifyKey(k=>k+1);
       setBusy(false);
       showToast("💾 Saved offline — syncing when online");
@@ -1616,7 +1677,7 @@ export default function App() {
     try {
       // dapp-kit asks the connected wallet (VeWorld / WalletConnect mobile /
       // Sync2) to sign & broadcast. Resolves with the on-chain txid.
-      const clauses = buildRewardClauses(selUtil, reading, prevRead, earned, wallet);
+      const clauses = buildRewardClauses(selUtil, reading, prevRead, earned, wallet, meterNo);
       const { txid } = await requestTransaction(clauses);
 
       const today = new Date();
@@ -1624,6 +1685,7 @@ export default function App() {
       setSubs(prev => [{
         id: Date.now(),
         type: selUtil,
+        meterNo,
         cur: reading,
         prev: prevRead,
         date: dateStr,
@@ -1652,7 +1714,7 @@ export default function App() {
       <style>{CSS}</style>
       {showIntro && <IntroScreen onStart={() => { setShowIntro(false); localStorage.setItem('greenlog_seen_intro', 'true'); }} />}
       {!showIntro && !wallet && <WalletGate onConnect={openConnectModal} online={online} />}
-      {needsBaselines && <BaselineOnboarding onDone={(bl) => { setBaselines(bl); setNeedsBaselines(false); }} existingBaselines={baselines} />}
+      {needsBaselines && <BaselineOnboarding onDone={(bl, mtrs) => { setBaselines(bl); setMeters(mtrs); setNeedsBaselines(false); }} existingBaselines={baselines} existingMeters={meters} />}
       {!onboarded && <Onboarding onDone={(bl) => { setBaselines(bl); setOnboarded(true); setPrevRead(bl.electric||""); }} />}
       {toast && <div className="toast">{toast}</div>}
 
@@ -1690,7 +1752,7 @@ export default function App() {
           </div>
 
           {tab==="home"      && <HomeScreen b3tr={b3tr} streak={streak} subs={subs} setTab={setTab} T={T}/>}
-          {tab==="submit"    && <SubmitScreen u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevRead} busy={busy} usage={usage} reward={reward} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} T={T} setTab={setTab}/>}
+          {tab==="submit"    && <SubmitScreen u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevRead} busy={busy} usage={usage} reward={reward} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab}/>}
           {tab==="charts"    && <ChartsScreen subs={subs} T={T}/>}
           {tab==="leaderboard" && <LeaderboardScreen b3tr={b3tr} streak={streak} subs={subs} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}
