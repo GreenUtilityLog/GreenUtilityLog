@@ -8,16 +8,38 @@ import { Clause, Address, ABIFunction } from "@vechain/sdk-core";
 const APP_VERSION = "1.3.0";
 const APP_NAME = "Green Utility Log";
 
-// ── VeBetterDAO MAINNET CONTRACT ADDRESSES (official) ──────────────────────
-const CONTRACTS = {
-  B3TR:              "0x5ef79995FE8a89e0812330E4378eB2660ceDe699",
-  X2EarnRewardsPool: "0x6Bee7DDab6c99d5B2Af0554EaEA484CE18F52631",
-  X2EarnApps:        "0x8392B7CCc763dB03b47afcD8E8f5e24F9cf0554D",
+// ── NETWORK SELECTION ──────────────────────────────────────────────────────
+// Flip to "mainnet" for the production launch. Everything below (node URL +
+// contract addresses) follows this one switch. Addresses are the official
+// VeBetterDAO deployments (npm @vechain/vebetterdao-contracts).
+const NETWORK = "testnet"; // "testnet" | "mainnet"
+
+const NETWORKS = {
+  mainnet: {
+    node: "https://mainnet.vechain.org",
+    contracts: {
+      B3TR:              "0x5ef79995FE8a89e0812330E4378eB2660ceDe699",
+      X2EarnRewardsPool: "0x6Bee7DDab6c99d5B2Af0554EaEA484CE18F52631",
+      X2EarnApps:        "0x8392B7CCc763dB03b47afcD8E8f5e24F9cf0554D",
+    },
+  },
+  testnet: {
+    node: "https://testnet.vechain.org",
+    contracts: {
+      B3TR:              "0x95761346d18244bb91664181bf91193376197088",
+      X2EarnRewardsPool: "0x2d2a2207c68a46fc79325d7718e639d1047b0d8b",
+      X2EarnApps:        "0x0b54a094b877a25bdc95b4431eaa1e2206b1ddfe",
+    },
+  },
 };
+export const ACTIVE_NODE = NETWORKS[NETWORK].node;
+const CONTRACTS = NETWORKS[NETWORK].contracts;
+const NETWORK_LABEL = NETWORK === "mainnet" ? "VeChain Mainnet" : "VeChain Testnet";
 
 // ── YOUR APP ID — set this after registering on VeBetterDAO ───────────────
-// Get your App ID at: https://governance.vebetterdao.org
-// It is the keccak256 hash of your app name registered on-chain
+// Get your App ID by registering at the governance site (testnet:
+// https://staging.testnet.governance.vebetterdao.org/apps). It is a bytes32
+// value and MUST come from the SAME network selected above.
 const VEBETTER_APP_ID = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
 // ── ABI fragments needed ───────────────────────────────────────────────────
@@ -677,7 +699,7 @@ function WalletGate({ onConnect, online }) {
     <div className="intro-screen" style={{ zIndex: 410 }}>
       <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", width:"100%" }}>
         <div style={{ textAlign:"center" }}>
-          <div style={{ fontSize:72, marginBottom:20, animation:"intro-bounce 1.2s ease-in-out infinite" }}>🔐</div>
+          <div style={{ marginBottom:24, animation:"intro-bounce 1.2s ease-in-out infinite", display:"flex", justifyContent:"center" }}><LogoTile size={104} /></div>
           <h1 style={{ fontSize:30, fontWeight:800, color:"#fff", lineHeight:1.2, letterSpacing:"-0.6px", marginBottom:12, maxWidth:300 }}>Connect your wallet</h1>
           <p style={{ fontSize:14, color:"rgba(255,255,255,0.8)", lineHeight:1.6, maxWidth:320, marginBottom:24 }}>
             Sign in with VeWorld, WalletConnect or Sync2 to start logging meters and earning B3TR. After this, each submission just needs a single signature.
@@ -699,9 +721,35 @@ function WalletGate({ onConnect, online }) {
   );
 }
 
+// ── Brand sprout mark (matches the app logo + VeBetterDAO listing assets) ──
+function SproutIcon({ size = 20, color = "#fff" }) {
+  return (
+    <svg viewBox="0 0 512 512" width={size} height={size} aria-hidden="true" style={{ display:"block" }}>
+      <path d="M256 380 C 247 330 250 300 256 256" fill="none" stroke={color} strokeWidth="20" strokeLinecap="round"/>
+      <path d="M256 268 C 238 244 238 212 256 184 C 274 212 274 244 256 268 Z" fill={color}/>
+      <path d="M254 300 C 300 314 358 288 382 232 C 322 218 268 250 254 300 Z" fill={color}/>
+      <path d="M258 300 C 212 314 154 288 130 232 C 190 218 244 250 258 300 Z" fill={color}/>
+    </svg>
+  );
+}
+
+// Rounded green-gradient tile containing the sprout — the app's logo lockup.
+function LogoTile({ size = 30, shadow = true }) {
+  return (
+    <div style={{
+      width:size, height:size, borderRadius:Math.round(size*0.23),
+      background:"linear-gradient(135deg,#142c1e,#214834 55%,#3c6a50)",
+      display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
+      boxShadow: shadow ? "0 6px 18px rgba(0,0,0,0.28)" : "none",
+    }}>
+      <SproutIcon size={Math.round(size*0.62)} />
+    </div>
+  );
+}
+
 function IntroScreen({ onStart }) {
   const slides = [
-    { icon: '🌱', title: 'Welcome to Green Utility Log', sub: 'Track your electric, gas, water & solar meters. Earn real B3TR rewards on VeChain.' },
+    { icon: 'logo', title: 'Welcome to Green Utility Log', sub: 'Track your electric, gas, water & solar meters. Earn real B3TR rewards on VeChain.' },
     { icon: '📸', title: 'Verify Your Meters', sub: 'Take a photo of your meter. AI-powered OCR verifies readings instantly.' },
     { icon: '💰', title: 'Earn B3TR Rewards', sub: 'Get paid in real cryptocurrency for every meter you log. Weekly payouts guaranteed.' },
     { icon: '🏆', title: 'Climb the Leaderboard', sub: 'Compete globally. Unlock achievement badges. Build your sustainability streak.' },
@@ -720,7 +768,9 @@ function IntroScreen({ onStart }) {
 
       <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",width:"100%"}}>
         <div style={{textAlign:"center"}}>
-          <div style={{fontSize:72,marginBottom:20,animation:"intro-bounce 1.2s ease-in-out infinite"}}>{s.icon}</div>
+          {s.icon === 'logo'
+            ? <div style={{marginBottom:20,animation:"intro-bounce 1.2s ease-in-out infinite",display:"flex",justifyContent:"center"}}><LogoTile size={112} /></div>
+            : <div style={{fontSize:72,marginBottom:20,animation:"intro-bounce 1.2s ease-in-out infinite"}}>{s.icon}</div>}
           <h1 style={{fontSize:32,fontWeight:800,color:"#fff",lineHeight:1.2,letterSpacing:"-0.6px",marginBottom:12,maxWidth:300}}>{s.title}</h1>
           <p style={{fontSize:14,color:"rgba(255,255,255,0.8)",lineHeight:1.6,maxWidth:320,marginBottom:24}}>{s.sub}</p>
         </div>
@@ -1521,7 +1571,7 @@ export default function App() {
       setReading("");
       setPrevRead("");
       setVerifyKey(k => k + 1);
-      showToast(`✅ +${earned.toFixed(2)} B3TR on VeChain Mainnet${txid ? ` • TX: ${txid.slice(0, 10)}...` : ""}`);
+      showToast(`✅ +${earned.toFixed(2)} B3TR on ${NETWORK_LABEL}${txid ? ` • TX: ${txid.slice(0, 10)}...` : ""}`);
       setBusy(false);
     } catch (e) {
       setBusy(false);
@@ -1542,7 +1592,7 @@ export default function App() {
         <div className="z1 scr">
           <div className="hdr">
             <div className="logo">
-              <div className="logo-mark">GUL</div>
+              <div className="logo-mark"><SproutIcon size={18} /></div>
               <div>
                 <div className="logo-name">Green Utility Log</div>
                 <div style={{fontSize:7,fontWeight:700,color:T.textSoft,textTransform:"uppercase",letterSpacing:"0.8px",marginTop:2}}>VeBetterDAO Vechain • v{APP_VERSION}</div>
