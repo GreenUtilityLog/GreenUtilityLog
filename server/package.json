@@ -1,0 +1,25 @@
+{
+  "name": "green-utility-log-distributor",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Reward-distributor backend for Green Utility Log (VeBetterDAO X2Earn).",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@vechain/sdk-core": "2.0.7",
+    "@vechain/sdk-network": "2.0.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  },
+  "optionalDependencies": {
+    "tesseract.js": "^5.1.1"
+  }
+}
