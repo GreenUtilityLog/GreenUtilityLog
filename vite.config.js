@@ -4,6 +4,13 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
 export default defineConfig({
   base: '/GreenUtilityLog/',
+  // dapp-kit creates valtio proxies (dapp-kit-ui) and subscribes to them
+  // (dapp-kit-react). If more than one copy of valtio ends up in the bundle,
+  // the proxy isn't recognised by the subscriber and dapp-kit crashes with
+  // "Cannot read properties of undefined (reading '3')". Force a single copy.
+  resolve: {
+    dedupe: ['valtio', 'valtio/vanilla', 'valtio/vanilla/utils'],
+  },
   plugins: [
     react(),
     // VeChain libraries (vechain-kit, dapp-kit, sdk-core, WalletConnect)
