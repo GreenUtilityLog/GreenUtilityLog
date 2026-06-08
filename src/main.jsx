@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { DAppKitProvider } from '@vechain/dapp-kit-react'
-import App from './App.jsx'
+import App, { ACTIVE_NODE } from './App.jsx'
 
 // ════════════════════════════════════════════════════════════════════════════
 // WALLETCONNECT PROJECT ID  (free, from https://cloud.reown.com)
@@ -68,8 +68,8 @@ try {
   ReactDOM.createRoot(document.getElementById('root')).render(
     <ErrorBoundary>
       <DAppKitProvider
-        // VeChain main-net node (where real B3TR lives).
-        node="https://mainnet.vechain.org"
+        // VeChain node — testnet or mainnet, driven by NETWORK in App.jsx.
+        node={ACTIVE_NODE}
         // Wallets offered in the connect dialog. 'wallet-connect' = mobile QR.
         allowedWallets={['veworld', 'wallet-connect', 'sync2']}
         // Remember the connection between page loads.
