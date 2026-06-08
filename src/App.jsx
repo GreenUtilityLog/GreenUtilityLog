@@ -41,7 +41,25 @@ const NETWORK_LABEL = NETWORK === "mainnet" ? "VeChain Mainnet" : "VeChain Testn
 // Get your App ID by registering at the governance site (testnet:
 // https://staging.testnet.governance.vebetterdao.org/apps). It is a bytes32
 // value and MUST come from the SAME network selected above.
-const VEBETTER_APP_ID = "0x0000000000000000000000000000000000000000000000000000000000000000";
+const VEBETTER_APP_ID = "0x489c6c122157f3b1072c2565b0eb6cb734564e84d14c80b1a12e6834a075f71e";
+
+// ── ADMIN WALLETS — read-only monitoring access ──────────────────────────────
+// Wallets listed here (lowercase) unlock the in-app Admin panel: a read-only
+// view of every on-chain participant, their B3TR and submission counts. This is
+// monitoring only — issuing/blocking rewards needs the reward-distributor role
+// (a backend), not the frontend. Add your VeBetterDAO app-admin address below.
+const ADMIN_WALLETS = [
+  // "0xyourAdminWalletAddressHere",
+].map(a => a.toLowerCase());
+const isAdminWallet = (w) => !!w && ADMIN_WALLETS.includes(w.toLowerCase());
+
+// ── REWARD BACKEND (optional) ────────────────────────────────────────────────
+// When set (e.g. "https://api.greenutilitylog.com"), submissions are sent here
+// and a server-side reward-distributor verifies them and issues the B3TR — the
+// user signs nothing, and you never have to grant the distributor role to every
+// wallet. See the /server folder for the matching service. Leave empty to keep
+// the direct on-chain flow (the connected wallet must hold the distributor role).
+const REWARD_API = "";
 
 // ── ABI fragments needed ───────────────────────────────────────────────────
 const B3TR_ABI = [
@@ -1086,7 +1104,7 @@ function VerifyZone({ utilId, onVerified, onReset, reading, subs, meterNo }) {
     const finalResult = { verified, fraudFlags, fraudReason, summary, ocrNums: ocrResult.ocrNums, secScore: score, anomCheck, usageVal };
     setResult(finalResult);
     setPhase(verified ? "verified" : "error");
-    if (verified) onVerified(finalResult);
+    if (verified) onVerified(finalResult, base64, mime);
   };
 
   const handleFile = async (e) => {
@@ -1266,7 +1284,7 @@ function HomeScreen({ b3tr, streak, subs, setTab, T }) {
   );
 }
 
-function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, reading, setReading, prevRead, setPrevRead, busy, usage, reward, handleSubmit, verifyKey, wallet, setShowWallet, subs, meters, T, setTab }) {
+function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading, setReading, prevRead, setPrevRead, busy, usage, reward, handleSubmit, verifyKey, wallet, setShowWallet, subs, meters, T, setTab }) {
   const meterNo  = (meters?.[selUtil] || "").trim();
 
   return (
@@ -1290,7 +1308,9 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, reading, setReadi
         <div style={{fontSize:12,fontWeight:700,fontFamily:"'DM Mono',monospace",color:meterNo?(T[selUtil]||T.text):T.gas}}>{meterNo || "Not registered"}</div>
       </div>
 
-      <VerifyZone key={verifyKey} utilId={selUtil} reading={reading} subs={subs} meterNo={meterNo} onVerified={() => setAiOk(true)} onReset={() => setAiOk(false)} />
+      <VerifyZone key={verifyKey} utilId={selUtil} reading={reading} subs={subs} meterNo={meterNo}
+        onVerified={(res, img, mime) => { setAiOk(true); setPhoto?.(img ? { base64: img, mime } : null); }}
+        onReset={() => { setAiOk(false); setPhoto?.(null); }} />
 
       <div style={{margin:"14px 14px 0",padding:12,background:T.waterBg,border:`1px solid ${T.waterBorder}`,borderRadius:6}}>
         <div style={{fontSize:12,fontWeight:700,color:T.water,marginBottom:8}}>💡 Tips for Successful Verification</div>
@@ -1562,7 +1582,76 @@ function HistoryScreen({ subs, T }) {
   );
 }
 
-function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, notifs, setNotifs, setOnboarded, onEditMeters, meters, T }) {
+// Read-only admin overlay: every on-chain participant for this app, aggregated
+// from RewardDistributed events. Monitoring only — payouts/blocking require the
+// reward-distributor role (a backend), never the frontend.
+function AdminScreen({ onClose, T }) {
+  const [chain, setChain] = useState({ status: "loading", rows: [], reason: null });
+  useEffect(() => {
+    let cancelled = false;
+    const ctrl = new AbortController();
+    fetchOnChainLeaderboard({ node: ACTIVE_NODE, contract: CONTRACTS.X2EarnRewardsPool, appId: VEBETTER_APP_ID, signal: ctrl.signal })
+      .then(res => { if (!cancelled) setChain(res.ok ? { status: "live", rows: res.rows } : { status: "empty", rows: [], reason: res.reason }); })
+      .catch(() => { if (!cancelled) setChain({ status: "error", rows: [] }); });
+    return () => { cancelled = true; ctrl.abort(); };
+  }, []);
+
+  const totalB3tr = chain.rows.reduce((a, r) => a + (r.b3tr || 0), 0);
+  const totalSubs = chain.rows.reduce((a, r) => a + (r.count || 0), 0);
+
+  return (
+    <div style={{position:"fixed",inset:0,background:T.bg,zIndex:320,display:"flex",flexDirection:"column"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 18px",borderBottom:`1px solid ${T.border}`}}>
+        <div>
+          <div style={{fontSize:14,fontWeight:800,color:T.text}}>🛡️ Admin · Participants</div>
+          <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginTop:2}}>Read-only on-chain monitor · {NETWORK_LABEL}</div>
+        </div>
+        <button onClick={onClose} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:4,padding:"6px 12px",fontSize:11,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Close</button>
+      </div>
+
+      <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"14px"}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:14}}>
+          {[
+            { k:"Participants",     v: chain.rows.length },
+            { k:"B3TR Distributed", v: totalB3tr.toFixed(2) },
+            { k:"Submissions",      v: totalSubs },
+          ].map(s => (
+            <div key={s.k} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:5,padding:"12px 8px",textAlign:"center"}}>
+              <div style={{fontSize:17,fontWeight:600,color:T.text,fontFamily:"'SF Mono',monospace"}}>{s.v}</div>
+              <div style={{fontSize:7.5,fontWeight:700,textTransform:"uppercase",letterSpacing:".6px",color:T.textSoft,marginTop:3}}>{s.k}</div>
+            </div>
+          ))}
+        </div>
+
+        {chain.status === "loading" && (
+          <div style={{textAlign:"center",color:T.textSoft,fontSize:11,padding:24}}>Loading on-chain participants…</div>
+        )}
+        {chain.status !== "loading" && chain.rows.length === 0 && (
+          <div style={{textAlign:"center",color:T.textSoft,fontSize:11,padding:24,lineHeight:1.6}}>
+            {chain.reason === "unset_appid"
+              ? "Set your VeBetterDAO App ID to load participants."
+              : chain.status === "error" ? "Could not reach the node — try again later." : "No on-chain submissions yet."}
+          </div>
+        )}
+        {chain.rows.map((r, i) => (
+          <div key={r.addr} className="lb-item">
+            <div className="lb-rank">{i + 1}</div>
+            <div style={{flex:1}}>
+              <div className="lb-name" style={{fontFamily:"'SF Mono',monospace",fontSize:11}}>{shortAddr(r.addr)}</div>
+              <div style={{fontSize:9,color:T.textSoft}}>📸 {r.count} submission{r.count !== 1 ? "s" : ""}</div>
+            </div>
+            <div style={{textAlign:"right"}}>
+              <div className="lb-b3tr">+{r.b3tr.toFixed(2)}</div>
+              <div style={{fontSize:9,color:T.textSoft}}>B3TR</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, notifs, setNotifs, setOnboarded, onEditMeters, meters, isAdmin, onOpenAdmin, T }) {
   const tier = getTier(b3tr);
   return (
     <>
@@ -1631,13 +1720,22 @@ function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, notif
         </div>
         <div className="sr-right" style={{fontSize:10,color:T.green3}}>Connect</div>
       </div>
-      <div className="setting-row" style={{marginBottom:14}} onClick={() => setOnboarded(false)}>
+      <div className="setting-row" style={{marginBottom:isAdmin?5:14}} onClick={() => setOnboarded(false)}>
         <div className="sr-left">
           <div className="sr-icon">🎓</div>
           <div><div className="sr-label">View Tutorial</div><div className="sr-sub">Re-watch the onboarding guide</div></div>
         </div>
         <div className="sr-right" style={{fontSize:11,color:T.textSoft}}>→</div>
       </div>
+      {isAdmin && (
+        <div className="setting-row" style={{marginBottom:14,borderColor:T.green4}} onClick={onOpenAdmin}>
+          <div className="sr-left">
+            <div className="sr-icon">🛡️</div>
+            <div><div className="sr-label">Admin · Participants</div><div className="sr-sub">Read-only on-chain monitor</div></div>
+          </div>
+          <div className="sr-right" style={{fontSize:11,color:T.green3}}>Open</div>
+        </div>
+      )}
     </>
   );
 }
@@ -1738,6 +1836,8 @@ export default function App() {
   const streak = computeStreak(subs); // derived from real submission dates
   const [verifyKey, setVerifyKey]   = useState(0);
   const [notifs, setNotifs]         = useState({ daily:true, streak:true, rewards:false, lb:false });
+  const [showAdmin, setShowAdmin]   = useState(false);
+  const [photo, setPhoto]           = useState(null); // verified meter photo for backend submission
 
   // The seed history/rewards are only a preview for the disconnected gate — they
   // never belong to a real account. Whenever a wallet connects, start it at zero;
@@ -1754,7 +1854,7 @@ export default function App() {
 
     setSubs([]);
     setB3tr(0);
-    setReading(""); setPrevRead(""); setAiOk(false);
+    setReading(""); setPrevRead(""); setAiOk(false); setPhoto(null);
     setVerifyKey(k => k + 1);
     setTab("home");
 
@@ -1839,6 +1939,7 @@ export default function App() {
   const handleSelUtil = (id) => {
     setSelUtil(id);
     setAiOk(false);
+    setPhoto(null);
     setReading("");
     const lastSub = subs.find(s => s.type === id);
     setPrevRead(lastSub ? lastSub.cur : (baselines[id] || ""));
@@ -1862,7 +1963,7 @@ export default function App() {
 
     if (!online) {
       await saveOfflineSubmission({ type:selUtil, meterNo, cur:reading, prev:prevRead, b3tr:earned });
-      setAiOk(false); setReading(""); setPrevRead(""); setVerifyKey(k=>k+1);
+      setAiOk(false); setPhoto(null); setReading(""); setPrevRead(""); setVerifyKey(k=>k+1);
       setBusy(false);
       showToast("💾 Saved offline — syncing when online");
       return;
@@ -1875,10 +1976,25 @@ export default function App() {
     }
 
     try {
-      // dapp-kit asks the connected wallet (VeWorld / WalletConnect mobile /
-      // Sync2) to sign & broadcast. Resolves with the on-chain txid.
-      const clauses = buildRewardClauses(selUtil, reading, prevRead, earned, wallet, meterNo);
-      const { txid } = await requestTransaction(clauses);
+      // Two payout paths:
+      //  • REWARD_API set → a server-side reward-distributor verifies and issues
+      //    the B3TR (the production model; the user signs nothing).
+      //  • otherwise → the connected wallet signs distributeReward directly
+      //    (only works if that wallet holds the distributor role — fine for tests).
+      let txid;
+      if (REWARD_API) {
+        const res = await fetch(`${REWARD_API.replace(/\/$/, "")}/reward`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ utility: selUtil, reading, prevRead, meterNo, address: wallet, photo: photo?.base64 || "" }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `Reward service error ${res.status}`);
+        txid = data.txid;
+      } else {
+        const clauses = buildRewardClauses(selUtil, reading, prevRead, earned, wallet, meterNo);
+        ({ txid } = await requestTransaction(clauses));
+      }
 
       const today = new Date();
       const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -1898,6 +2014,7 @@ export default function App() {
       setB3tr(b => b + earned);
       setCooldown(selUtil);
       setAiOk(false);
+      setPhoto(null);
       setReading("");
       setPrevRead("");
       setVerifyKey(k => k + 1);
@@ -1916,6 +2033,7 @@ export default function App() {
       {!showIntro && !wallet && <WalletGate onConnect={openConnectModal} online={online} />}
       {needsBaselines && <BaselineOnboarding onDone={(bl, mtrs) => { setBaselines(bl); setMeters(mtrs); setNeedsBaselines(false); }} existingBaselines={baselines} existingMeters={meters} />}
       {!onboarded && <Onboarding onDone={(bl) => { setBaselines(bl); setOnboarded(true); setPrevRead(bl.electric||""); }} />}
+      {showAdmin && isAdminWallet(wallet) && <AdminScreen onClose={() => setShowAdmin(false)} T={T} />}
       {toast && <div className="toast">{toast}</div>}
 
       <div className="app">
@@ -1952,11 +2070,11 @@ export default function App() {
           </div>
 
           {tab==="home"      && <HomeScreen b3tr={b3tr} streak={streak} subs={subs} setTab={setTab} T={T}/>}
-          {tab==="submit"    && <SubmitScreen u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevRead} busy={busy} usage={usage} reward={reward} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab}/>}
+          {tab==="submit"    && <SubmitScreen u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevRead} busy={busy} usage={usage} reward={reward} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab}/>}
           {tab==="charts"    && <ChartsScreen subs={subs} T={T}/>}
           {tab==="leaderboard" && <LeaderboardScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}
-          {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} setShowWallet={openConnectModal} dark={dark} setDark={toggleDark} notifs={notifs} setNotifs={setNotifs} setOnboarded={setOnboarded} onEditMeters={()=>setNeedsBaselines(true)} meters={meters} T={T}/>}
+          {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} setShowWallet={openConnectModal} dark={dark} setDark={toggleDark} notifs={notifs} setNotifs={setNotifs} setOnboarded={setOnboarded} onEditMeters={()=>setNeedsBaselines(true)} meters={meters} isAdmin={isAdminWallet(wallet)} onOpenAdmin={()=>setShowAdmin(true)} T={T}/>}
         </div>
 
         <div className="bnav">
