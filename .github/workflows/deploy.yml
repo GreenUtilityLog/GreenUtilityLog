@@ -17,7 +17,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm install
+          cache: npm
+      # Install the EXACT versions from package-lock.json. This makes every
+      # deploy reproducible — without it (npm install, no lockfile) a dependency
+      # could silently update between builds and break the app, e.g. two copies
+      # of valtio crashing dapp-kit. Requires package-lock.json to be committed.
+      - run: npm ci
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
