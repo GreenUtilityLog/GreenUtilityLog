@@ -422,6 +422,9 @@ const ONBOARD_SLIDES = [
 // ────────────────────────────────────────────────────────────────────────────
 
 function getUtil(id){ return UTILS.find(u=>u.id===id)||UTILS[0]; }
+// Registered up-front (electric/gas/water); optional ones (solar) are added later.
+const REQUIRED_UTILS = UTILS.filter(u => !u.optional);
+const SOLAR_UTILS    = UTILS.filter(u => u.id === "solar");
 function getColorBg(id, T) { return T[id+"Bg"] || T.electricBg; }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -548,6 +551,17 @@ async function runOCR(file, claimedReading) {
   } catch (e) {
     return { matched: true, ocrNums: [], ocrConfidence: 0, ocrFailed: true };
   }
+}
+
+// Pick the most likely meter reading from the numbers OCR found: the meter
+// reading is the most significant figure on the display, so prefer the value
+// with the most digits, then the largest.
+function pickMeterReading(nums) {
+  if (!nums || !nums.length) return null;
+  return [...nums].sort((a, b) => {
+    const da = String(Math.trunc(a)).length, db = String(Math.trunc(b)).length;
+    return db - da || b - a;
+  })[0];
 }
 
 function computeSecurityScore({ ocrMatched, ocrConfidence, plausible, anomaly, hashOk, fileOk, screenshotOk }) {
@@ -953,66 +967,112 @@ function IntroScreen({ onStart }) {
   );
 }
 
-function BaselineOnboarding({ onDone, existingBaselines, existingMeters }) {
+// Default baselines used when a meter is registered without a starting reading.
+const BASELINE_DEFAULTS = { electric:"3834.8", gas:"521.4", water:"12320", solar:"130.1" };
+
+function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, editMode }) {
+  // Which utilities this screen registers. Defaults to the required ones
+  // (electric/gas/water); solar is added separately as an optional extra.
+  const shown = (utils && utils.length) ? utils : UTILS.filter(u => !u.optional);
   const [baselines, setBaselines] = useState(existingBaselines || { electric:"", gas:"", water:"", solar:"" });
   const [meters, setMeters]       = useState(existingMeters || { electric:"", gas:"", water:"", solar:"" });
 
-  // The meter number is what couples each reading to a declared physical meter,
-  // so it's required for every utility the household actually has. Solar is
-  // optional — not everyone has panels.
-  const allMetersFilled = UTILS.filter(u => !u.optional).every(u => (meters[u.id] || "").trim().length > 0);
+  // Photo-assisted reading: snap the meter, OCR the digits and pre-fill the
+  // baseline (the user can still correct it). The meter number stays typed.
+  const fileRef = useRef(null);
+  const scanUtilRef = useRef(null);
+  const [scanning, setScanning] = useState(null);
+  const [scanMsg, setScanMsg]   = useState(null);
+  const onScanClick = (id) => { scanUtilRef.current = id; setScanMsg(null); fileRef.current?.click(); };
+  const onScanFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    const id = scanUtilRef.current;
+    if (!file || !id) return;
+    setScanning(id); setScanMsg(null);
+    try {
+      const res = await runOCR(file, "");
+      const reading = pickMeterReading(res.ocrNums);
+      if (reading != null) { setBaselines(b => ({ ...b, [id]: String(reading) })); setScanMsg({ id, ok:true }); }
+      else setScanMsg({ id, ok:false });
+    } catch { setScanMsg({ id, ok:false }); }
+    setScanning(null);
+  };
+
+  const isSolarOnly = shown.length === 1 && shown[0].id === "solar";
+  // In edit mode every shown meter is expected; on first setup only the
+  // non-optional ones are required to continue.
+  const required = editMode ? shown : shown.filter(u => !u.optional);
+  const allMetersFilled = required.every(u => (meters[u.id] || "").trim().length > 0);
 
   const handleDone = () => {
     if (!allMetersFilled) return;
-    const filled = {
-      electric: baselines.electric || "3834.8",
-      gas:      baselines.gas      || "521.4",
-      water:    baselines.water    || "12320",
-      solar:    baselines.solar    || "130.1",
-    };
-    const trimmedMeters = {
-      electric: meters.electric.trim(),
-      gas:      meters.gas.trim(),
-      water:    meters.water.trim(),
-      solar:    meters.solar.trim(),
-    };
-    saveBaselines(filled);
-    saveMeters(trimmedMeters);
-    onDone(filled, trimmedMeters);
+    // Merge into the existing data so editing one meter never wipes the others.
+    const nextBaselines = { ...(existingBaselines || {}) };
+    const nextMeters    = { ...(existingMeters || {}) };
+    for (const u of shown) {
+      nextBaselines[u.id] = (baselines[u.id] || "").trim() || BASELINE_DEFAULTS[u.id];
+      nextMeters[u.id]    = (meters[u.id] || "").trim();
+    }
+    saveBaselines(nextBaselines);
+    saveMeters(nextMeters);
+    onDone(nextBaselines, nextMeters);
   };
+
+  const title = isSolarOnly ? "Add Solar Panels" : (editMode ? "Edit Your Meters" : "Register Your Meters");
+  const sub = isSolarOnly
+    ? "Generating your own power? Add your solar meter number and current export reading — tap 📷 to scan the reading from a photo."
+    : "Enter each meter number, then the current reading — or tap 📷 to scan it from a photo. The meter number is logged with every submission to keep your readings verifiable.";
 
   return (
     <div className="onboard">
-      <div className="ob-icon">⚙️</div>
-      <div className="ob-title" style={{color:"#1a3326"}}>Register Your Meters</div>
-      <div className="ob-sub">Enter each meter number and its current reading. The meter number is logged with every submission to keep your readings verifiable.</div>
+      <div className="ob-icon">{isSolarOnly ? "☀️" : "⚙️"}</div>
+      <div className="ob-title" style={{color:"#1a3326"}}>{title}</div>
+      <div className="ob-sub">{sub}</div>
       <div style={{width:"100%",maxWidth:320,display:"flex",flexDirection:"column",gap:8,marginTop:20}}>
-        {UTILS.map(u => (
+        {shown.map(u => {
+          const needsMeter = required.includes(u);
+          return (
           <div key={u.id} style={{display:"flex",alignItems:"flex-start",gap:12,background:"rgba(26,51,38,0.06)",borderRadius:4,padding:"10px 14px",border:"1px solid rgba(26,51,38,0.12)"}}>
             <span style={{width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center",color:"#264d3a",flexShrink:0,marginTop:2}}>{UTIL_ICONS[u.id]}</span>
             <div style={{flex:1}}>
-              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"#7a9188",marginBottom:4}}>{u.label} <span style={{fontWeight:400}}>({u.unit})</span>{u.optional && <span style={{fontWeight:400,textTransform:"none",letterSpacing:0}}> · optional</span>}</div>
+              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"#7a9188",marginBottom:4}}>{u.label} <span style={{fontWeight:400}}>({u.unit})</span>{!needsMeter && <span style={{fontWeight:400,textTransform:"none",letterSpacing:0}}> · optional</span>}</div>
               <input
                 type="text"
-                placeholder={u.optional ? "Meter / EAN number (optional)" : "Meter / EAN number"}
+                placeholder={needsMeter ? "Meter / EAN number" : "Meter / EAN number (optional)"}
                 value={meters[u.id]}
                 onChange={e => setMeters(m => ({...m,[u.id]:e.target.value}))}
-                style={{width:"100%",background:"rgba(26,51,38,0.04)",border:`1px solid ${((meters[u.id]||"").trim() || u.optional) ? "rgba(26,51,38,0.15)" : "rgba(180,60,40,0.45)"}`,borderRadius:3,padding:"7px 10px",fontSize:13,fontFamily:"'DM Mono',monospace",color:"#0d1812",outline:"none",marginBottom:6}}
+                style={{width:"100%",background:"rgba(26,51,38,0.04)",border:`1px solid ${((meters[u.id]||"").trim() || !needsMeter) ? "rgba(26,51,38,0.15)" : "rgba(180,60,40,0.45)"}`,borderRadius:3,padding:"7px 10px",fontSize:13,fontFamily:"'DM Mono',monospace",color:"#0d1812",outline:"none",marginBottom:6}}
               />
-              <input
-                type="number"
-                placeholder={`Current reading · e.g. ${u.ph[0]}`}
-                value={baselines[u.id]}
-                onChange={e => setBaselines(b => ({...b,[u.id]:e.target.value}))}
-                style={{width:"100%",background:"rgba(26,51,38,0.04)",border:"1px solid rgba(26,51,38,0.15)",borderRadius:3,padding:"7px 10px",fontSize:14,fontFamily:"'DM Mono',monospace",color:"#0d1812",outline:"none"}}
-              />
+              <div style={{display:"flex",gap:6,alignItems:"stretch"}}>
+                <input
+                  type="number"
+                  placeholder={`Current reading · e.g. ${u.ph[0]}`}
+                  value={baselines[u.id]}
+                  onChange={e => setBaselines(b => ({...b,[u.id]:e.target.value}))}
+                  style={{flex:1,minWidth:0,background:"rgba(26,51,38,0.04)",border:"1px solid rgba(26,51,38,0.15)",borderRadius:3,padding:"7px 10px",fontSize:14,fontFamily:"'DM Mono',monospace",color:"#0d1812",outline:"none"}}
+                />
+                <button type="button" onClick={()=>onScanClick(u.id)} disabled={scanning===u.id}
+                  title="Scan the reading from a photo"
+                  style={{flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",minWidth:42,background:"rgba(26,51,38,0.07)",border:"1px solid rgba(26,51,38,0.18)",borderRadius:3,fontSize:14,color:"#264d3a",cursor:scanning===u.id?"wait":"pointer"}}>
+                  {scanning===u.id ? "…" : "📷"}
+                </button>
+              </div>
+              {scanning===u.id && <div style={{fontSize:10,color:"#7a9188",marginTop:4}}>Reading the meter…</div>}
+              {scanMsg && scanMsg.id===u.id && scanning!==u.id && (
+                scanMsg.ok
+                  ? <div style={{fontSize:10,color:"#2e7d52",marginTop:4}}>✓ Filled from photo — check it's right.</div>
+                  : <div style={{fontSize:10,color:"#b43c28",marginTop:4}}>Couldn't read it — type the reading in.</div>
+              )}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
-      <div style={{fontSize:11,color:"#7a9188",marginTop:16,textAlign:"center"}}>ℹ️ You can update these in Settings anytime.</div>
-      {!allMetersFilled && <div style={{fontSize:11,color:"#b43c28",marginTop:6,textAlign:"center"}}>Enter a meter number for every utility to continue.</div>}
-      <button className="ob-btn" onClick={handleDone} disabled={!allMetersFilled} style={!allMetersFilled?{opacity:.5,cursor:"not-allowed"}:undefined}>Complete Setup</button>
+      <input type="file" ref={fileRef} onChange={onScanFile} accept="image/*" capture="environment" style={{display:"none"}} />
+      {!isSolarOnly && <div style={{fontSize:11,color:"#7a9188",marginTop:16,textAlign:"center"}}>ℹ️ Got solar panels? Add them later in Settings.</div>}
+      {!allMetersFilled && <div style={{fontSize:11,color:"#b43c28",marginTop:6,textAlign:"center"}}>Enter a meter number for every meter to continue.</div>}
+      <button className="ob-btn" onClick={handleDone} disabled={!allMetersFilled} style={!allMetersFilled?{opacity:.5,cursor:"not-allowed"}:undefined}>{isSolarOnly ? "Save Solar Meter" : "Complete Setup"}</button>
     </div>
   );
 }
@@ -1651,7 +1711,7 @@ function AdminScreen({ onClose, T }) {
   );
 }
 
-function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, notifs, setNotifs, setOnboarded, onEditMeters, meters, isAdmin, onOpenAdmin, T }) {
+function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, notifs, setNotifs, setOnboarded, onEditMeters, onEditSolar, meters, isAdmin, onOpenAdmin, T }) {
   const tier = getTier(b3tr);
   return (
     <>
@@ -1679,10 +1739,22 @@ function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, notif
       <div className="setting-row" onClick={onEditMeters}>
         <div className="sr-left">
           <div className="sr-icon">🔢</div>
-          <div><div className="sr-label">Meters & Baselines</div><div className="sr-sub">{meters ? `${UTILS.filter(u=>(meters[u.id]||"").trim()).length} meter${UTILS.filter(u=>(meters[u.id]||"").trim()).length!==1?"s":""} registered` : "Edit meter numbers & readings"}</div></div>
+          <div><div className="sr-label">Meters & Baselines</div><div className="sr-sub">Electric, gas &amp; water</div></div>
         </div>
         <div className="sr-right" style={{fontSize:11,color:T.textSoft}}>→</div>
       </div>
+      {(() => {
+        const solarNo = (meters?.solar || "").trim();
+        return (
+          <div className="setting-row" onClick={onEditSolar}>
+            <div className="sr-left">
+              <div className="sr-icon">☀️</div>
+              <div><div className="sr-label">Solar Panels</div><div className="sr-sub">{solarNo ? `Meter #${solarNo}` : "Add solar panels (optional)"}</div></div>
+            </div>
+            <div className="sr-right" style={{fontSize:11,fontWeight:solarNo?400:700,color:solarNo?T.textSoft:T.green3}}>{solarNo ? "→" : "Add"}</div>
+          </div>
+        );
+      })()}
 
       <div className="sec"><div className="sec-line"/><div className="sec-txt">Export</div><div className="sec-line"/></div>
       <div className="setting-row" onClick={() => generateMonthlyPDF(b3tr, subs)}>
@@ -1779,7 +1851,13 @@ export default function App() {
   });
   const [onboarded, setOnboarded]   = useState(true);
   const [needsBaselines, setNeedsBaselines] = useState(false);
+  const [regUtils, setRegUtils]     = useState(null);   // which meters the registration screen shows
+  const [regEdit, setRegEdit]       = useState(false);  // edit mode (from Settings) vs first setup
   const [baselines, setBaselines]   = useState({ electric:"", gas:"", water:"", solar:"" });
+
+  // Open the meter registration overlay for a given set of utilities.
+  const openRegistration = (utils = null, edit = false) => { setRegUtils(utils); setRegEdit(edit); setNeedsBaselines(true); };
+  const closeRegistration = () => { setNeedsBaselines(false); setRegUtils(null); setRegEdit(false); };
   const [meters, setMeters]         = useState({ electric:"", gas:"", water:"", solar:"" });
   const [dark, setDark]             = useState(getInitialDark);
   const T = dark ? DARK : LIGHT;
@@ -1861,6 +1939,7 @@ export default function App() {
     if (storedWallet !== addr) {
       setBaselines({ electric:"", gas:"", water:"", solar:"" });
       setMeters({ electric:"", gas:"", water:"", solar:"" });
+      setRegUtils(null); setRegEdit(false);   // first-setup mode: required meters only
       setNeedsBaselines(true);
       try {
         localStorage.removeItem('greenlog_baselines');
@@ -2031,7 +2110,7 @@ export default function App() {
       <style>{CSS}</style>
       {showIntro && <IntroScreen onStart={() => { setShowIntro(false); localStorage.setItem('greenlog_seen_intro', 'true'); }} />}
       {!showIntro && !wallet && <WalletGate onConnect={openConnectModal} online={online} />}
-      {needsBaselines && <BaselineOnboarding onDone={(bl, mtrs) => { setBaselines(bl); setMeters(mtrs); setNeedsBaselines(false); }} existingBaselines={baselines} existingMeters={meters} />}
+      {needsBaselines && <BaselineOnboarding onDone={(bl, mtrs) => { setBaselines(bl); setMeters(mtrs); closeRegistration(); }} utils={regUtils} editMode={regEdit} existingBaselines={baselines} existingMeters={meters} />}
       {!onboarded && <Onboarding onDone={(bl) => { setBaselines(bl); setOnboarded(true); setPrevRead(bl.electric||""); }} />}
       {showAdmin && isAdminWallet(wallet) && <AdminScreen onClose={() => setShowAdmin(false)} T={T} />}
       {toast && <div className="toast">{toast}</div>}
@@ -2074,7 +2153,7 @@ export default function App() {
           {tab==="charts"    && <ChartsScreen subs={subs} T={T}/>}
           {tab==="leaderboard" && <LeaderboardScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}
-          {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} setShowWallet={openConnectModal} dark={dark} setDark={toggleDark} notifs={notifs} setNotifs={setNotifs} setOnboarded={setOnboarded} onEditMeters={()=>setNeedsBaselines(true)} meters={meters} isAdmin={isAdminWallet(wallet)} onOpenAdmin={()=>setShowAdmin(true)} T={T}/>}
+          {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} setShowWallet={openConnectModal} dark={dark} setDark={toggleDark} notifs={notifs} setNotifs={setNotifs} setOnboarded={setOnboarded} onEditMeters={()=>openRegistration(REQUIRED_UTILS, true)} onEditSolar={()=>openRegistration(SOLAR_UTILS, true)} meters={meters} isAdmin={isAdminWallet(wallet)} onOpenAdmin={()=>setShowAdmin(true)} T={T}/>}
         </div>
 
         <div className="bnav">
