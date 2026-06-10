@@ -6,7 +6,7 @@
 // VeBetterDAO X2EarnRewardsPool, which emits a `RewardDistributed` event. We
 // query those logs (filtered to our appId), aggregate B3TR per receiver and
 // return a ranked board — no backend required, the chain IS the database.
-import { ABIEvent } from "@vechain/sdk-core";
+import { ABIEvent, ABIFunction } from "@vechain/sdk-core";
 
 // event RewardDistributed(uint256 amount, bytes32 indexed appId,
 //                         address indexed receiver, string proof,
@@ -161,4 +161,42 @@ export async function fetchWalletHistory({ node, contract, appId, address, max =
 
   rows.sort((a, b) => b.submittedAt - a.submittedAt); // newest first
   return { ok: true, rows };
+}
+
+// ── On-chain admin check (VeBetterDAO X2EarnApps) ────────────────────────────
+// Auto-detects whether a wallet is the app's admin or a moderator, so admin
+// access doesn't depend on a hardcoded list. Read-only call to the X2EarnApps
+// contract; returns false on any error so it degrades gracefully.
+const X2EARN_APPS_FN = {
+  appAdmin:       { name: "appAdmin", type: "function", stateMutability: "view", inputs: [{ name: "appId", type: "bytes32" }], outputs: [{ name: "", type: "address" }] },
+  isAppModerator: { name: "isAppModerator", type: "function", stateMutability: "view", inputs: [{ name: "appId", type: "bytes32" }, { name: "moderator", type: "address" }], outputs: [{ name: "", type: "bool" }] },
+};
+
+async function callView(node, to, fragment, args, signal) {
+  const abi = new ABIFunction(fragment);
+  const data = abi.encodeData(args).toString();
+  const res = await fetch(`${node}/accounts/${to}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ data, value: "0x0" }),
+    signal,
+  });
+  if (!res.ok) throw new Error(`accounts call ${res.status}`);
+  const out = await res.json();
+  if (!out || out.reverted || !out.data || out.data === "0x") return null;
+  return abi.decodeResult(out.data);
+}
+
+export async function fetchIsAppAdmin({ node, appsContract, appId, address, signal } = {}) {
+  if (!node || !appsContract || !address || isUnsetAppId(appId)) return false;
+  const addr = address.toLowerCase();
+  try {
+    const admin = await callView(node, appsContract, X2EARN_APPS_FN.appAdmin, [appId], signal);
+    if (admin && String(admin).toLowerCase() === addr) return true;
+  } catch {}
+  try {
+    const isMod = await callView(node, appsContract, X2EARN_APPS_FN.isAppModerator, [appId, address], signal);
+    if (isMod === true || (Array.isArray(isMod) && isMod[0] === true)) return true;
+  } catch {}
+  return false;
 }

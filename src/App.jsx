@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useWallet, useWalletModal } from "@vechain/dapp-kit-react";
 import { Clause, Address, ABIFunction } from "@vechain/sdk-core";
-import { fetchOnChainLeaderboard, fetchWalletHistory } from "./leaderboard.js";
+import { fetchOnChainLeaderboard, fetchWalletHistory, fetchIsAppAdmin } from "./leaderboard.js";
 
 // ════════════════════════════════════════════════════════════════════════════
 // APP VERSION & VECHAIN KIT
@@ -49,7 +49,8 @@ const VEBETTER_APP_ID = "0x489c6c122157f3b1072c2565b0eb6cb734564e84d14c80b1a12e6
 // monitoring only — issuing/blocking rewards needs the reward-distributor role
 // (a backend), not the frontend. Add your VeBetterDAO app-admin address below.
 const ADMIN_WALLETS = [
-  // "0xyourAdminWalletAddressHere",
+  "0xedd7e5e1be4066cdc892a059f586b9d7e8e4b0c7",
+  "0x3a007383fce8dcccdb92cf9efe0e609a652a1f29",
 ].map(a => a.toLowerCase());
 const isAdminWallet = (w) => !!w && ADMIN_WALLETS.includes(w.toLowerCase());
 
@@ -1721,7 +1722,7 @@ function AdminScreen({ onClose, T }) {
   );
 }
 
-function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, notifs, setNotifs, setOnboarded, onEditMeters, onEditSolar, meters, isAdmin, onOpenAdmin, onToast, T }) {
+function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, notifs, setNotifs, setOnboarded, onEditMeters, onEditSolar, meters, isAdmin, onOpenAdmin, onToast, onReset, T }) {
   const tier = getTier(b3tr);
   return (
     <>
@@ -1810,12 +1811,21 @@ function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, notif
         <div className="sr-right" style={{fontSize:11,color:T.textSoft}}>→</div>
       </div>
       {isAdmin && (
-        <div className="setting-row" style={{marginBottom:14,borderColor:T.green4}} onClick={onOpenAdmin}>
+        <div className="setting-row" style={{marginBottom:5,borderColor:T.green4}} onClick={onOpenAdmin}>
           <div className="sr-left">
             <div className="sr-icon">🛡️</div>
             <div><div className="sr-label">Admin · Participants</div><div className="sr-sub">Read-only on-chain monitor</div></div>
           </div>
           <div className="sr-right" style={{fontSize:11,color:T.green3}}>Open</div>
+        </div>
+      )}
+      {isAdmin && (
+        <div className="setting-row" style={{marginBottom:14,borderColor:T.gasBorder}} onClick={() => { if (window.confirm("Reset all app data and disconnect? This clears local meters, baselines and history for a fresh test. (On-chain rewards stay on the blockchain.)")) onReset?.(); }}>
+          <div className="sr-left">
+            <div className="sr-icon">🔄</div>
+            <div><div className="sr-label">Reset app data</div><div className="sr-sub">Admin/testing — clears local data &amp; disconnects</div></div>
+          </div>
+          <div className="sr-right" style={{fontSize:11,fontWeight:700,color:T.gas}}>Reset</div>
         </div>
       )}
     </>
@@ -1909,10 +1919,24 @@ export default function App() {
   // Wallet connection is handled by VeChain dapp-kit (VeWorld / WalletConnect
   // mobile / Sync2). useWallet() exposes the connected address and the
   // requestTransaction() signer; useWalletModal() opens the connect dialog.
-  const { account, requestTransaction } = useWallet();
+  const { account, requestTransaction, disconnect } = useWallet();
   const wallet = account || null;
   const { open: openWalletModal } = useWalletModal();
   const openConnectModal = () => openWalletModal();
+
+  // Wipe all local app data and the wallet connection, then reload — a clean
+  // slate for testing. (On-chain reward history can't be erased; it re-hydrates
+  // from the wallet's events on reconnect.)
+  const resetApp = async () => {
+    try {
+      for (const k of Object.keys(localStorage)) {
+        if (k.startsWith("greenlog_")) localStorage.removeItem(k);
+      }
+    } catch {}
+    try { indexedDB.deleteDatabase("GreenUtilityLog"); } catch {}
+    try { await disconnect?.(); } catch {}
+    setTimeout(() => { try { location.reload(); } catch {} }, 150);
+  };
   const [selUtil, setSelUtil]       = useState("electric");
   const [aiOk, setAiOk]            = useState(false);
   const [reading, setReading]       = useState("");
@@ -1925,6 +1949,7 @@ export default function App() {
   const [verifyKey, setVerifyKey]   = useState(0);
   const [notifs, setNotifs]         = useState({ daily:true, streak:true, rewards:false, lb:false });
   const [showAdmin, setShowAdmin]   = useState(false);
+  const [onChainAdmin, setOnChainAdmin] = useState(false); // app admin/moderator per the X2EarnApps contract
   const [photo, setPhoto]           = useState(null); // verified meter photo for backend submission
 
   // The seed history/rewards are only a preview for the disconnected gate — they
@@ -1980,6 +2005,19 @@ export default function App() {
     return () => { cancelled = true; };
   }, [account]);
 
+  // Auto-detect admin access from the VeBetterDAO X2EarnApps contract (the app
+  // admin / moderators), on top of the hardcoded ADMIN_WALLETS allowlist.
+  useEffect(() => {
+    if (!account) { setOnChainAdmin(false); return; }
+    let cancelled = false;
+    const ctrl = new AbortController();
+    fetchIsAppAdmin({ node: ACTIVE_NODE, appsContract: CONTRACTS.X2EarnApps, appId: VEBETTER_APP_ID, address: account, signal: ctrl.signal })
+      .then(ok => { if (!cancelled) setOnChainAdmin(!!ok); })
+      .catch(() => {});
+    return () => { cancelled = true; ctrl.abort(); };
+  }, [account]);
+
+  const isAdmin = isAdminWallet(wallet) || onChainAdmin;
   const u = getUtil(selUtil);
   const online = useOnlineStatus();
 
@@ -2145,7 +2183,7 @@ export default function App() {
       {!showIntro && !wallet && <WalletGate onConnect={openConnectModal} online={online} />}
       {needsBaselines && <BaselineOnboarding onDone={(bl, mtrs) => { setBaselines(bl); setMeters(mtrs); closeRegistration(); }} utils={regUtils} editMode={regEdit} existingBaselines={baselines} existingMeters={meters} />}
       {!onboarded && <Onboarding onDone={() => setOnboarded(true)} />}
-      {showAdmin && isAdminWallet(wallet) && <AdminScreen onClose={() => setShowAdmin(false)} T={T} />}
+      {showAdmin && isAdmin && <AdminScreen onClose={() => setShowAdmin(false)} T={T} />}
       {toast && <div className="toast">{toast}</div>}
 
       <div className="app">
@@ -2186,7 +2224,7 @@ export default function App() {
           {tab==="charts"    && <ChartsScreen subs={subs} T={T}/>}
           {tab==="leaderboard" && <LeaderboardScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}
-          {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} setShowWallet={openConnectModal} dark={dark} setDark={toggleDark} notifs={notifs} setNotifs={setNotifs} setOnboarded={setOnboarded} onEditMeters={()=>openRegistration(REQUIRED_UTILS, true)} onEditSolar={()=>openRegistration(SOLAR_UTILS, true)} meters={meters} isAdmin={isAdminWallet(wallet)} onOpenAdmin={()=>setShowAdmin(true)} onToast={showToast} T={T}/>}
+          {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} setShowWallet={openConnectModal} dark={dark} setDark={toggleDark} notifs={notifs} setNotifs={setNotifs} setOnboarded={setOnboarded} onEditMeters={()=>openRegistration(REQUIRED_UTILS, true)} onEditSolar={()=>openRegistration(SOLAR_UTILS, true)} meters={meters} isAdmin={isAdmin} onOpenAdmin={()=>setShowAdmin(true)} onToast={showToast} onReset={resetApp} T={T}/>}
         </div>
 
         <div className="bnav">
