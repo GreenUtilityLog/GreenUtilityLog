@@ -40,16 +40,24 @@ app.get("/health", async (req, res) => {
   });
 });
 
+// Wallet+utility pairs with a payout in flight — prevents two concurrent
+// requests from both passing the cooldown and double-paying.
+const inFlight = new Set();
+
 app.post("/reward", async (req, res) => {
   // 1) Structural checks + server-recomputed amount.
   const v = validateSubmission(req.body);
   if (!v.ok) return res.status(400).json({ error: v.error });
+
+  const lockKey = `${String(req.body.address).toLowerCase()}:${req.body.utility}`;
+  if (inFlight.has(lockKey)) return res.status(429).json({ error: "a submission for this meter is already processing" });
 
   // 2) Photo check — real image, not a reused one (and optional OCR match).
   const photo = await verifyPhoto({ imageBase64: req.body.photo, reading: req.body.reading, ocr: OCR_ENABLED });
   if (!photo.ok) return res.status(400).json({ error: photo.error });
 
   // 3) Pay out, then commit cooldown + burn the photo hash (only on success).
+  inFlight.add(lockKey);
   try {
     const txid = await distributeReward({
       utility:  req.body.utility,
@@ -65,6 +73,8 @@ app.post("/reward", async (req, res) => {
   } catch (e) {
     console.error("[/reward]", e?.message || e);
     res.status(502).json({ error: e?.message || "distribution failed" });
+  } finally {
+    inFlight.delete(lockKey);
   }
 });
 

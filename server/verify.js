@@ -4,11 +4,7 @@
 // the server — a client-sent amount is never trusted.
 
 import { RATES, UNITS, USAGE_BOUNDS, COOLDOWN_MS } from "./config.js";
-
-// In-memory cooldown ledger. NOTE: this resets on restart and is not shared
-// across instances — back it with Redis/Postgres before running more than one
-// process or expecting durability.
-const lastPaid = new Map(); // `${address}:${utility}` -> epoch ms
+import { store } from "./store.js";
 
 const isAddress = (a) => typeof a === "string" && /^0x[0-9a-fA-F]{40}$/.test(a);
 
@@ -18,6 +14,14 @@ export function validateSubmission(body) {
   if (!isAddress(address)) return { ok: false, error: "invalid wallet address" };
   if (!RATES[utility]) return { ok: false, error: "unknown utility" };
   if (!meterNo || !String(meterNo).trim()) return { ok: false, error: "meter number is required" };
+
+  const addr = address.toLowerCase();
+  const meterKey = String(meterNo).trim().toLowerCase();
+
+  // A meter number belongs to one wallet (first to use it). This stops the same
+  // physical meter being farmed from several accounts.
+  const owner = store.meterOwner(meterKey);
+  if (owner && owner !== addr) return { ok: false, error: "this meter is registered to another wallet" };
 
   const r = parseFloat(reading);
   const p = parseFloat(prevRead);
@@ -30,10 +34,9 @@ export function validateSubmission(body) {
     return { ok: false, error: `usage ${usage} ${UNITS[utility]} is outside the plausible range` };
   }
 
-  // Per wallet+utility cooldown.
-  const key = `${address.toLowerCase()}:${utility}`;
-  const now = Date.now();
-  const elapsed = now - (lastPaid.get(key) || 0);
+  // Per wallet+utility cooldown (durable, survives restarts).
+  const key = `${addr}:${utility}`;
+  const elapsed = Date.now() - store.getCooldown(key);
   if (elapsed < COOLDOWN_MS) {
     const mins = Math.ceil((COOLDOWN_MS - elapsed) / 60000);
     return { ok: false, error: `cooldown active — try again in ~${mins} min` };
@@ -47,6 +50,8 @@ export function validateSubmission(body) {
     ok: true,
     usage,
     amount,
-    markPaid: () => lastPaid.set(key, Date.now()),
+    // Called only after a successful payout: start the cooldown and bind the
+    // meter number to this wallet.
+    markPaid: () => { store.setCooldown(key, Date.now()); store.bindMeter(meterKey, addr); },
   };
 }

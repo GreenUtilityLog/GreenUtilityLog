@@ -5,6 +5,7 @@
 // photo can only ever earn once — across submissions AND across wallets.
 
 import { createHash } from "node:crypto";
+import { store } from "./store.js";
 
 const MIN_BYTES = 5 * 1024;          // reject blank/placeholder images
 const MAX_BYTES = 12 * 1024 * 1024;  // 12 MB cap
@@ -21,10 +22,6 @@ function sniffImage(buf) {
   return null;
 }
 
-// Hashes of photos already paid out. NOTE: in-memory — back with Redis/DB in
-// production so it survives restarts and is shared across instances.
-const usedHashes = new Set();
-
 export async function verifyPhoto({ imageBase64, reading, ocr = false } = {}) {
   if (!imageBase64 || typeof imageBase64 !== "string") return { ok: false, error: "photo is required" };
 
@@ -39,14 +36,14 @@ export async function verifyPhoto({ imageBase64, reading, ocr = false } = {}) {
   if (!mime) return { ok: false, error: "file is not a supported image" };
 
   const hash = createHash("sha256").update(buf).digest("hex");
-  if (usedHashes.has(hash)) return { ok: false, error: "duplicate photo — each submission needs a fresh photo" };
+  if (store.hasHash(hash)) return { ok: false, error: "duplicate photo — each submission needs a fresh photo" };
 
   if (ocr) {
     const r = await runOcrCheck(buf, reading).catch(() => ({ ok: true, soft: true }));
     if (!r.ok) return { ok: false, error: r.error || "the reading was not found in the photo" };
   }
 
-  return { ok: true, hash, mime, markUsed: () => usedHashes.add(hash) };
+  return { ok: true, hash, mime, markUsed: () => store.addHash(hash) };
 }
 
 // Best-effort OCR via tesseract.js (lazy-loaded so the service runs without it).

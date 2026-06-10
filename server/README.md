@@ -60,23 +60,33 @@ client-sent amount is never trusted.
 
 - Valid wallet address, known utility, meter number present.
 - `current > previous`, and usage within plausible bounds (mirrors the app).
-- Per wallet+utility cooldown (default 20h).
+- Per wallet+utility cooldown (default 20h), **persisted** (survives restarts).
+- **Meter ownership**: a meter number is bound to the first wallet that earns
+  with it, so the same physical meter can't be farmed from multiple accounts.
 - **Photo is a real image** (magic-byte sniff, size bounds) and **not reused** —
-  the SHA-256 of every paid photo is remembered, so one photo can only ever earn
-  once, across submissions and across wallets.
+  the SHA-256 of every paid photo is remembered (persisted), so one photo can
+  only ever earn once, across submissions and across wallets.
 - **Optional OCR** (`OCR_ENABLED=true` + `tesseract.js`): the claimed reading
   must appear in the photo. Lenient — only a confident mismatch rejects.
+- **Concurrency lock** per wallet+utility so two simultaneous requests can't both
+  pass the cooldown and double-pay.
 - Coarse per-IP rate limit.
+
+Durable state (cooldowns, used hashes, meter ownership) is stored in a JSON file
+(`STATE_FILE`, default `./state.json`).
 
 ## Production hardening (TODO before mainnet)
 
-- **Photo verification**: server-side image sanity + SHA-256 dedupe run here now,
-  with optional OCR. Still client-side: screenshot/EXIF detection — port those to
-  the server too (or require a signed attestation from a trusted verifier) for the
-  strongest guarantees.
-- **Durable storage**: the cooldown ledger and the used-photo hash set are
-  in-memory — back them with Redis/Postgres so they survive restarts and are
-  shared across instances (otherwise a restart lets old photos be reused).
+- **Wallet ownership proof**: the API currently trusts the `address` in the body,
+  so it issues to whatever address is sent. Before mainnet, require the client to
+  sign a nonce/certificate and verify it recovers `address` here (dapp-kit's
+  `requestCertificate` on the client + `Certificate.verify` on the server). This
+  stops rewards being issued to arbitrary addresses.
+- **Photo verification**: server-side image sanity + SHA-256 dedupe + optional
+  OCR run here. Still client-side: screenshot/EXIF detection — port those over too
+  for the strongest guarantees.
+- **Storage at scale**: the JSON-file store is single-instance. For multiple
+  instances / high volume, swap `store.js` for Redis/Postgres (same interface).
 - **Key management**: keep `DISTRIBUTOR_PRIVATE_KEY` in a secrets manager / KMS,
   not a plaintext `.env`, in production. Use a dedicated hot wallet.
 - **Auth & abuse**: add a real rate limiter, request signing, and monitoring.
