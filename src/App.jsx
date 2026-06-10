@@ -61,6 +61,9 @@ const isAdminWallet = (w) => !!w && ADMIN_WALLETS.includes(w.toLowerCase());
 // the direct on-chain flow (the connected wallet must hold the distributor role).
 const REWARD_API = "";
 
+// Indicative B3TR→USD rate for display only (not a live price feed).
+const B3TR_USD = 0.014;
+
 // ── ABI fragments needed ───────────────────────────────────────────────────
 const B3TR_ABI = [
   { name:"balanceOf", type:"function", inputs:[{name:"account",type:"address"}], outputs:[{name:"",type:"uint256"}], stateMutability:"view" },
@@ -75,11 +78,6 @@ const X2EARN_ABI = [
     ],
     outputs:[{name:"",type:"bool"}],
     stateMutability:"nonpayable"
-  },
-  { name:"availableFunds", type:"function",
-    inputs:[{name:"appId",type:"bytes32"}],
-    outputs:[{name:"",type:"uint256"}],
-    stateMutability:"view"
   },
 ];
 
@@ -143,7 +141,7 @@ async function generateMonthlyPDF(b3tr, subs) {
     doc.text(`Monthly Report - ${month}`, 20, 30);
     doc.setFontSize(10);
     doc.text(`Total B3TR Earned: ${b3tr.toFixed(2)} B3TR`, 20, 45);
-    doc.text(`USD Value: $${(b3tr * 0.014).toFixed(2)}`, 20, 55);
+    doc.text(`USD Value: $${(b3tr * B3TR_USD).toFixed(2)}`, 20, 55);
     doc.text(`Submissions: ${subs.length}`, 20, 65);
     doc.setFontSize(14);
     doc.text('Submissions', 20, 85);
@@ -152,11 +150,10 @@ async function generateMonthlyPDF(b3tr, subs) {
     let yPos = 100;
     subs.forEach((s, i) => {
       if (yPos > 270) { doc.addPage(); yPos = 20; }
-      const util = ['Electric','Gas','Water','Solar'].find((u,j) => ['electric','gas','water','solar'][j]===s.type);
-      const unit = ['kWh','m³','L','kWh'][['electric','gas','water','solar'].indexOf(s.type)];
+      const u = getUtil(s.type);
       const delta = (parseFloat(s.cur) - parseFloat(s.prev)).toFixed(2);
-      doc.text(`${i+1}. ${util} - ${s.date}`, 20, yPos);
-      doc.text(`Usage: ${delta} ${unit} | +${parseFloat(s.b3tr).toFixed(2)} B3TR`, 20, yPos+5);
+      doc.text(`${i+1}. ${u.label} - ${s.date}`, 20, yPos);
+      doc.text(`Usage: ${delta} ${u.unit} | +${parseFloat(s.b3tr).toFixed(2)} B3TR`, 20, yPos+5);
       yPos += 12;
     });
     
@@ -202,16 +199,6 @@ function saveMeters(meters) {
 // ANTI-FARMING ENGINE
 // ────────────────────────────────────────────────────────────────────────────
 
-const USAGE_BOUNDS = {
-  electric: [0.5,   60],
-  gas:      [0.1,   20],
-  water:    [20,  2000],
-  solar:    [0.1,   80],
-};
-
-const ANOMALY_THRESHOLD = 3.5;
-const COOLDOWN_HOURS = 20;
-
 function checkPlausibility(utilId, usageVal) {
   const RANGES = { electric: { min:0.1, max:80 }, gas: { min:0.01, max:20 }, water: { min:10, max:1000}, solar: { min:0.1, max:60 } };
   const range = RANGES[utilId];
@@ -227,14 +214,6 @@ function checkAnomaly(utilId, usageVal, subs) {
   const avg = recent.reduce((a,s)=>a+(parseFloat(s.cur)-parseFloat(s.prev)),0)/recent.length;
   if (avg > 0 && usageVal > avg * 3.5) return { ok:false, anomaly:true, reason:`Usage is ${(usageVal/avg).toFixed(1)}x your average`, avg };
   return { ok:true, anomaly:false, avg:parseFloat(avg.toFixed(2)) };
-}
-
-function trustScore(subs) {
-  if (!subs.length) return 50;
-  const confirmed = subs.filter(s => s.status === "confirmed").length;
-  const ratio = confirmed / subs.length;
-  const streak = Math.min(subs.length, 30);
-  return Math.round(ratio * 60 + (streak / 30) * 40);
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -264,13 +243,31 @@ async function saveOfflineSubmission(data) {
   });
 }
 
-// Submissions captured while offline, still waiting to be broadcast.
+// Submissions captured while offline, still waiting to be broadcast. Skips any
+// that are already broadcasting/synced so a sync interrupted mid-flight can't
+// re-broadcast the same reward.
 async function getUnsyncedSubmissions() {
   const db = await initDB();
   return new Promise((resolve, reject) => {
     const req = db.transaction("submissions", "readonly").objectStore("submissions").getAll();
     req.onerror = () => reject(req.error);
-    req.onsuccess = () => resolve((req.result || []).filter(s => !s.synced));
+    req.onsuccess = () => resolve((req.result || []).filter(s => !s.synced && !s.broadcasting));
+  });
+}
+
+// Flag a queued submission as in-flight BEFORE broadcasting so a crash between
+// broadcast and confirmation doesn't cause a double payout. Cleared on failure.
+async function markBroadcasting(id, flag) {
+  const db = await initDB();
+  return new Promise((resolve, reject) => {
+    const store = db.transaction("submissions", "readwrite").objectStore("submissions");
+    const get = store.get(id);
+    get.onerror = () => reject(get.error);
+    get.onsuccess = () => {
+      const v = get.result;
+      if (v) { v.broadcasting = !!flag; store.put(v); }
+      resolve();
+    };
   });
 }
 
@@ -283,7 +280,7 @@ async function markSynced(id, txHash) {
     get.onerror = () => reject(get.error);
     get.onsuccess = () => {
       const v = get.result;
-      if (v) { v.synced = true; v.txHash = txHash || v.txHash; store.put(v); }
+      if (v) { v.synced = true; v.broadcasting = false; v.txHash = txHash || v.txHash; store.put(v); }
       resolve();
     };
   });
@@ -399,13 +396,6 @@ function computeStreak(subs){
   return streak;
 }
 
-const CHART_DATA = {
-  electric: [12.8,13.4,11.2,14.1,12.4,13.8,12.5],
-  gas:      [1.8, 2.1, 1.6, 2.4, 1.9, 2.2, 1.7],
-  water:    [125, 130, 118, 142, 128, 135, 122],
-  solar:    [12.2,10.8,13.5,11.4,12.1,9.8, 12.3],
-};
-const CHART_LABELS = ["Mo","Tu","We","Th","Fr","Sa","Su"];
 
 const ONBOARD_SLIDES = [
   { icon:"🌍", title:"Welcome to Green Utility Log", sub:"Track your home utilities, reduce your footprint, and earn B3TR rewards on VeChain.", color:"#1a3326" },
@@ -431,28 +421,35 @@ function getColorBg(id, T) { return T[id+"Bg"] || T.electricBg; }
 // SECURITY
 // ────────────────────────────────────────────────────────────────────────────
 
+// SHA-256 of the FULL image bytes. Returns null on failure so callers fail
+// closed (treat as unverifiable) instead of waving the photo through.
 async function hashImage(base64) {
   try {
-    const bytes = Uint8Array.from(atob(base64.slice(0,2000)), c => c.charCodeAt(0));
+    const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
     const buf   = await crypto.subtle.digest("SHA-256", bytes);
-    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("").slice(0,32);
-  } catch { return Math.random().toString(36).slice(2); }
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+  } catch { return null; }
 }
 
-function getDeviceId() {
-  const key = "greenlog_device_id";
-  let id = sessionStorage.getItem(key);
-  if (!id) { id = crypto.randomUUID?.() || Math.random().toString(36).slice(2); sessionStorage.setItem(key, id); }
-  return id;
+// Persisted set of photo hashes already used, so a refresh can't reset the
+// duplicate-photo check. Bounded to the most recent entries. (Authoritative
+// dedupe still belongs server-side.)
+const USED_HASHES_KEY = "greenlog_used_hashes";
+function loadUsedHashes() { try { return new Set(JSON.parse(localStorage.getItem(USED_HASHES_KEY) || "[]")); } catch { return new Set(); } }
+const usedHashes = loadUsedHashes();
+function rememberHash(h) {
+  usedHashes.add(h);
+  try { localStorage.setItem(USED_HASHES_KEY, JSON.stringify([...usedHashes].slice(-500))); } catch {}
 }
+
 
 const COOLDOWN_MS = 20 * 60 * 60 * 1000;
 function getCooldowns() {
-  try { return JSON.parse(sessionStorage.getItem("greenlog_cooldowns") || "{}"); } catch { return {}; }
+  try { return JSON.parse(localStorage.getItem("greenlog_cooldowns") || "{}"); } catch { return {}; }
 }
 function setCooldown(utilId) {
   const cd = getCooldowns(); cd[utilId] = Date.now();
-  sessionStorage.setItem("greenlog_cooldowns", JSON.stringify(cd));
+  try { localStorage.setItem("greenlog_cooldowns", JSON.stringify(cd)); } catch {}
 }
 function getCooldownRemaining(utilId) {
   const cd = getCooldowns();
@@ -464,8 +461,6 @@ function fmtCooldown(ms) {
   const h = Math.floor(ms/3600000), m = Math.floor((ms%3600000)/60000);
   return `${h}h ${m}m`;
 }
-
-const usedHashes = new Set();
 
 function checkFileMeta(file) {
   const flags = [];
@@ -564,12 +559,13 @@ function pickMeterReading(nums) {
   })[0];
 }
 
-function computeSecurityScore({ ocrMatched, ocrConfidence, plausible, anomaly, hashOk, fileOk, screenshotOk }) {
+function computeSecurityScore({ ocrMatched, ocrFailed, ocrConfidence, plausible, anomaly, hashOk, fileOk, screenshotOk }) {
   let score = 100;
   if (!hashOk)       score -= 50;
   if (!fileOk)       score -= 20;
   if (!screenshotOk) score -= 25;
-  if (!ocrMatched)   score -= 30;
+  if (ocrFailed)     score -= 15;            // couldn't read — soft penalty, not a free pass
+  else if (!ocrMatched) score -= 30;
   if (!plausible)    score -= 40;
   if (anomaly)       score -= 30;
   if (ocrConfidence > 0 && ocrConfidence < 50) score -= 10;
@@ -1053,7 +1049,7 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
                   style={{flex:1,minWidth:0,background:"rgba(26,51,38,0.04)",border:"1px solid rgba(26,51,38,0.15)",borderRadius:3,padding:"7px 10px",fontSize:14,fontFamily:"'DM Mono',monospace",color:"#0d1812",outline:"none"}}
                 />
                 <button type="button" onClick={()=>onScanClick(u.id)} disabled={scanning===u.id}
-                  title="Scan the reading from a photo"
+                  title="Scan the reading from a photo" aria-label={`Scan ${u.label} reading from a photo`}
                   style={{flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",minWidth:42,background:"rgba(26,51,38,0.07)",border:"1px solid rgba(26,51,38,0.18)",borderRadius:3,fontSize:14,color:"#264d3a",cursor:scanning===u.id?"wait":"pointer"}}>
                   {scanning===u.id ? "…" : "📷"}
                 </button>
@@ -1100,7 +1096,7 @@ function Onboarding({ onDone }) {
   );
 }
 
-function VerifyZone({ utilId, onVerified, onReset, reading, subs, meterNo }) {
+function VerifyZone({ utilId, onVerified, onReset, reading, prevRead, subs, meterNo }) {
   const [phase, setPhase] = useState("idle");
   const [result, setResult] = useState(null);
   const [secScore, setSecScore] = useState(null);
@@ -1117,8 +1113,11 @@ function VerifyZone({ utilId, onVerified, onReset, reading, subs, meterNo }) {
 
     setAiStep(0);
     const imgHash = await hashImage(base64);
-    const hashOk  = !usedHashes.has(imgHash);
-    if (!hashOk) { fraudFlags.push("duplicate_photo"); fraudReason = "Duplicate photo detected. Each submission needs a fresh photo."; }
+    const hashOk  = !!imgHash && !usedHashes.has(imgHash); // null hash = unverifiable = fail closed
+    if (!hashOk) {
+      fraudFlags.push("duplicate_photo");
+      fraudReason = imgHash ? "Duplicate photo detected. Each submission needs a fresh photo." : "Couldn't verify the photo — please retake it.";
+    }
 
     setAiStep(1);
     const fileMeta = checkFileMeta(file);
@@ -1135,9 +1134,12 @@ function VerifyZone({ utilId, onVerified, onReset, reading, subs, meterNo }) {
       fraudReason = fraudReason || ocrResult.reason;
     }
 
-    const usageVal   = reading && parseFloat(reading) > 0 ? parseFloat(reading) : null;
-    const plausCheck = usageVal ? checkPlausibility(utilId, usageVal) : { ok:true };
-    const anomCheck  = usageVal ? checkAnomaly(utilId, usageVal, subs) : { ok:true, anomaly:false };
+    // Plausibility/anomaly run on CONSUMPTION (current − previous), not the
+    // absolute meter value, otherwise a normal reading like 3847 always trips.
+    const r = parseFloat(reading), p = parseFloat(prevRead);
+    const usageVal   = (Number.isFinite(r) && Number.isFinite(p) && r > p) ? +(r - p).toFixed(2) : null;
+    const plausCheck = usageVal != null ? checkPlausibility(utilId, usageVal) : { ok:true };
+    const anomCheck  = usageVal != null ? checkAnomaly(utilId, usageVal, subs) : { ok:true, anomaly:false };
     if (!plausCheck.ok) { fraudFlags.push("implausible_reading"); fraudReason = fraudReason || plausCheck.reason; }
     if (anomCheck.anomaly) { fraudFlags.push("anomaly"); fraudReason = fraudReason || anomCheck.reason; }
 
@@ -1145,6 +1147,7 @@ function VerifyZone({ utilId, onVerified, onReset, reading, subs, meterNo }) {
 
     const score = computeSecurityScore({
       ocrMatched:    ocrResult.matched,
+      ocrFailed:     ocrResult.ocrFailed,
       ocrConfidence: ocrResult.ocrConfidence || 0,
       plausible:     plausCheck.ok,
       anomaly:       anomCheck.anomaly,
@@ -1154,7 +1157,7 @@ function VerifyZone({ utilId, onVerified, onReset, reading, subs, meterNo }) {
     });
     setSecScore(score);
 
-    if (hashOk) usedHashes.add(imgHash);
+    if (hashOk) rememberHash(imgHash);
 
     const verified = fraudFlags.length === 0 && score >= 40;
     const summary  = verified
@@ -1311,7 +1314,7 @@ function HomeScreen({ b3tr, streak, subs, setTab, T }) {
       <div className="hero">
         <div className="hero-label">Total B3TR Earned</div>
         <div className="hero-amount">{b3tr.toFixed(2)}<span>B3TR</span></div>
-        <div className="hero-usd">≈ ${(b3tr * 0.014).toFixed(2)} USD · Powered by VeChain</div>
+        <div className="hero-usd">≈ ${(b3tr * B3TR_USD).toFixed(2)} USD · Powered by VeChain</div>
         <div className="hero-chips">
           <div className="hchip"><div className="hchip-val">{streak}</div><div className="hchip-key">Day Streak</div></div>
           <div className="hchip"><div className="hchip-val">{subs.length}</div><div className="hchip-key">Submissions</div></div>
@@ -1368,7 +1371,7 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
         <div style={{fontSize:12,fontWeight:700,fontFamily:"'DM Mono',monospace",color:meterNo?(T[selUtil]||T.text):T.gas}}>{meterNo || "Not registered"}</div>
       </div>
 
-      <VerifyZone key={verifyKey} utilId={selUtil} reading={reading} subs={subs} meterNo={meterNo}
+      <VerifyZone key={verifyKey} utilId={selUtil} reading={reading} prevRead={prevRead} subs={subs} meterNo={meterNo}
         onVerified={(res, img, mime) => { setAiOk(true); setPhoto?.(img ? { base64: img, mime } : null); }}
         onReset={() => { setAiOk(false); setPhoto?.(null); }} />
 
@@ -1431,25 +1434,32 @@ function ChartsScreen({ subs, T }) {
     <>
       <div className="page-title">Analytics</div>
       {UTILS.map(u => {
-        const myS = subs.filter(s => s.type === u.id);
-        const data = CHART_DATA[u.id] || [0];
-        const tot = myS.reduce((a,s) => a+(parseFloat(s.cur)-parseFloat(s.prev)),0);
-        const avg = myS.length ? (tot / myS.length).toFixed(2) : 0;
-        const max = Math.max(...data, tot ? tot / myS.length : 0);
+        // Real per-submission consumption (current − previous), last 7, oldest→newest.
+        const myS = subs.filter(s => s.type === u.id).slice(0, 7).reverse();
+        const series = myS.map(s => ({
+          v: Math.max(0, (parseFloat(s.cur) - parseFloat(s.prev)) || 0),
+          label: (s.date || "").slice(5).replace("-", "/"),
+        }));
+        const avg = series.length ? series.reduce((a, d) => a + d.v, 0) / series.length : 0;
+        const max = Math.max(...series.map(d => d.v), 0);
         return (
           <div key={u.id} className="chart-card">
             <div className="chart-hdr">
               <div className="chart-title">{u.label}</div>
-              <div style={{fontSize:10,color:T.textSoft}}>{myS.length} readings</div>
+              <div style={{fontSize:10,color:T.textSoft}}>{series.length} reading{series.length!==1?"s":""}{series.length ? ` · avg ${avg.toFixed(2)} ${u.unit}` : ""}</div>
             </div>
-            <div className="chart-bars">
-              {data.map((v, i) => (
-                <div key={i} className="chart-bar-wrap">
-                  <div className="chart-bar" style={{background: T[u.id]||T.electric, height: max > 0 ? `${(v/max)*100}%` : "8px"}}/>
-                  <div className="chart-lbl">{CHART_LABELS[i]}</div>
-                </div>
-              ))}
-            </div>
+            {series.length ? (
+              <div className="chart-bars">
+                {series.map((d, i) => (
+                  <div key={i} className="chart-bar-wrap">
+                    <div className="chart-bar" style={{background: T[u.id]||T.electric, height: max > 0 ? `${Math.max(8, (d.v/max)*100)}%` : "8px"}} title={`${d.v.toFixed(2)} ${u.unit}`}/>
+                    <div className="chart-lbl">{d.label}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{padding:"18px 4px",fontSize:11,color:T.textSoft,textAlign:"center"}}>No readings yet — log this meter to see your usage.</div>
+            )}
           </div>
         );
       })}
@@ -1480,7 +1490,7 @@ function LeaderboardScreen({ b3tr, streak, subs, wallet, T }) {
       appId: VEBETTER_APP_ID,
       signal: ctrl.signal,
     })
-      .then(res => { if (!cancelled) setChain(res.ok ? { status: "live", rows: res.rows } : { status: "demo", rows: [], reason: res.reason }); })
+      .then(res => { if (!cancelled) setChain(res.ok ? { status: "live", rows: res.rows, truncated: res.truncated } : { status: "demo", rows: [], reason: res.reason }); })
       .catch(() => { if (!cancelled) setChain({ status: "demo", rows: [], reason: "error" }); });
     return () => { cancelled = true; ctrl.abort(); };
   }, []);
@@ -1600,7 +1610,7 @@ function LeaderboardScreen({ b3tr, streak, subs, wallet, T }) {
         {chain.status==="loading"
           ? <><span className="spin-sm" style={{width:9,height:9,borderColor:`${T.border}`,borderTopColor:T.green3}}/> Loading on-chain rankings…</>
           : chain.status==="live"
-            ? <><span style={{width:6,height:6,borderRadius:"50%",background:T.green3,animation:"pulse 2.5s infinite"}}/> Live · {board.length} on-chain participants</>
+            ? <><span style={{width:6,height:6,borderRadius:"50%",background:T.green3,animation:"pulse 2.5s infinite"}}/> Live · {board.length} on-chain participants{chain.truncated ? " (top, more exist)" : ""}</>
             : <>● Sample field — {chain.reason==="unset_appid" ? "set your VeBetterDAO App ID for live data" : "live rankings load once submissions are on-chain"}</>
         }
       </div>
@@ -1711,7 +1721,7 @@ function AdminScreen({ onClose, T }) {
   );
 }
 
-function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, notifs, setNotifs, setOnboarded, onEditMeters, onEditSolar, meters, isAdmin, onOpenAdmin, T }) {
+function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, notifs, setNotifs, setOnboarded, onEditMeters, onEditSolar, meters, isAdmin, onOpenAdmin, onToast, T }) {
   const tier = getTier(b3tr);
   return (
     <>
@@ -1757,7 +1767,7 @@ function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, notif
       })()}
 
       <div className="sec"><div className="sec-line"/><div className="sec-txt">Export</div><div className="sec-line"/></div>
-      <div className="setting-row" onClick={() => generateMonthlyPDF(b3tr, subs)}>
+      <div className="setting-row" onClick={async () => { const ok = await generateMonthlyPDF(b3tr, subs); onToast?.(ok ? "📄 Report downloaded" : "❌ Couldn't generate the report"); }}>
         <div className="sr-left">
           <div className="sr-icon">📄</div>
           <div><div className="sr-label">Download Monthly Report</div><div className="sr-sub">PDF with stats, trends, and proof</div></div>
@@ -1993,6 +2003,9 @@ export default function App() {
         let synced = 0;
         for (const item of pending) {
           if (cancelled) break;
+          // Claim the item before broadcasting; if we crash mid-flight it stays
+          // flagged and won't be re-sent (no double payout).
+          await markBroadcasting(item.id, true);
           try {
             const clauses = buildRewardClauses(item.type, item.cur, item.prev, item.b3tr, wallet, item.meterNo);
             const { txid } = await requestTransaction(clauses);
@@ -2005,7 +2018,10 @@ export default function App() {
             }, ...prev]);
             setB3tr(b => b + (parseFloat(item.b3tr) || 0));
             synced++;
-          } catch { /* keep it queued and retry on the next online event */ }
+          } catch {
+            // Broadcast failed (e.g. user rejected) — release it for a retry.
+            await markBroadcasting(item.id, false);
+          }
         }
         if (synced && !cancelled) showToast(`🔄 Synced ${synced} offline submission${synced > 1 ? "s" : ""} to ${NETWORK_LABEL}`);
       } finally {
@@ -2016,6 +2032,7 @@ export default function App() {
   }, [online, wallet]);
 
   const handleSelUtil = (id) => {
+    if (id === selUtil) return; // re-tapping the active meter shouldn't clear input
     setSelUtil(id);
     setAiOk(false);
     setPhoto(null);
@@ -2037,6 +2054,22 @@ export default function App() {
     if (!meterNo) {
       setBusy(false);
       showToast("⚠️ Register this meter's number before submitting");
+      return;
+    }
+
+    // Don't broadcast a zero/NaN reward (blank or non-increasing readings).
+    if (!(earned > 0)) {
+      setBusy(false);
+      showToast("⚠️ Enter a current reading higher than the previous one");
+      return;
+    }
+
+    // Enforce the per-meter cooldown on the submission itself, not just the
+    // camera UI (which is bypassable).
+    const cdRem = getCooldownRemaining(selUtil);
+    if (cdRem > 0) {
+      setBusy(false);
+      showToast(`⏳ ${getUtil(selUtil).label} on cooldown — ${fmtCooldown(cdRem)} left`);
       return;
     }
 
@@ -2111,7 +2144,7 @@ export default function App() {
       {showIntro && <IntroScreen onStart={() => { setShowIntro(false); localStorage.setItem('greenlog_seen_intro', 'true'); }} />}
       {!showIntro && !wallet && <WalletGate onConnect={openConnectModal} online={online} />}
       {needsBaselines && <BaselineOnboarding onDone={(bl, mtrs) => { setBaselines(bl); setMeters(mtrs); closeRegistration(); }} utils={regUtils} editMode={regEdit} existingBaselines={baselines} existingMeters={meters} />}
-      {!onboarded && <Onboarding onDone={(bl) => { setBaselines(bl); setOnboarded(true); setPrevRead(bl.electric||""); }} />}
+      {!onboarded && <Onboarding onDone={() => setOnboarded(true)} />}
       {showAdmin && isAdminWallet(wallet) && <AdminScreen onClose={() => setShowAdmin(false)} T={T} />}
       {toast && <div className="toast">{toast}</div>}
 
@@ -2130,7 +2163,7 @@ export default function App() {
                 <div style={{width:6,height:6,borderRadius:"50%",background:online?T.green3:T.gas,animation:online?"pulse 2.5s infinite":"none"}}/>
                 {online ? "Online" : "Offline"}
               </div>
-              <button className="dark-toggle" onClick={toggleDark}>
+              <button className="dark-toggle" onClick={toggleDark} aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}>
                 {dark ? '☀️' : '🌙'}
               </button>
               {/* Connect button — opens dapp-kit's wallet modal
@@ -2153,7 +2186,7 @@ export default function App() {
           {tab==="charts"    && <ChartsScreen subs={subs} T={T}/>}
           {tab==="leaderboard" && <LeaderboardScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}
-          {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} setShowWallet={openConnectModal} dark={dark} setDark={toggleDark} notifs={notifs} setNotifs={setNotifs} setOnboarded={setOnboarded} onEditMeters={()=>openRegistration(REQUIRED_UTILS, true)} onEditSolar={()=>openRegistration(SOLAR_UTILS, true)} meters={meters} isAdmin={isAdminWallet(wallet)} onOpenAdmin={()=>setShowAdmin(true)} T={T}/>}
+          {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} setShowWallet={openConnectModal} dark={dark} setDark={toggleDark} notifs={notifs} setNotifs={setNotifs} setOnboarded={setOnboarded} onEditMeters={()=>openRegistration(REQUIRED_UTILS, true)} onEditSolar={()=>openRegistration(SOLAR_UTILS, true)} meters={meters} isAdmin={isAdminWallet(wallet)} onOpenAdmin={()=>setShowAdmin(true)} onToast={showToast} T={T}/>}
         </div>
 
         <div className="bnav">

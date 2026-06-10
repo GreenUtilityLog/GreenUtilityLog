@@ -56,8 +56,9 @@ export async function fetchOnChainLeaderboard({ node, contract, appId, max = 200
   const totals = new Map(); // receiver -> { wei: BigInt, count, last }
   const pageSize = 256;
   let offset = 0;
+  let truncated = false;
 
-  for (let fetched = 0; fetched < max; ) {
+  for (let fetched = 0; ; ) {
     const body = {
       options: { offset, limit: pageSize },
       criteriaSet: [{ address: contract, topic0: REWARD_TOPIC, topic1: appId }],
@@ -88,7 +89,8 @@ export async function fetchOnChainLeaderboard({ node, contract, appId, max = 200
 
     offset   += logs.length;
     fetched  += logs.length;
-    if (logs.length < pageSize) break; // last page
+    if (logs.length < pageSize) break;              // last page
+    if (fetched >= max) { truncated = true; break; } // hit the cap — more may exist
   }
 
   const rows = [...totals.entries()]
@@ -100,7 +102,7 @@ export async function fetchOnChainLeaderboard({ node, contract, appId, max = 200
     }))
     .sort((a, b) => b.b3tr - a.b3tr);
 
-  return { ok: true, rows };
+  return { ok: true, rows, truncated };
 }
 
 // Reconstruct one wallet's full submission history straight from chain by
