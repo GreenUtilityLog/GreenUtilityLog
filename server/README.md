@@ -59,7 +59,11 @@ client-sent amount is never trusted.
 ## What it verifies
 
 - Valid wallet address, known utility, meter number present.
-- `current > previous`, and usage within plausible bounds (mirrors the app).
+- Usage is computed from the **last reading the server recorded** for that meter
+  (not the client-sent `prevRead`), so a baseline can't be lowered to inflate the
+  delta. The current reading must exceed the last recorded one. The first ever
+  submission for a meter falls back to the supplied baseline.
+- Usage within plausible bounds (mirrors the app).
 - Per wallet+utility cooldown (default 20h), **persisted** (survives restarts).
 - **Meter ownership**: a meter number is bound to the first wallet that earns
   with it, so the same physical meter can't be farmed from multiple accounts.

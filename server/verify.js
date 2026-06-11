@@ -24,11 +24,22 @@ export function validateSubmission(body) {
   if (owner && owner !== addr) return { ok: false, error: "this meter is registered to another wallet" };
 
   const r = parseFloat(reading);
-  const p = parseFloat(prevRead);
-  if (!Number.isFinite(r) || !Number.isFinite(p)) return { ok: false, error: "invalid readings" };
-  if (r <= p) return { ok: false, error: "current reading must exceed previous" };
+  if (!Number.isFinite(r)) return { ok: false, error: "invalid reading" };
 
-  const usage = +(r - p).toFixed(2);
+  // Compute usage from the LAST reading the server recorded for this meter, not
+  // the client-sent prevRead — that way a baseline can't be lowered to inflate
+  // the delta. The first ever submission falls back to the supplied baseline.
+  const last = store.lastReading(meterKey);
+  let prev;
+  if (last != null) {
+    prev = last;
+  } else {
+    prev = parseFloat(prevRead);
+    if (!Number.isFinite(prev)) return { ok: false, error: "invalid baseline reading" };
+  }
+  if (r <= prev) return { ok: false, error: `current reading (${r}) must exceed the last recorded reading (${prev})` };
+
+  const usage = +(r - prev).toFixed(2);
   const [lo, hi] = USAGE_BOUNDS[utility] || [0, Infinity];
   if (usage < lo || usage > hi) {
     return { ok: false, error: `usage ${usage} ${UNITS[utility]} is outside the plausible range` };
@@ -50,8 +61,12 @@ export function validateSubmission(body) {
     ok: true,
     usage,
     amount,
-    // Called only after a successful payout: start the cooldown and bind the
-    // meter number to this wallet.
-    markPaid: () => { store.setCooldown(key, Date.now()); store.bindMeter(meterKey, addr); },
+    // Called only after a successful payout: start the cooldown, bind the meter
+    // to this wallet, and record this reading as the new baseline for next time.
+    markPaid: () => {
+      store.setCooldown(key, Date.now());
+      store.bindMeter(meterKey, addr);
+      store.setLastReading(meterKey, r);
+    },
   };
 }

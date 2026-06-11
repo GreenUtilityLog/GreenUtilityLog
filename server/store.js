@@ -7,10 +7,10 @@ import { readFileSync, writeFileSync } from "node:fs";
 
 const FILE = process.env.STATE_FILE || "./state.json";
 
-let state = { cooldowns: {}, hashes: {}, meterOwners: {} };
+let state = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {} };
 try {
   const loaded = JSON.parse(readFileSync(FILE, "utf8"));
-  state = { cooldowns: {}, hashes: {}, meterOwners: {}, ...loaded };
+  state = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ...loaded };
 } catch { /* no file yet — start fresh */ }
 
 let timer = null;
@@ -34,4 +34,9 @@ export const store = {
   // meter number -> the address that first claimed it (anti meter-sharing)
   meterOwner: (meterKey) => state.meterOwners[meterKey] || null,
   bindMeter: (meterKey, addr) => { state.meterOwners[meterKey] = addr; persist(); },
+
+  // last paid reading per meter -> the server computes usage from THIS, not the
+  // client-sent prevRead, so a baseline can't be lowered to inflate a delta.
+  lastReading: (meterKey) => (Object.prototype.hasOwnProperty.call(state.readings, meterKey) ? state.readings[meterKey] : null),
+  setLastReading: (meterKey, val) => { state.readings[meterKey] = val; persist(); },
 };
