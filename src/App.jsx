@@ -519,39 +519,116 @@ async function loadTesseract() {
   return _tesseractReady;
 }
 
-async function runOCR(file, claimedReading) {
+// Pre-process a meter photo for OCR: downscale/upscale to a sane size, convert
+// to greyscale and stretch the contrast. Plain Tesseract on a raw colour photo
+// is unreliable; this markedly improves digit recognition. Returns a canvas.
+async function preprocessForOCR(file) {
+  const img = await new Promise((resolve, reject) => {
+    const i = new Image();
+    i.onload = () => resolve(i);
+    i.onerror = reject;
+    i.src = URL.createObjectURL(file);
+  });
+  const targetW = 1200;
+  const scale = Math.min(2, targetW / (img.width || targetW)) || 1;
+  const w = Math.max(1, Math.round((img.width || targetW) * scale));
+  const h = Math.max(1, Math.round((img.height || targetW) * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0, w, h);
+  try {
+    const id = ctx.getImageData(0, 0, w, h);
+    const d = id.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      let v = (g - 128) * 1.7 + 128;           // contrast stretch
+      v = v < 0 ? 0 : v > 255 ? 255 : v;
+      d[i] = d[i + 1] = d[i + 2] = v;
+    }
+    ctx.putImageData(id, 0, 0);
+  } catch {}
+  try { URL.revokeObjectURL(img.src); } catch {}
+  return canvas;
+}
+
+// Which OCR model fits each meter. Electric/gas/solar are digital 7-segment
+// LCD/LED displays → the "ssd" model (trained on seven-segment digits) reads
+// them far better than generic "eng". Water is a mechanical rolling counter →
+// plain "eng" handles those printed digits.
+const OCR_MODEL = { electric: "ssd", gas: "ssd", solar: "ssd", water: "eng" };
+const SSD_LANG_PATH = "https://cdn.jsdelivr.net/gh/Shreeshrii/tessdata_ssd@master";
+
+async function recognizeWith(Tesseract, model, source) {
+  const worker = model === "ssd"
+    ? await Tesseract.createWorker("ssd", 1, { langPath: SSD_LANG_PATH, gzip: false, logger: () => {} })
+    : await Tesseract.createWorker("eng", 1, { logger: () => {} });
+  await worker.setParameters({ tessedit_char_whitelist: "0123456789.", tessedit_pageseg_mode: "6" });
+  const { data } = await worker.recognize(source);
+  await worker.terminate();
+  return data;
+}
+
+function extractCandidates(data) {
+  const cands = [];
+  for (const wd of (data?.words || [])) {
+    const m = (wd.text || "").match(/\d+(?:\.\d+)?/);
+    if (!m) continue;
+    const val = parseFloat(m[0]);
+    if (!Number.isFinite(val)) continue;
+    const bbox = wd.bbox || {};
+    cands.push({ val, height: (bbox.y1 - bbox.y0) || 0, conf: wd.confidence || 0, digits: String(Math.trunc(val)).length });
+  }
+  return cands;
+}
+
+async function runOCR(file, claimedReading, utilId) {
   try {
     const Tesseract = await loadTesseract();
-    const worker = await Tesseract.createWorker("eng", 1, { logger: () => {} });
-    await worker.setParameters({
-      tessedit_char_whitelist: "0123456789.",
-      tessedit_pageseg_mode: "6",
-    });
-    const { data: { text, confidence } } = await worker.recognize(file);
-    await worker.terminate();
+    const source = await preprocessForOCR(file).catch(() => file);
+    const model = OCR_MODEL[utilId] || "eng";
 
-    const nums = (text.match(/\d+(\.\d+)?/g) || []).map(Number);
-    if (!nums.length) return { matched: false, ocrNums: [], ocrConfidence: confidence, reason: "No digits detected" };
+    // Primary pass with the meter-appropriate model; fall back to eng if the
+    // (CDN-loaded) 7-segment model can't load or finds nothing.
+    let data;
+    try { data = await recognizeWith(Tesseract, model, source); }
+    catch { data = await recognizeWith(Tesseract, "eng", source); }
+    let cands = extractCandidates(data);
+    if (!cands.length && model !== "eng") {
+      try { const d2 = await recognizeWith(Tesseract, "eng", source); const c2 = extractCandidates(d2); if (c2.length) { data = d2; cands = c2; } } catch {}
+    }
+
+    const text = data?.text || "";
+    const confidence = data?.confidence || 0;
+    const nums = cands.length ? cands.map(c => c.val) : (text.match(/\d+(\.\d+)?/g) || []).map(Number);
+    const best = pickBestReading(cands);
+    if (!nums.length) return { matched: false, ocrNums: [], ocrBest: null, ocrConfidence: confidence, reason: "No digits detected" };
 
     const claimed = parseFloat(claimedReading);
-    if (!claimed || isNaN(claimed)) return { matched: true, ocrNums: nums, ocrConfidence: confidence };
+    if (!claimed || isNaN(claimed)) return { matched: true, ocrNums: nums, ocrBest: best, ocrConfidence: confidence };
 
     const match = nums.find(n => Math.abs(n - claimed) / claimed < 0.08);
     if (!match) {
       const claimedStr = String(Math.round(claimed));
       const partialMatch = nums.find(n => String(Math.round(n)).includes(claimedStr.slice(-4)));
-      if (partialMatch) return { matched: true, ocrNums: nums, ocrConfidence: confidence, partialMatch: true };
-      return { matched: false, ocrNums: nums, ocrConfidence: confidence, reason: `OCR reads ${nums[0]} — entered ${claimed}` };
+      if (partialMatch) return { matched: true, ocrNums: nums, ocrBest: best, ocrConfidence: confidence, partialMatch: true };
+      return { matched: false, ocrNums: nums, ocrBest: best, ocrConfidence: confidence, reason: `OCR reads ${nums[0]} — entered ${claimed}` };
     }
-    return { matched: true, ocrNums: nums, ocrConfidence: confidence };
+    return { matched: true, ocrNums: nums, ocrBest: best, ocrConfidence: confidence };
   } catch (e) {
-    return { matched: true, ocrNums: [], ocrConfidence: 0, ocrFailed: true };
+    return { matched: true, ocrNums: [], ocrBest: null, ocrConfidence: 0, ocrFailed: true };
   }
 }
 
-// Pick the most likely meter reading from the numbers OCR found: the meter
-// reading is the most significant figure on the display, so prefer the value
-// with the most digits, then the largest.
+// From word-level OCR candidates, pick the largest digits (the display reading),
+// tie-broken by confidence then digit count.
+function pickBestReading(cands) {
+  if (!cands || !cands.length) return null;
+  const top = [...cands].sort((a, b) => (b.height - a.height) || (b.conf - a.conf) || (b.digits - a.digits))[0];
+  return top ? top.val : null;
+}
+
+// Fallback when only a plain number list is available: most digits, then largest.
 function pickMeterReading(nums) {
   if (!nums || !nums.length) return null;
   return [...nums].sort((a, b) => {
@@ -988,8 +1065,8 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
     if (!file || !id) return;
     setScanning(id); setScanMsg(null);
     try {
-      const res = await runOCR(file, "");
-      const reading = pickMeterReading(res.ocrNums);
+      const res = await runOCR(file, "", id);
+      const reading = (res.ocrBest != null ? res.ocrBest : pickMeterReading(res.ocrNums));
       if (reading != null) { setBaselines(b => ({ ...b, [id]: String(reading) })); setScanMsg({ id, ok:true }); }
       else setScanMsg({ id, ok:false });
     } catch { setScanMsg({ id, ok:false }); }
@@ -997,6 +1074,11 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
   };
 
   const isSolarOnly = shown.length === 1 && shown[0].id === "solar";
+  // Anti-fraud: a meter that's already registered is LOCKED — you can view it but
+  // not change the number or baseline (which would let you reset cooldowns or
+  // inflate the next usage delta). Only not-yet-registered meters are editable.
+  const isLocked = (u) => editMode && (existingMeters?.[u.id] || "").trim().length > 0;
+  const allLocked = shown.length > 0 && shown.every(isLocked);
   // In edit mode every shown meter is expected; on first setup only the
   // non-optional ones are required to continue.
   const required = editMode ? shown : shown.filter(u => !u.optional);
@@ -1016,10 +1098,12 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
     onDone(nextBaselines, nextMeters);
   };
 
-  const title = isSolarOnly ? "Add Solar Panels" : (editMode ? "Edit Your Meters" : "Register Your Meters");
-  const sub = isSolarOnly
-    ? "Generating your own power? Add your solar meter number and current export reading — tap 📷 to scan the reading from a photo."
-    : "Enter each meter number, then the current reading — or tap 📷 to scan it from a photo. The meter number is logged with every submission to keep your readings verifiable.";
+  const title = allLocked ? "Your Meters" : (isSolarOnly ? "Add Solar Panels" : (editMode ? "Edit Your Meters" : "Register Your Meters"));
+  const sub = allLocked
+    ? "Your registered meters are locked to keep your readings tamper-proof. A meter number and baseline can't be changed once set."
+    : isSolarOnly
+      ? "Generating your own power? Add your solar meter number and current export reading — tap 📷 to scan the reading from a photo."
+      : "Enter each meter number, then the current reading — or tap 📷 to scan it from a photo. The meter number is logged with every submission to keep your readings verifiable.";
 
   return (
     <div className="onboard">
@@ -1029,18 +1113,24 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
       <div style={{width:"100%",maxWidth:320,display:"flex",flexDirection:"column",gap:8,marginTop:20}}>
         {shown.map(u => {
           const needsMeter = required.includes(u);
+          const locked = isLocked(u);
+          const lockedInput = {width:"100%",background:"rgba(26,51,38,0.05)",border:"1px solid rgba(26,51,38,0.12)",borderRadius:3,padding:"7px 10px",fontSize:13,fontFamily:"'DM Mono',monospace",color:"#5a6f64",outline:"none",marginBottom:6,cursor:"not-allowed"};
           return (
           <div key={u.id} style={{display:"flex",alignItems:"flex-start",gap:12,background:"rgba(26,51,38,0.06)",borderRadius:4,padding:"10px 14px",border:"1px solid rgba(26,51,38,0.12)"}}>
             <span style={{width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center",color:"#264d3a",flexShrink:0,marginTop:2}}>{UTIL_ICONS[u.id]}</span>
             <div style={{flex:1}}>
-              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"#7a9188",marginBottom:4}}>{u.label} <span style={{fontWeight:400}}>({u.unit})</span>{!needsMeter && <span style={{fontWeight:400,textTransform:"none",letterSpacing:0}}> · optional</span>}</div>
+              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"#7a9188",marginBottom:4}}>{u.label} <span style={{fontWeight:400}}>({u.unit})</span>{locked ? <span style={{fontWeight:400,textTransform:"none",letterSpacing:0,color:"#264d3a"}}> · 🔒 locked</span> : (!needsMeter && <span style={{fontWeight:400,textTransform:"none",letterSpacing:0}}> · optional</span>)}</div>
               <input
                 type="text"
+                readOnly={locked}
                 placeholder={needsMeter ? "Meter / EAN number" : "Meter / EAN number (optional)"}
                 value={meters[u.id]}
-                onChange={e => setMeters(m => ({...m,[u.id]:e.target.value}))}
-                style={{width:"100%",background:"rgba(26,51,38,0.04)",border:`1px solid ${((meters[u.id]||"").trim() || !needsMeter) ? "rgba(26,51,38,0.15)" : "rgba(180,60,40,0.45)"}`,borderRadius:3,padding:"7px 10px",fontSize:13,fontFamily:"'DM Mono',monospace",color:"#0d1812",outline:"none",marginBottom:6}}
+                onChange={locked ? undefined : (e => setMeters(m => ({...m,[u.id]:e.target.value})))}
+                style={locked ? lockedInput : {width:"100%",background:"rgba(26,51,38,0.04)",border:`1px solid ${((meters[u.id]||"").trim() || !needsMeter) ? "rgba(26,51,38,0.15)" : "rgba(180,60,40,0.45)"}`,borderRadius:3,padding:"7px 10px",fontSize:13,fontFamily:"'DM Mono',monospace",color:"#0d1812",outline:"none",marginBottom:6}}
               />
+              {locked ? (
+                <input type="text" readOnly value={`${baselines[u.id] || ""} ${u.unit}`} style={lockedInput} />
+              ) : (
               <div style={{display:"flex",gap:6,alignItems:"stretch"}}>
                 <input
                   type="number"
@@ -1055,8 +1145,9 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
                   {scanning===u.id ? "…" : "📷"}
                 </button>
               </div>
-              {scanning===u.id && <div style={{fontSize:10,color:"#7a9188",marginTop:4}}>Reading the meter…</div>}
-              {scanMsg && scanMsg.id===u.id && scanning!==u.id && (
+              )}
+              {!locked && scanning===u.id && <div style={{fontSize:10,color:"#7a9188",marginTop:4}}>Reading the meter…</div>}
+              {!locked && scanMsg && scanMsg.id===u.id && scanning!==u.id && (
                 scanMsg.ok
                   ? <div style={{fontSize:10,color:"#2e7d52",marginTop:4}}>✓ Filled from photo — check it's right.</div>
                   : <div style={{fontSize:10,color:"#b43c28",marginTop:4}}>Couldn't read it — type the reading in.</div>
@@ -1067,9 +1158,10 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
         })}
       </div>
       <input type="file" ref={fileRef} onChange={onScanFile} accept="image/*" capture="environment" style={{display:"none"}} />
-      {!isSolarOnly && <div style={{fontSize:11,color:"#7a9188",marginTop:16,textAlign:"center"}}>ℹ️ Got solar panels? Add them later in Settings.</div>}
+      {!isSolarOnly && !allLocked && <div style={{fontSize:11,color:"#7a9188",marginTop:16,textAlign:"center"}}>ℹ️ Got solar panels? Add them later in Settings.</div>}
+      {allLocked && <div style={{fontSize:11,color:"#7a9188",marginTop:16,textAlign:"center"}}>🔒 Locked to prevent fraud. To replace a meter, contact support.</div>}
       {!allMetersFilled && <div style={{fontSize:11,color:"#b43c28",marginTop:6,textAlign:"center"}}>Enter a meter number for every meter to continue.</div>}
-      <button className="ob-btn" onClick={handleDone} disabled={!allMetersFilled} style={!allMetersFilled?{opacity:.5,cursor:"not-allowed"}:undefined}>{isSolarOnly ? "Save Solar Meter" : "Complete Setup"}</button>
+      <button className="ob-btn" onClick={handleDone} disabled={!allMetersFilled} style={!allMetersFilled?{opacity:.5,cursor:"not-allowed"}:undefined}>{allLocked ? "Done" : (isSolarOnly ? "Save Solar Meter" : "Complete Setup")}</button>
     </div>
   );
 }
@@ -1129,7 +1221,7 @@ function VerifyZone({ utilId, onVerified, onReset, reading, prevRead, subs, mete
     if (ssCheck.isScreenshot) { fraudFlags.push("screenshot_detected"); fraudReason = fraudReason || "Screenshot detected. Please take a real photo of your physical meter."; }
 
     setAiStep(3);
-    const ocrResult = await runOCR(file, reading);
+    const ocrResult = await runOCR(file, reading, utilId);
     if (!ocrResult.matched && !ocrResult.ocrFailed) {
       fraudFlags.push("ocr_mismatch");
       fraudReason = fraudReason || ocrResult.reason;
