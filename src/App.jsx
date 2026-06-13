@@ -519,18 +519,33 @@ async function loadTesseract() {
   return _tesseractReady;
 }
 
-// Pre-process a meter photo for OCR: downscale/upscale to a sane size, convert
-// to greyscale and stretch the contrast. Plain Tesseract on a raw colour photo
-// is unreliable; this markedly improves digit recognition. Returns a canvas.
-async function preprocessForOCR(file) {
+// Otsu's method: pick the grey level that best separates dark/light pixels.
+function otsuThreshold(hist, total) {
+  let sum = 0; for (let i = 0; i < 256; i++) sum += i * hist[i];
+  let sumB = 0, wB = 0, maxVar = -1, thr = 127;
+  for (let t = 0; t < 256; t++) {
+    wB += hist[t]; if (!wB) continue;
+    const wF = total - wB; if (!wF) break;
+    sumB += t * hist[t];
+    const mB = sumB / wB, mF = (sum - sumB) / wF;
+    const between = wB * wF * (mB - mF) * (mB - mF);
+    if (between > maxVar) { maxVar = between; thr = t; }
+  }
+  return thr;
+}
+
+// Pre-process a meter photo for OCR: scale up, greyscale, then binarise with
+// Otsu so the digits become clean black-on-white — what Tesseract reads best.
+// `invert` flips it (for light-on-dark LED/LCD displays). Returns a canvas.
+async function preprocessForOCR(file, invert = false) {
   const img = await new Promise((resolve, reject) => {
     const i = new Image();
     i.onload = () => resolve(i);
     i.onerror = reject;
     i.src = URL.createObjectURL(file);
   });
-  const targetW = 1200;
-  const scale = Math.min(2, targetW / (img.width || targetW)) || 1;
+  const targetW = 1280;
+  const scale = Math.min(2.5, targetW / (img.width || targetW)) || 1;
   const w = Math.max(1, Math.round((img.width || targetW) * scale));
   const h = Math.max(1, Math.round((img.height || targetW) * scale));
   const canvas = document.createElement("canvas");
@@ -540,11 +555,18 @@ async function preprocessForOCR(file) {
   try {
     const id = ctx.getImageData(0, 0, w, h);
     const d = id.data;
-    for (let i = 0; i < d.length; i += 4) {
-      const g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-      let v = (g - 128) * 1.7 + 128;           // contrast stretch
-      v = v < 0 ? 0 : v > 255 ? 255 : v;
-      d[i] = d[i + 1] = d[i + 2] = v;
+    const n = w * h;
+    const gray = new Uint8Array(n);
+    const hist = new Array(256).fill(0);
+    for (let i = 0, p = 0; i < d.length; i += 4, p++) {
+      const g = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) | 0;
+      gray[p] = g; hist[g]++;
+    }
+    const t = otsuThreshold(hist, n);
+    for (let i = 0, p = 0; i < d.length; i += 4, p++) {
+      let bw = gray[p] > t ? 255 : 0;
+      if (invert) bw = 255 - bw;
+      d[i] = d[i + 1] = d[i + 2] = bw;
     }
     ctx.putImageData(id, 0, 0);
   } catch {}
@@ -559,14 +581,12 @@ async function preprocessForOCR(file) {
 const OCR_MODEL = { electric: "ssd", gas: "ssd", solar: "ssd", water: "eng" };
 const SSD_LANG_PATH = "https://cdn.jsdelivr.net/gh/Shreeshrii/tessdata_ssd@master";
 
-async function recognizeWith(Tesseract, model, source) {
+async function makeWorker(Tesseract, model) {
   const worker = model === "ssd"
     ? await Tesseract.createWorker("ssd", 1, { langPath: SSD_LANG_PATH, gzip: false, logger: () => {} })
     : await Tesseract.createWorker("eng", 1, { logger: () => {} });
   await worker.setParameters({ tessedit_char_whitelist: "0123456789.", tessedit_pageseg_mode: "6" });
-  const { data } = await worker.recognize(source);
-  await worker.terminate();
-  return data;
+  return worker;
 }
 
 function extractCandidates(data) {
@@ -582,24 +602,45 @@ function extractCandidates(data) {
   return cands;
 }
 
+// Recognise `sources` (one or more pre-processed canvases) with a single worker
+// of the given model. Returns merged candidates + text + best confidence.
+async function recognizeAll(Tesseract, model, sources) {
+  const worker = await makeWorker(Tesseract, model);
+  let cands = [], text = "", confidence = 0;
+  try {
+    for (const src of sources) {
+      if (!src) continue;
+      const data = await worker.recognize(src).then(r => r.data).catch(() => null);
+      if (!data) continue;
+      cands = cands.concat(extractCandidates(data));
+      if (data.text) text = data.text;
+      confidence = Math.max(confidence, data.confidence || 0);
+    }
+  } finally {
+    try { await worker.terminate(); } catch {}
+  }
+  return { cands, text, confidence };
+}
+
 async function runOCR(file, claimedReading, utilId) {
   try {
     const Tesseract = await loadTesseract();
-    const source = await preprocessForOCR(file).catch(() => file);
     const model = OCR_MODEL[utilId] || "eng";
+    const digital = OCR_MODEL[utilId] === "ssd";
 
-    // Primary pass with the meter-appropriate model; fall back to eng if the
-    // (CDN-loaded) 7-segment model can't load or finds nothing.
-    let data;
-    try { data = await recognizeWith(Tesseract, model, source); }
-    catch { data = await recognizeWith(Tesseract, "eng", source); }
-    let cands = extractCandidates(data);
+    // Binarised normal pass; for digital displays also a binarised INVERTED pass
+    // (LED/LCD digits are often light-on-dark) — merge both for robustness.
+    const normal = await preprocessForOCR(file, false).catch(() => file);
+    const sources = [normal];
+    if (digital) { const inv = await preprocessForOCR(file, true).catch(() => null); if (inv) sources.push(inv); }
+
+    let { cands, text, confidence } = await recognizeAll(Tesseract, model, sources).catch(() => ({ cands: [], text: "", confidence: 0 }));
+    // Fall back to eng if the 7-segment model couldn't load / found nothing.
     if (!cands.length && model !== "eng") {
-      try { const d2 = await recognizeWith(Tesseract, "eng", source); const c2 = extractCandidates(d2); if (c2.length) { data = d2; cands = c2; } } catch {}
+      const r = await recognizeAll(Tesseract, "eng", [normal]).catch(() => ({ cands: [], text: "", confidence: 0 }));
+      cands = r.cands; text = r.text || text; confidence = Math.max(confidence, r.confidence);
     }
 
-    const text = data?.text || "";
-    const confidence = data?.confidence || 0;
     const nums = cands.length ? cands.map(c => c.val) : (text.match(/\d+(\.\d+)?/g) || []).map(Number);
     const best = pickBestReading(cands);
     if (!nums.length) return { matched: false, ocrNums: [], ocrBest: null, ocrConfidence: confidence, reason: "No digits detected" };
