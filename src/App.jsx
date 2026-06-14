@@ -227,6 +227,39 @@ function checkAnomaly(utilId, usageVal, subs) {
   return { ok:true, anomaly:false, avg:parseFloat(avg.toFixed(2)) };
 }
 
+// From the numbers OCR found on the photo, choose the most likely CURRENT meter
+// reading and reject misreads — barcodes, serial/model numbers, the stray "0" off
+// the nameplate. The PREVIOUS reading is the anchor: a real new reading sits just
+// above it, and the consumption (reading − prev) must be plausible for the meter.
+// Returns null when nothing is convincing, so the field is left empty for manual
+// entry instead of pre-filled with a wrong number. Water keeps 2 decimals.
+function pickPlausibleReading(nums, { utilId, prevRead }) {
+  const cand = [...new Set((nums || []).map(Number).filter(n => Number.isFinite(n) && n > 0))];
+  if (!cand.length) return null;
+  const prev = parseFloat(prevRead);
+  if (!Number.isFinite(prev)) return null; // no anchor yet (first reading) → don't guess
+  const ok = cand
+    .filter(n => n > prev && checkPlausibility(utilId, +(n - prev).toFixed(2)).ok)
+    .sort((a, b) => a - b);                // closest above the previous reading is likeliest
+  if (!ok.length) return null;
+  return utilId === "water" ? +ok[0].toFixed(2) : ok[0];
+}
+
+// Does the final entered reading actually appear on the verified photo? Reuses the
+// OCR tolerance — a number within ~8%, or one that shares the reading's last 4
+// digits, counts as a match. Checked at SUBMIT time so a reading edited after the
+// photo was verified can't silently pass: if the photo can't back it up, the
+// submission is flagged for review (it is not auto-blocked — that's the hybrid).
+function readingMatchesPhoto(reading, ocrNums) {
+  const claimed = parseFloat(reading);
+  if (!Number.isFinite(claimed) || claimed <= 0) return false;
+  const nums = (ocrNums || []).map(Number).filter(Number.isFinite);
+  if (!nums.length) return false;
+  if (nums.some(n => Math.abs(n - claimed) / claimed < 0.08)) return true;
+  const tail = String(Math.round(claimed)).slice(-4);
+  return tail.length >= 3 && nums.some(n => String(Math.round(n)).includes(tail));
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // OFFLINE STORAGE (IndexedDB)
 // ────────────────────────────────────────────────────────────────────────────
@@ -1279,9 +1312,12 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
 
     setAiStep(3);
     const ocrResult = await runOCR(file, reading, utilId);
-    // Pre-fill the Current reading from the photo so you don't have to type it
-    // (the parent only fills it when the field is still empty; you can correct it).
-    if (ocrResult.ocrBest != null) onOcrReading?.(ocrResult.ocrBest);
+    // Pre-fill Current from the photo — but only with a number that makes sense
+    // against your previous reading (a real new reading sits just above it). This
+    // rejects barcodes/serials/"0" the OCR picks off the nameplate; if nothing is
+    // convincing the field stays empty rather than filled with a wrong number.
+    const guess = pickPlausibleReading([...(ocrResult.ocrNums || []), ocrResult.ocrBest], { utilId, prevRead });
+    if (guess != null) onOcrReading?.(String(guess));
     if (!ocrResult.matched && !ocrResult.ocrFailed) {
       fraudFlags.push("ocr_mismatch");
       fraudReason = fraudReason || ocrResult.reason;
@@ -1317,7 +1353,7 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
       ? `${getUtil(utilId).label} meter${meterNo ? ` #${meterNo}` : ""} verified. ${ocrResult.ocrNums?.length ? "OCR read: " + ocrResult.ocrNums.slice(0,2).join(", ") + "." : "Reading accepted."}`
       : (fraudReason || "Verification failed. Please retake the photo.");
 
-    const finalResult = { verified, fraudFlags, fraudReason, summary, ocrNums: ocrResult.ocrNums, secScore: score, anomCheck, usageVal };
+    const finalResult = { verified, fraudFlags, fraudReason, summary, ocrNums: ocrResult.ocrNums, ocrFailed: !!ocrResult.ocrFailed, secScore: score, anomCheck, usageVal };
     setResult(finalResult);
     setPhase(verified ? "verified" : "error");
     if (verified) onVerified(finalResult, base64, mime);
@@ -1454,7 +1490,9 @@ function HistItem({ s, T }) {
       </div>
       <div className="hright">
         <div className="hb3tr">+{parseFloat(s.b3tr).toFixed(2)}</div>
-        <div className={`hstatus s-${s.status}`}>{s.status}</div>
+        {s.flagged
+          ? <div className="hstatus" style={{color:T.gas,background:T.gasBg,border:`1px solid ${T.gasBorder}`}} title="Reading couldn't be confirmed from the photo — needs review">⚠ review</div>
+          : <div className={`hstatus s-${s.status}`}>{s.status}</div>}
       </div>
     </div>
   );
@@ -1530,7 +1568,7 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
 
       <VerifyZone key={verifyKey} utilId={selUtil} reading={reading} prevRead={prevRead} subs={subs} meterNo={meterNo}
         onOcrReading={(v) => { if (!String(reading).trim()) setReading(String(v)); }}
-        onVerified={(res, img, mime) => { setAiOk(true); setPhoto?.(img ? { base64: img, mime } : null); }}
+        onVerified={(res, img, mime) => { setAiOk(true); setPhoto?.(img ? { base64: img, mime, ocrNums: res?.ocrNums || [], ocrFailed: !!res?.ocrFailed } : null); }}
         onReset={() => { setAiOk(false); setPhoto?.(null); }} />
 
       <div style={{margin:"14px 14px 0",padding:12,background:T.waterBg,border:`1px solid ${T.waterBorder}`,borderRadius:6}}>
@@ -1549,11 +1587,11 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
         <div className="irow">
           <div className="igroup">
             <div className="ilabel">Previous <span className="utag">{u.unit}</span></div>
-            <input className="ifield" type="number" placeholder={u.ph[0]} value={prevRead} onChange={e=>setPrevRead(e.target.value)}/>
+            <input className="ifield" type="number" step="0.01" inputMode="decimal" placeholder={u.ph[0]} value={prevRead} onChange={e=>setPrevRead(e.target.value)}/>
           </div>
           <div className="igroup">
             <div className="ilabel">Current <span className="utag">{u.unit}</span></div>
-            <input className="ifield" type="number" placeholder={u.ph[1]} value={reading} onChange={e=>setReading(e.target.value)}/>
+            <input className="ifield" type="number" step="0.01" inputMode="decimal" placeholder={u.ph[1]} value={reading} onChange={e=>setReading(e.target.value)}/>
           </div>
         </div>
 
@@ -2422,8 +2460,31 @@ export default function App() {
       return;
     }
 
+    // ── Hybrid verification, on the FINAL numbers (not the photo-time ones) ──────
+    // Block obvious fraud outright; flag the rest for review. This binds the reward
+    // to the verified photo, so a reading edited after the green "verified" badge
+    // can no longer pass unchecked.
+    const usageVal = usage();
+    const plaus = checkPlausibility(selUtil, usageVal);
+    if (!plaus.ok) {
+      setBusy(false);
+      showToast(`⚠️ ${plaus.reason || "That reading looks implausible"}`);
+      return;
+    }
+    const anom = checkAnomaly(selUtil, usageVal, subs);
+    if (anom.anomaly) {
+      setBusy(false);
+      showToast(`⚠️ ${anom.reason || "Usage far above your average"} — retake or correct`);
+      return;
+    }
+    // Not auto-blocked, but recorded for review when the photo can't back it up.
+    const photoConfirmed = !photo?.ocrFailed && readingMatchesPhoto(reading, photo?.ocrNums);
+    const flagReason = photo?.ocrFailed
+      ? "photo_unreadable"
+      : (photoConfirmed ? "" : "reading_not_in_photo");
+
     if (!online) {
-      await saveOfflineSubmission({ type:selUtil, meterNo, cur:reading, prev:prevRead, b3tr:earned });
+      await saveOfflineSubmission({ type:selUtil, meterNo, cur:reading, prev:prevRead, b3tr:earned, flagged: !photoConfirmed, flagReason });
       setAiOk(false); setPhoto(null); setReading(""); setPrevRead(""); setVerifyKey(k=>k+1);
       setBusy(false);
       showToast("💾 Saved offline — syncing when online");
@@ -2447,7 +2508,7 @@ export default function App() {
         const res = await fetch(`${REWARD_API.replace(/\/$/, "")}/reward`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ utility: selUtil, reading, prevRead, meterNo, address: wallet, photo: photo?.base64 || "" }),
+          body: JSON.stringify({ utility: selUtil, reading, prevRead, meterNo, address: wallet, photo: photo?.base64 || "", clientFlagged: !photoConfirmed, flagReason, ocrNums: photo?.ocrNums || [] }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || `Reward service error ${res.status}`);
@@ -2467,7 +2528,9 @@ export default function App() {
         prev: prevRead,
         date: dateStr,
         b3tr: earned,
-        status: "confirmed",
+        status: photoConfirmed ? "confirmed" : "review",
+        flagged: !photoConfirmed,
+        flagReason,
         txHash: txid || "",
         submittedAt: Date.now()
       }, ...prev]);
@@ -2479,7 +2542,9 @@ export default function App() {
       setReading("");
       setPrevRead("");
       setVerifyKey(k => k + 1);
-      showToast(`✅ +${earned.toFixed(2)} B3TR on ${NETWORK_LABEL}${txid ? ` • TX: ${txid.slice(0, 10)}...` : ""}`);
+      showToast(photoConfirmed
+        ? `✅ +${earned.toFixed(2)} B3TR on ${NETWORK_LABEL}${txid ? ` • TX: ${txid.slice(0, 10)}...` : ""}`
+        : `⚠️ Submitted — couldn't confirm the reading from the photo, flagged for review`);
       setBusy(false);
     } catch (e) {
       setBusy(false);
