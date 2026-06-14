@@ -236,13 +236,22 @@ function checkAnomaly(utilId, usageVal, subs) {
 function pickPlausibleReading(nums, { utilId, prevRead }) {
   const cand = [...new Set((nums || []).map(Number).filter(n => Number.isFinite(n) && n > 0))];
   if (!cand.length) return null;
+  const fmt = (v) => (utilId === "water" ? +v.toFixed(2) : v);
+  // Drop obvious non-readings: barcodes/serials run far longer than a meter dial.
+  const sane = cand.filter(n => String(Math.trunc(n)).length <= 8);
+  const pool = sane.length ? sane : cand;
   const prev = parseFloat(prevRead);
-  if (!Number.isFinite(prev)) return null; // no anchor yet (first reading) → don't guess
-  const ok = cand
-    .filter(n => n > prev && checkPlausibility(utilId, +(n - prev).toFixed(2)).ok)
-    .sort((a, b) => a - b);                // closest above the previous reading is likeliest
-  if (!ok.length) return null;
-  return utilId === "water" ? +ok[0].toFixed(2) : ok[0];
+  if (Number.isFinite(prev)) {
+    const anchored = pool
+      .filter(n => n > prev && checkPlausibility(utilId, +(n - prev).toFixed(2)).ok)
+      .sort((a, b) => a - b);              // closest above the previous reading is likeliest
+    if (anchored.length) return fmt(anchored[0]);
+  }
+  // No usable anchor (first reading, or none matched the previous one): fall back to
+  // the largest sane number — on a meter face the reading is normally the most
+  // prominent figure. The submit-time photo check still flags it if it's wrong, so
+  // pre-filling here never bypasses verification.
+  return fmt(pool.sort((a, b) => b - a)[0]);
 }
 
 // Does the final entered reading actually appear on the verified photo? Reuses the
@@ -577,10 +586,12 @@ function otsuThreshold(hist, total) {
   return thr;
 }
 
-// Pre-process a meter photo for OCR: scale up, greyscale, then binarise with
-// Otsu so the digits become clean black-on-white — what Tesseract reads best.
-// `invert` flips it (for light-on-dark LED/LCD displays). Returns a canvas.
-async function preprocessForOCR(file, invert = false) {
+// Pre-process a meter photo for OCR: scale up, greyscale, then (optionally)
+// binarise with Otsu so the digits become clean black-on-white. `invert` flips it
+// (for light-on-dark LED/LCD displays). With `binarize=false` it returns an
+// upscaled greyscale image — for sharp photos that often reads better than a hard
+// black/white threshold (glare/colour can wreck binarisation). Returns a canvas.
+async function preprocessForOCR(file, invert = false, binarize = true) {
   const img = await new Promise((resolve, reject) => {
     const i = new Image();
     i.onload = () => resolve(i);
@@ -607,9 +618,10 @@ async function preprocessForOCR(file, invert = false) {
     }
     const t = otsuThreshold(hist, n);
     for (let i = 0, p = 0; i < d.length; i += 4, p++) {
-      let bw = gray[p] > t ? 255 : 0;
-      if (invert) bw = 255 - bw;
-      d[i] = d[i + 1] = d[i + 2] = bw;
+      let v;
+      if (binarize) { v = gray[p] > t ? 255 : 0; if (invert) v = 255 - v; }
+      else { v = gray[p]; }
+      d[i] = d[i + 1] = d[i + 2] = v;
     }
     ctx.putImageData(id, 0, 0);
   } catch {}
@@ -674,7 +686,9 @@ async function runOCR(file, claimedReading, utilId) {
     // Binarised normal pass; for digital displays also a binarised INVERTED pass
     // (LED/LCD digits are often light-on-dark) — merge both for robustness.
     const normal = await preprocessForOCR(file, false).catch(() => file);
+    const grey   = await preprocessForOCR(file, false, false).catch(() => null); // sharp photos read better un-binarised
     const sources = [normal];
+    if (grey) sources.push(grey);
     if (digital) { const inv = await preprocessForOCR(file, true).catch(() => null); if (inv) sources.push(inv); }
 
     let { cands, text, confidence } = await recognizeAll(Tesseract, model, sources).catch(() => ({ cands: [], text: "", confidence: 0 }));
@@ -1137,27 +1151,9 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
   const [baselines, setBaselines] = useState(existingBaselines || { electric:"", gas:"", water:"", solar:"" });
   const [meters, setMeters]       = useState(existingMeters || { electric:"", gas:"", water:"", solar:"" });
 
-  // Photo-assisted reading: snap the meter, OCR the digits and pre-fill the
-  // baseline (the user can still correct it). The meter number stays typed.
-  const fileRef = useRef(null);
-  const scanUtilRef = useRef(null);
-  const [scanning, setScanning] = useState(null);
-  const [scanMsg, setScanMsg]   = useState(null);
-  const onScanClick = (id) => { scanUtilRef.current = id; setScanMsg(null); fileRef.current?.click(); };
-  const onScanFile = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    const id = scanUtilRef.current;
-    if (!file || !id) return;
-    setScanning(id); setScanMsg(null);
-    try {
-      const res = await runOCR(file, "", id);
-      const reading = (res.ocrBest != null ? res.ocrBest : pickMeterReading(res.ocrNums));
-      if (reading != null) { setBaselines(b => ({ ...b, [id]: String(reading) })); setScanMsg({ id, ok:true }); }
-      else setScanMsg({ id, ok:false });
-    } catch { setScanMsg({ id, ok:false }); }
-    setScanning(null);
-  };
+  // Baseline readings are typed in by hand — registration earns no B3TR, so it
+  // needs no photo/OCR step. Photo verification only guards the reward-earning
+  // submissions on the Submit screen.
 
   const isSolarOnly = shown.length === 1 && shown[0].id === "solar";
   // Anti-fraud: a meter that's already registered is LOCKED — you can view it but
@@ -1188,8 +1184,8 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
   const sub = allLocked
     ? "Your registered meters are locked to keep your readings tamper-proof. A meter number and baseline can't be changed once set."
     : isSolarOnly
-      ? "Generating your own power? Add your solar meter number and current export reading — tap 📷 to scan the reading from a photo."
-      : "Enter each meter number, then the current reading — or tap 📷 to scan it from a photo. The meter number is logged with every submission to keep your readings verifiable.";
+      ? "Generating your own power? Add your solar meter number and its current export reading."
+      : "Enter each meter number, then type its current reading. The meter number is logged with every submission to keep your readings verifiable.";
 
   return (
     <div className="onboard">
@@ -1217,33 +1213,21 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
               {locked ? (
                 <input type="text" readOnly value={`${baselines[u.id] || ""} ${u.unit}`} style={lockedInput} />
               ) : (
-              <div style={{display:"flex",gap:6,alignItems:"stretch"}}>
-                <input
-                  type="number"
-                  placeholder={`Current reading · e.g. ${u.ph[0]}`}
-                  value={baselines[u.id]}
-                  onChange={e => setBaselines(b => ({...b,[u.id]:e.target.value}))}
-                  style={{flex:1,minWidth:0,background:"rgba(26,51,38,0.04)",border:"1px solid rgba(26,51,38,0.15)",borderRadius:3,padding:"7px 10px",fontSize:14,fontFamily:"'DM Mono',monospace",color:"#0d1812",outline:"none"}}
-                />
-                <button type="button" onClick={()=>onScanClick(u.id)} disabled={scanning===u.id}
-                  title="Scan the reading from a photo" aria-label={`Scan ${u.label} reading from a photo`}
-                  style={{flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",minWidth:42,background:"rgba(26,51,38,0.07)",border:"1px solid rgba(26,51,38,0.18)",borderRadius:3,fontSize:14,color:"#264d3a",cursor:scanning===u.id?"wait":"pointer"}}>
-                  {scanning===u.id ? "…" : "📷"}
-                </button>
-              </div>
-              )}
-              {!locked && scanning===u.id && <div style={{fontSize:10,color:"#7a9188",marginTop:4}}>Reading the meter…</div>}
-              {!locked && scanMsg && scanMsg.id===u.id && scanning!==u.id && (
-                scanMsg.ok
-                  ? <div style={{fontSize:10,color:"#2e7d52",marginTop:4}}>✓ Filled from photo — check it's right.</div>
-                  : <div style={{fontSize:10,color:"#b43c28",marginTop:4}}>Couldn't read it — type the reading in.</div>
+              <input
+                type="number"
+                step="0.01"
+                inputMode="decimal"
+                placeholder={`Current reading · e.g. ${u.ph[0]}`}
+                value={baselines[u.id]}
+                onChange={e => setBaselines(b => ({...b,[u.id]:e.target.value}))}
+                style={{width:"100%",boxSizing:"border-box",background:"rgba(26,51,38,0.04)",border:"1px solid rgba(26,51,38,0.15)",borderRadius:3,padding:"7px 10px",fontSize:14,fontFamily:"'DM Mono',monospace",color:"#0d1812",outline:"none"}}
+              />
               )}
             </div>
           </div>
           );
         })}
       </div>
-      <input type="file" ref={fileRef} onChange={onScanFile} accept="image/*" capture="environment" style={{display:"none"}} />
       {!isSolarOnly && !allLocked && <div style={{fontSize:11,color:"#7a9188",marginTop:16,textAlign:"center"}}>ℹ️ Got solar panels? Add them later in Settings.</div>}
       {allLocked && <div style={{fontSize:11,color:"#7a9188",marginTop:16,textAlign:"center"}}>🔒 Locked to prevent fraud. To replace a meter, contact support.</div>}
       {!allMetersFilled && <div style={{fontSize:11,color:"#b43c28",marginTop:6,textAlign:"center"}}>Enter a meter number for every meter to continue.</div>}
