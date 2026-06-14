@@ -62,6 +62,16 @@ const isAdminWallet = (w) => !!w && ADMIN_WALLETS.includes(w.toLowerCase());
 // the direct on-chain flow (the connected wallet must hold the distributor role).
 const REWARD_API = "";
 
+// ── FEEDBACK ──────────────────────────────────────────────────────────────────
+// Where the in-app "Send Feedback" button delivers testers' messages. It opens
+// the tester's own mail app pre-filled (no server needed). Change this to the
+// address you want bug reports and testing feedback to land in.
+const FEEDBACK_EMAIL = "greenutilitylog@gmail.com";
+
+// Free VeChain testnet faucet — testers need a little VTHO to pay gas. Shown in
+// the in-app Help so nobody gets stuck on "insufficient energy".
+const TESTNET_FAUCET = "https://faucet.vecha.in";
+
 // Indicative B3TR→USD rate for display only (not a live price feed).
 const B3TR_USD = 0.014;
 
@@ -813,6 +823,8 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .vr-confidence{font-size:10px;color:${T.textSoft};margin-left:auto;font-family:'SF Mono',Menlo,'Courier New',monospace;}
 .vr-summary{font-size:11px;color:${T.textMid};line-height:1.55;}
 .vr-retry{font-size:9px;font-weight:700;color:${T.green3};margin-top:7px;cursor:pointer;text-transform:uppercase;letter-spacing:.8px;}
+.vz-photo{width:100%;max-height:160px;object-fit:cover;border-radius:3px;border:1px solid ${T.border};margin-bottom:10px;display:block;}
+.vz-photo.sm{max-height:90px;}
 
 .form-card{margin:0 14px 14px;background:${T.card};border:1px solid ${T.border};border-radius:5px;padding:16px;box-shadow:0 2px 6px ${T.shadow};}
 .irow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
@@ -1230,13 +1242,17 @@ function Onboarding({ onDone }) {
   );
 }
 
-function VerifyZone({ utilId, onVerified, onReset, reading, prevRead, subs, meterNo }) {
+function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRead, subs, meterNo }) {
   const [phase, setPhase] = useState("idle");
   const [result, setResult] = useState(null);
   const [secScore, setSecScore] = useState(null);
   const [aiStep, setAiStep] = useState(0);
+  const [photoUrl, setPhotoUrl] = useState(null);
   const fileInputRef = useRef(null);
   const cooldownMs = getCooldownRemaining(utilId);
+
+  // Release the preview object URL when it changes or the component unmounts.
+  useEffect(() => () => { if (photoUrl) URL.revokeObjectURL(photoUrl); }, [photoUrl]);
 
   const runVerify = async (file) => {
     setPhase("verifying"); setAiStep(0);
@@ -1263,6 +1279,9 @@ function VerifyZone({ utilId, onVerified, onReset, reading, prevRead, subs, mete
 
     setAiStep(3);
     const ocrResult = await runOCR(file, reading, utilId);
+    // Pre-fill the Current reading from the photo so you don't have to type it
+    // (the parent only fills it when the field is still empty; you can correct it).
+    if (ocrResult.ocrBest != null) onOcrReading?.(ocrResult.ocrBest);
     if (!ocrResult.matched && !ocrResult.ocrFailed) {
       fraudFlags.push("ocr_mismatch");
       fraudReason = fraudReason || ocrResult.reason;
@@ -1306,10 +1325,11 @@ function VerifyZone({ utilId, onVerified, onReset, reading, prevRead, subs, mete
 
   const handleFile = async (e) => {
     const file = e.target.files[0]; if (!file) return;
+    setPhotoUrl(URL.createObjectURL(file));   // show a preview of what was captured
     await runVerify(file);
   };
 
-  const reset = () => { setPhase("idle"); setResult(null); setSecScore(null); onReset(); };
+  const reset = () => { setPhase("idle"); setResult(null); setSecScore(null); setPhotoUrl(null); onReset(); };
 
   if (phase === "idle") return (
     <div className="verify-zone" onClick={() => cooldownMs === 0 && fileInputRef.current?.click()}>
@@ -1326,6 +1346,7 @@ function VerifyZone({ utilId, onVerified, onReset, reading, prevRead, subs, mete
   if (phase === "verifying") return (
     <div className="verify-zone">
       <div className="vz-verifying">
+        {photoUrl && <img className="vz-photo sm" src={photoUrl} alt="Captured meter" />}
         <div className="ai-ring"/>
         <div className="ai-steps">
           {["Hash check", "File meta", "Screenshot detect", "OCR", "Security score"].map((s, i) => (
@@ -1342,6 +1363,7 @@ function VerifyZone({ utilId, onVerified, onReset, reading, prevRead, subs, mete
   if (phase === "error" && result) return (
     <div className="verify-zone error">
       <div className="vz-result">
+        {photoUrl && <img className="vz-photo" src={photoUrl} alt="Captured meter" />}
         <div style={{fontSize:12,fontWeight:700,color:"#7a1c1c",marginBottom:8}}>⚠️ Verification failed</div>
         <div style={{fontSize:11,color:"#666",marginBottom:12}}>{result.summary}</div>
         <div className="vr-retry" onClick={reset}>Try again</div>
@@ -1352,6 +1374,7 @@ function VerifyZone({ utilId, onVerified, onReset, reading, prevRead, subs, mete
   if (phase === "verified" && result) return (
     <div className="verify-zone verified">
       <div className="vz-result">
+        {photoUrl && <img className="vz-photo" src={photoUrl} alt="Captured meter" />}
         <div className="vr-header">
           <div className="vr-badge">✓ Verified</div>
           <div className="vr-confidence">Score: {result.secScore}</div>
@@ -1506,6 +1529,7 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
       </div>
 
       <VerifyZone key={verifyKey} utilId={selUtil} reading={reading} prevRead={prevRead} subs={subs} meterNo={meterNo}
+        onOcrReading={(v) => { if (!String(reading).trim()) setReading(String(v)); }}
         onVerified={(res, img, mime) => { setAiOk(true); setPhoto?.(img ? { base64: img, mime } : null); }}
         onReset={() => { setAiOk(false); setPhoto?.(null); }} />
 
@@ -1855,7 +1879,7 @@ function AdminScreen({ onClose, T }) {
   );
 }
 
-function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, notifs, setNotifs, setOnboarded, onEditMeters, onEditSolar, meters, isAdmin, onOpenAdmin, onToast, onReset, T }) {
+function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, notifs, setNotifs, setOnboarded, onEditMeters, onEditSolar, meters, isAdmin, onOpenAdmin, onOpenHelp, onOpenFeedback, onToast, onReset, T }) {
   const tier = getTier(b3tr);
   return (
     <>
@@ -1928,6 +1952,22 @@ function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, notif
         ))}
       </div>
 
+      <div className="sec" style={{marginTop:20}}><div className="sec-line"/><div className="sec-txt">Support</div><div className="sec-line"/></div>
+      <div className="setting-row" onClick={onOpenHelp}>
+        <div className="sr-left">
+          <div className="sr-icon">❓</div>
+          <div><div className="sr-label">Help &amp; FAQ</div><div className="sr-sub">How to test, earn B3TR &amp; troubleshoot</div></div>
+        </div>
+        <div className="sr-right" style={{fontSize:11,color:T.textSoft}}>→</div>
+      </div>
+      <div className="setting-row" onClick={onOpenFeedback}>
+        <div className="sr-left">
+          <div className="sr-icon">✉️</div>
+          <div><div className="sr-label">Send Feedback</div><div className="sr-sub">Report a bug or share an idea</div></div>
+        </div>
+        <div className="sr-right" style={{fontSize:11,fontWeight:700,color:T.green3}}>Send</div>
+      </div>
+
       <div className="sec" style={{marginTop:20}}><div className="sec-line"/><div className="sec-txt">Account</div><div className="sec-line"/></div>
       <div className="setting-row" onClick={() => setShowWallet(true)}>
         <div className="sr-left">
@@ -1970,6 +2010,136 @@ function Toggle({ on, onToggle }) {
     <button className={`toggle ${on ? 'on' : ''}`} onClick={onToggle}>
       <div className="toggle-dot"/>
     </button>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// HELP & FAQ  — full-screen guide for new testers (no backend needed)
+// ════════════════════════════════════════════════════════════════════════════
+function HelpScreen({ onClose, onFeedback, T }) {
+  const steps = [
+    { n: 1, t: "Connect your wallet", d: "Tap Connect and open VeWorld (set to Testnet) or WalletConnect. This is a test app — no real funds are used." },
+    { n: 2, t: "Get free test gas (VTHO)", d: `Transactions cost a tiny bit of VTHO. Grab some free testnet VTHO from the faucet, then come back.` },
+    { n: 3, t: "Register your meters", d: "Enter the meter number and the current reading (baseline) for electricity, gas and water. Solar is optional." },
+    { n: 4, t: "Submit a reading", d: "Go to Submit, pick a utility, photograph the meter (the app reads the number for you), check it, and send." },
+    { n: 5, t: "Earn B3TR", d: "A valid reading rewards you with B3TR on testnet. Track your total on Home and your position on the Leaderboard." },
+  ];
+  const faqs = [
+    { q: "Is this real money?", a: "No. Everything runs on VeChain testnet, so the B3TR you earn are test tokens with no real value — perfect for trying things out safely." },
+    { q: "I submitted but got no B3TR — why?", a: "Most common reasons: the new reading isn't higher than your last one, you're still within the ~20h cooldown for that utility, or the photo was reused/looked like a screenshot. Try a fresh photo of an actual meter." },
+    { q: "What's the cooldown?", a: "You can earn once per utility roughly every 20 hours. This keeps things fair while testing." },
+    { q: "My photo was rejected.", a: "Use a real, clear photo of your own meter — good lighting, numbers in focus, no screenshots or photos of a screen." },
+    { q: "I cleared my browser / reconnected and lost my meters?", a: "Reconnecting the SAME wallet keeps your meters and baselines. Only connecting a different wallet starts a fresh setup." },
+    { q: "My wallet won't connect.", a: "Make sure VeWorld is switched to Testnet. On mobile, use the in-app browser or WalletConnect QR." },
+    { q: "Found a bug or have an idea?", a: "Use Send Feedback below — it pre-fills an email with your message and some helpful diagnostics." },
+  ];
+  const row = { background:T.card, border:`1px solid ${T.border}`, borderRadius:6, padding:"12px 14px", marginBottom:8 };
+  return (
+    <div style={{position:"fixed",inset:0,background:T.bg,zIndex:330,display:"flex",flexDirection:"column"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 18px",borderBottom:`1px solid ${T.border}`}}>
+        <div>
+          <div style={{fontSize:14,fontWeight:800,color:T.text}}>❓ Help &amp; FAQ</div>
+          <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginTop:2}}>Getting started · {NETWORK_LABEL}</div>
+        </div>
+        <button onClick={onClose} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:4,padding:"6px 12px",fontSize:11,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Close</button>
+      </div>
+
+      <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"16px 14px 28px"}}>
+        <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,margin:"4px 2px 10px"}}>Quick start</div>
+        {steps.map(s => (
+          <div key={s.n} style={{...row, display:"flex", gap:12, alignItems:"flex-start"}}>
+            <div style={{flexShrink:0,width:24,height:24,borderRadius:"50%",background:T.green5||T.bgAlt,color:T.green3,border:`1px solid ${T.green4||T.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:800}}>{s.n}</div>
+            <div>
+              <div style={{fontSize:13,fontWeight:700,color:T.text,marginBottom:3}}>{s.t}</div>
+              <div style={{fontSize:12,color:T.textMid,lineHeight:1.55}}>{s.d}</div>
+              {s.n === 2 && (
+                <a href={TESTNET_FAUCET} target="_blank" rel="noopener noreferrer" style={{display:"inline-block",marginTop:8,fontSize:11,fontWeight:800,color:T.green3,textDecoration:"none",border:`1px solid ${T.green4||T.border}`,borderRadius:4,padding:"6px 10px"}}>💧 Open testnet faucet →</a>
+              )}
+            </div>
+          </div>
+        ))}
+
+        <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,margin:"18px 2px 10px"}}>Frequently asked</div>
+        {faqs.map((f, i) => (
+          <div key={i} style={row}>
+            <div style={{fontSize:13,fontWeight:700,color:T.text,marginBottom:4}}>{f.q}</div>
+            <div style={{fontSize:12,color:T.textMid,lineHeight:1.55}}>{f.a}</div>
+          </div>
+        ))}
+
+        <button onClick={onFeedback} style={{width:"100%",marginTop:14,background:T.green3,border:"none",borderRadius:6,padding:"13px",color:"#fff",fontSize:12,fontWeight:800,textTransform:"uppercase",letterSpacing:"1px",cursor:"pointer"}}>✉️ Send Feedback</button>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// FEEDBACK  — composes an email to FEEDBACK_EMAIL with diagnostics (no backend)
+// ════════════════════════════════════════════════════════════════════════════
+function FeedbackScreen({ onClose, onToast, wallet, tab, T }) {
+  const [kind, setKind] = useState("bug");
+  const [msg, setMsg] = useState("");
+  const kinds = [
+    { id:"bug",   label:"🐞 Bug" },
+    { id:"idea",  label:"💡 Idea" },
+    { id:"other", label:"💬 Other" },
+  ];
+  const diagnostics = () => {
+    const scr = (typeof window !== "undefined") ? `${window.innerWidth}×${window.innerHeight}` : "?";
+    const ua = (typeof navigator !== "undefined") ? navigator.userAgent : "?";
+    return [
+      `App: ${APP_NAME} v${APP_VERSION}`,
+      `Network: ${NETWORK_LABEL}`,
+      `Wallet: ${wallet || "not connected"}`,
+      `Screen: ${tab || "?"}`,
+      `Viewport: ${scr}`,
+      `Device: ${ua}`,
+    ].join("\n");
+  };
+  const composeBody = () => `${msg.trim() || "(describe what happened or what you'd like)"}\n\n— — —\nDiagnostics (helps us reproduce):\n${diagnostics()}`;
+  const sendEmail = () => {
+    if (!msg.trim()) { onToast?.("✍️ Write a short message first"); return; }
+    const subject = `Green Utility Log — ${kind} feedback (v${APP_VERSION})`;
+    const url = `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(composeBody())}`;
+    try { window.location.href = url; onToast?.("✉️ Opening your mail app…"); }
+    catch { onToast?.("❌ Couldn't open mail — use Copy instead"); }
+  };
+  const copyAll = async () => {
+    const text = `Green Utility Log — ${kind} feedback\n\n${composeBody()}`;
+    try { await navigator.clipboard.writeText(text); onToast?.("📋 Copied — paste it anywhere"); }
+    catch { onToast?.("❌ Copy failed on this device"); }
+  };
+  const inputStyle = { width:"100%", boxSizing:"border-box", background:T.card, border:`1px solid ${T.border}`, borderRadius:6, padding:"12px", fontSize:13, color:T.text, fontFamily:"inherit", lineHeight:1.5, resize:"vertical" };
+  return (
+    <div style={{position:"fixed",inset:0,background:T.bg,zIndex:335,display:"flex",flexDirection:"column"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 18px",borderBottom:`1px solid ${T.border}`}}>
+        <div>
+          <div style={{fontSize:14,fontWeight:800,color:T.text}}>✉️ Send Feedback</div>
+          <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginTop:2}}>Help us improve the test</div>
+        </div>
+        <button onClick={onClose} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:4,padding:"6px 12px",fontSize:11,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Close</button>
+      </div>
+
+      <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"16px 14px 28px"}}>
+        <div style={{display:"flex",gap:8,marginBottom:14}}>
+          {kinds.map(k => (
+            <button key={k.id} onClick={()=>setKind(k.id)} style={{flex:1,padding:"10px 6px",borderRadius:6,fontSize:12,fontWeight:700,cursor:"pointer",border:`1px solid ${kind===k.id?(T.green4||T.green3):T.border}`,background:kind===k.id?(T.green5||T.bgAlt):T.card,color:kind===k.id?T.green3:T.textMid}}>{k.label}</button>
+          ))}
+        </div>
+        <textarea
+          value={msg}
+          onChange={(e)=>setMsg(e.target.value)}
+          rows={6}
+          placeholder={kind==="bug" ? "What went wrong? What did you expect to happen?" : kind==="idea" ? "What would make this better?" : "Tell us anything…"}
+          style={inputStyle}
+        />
+        <div style={{fontSize:10.5,color:T.textSoft,lineHeight:1.55,margin:"10px 2px 16px"}}>
+          We attach a little diagnostic info (app version, network, screen, device) so we can reproduce issues. No reading photos or private keys are ever included.
+        </div>
+        <button onClick={sendEmail} style={{width:"100%",background:T.green3,border:"none",borderRadius:6,padding:"13px",color:"#fff",fontSize:12,fontWeight:800,textTransform:"uppercase",letterSpacing:"1px",cursor:"pointer",marginBottom:8}}>✉️ Send via email</button>
+        <button onClick={copyAll} style={{width:"100%",background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"12px",color:T.textMid,fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"1px",cursor:"pointer"}}>📋 Copy instead</button>
+      </div>
+    </div>
   );
 }
 
@@ -2082,6 +2252,8 @@ export default function App() {
   const [verifyKey, setVerifyKey]   = useState(0);
   const [notifs, setNotifs]         = useState({ daily:true, streak:true, rewards:false, lb:false });
   const [showAdmin, setShowAdmin]   = useState(false);
+  const [showHelp, setShowHelp]       = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
   const [onChainAdmin, setOnChainAdmin] = useState(false); // app admin/moderator per the X2EarnApps contract
   const [photo, setPhoto]           = useState(null); // verified meter photo for backend submission
 
@@ -2104,7 +2276,10 @@ export default function App() {
     setVerifyKey(k => k + 1);
     setTab("home");
 
-    if (storedWallet !== addr) {
+    if (storedWallet && storedWallet !== addr) {
+      // Genuinely switching to a DIFFERENT wallet on this browser: reset the
+      // account setup — a new wallet must not inherit the previous one's meters
+      // or baselines (the latter being the real anti-fraud guard).
       setBaselines({ electric:"", gas:"", water:"", solar:"" });
       setMeters({ electric:"", gas:"", water:"", solar:"" });
       setRegUtils(null); setRegEdit(false);   // first-setup mode: required meters only
@@ -2112,9 +2287,12 @@ export default function App() {
       try {
         localStorage.removeItem('greenlog_baselines');
         localStorage.removeItem('greenlog_meters');
-        localStorage.setItem(WALLET_KEY, addr);
       } catch {}
     }
+    // Record the wallet for this browser. Reconnecting the SAME wallet — or a
+    // fresh / cache-cleared browser — keeps whatever meters & baselines are
+    // stored, so nothing gets wiped "every time"; only a real switch resets.
+    try { localStorage.setItem(WALLET_KEY, addr); } catch {}
 
     // Restore this wallet's earnings and history straight from chain so the
     // dashboard reflects real on-chain data across devices and reloads. Falls
@@ -2317,6 +2495,8 @@ export default function App() {
       {needsBaselines && <BaselineOnboarding onDone={(bl, mtrs) => { setBaselines(bl); setMeters(mtrs); closeRegistration(); }} utils={regUtils} editMode={regEdit} existingBaselines={baselines} existingMeters={meters} />}
       {!onboarded && <Onboarding onDone={() => setOnboarded(true)} />}
       {showAdmin && isAdmin && <AdminScreen onClose={() => setShowAdmin(false)} T={T} />}
+      {showHelp && <HelpScreen onClose={() => setShowHelp(false)} onFeedback={() => { setShowHelp(false); setShowFeedback(true); }} T={T} />}
+      {showFeedback && <FeedbackScreen onClose={() => setShowFeedback(false)} onToast={showToast} wallet={wallet} tab={tab} T={T} />}
       {toast && <div className="toast">{toast}</div>}
 
       <div className="app">
@@ -2330,10 +2510,12 @@ export default function App() {
               </div>
             </div>
             <div className="hdr-actions">
-              <div style={{display:"flex",alignItems:"center",gap:6,fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.8px",color:online?T.green3:T.gas,padding:"4px 10px",border:`1px solid ${online?T.green4:T.gasBorder}`,borderRadius:3,background:online?T.green5:T.gasBg}}>
-                <div style={{width:6,height:6,borderRadius:"50%",background:online?T.green3:T.gas,animation:online?"pulse 2.5s infinite":"none"}}/>
-                {online ? "Online" : "Offline"}
+              <div title={online ? "Online" : "Offline"} aria-label={online ? "Online" : "Offline"} style={{display:"flex",alignItems:"center",justifyContent:"center",width:30,height:30,borderRadius:3,border:`1px solid ${online?T.green4:T.gasBorder}`,background:online?T.green5:T.gasBg,flexShrink:0}}>
+                <div style={{width:7,height:7,borderRadius:"50%",background:online?T.green3:T.gas,animation:online?"pulse 2.5s infinite":"none"}}/>
               </div>
+              <button className="dark-toggle" onClick={() => setShowHelp(true)} aria-label="Help and FAQ" title="Help & FAQ">
+                ❓
+              </button>
               <button className="dark-toggle" onClick={toggleDark} aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}>
                 {dark ? '☀️' : '🌙'}
               </button>
@@ -2357,7 +2539,7 @@ export default function App() {
           {tab==="charts"    && <ChartsScreen subs={subs} T={T}/>}
           {tab==="leaderboard" && <LeaderboardScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}
-          {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} setShowWallet={openConnectModal} dark={dark} setDark={toggleDark} notifs={notifs} setNotifs={setNotifs} setOnboarded={setOnboarded} onEditMeters={()=>openRegistration(REQUIRED_UTILS, true)} onEditSolar={()=>openRegistration(SOLAR_UTILS, true)} meters={meters} isAdmin={isAdmin} onOpenAdmin={()=>setShowAdmin(true)} onToast={showToast} onReset={resetApp} T={T}/>}
+          {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} setShowWallet={openConnectModal} dark={dark} setDark={toggleDark} notifs={notifs} setNotifs={setNotifs} setOnboarded={setOnboarded} onEditMeters={()=>openRegistration(REQUIRED_UTILS, true)} onEditSolar={()=>openRegistration(SOLAR_UTILS, true)} meters={meters} isAdmin={isAdmin} onOpenAdmin={()=>setShowAdmin(true)} onOpenHelp={()=>setShowHelp(true)} onOpenFeedback={()=>setShowFeedback(true)} onToast={showToast} onReset={resetApp} T={T}/>}
         </div>
 
         <div className="bnav">
