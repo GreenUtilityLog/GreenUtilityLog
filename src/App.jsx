@@ -1259,6 +1259,94 @@ function Onboarding({ onDone }) {
   );
 }
 
+// Keep a crop box inside the displayed image bounds.
+function clampBox(b, dd) {
+  if (!dd) return b;
+  const nb = { ...b };
+  nb.w = Math.max(48, Math.min(nb.w, dd.w));
+  nb.h = Math.max(28, Math.min(nb.h, dd.h));
+  nb.x = Math.max(0, Math.min(nb.x, dd.w - nb.w));
+  nb.y = Math.max(0, Math.min(nb.y, dd.h - nb.h));
+  return nb;
+}
+
+// Full-screen "align the reading" step: the user drags/resizes a box over the
+// meter's digits, and only that region is handed to OCR — exactly how purpose-built
+// meter apps avoid reading barcodes/serials/nameplate text. Returns a cropped Blob
+// (or null = use the whole photo) to the caller.
+function MeterCropper({ imgUrl, onCancel, onConfirm }) {
+  const imgRef = useRef(null);
+  const dRef = useRef(null);            // displayed + natural dimensions
+  const drag = useRef(null);
+  const [d, setD] = useState(null);
+  const [box, setBox] = useState(null); // {x,y,w,h} in displayed pixels
+
+  useEffect(() => {
+    const move = (e) => {
+      const dr = drag.current; if (!dr) return;
+      const dx = e.clientX - dr.sx, dy = e.clientY - dr.sy;
+      const next = dr.mode === "move"
+        ? { ...dr.box, x: dr.box.x + dx, y: dr.box.y + dy }
+        : { ...dr.box, w: dr.box.w + dx, h: dr.box.h + dy };
+      setBox(clampBox(next, dRef.current));
+    };
+    const up = () => { drag.current = null; };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    return () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+  }, []);
+
+  const onImgLoad = () => {
+    const im = imgRef.current; if (!im) return;
+    const w = im.clientWidth, h = im.clientHeight;
+    const dd = { w, h, natW: im.naturalWidth || w, natH: im.naturalHeight || h };
+    dRef.current = dd; setD(dd);
+    const bw = w * 0.8, bh = Math.min(h * 0.3, h);   // readings are wide & short
+    setBox({ x: (w - bw) / 2, y: (h - bh) / 2, w: bw, h: bh });
+  };
+
+  const onDown = (mode) => (e) => {
+    e.preventDefault(); e.stopPropagation();
+    drag.current = { mode, sx: e.clientX, sy: e.clientY, box };
+  };
+
+  const scan = () => {
+    if (!box || !d) { onConfirm(null); return; }
+    try {
+      const sx = d.natW / d.w, sy = d.natH / d.h;
+      const cw = Math.max(1, Math.round(box.w * sx)), ch = Math.max(1, Math.round(box.h * sy));
+      const canvas = document.createElement("canvas");
+      canvas.width = cw; canvas.height = ch;
+      canvas.getContext("2d").drawImage(imgRef.current, box.x * sx, box.y * sy, cw, ch, 0, 0, cw, ch);
+      canvas.toBlob((blob) => onConfirm(blob || null), "image/jpeg", 0.95);
+    } catch { onConfirm(null); }
+  };
+
+  const btn = { flex: 1, padding: "13px", borderRadius: 6, fontSize: 12, fontWeight: 800, cursor: "pointer" };
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(10,18,14,0.96)",zIndex:360,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div style={{color:"#fff",fontSize:14,fontWeight:800,marginBottom:4,textAlign:"center"}}>Align the reading</div>
+      <div style={{color:"rgba(255,255,255,0.7)",fontSize:11,marginBottom:14,textAlign:"center"}}>Drag the box over the digits, then tap Scan</div>
+      <div style={{position:"relative",maxWidth:"100%",maxHeight:"60vh",touchAction:"none"}}>
+        <img ref={imgRef} src={imgUrl} onLoad={onImgLoad} alt="" draggable={false}
+          style={{display:"block",maxWidth:"100%",maxHeight:"60vh",userSelect:"none",pointerEvents:"none",borderRadius:6}} />
+        {box && (
+          <div onPointerDown={onDown("move")}
+            style={{position:"absolute",left:box.x,top:box.y,width:box.w,height:box.h,border:"2px solid #4CAF50",boxShadow:"0 0 0 9999px rgba(0,0,0,0.5)",borderRadius:4,cursor:"move",touchAction:"none"}}>
+            <div onPointerDown={onDown("resize")}
+              style={{position:"absolute",right:-13,bottom:-13,width:28,height:28,borderRadius:"50%",background:"#4CAF50",border:"2px solid #fff",cursor:"nwse-resize",touchAction:"none"}} />
+          </div>
+        )}
+      </div>
+      <div style={{display:"flex",gap:10,marginTop:20,width:"100%",maxWidth:340}}>
+        <button onClick={()=>onConfirm(null)} style={{...btn,border:"1px solid rgba(255,255,255,0.3)",background:"transparent",color:"#fff"}}>Whole photo</button>
+        <button onClick={scan} style={{...btn,flex:2,border:"none",background:"#4CAF50",color:"#fff"}}>Scan this area</button>
+      </div>
+      <button onClick={onCancel} style={{marginTop:12,background:"transparent",border:"none",color:"rgba(255,255,255,0.7)",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"1px",cursor:"pointer"}}>Retake</button>
+    </div>
+  );
+}
+
 function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRead, subs, meterNo }) {
   const [phase, setPhase] = useState("idle");
   const [result, setResult] = useState(null);
@@ -1266,12 +1354,13 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
   const [aiStep, setAiStep] = useState(0);
   const [photoUrl, setPhotoUrl] = useState(null);
   const fileInputRef = useRef(null);
+  const origFileRef = useRef(null);
   const cooldownMs = getCooldownRemaining(utilId);
 
   // Release the preview object URL when it changes or the component unmounts.
   useEffect(() => () => { if (photoUrl) URL.revokeObjectURL(photoUrl); }, [photoUrl]);
 
-  const runVerify = async (file) => {
+  const runVerify = async (file, ocrSource) => {
     setPhase("verifying"); setAiStep(0);
     const mime   = file.type;
     const base64 = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result.split(",")[1]); r.readAsDataURL(file); });
@@ -1295,7 +1384,9 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
     if (ssCheck.isScreenshot) { fraudFlags.push("screenshot_detected"); fraudReason = fraudReason || "Screenshot detected. Please take a real photo of your physical meter."; }
 
     setAiStep(3);
-    const ocrResult = await runOCR(file, reading, utilId);
+    // OCR runs on the cropped region (if the user boxed the reading) so it ignores
+    // barcodes/serials/nameplate text; all fraud checks above use the full photo.
+    const ocrResult = await runOCR(ocrSource || file, reading, utilId);
     // Pre-fill Current from the photo — but only with a number that makes sense
     // against your previous reading (a real new reading sits just above it). This
     // rejects barcodes/serials/"0" the OCR picks off the nameplate; if nothing is
@@ -1343,13 +1434,14 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
     if (verified) onVerified(finalResult, base64, mime);
   };
 
-  const handleFile = async (e) => {
+  const handleFile = (e) => {
     const file = e.target.files[0]; if (!file) return;
+    origFileRef.current = file;
     setPhotoUrl(URL.createObjectURL(file));   // show a preview of what was captured
-    await runVerify(file);
+    setPhase("crop");                          // let the user box the reading first
   };
 
-  const reset = () => { setPhase("idle"); setResult(null); setSecScore(null); setPhotoUrl(null); onReset(); };
+  const reset = () => { setPhase("idle"); setResult(null); setSecScore(null); setPhotoUrl(null); origFileRef.current = null; onReset(); };
 
   if (phase === "idle") return (
     <div className="verify-zone" onClick={() => cooldownMs === 0 && fileInputRef.current?.click()}>
@@ -1361,6 +1453,19 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
       </div>
       <input type="file" ref={fileInputRef} onChange={handleFile} accept="image/*" style={{display:"none"}} capture="environment" />
     </div>
+  );
+
+  if (phase === "crop" && photoUrl) return (
+    <>
+      <div className="verify-zone">
+        <div className="vz-idle">
+          <div className="vz-icon">✂️</div>
+          <div className="vz-title">Align the reading</div>
+          <div className="vz-sub">Box the digits, then scan</div>
+        </div>
+      </div>
+      <MeterCropper imgUrl={photoUrl} onCancel={reset} onConfirm={(cropBlob) => runVerify(origFileRef.current, cropBlob)} />
+    </>
   );
 
   if (phase === "verifying") return (
