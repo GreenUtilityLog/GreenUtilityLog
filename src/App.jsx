@@ -62,6 +62,14 @@ const isAdminWallet = (w) => !!w && ADMIN_WALLETS.includes(w.toLowerCase());
 // the direct on-chain flow (the connected wallet must hold the distributor role).
 const REWARD_API = "";
 
+// ── OCR BACKEND (optional) ────────────────────────────────────────────────────
+// When set, meter photos (the cropped reading + the full photo for the meter
+// number) are read by the backend's /ocr endpoint — Google Cloud Vision, far more
+// accurate than in-browser OCR. The Vision API key stays server-side. Falls back
+// to in-browser OCR when this is empty or the call fails. Defaults to REWARD_API,
+// so pointing both at one deployed backend is enough.
+const OCR_API = "";
+
 // ── FEEDBACK ──────────────────────────────────────────────────────────────────
 // Where the in-app "Send Feedback" button delivers testers' messages. It opens
 // the tester's own mail app pre-filled (no server needed). Change this to the
@@ -599,7 +607,7 @@ async function preprocessForOCR(file, invert = false, binarize = true) {
     i.src = URL.createObjectURL(file);
   });
   const targetW = 1280;
-  const scale = Math.min(2.5, targetW / (img.width || targetW)) || 1;
+  const scale = Math.min(4, targetW / (img.width || targetW)) || 1; // upscale small crops harder — helps 7-segment digits
   const w = Math.max(1, Math.round((img.width || targetW) * scale));
   const h = Math.max(1, Math.round((img.height || targetW) * scale));
   const canvas = document.createElement("canvas");
@@ -677,7 +685,50 @@ async function recognizeAll(Tesseract, model, sources) {
   return { cands, text, confidence };
 }
 
+function ocrBackendBase() {
+  const b = (OCR_API || REWARD_API || "").trim();
+  return b ? b.replace(/\/$/, "") : "";
+}
+
+function blobToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).split(",")[1] || "");
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+// Read an image via the backend's Google Vision OCR. Returns the detected text, or
+// null when no backend is configured or the call fails (caller falls back to the
+// in-browser OCR). Used for both the cropped reading and the full-photo serial.
+async function remoteVisionText(file) {
+  const base = ocrBackendBase();
+  if (!base) return null;
+  try {
+    const image = await blobToBase64(file);
+    if (!image) return null;
+    const res = await fetch(`${base}/ocr`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json().catch(() => null);
+    if (!data || data.ok === false) return null;
+    return typeof data.text === "string" && data.text ? data.text : null;
+  } catch {
+    return null;
+  }
+}
+
 async function runOCR(file, claimedReading, utilId) {
+  // Prefer the backend's Google Vision OCR when available — much more reliable.
+  const remote = await remoteVisionText(file);
+  if (remote != null) {
+    const nums = (remote.match(/\d+(?:[.,]\d+)?/g) || []).map(s => parseFloat(s.replace(",", "."))).filter(Number.isFinite);
+    return { matched: true, ocrNums: nums, ocrBest: pickMeterReading(nums), ocrConfidence: 90, remote: true };
+  }
   try {
     const Tesseract = await loadTesseract();
     const model = OCR_MODEL[utilId] || "eng";
@@ -716,6 +767,42 @@ async function runOCR(file, claimedReading, utilId) {
   } catch (e) {
     return { matched: true, ocrNums: [], ocrBest: null, ocrConfidence: 0, ocrFailed: true };
   }
+}
+
+// Read all alphanumeric text from the FULL photo (serials are letters+digits, so
+// the digit-only reading OCR can't see them). Used to confirm the registered meter
+// number is actually visible on the photographed meter.
+async function ocrFullText(file) {
+  // Backend Google Vision first — it reads alphanumeric serials far better.
+  const remote = await remoteVisionText(file);
+  if (remote != null) return remote.toUpperCase();
+  try {
+    const Tesseract = await loadTesseract();
+    if (!Tesseract?.createWorker) return "";
+    const src = await preprocessForOCR(file, false, false).catch(() => file); // greyscale full image
+    const worker = await Tesseract.createWorker("eng", 1, { logger: () => {} });
+    try {
+      await worker.setParameters({ tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", tessedit_pageseg_mode: "6" });
+      const data = await worker.recognize(src).then(r => r.data).catch(() => null);
+      return (data?.text || "").toUpperCase();
+    } finally { try { await worker.terminate(); } catch {} }
+  } catch { return ""; }
+}
+
+// Lenient check: does the registered meter number appear in the photo's text? Tries
+// the whole number, then a strong contiguous segment (OCR often drops a character
+// on a small serial label). Returns true only on a confident hit — a miss is left
+// to the caller to FLAG (never block), since serials are small/hard to read.
+function meterNoMatches(meterNo, text) {
+  const norm = (s) => String(s || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const m = norm(meterNo), t = norm(text);
+  if (!m || m.length < 4 || !t) return false;
+  if (t.includes(m)) return true;
+  const segLen = Math.min(m.length, Math.max(6, Math.ceil(m.length * 0.6)));
+  for (let i = 0; i + segLen <= m.length; i++) {
+    if (t.includes(m.slice(i, i + segLen))) return true;
+  }
+  return false;
 }
 
 // From word-level OCR candidates, pick the largest digits (the display reading),
@@ -1392,11 +1479,21 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
     // rejects barcodes/serials/"0" the OCR picks off the nameplate; if nothing is
     // convincing the field stays empty rather than filled with a wrong number.
     const guess = pickPlausibleReading([...(ocrResult.ocrNums || []), ocrResult.ocrBest], { utilId, prevRead });
-    if (guess != null) onOcrReading?.(String(guess));
+    // Only auto-fill when we're reasonably sure: either it lines up with your
+    // previous reading (anchored), or the OCR read it with decent confidence.
+    // Otherwise leave Current blank — better to type it than to fight a wrong guess.
+    const hasAnchor = Number.isFinite(parseFloat(prevRead));
+    if (guess != null && (hasAnchor || (ocrResult.ocrConfidence || 0) >= 60)) onOcrReading?.(String(guess));
     if (!ocrResult.matched && !ocrResult.ocrFailed) {
       fraudFlags.push("ocr_mismatch");
       fraudReason = fraudReason || ocrResult.reason;
     }
+
+    // Meter-number check (lenient): is the registered meter number visible on the
+    // FULL photo? Found = extra confidence; not found = flag for review (never block
+    // — serials are small and hard to read). null when there's no number to check.
+    let meterNoConfirmed = null;
+    if (meterNo) meterNoConfirmed = meterNoMatches(meterNo, await ocrFullText(file));
 
     // Plausibility/anomaly run on CONSUMPTION (current − previous), not the
     // absolute meter value, otherwise a normal reading like 3847 always trips.
@@ -1424,11 +1521,14 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
     if (hashOk) rememberHash(imgHash);
 
     const verified = fraudFlags.length === 0 && score >= 40;
+    const meterNote = meterNoConfirmed === true ? " ✓ Meter # confirmed on photo."
+      : meterNoConfirmed === false ? " ⚠ Meter # not detected — will be flagged for review."
+      : "";
     const summary  = verified
-      ? `${getUtil(utilId).label} meter${meterNo ? ` #${meterNo}` : ""} verified. ${ocrResult.ocrNums?.length ? "OCR read: " + ocrResult.ocrNums.slice(0,2).join(", ") + "." : "Reading accepted."}`
+      ? `${getUtil(utilId).label} meter${meterNo ? ` #${meterNo}` : ""} verified. ${ocrResult.ocrNums?.length ? "OCR read: " + ocrResult.ocrNums.slice(0,2).join(", ") + "." : "Reading accepted."}${meterNote}`
       : (fraudReason || "Verification failed. Please retake the photo.");
 
-    const finalResult = { verified, fraudFlags, fraudReason, summary, ocrNums: ocrResult.ocrNums, ocrFailed: !!ocrResult.ocrFailed, secScore: score, anomCheck, usageVal };
+    const finalResult = { verified, fraudFlags, fraudReason, summary, ocrNums: ocrResult.ocrNums, ocrFailed: !!ocrResult.ocrFailed, meterNoConfirmed, secScore: score, anomCheck, usageVal };
     setResult(finalResult);
     setPhase(verified ? "verified" : "error");
     if (verified) onVerified(finalResult, base64, mime);
@@ -1657,7 +1757,7 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
 
       <VerifyZone key={verifyKey} utilId={selUtil} reading={reading} prevRead={prevRead} subs={subs} meterNo={meterNo}
         onOcrReading={(v) => { if (!String(reading).trim()) setReading(String(v)); }}
-        onVerified={(res, img, mime) => { setAiOk(true); setPhoto?.(img ? { base64: img, mime, ocrNums: res?.ocrNums || [], ocrFailed: !!res?.ocrFailed } : null); }}
+        onVerified={(res, img, mime) => { setAiOk(true); setPhoto?.(img ? { base64: img, mime, ocrNums: res?.ocrNums || [], ocrFailed: !!res?.ocrFailed, meterNoConfirmed: res?.meterNoConfirmed ?? null } : null); }}
         onReset={() => { setAiOk(false); setPhoto?.(null); }} />
 
       <div style={{margin:"14px 14px 0",padding:12,background:T.waterBg,border:`1px solid ${T.waterBorder}`,borderRadius:6}}>
@@ -2566,11 +2666,15 @@ export default function App() {
       showToast(`⚠️ ${anom.reason || "Usage far above your average"} — retake or correct`);
       return;
     }
-    // Not auto-blocked, but recorded for review when the photo can't back it up.
-    const photoConfirmed = !photo?.ocrFailed && readingMatchesPhoto(reading, photo?.ocrNums);
-    const flagReason = photo?.ocrFailed
-      ? "photo_unreadable"
-      : (photoConfirmed ? "" : "reading_not_in_photo");
+    // Not auto-blocked, but recorded for review when the photo can't back it up:
+    // either the reading isn't visible on the photo, or the registered meter number
+    // couldn't be confirmed on it (lenient — a miss flags, it never blocks).
+    const readingConfirmed = !photo?.ocrFailed && readingMatchesPhoto(reading, photo?.ocrNums);
+    const meterUnconfirmed = photo?.meterNoConfirmed === false;
+    const photoConfirmed = readingConfirmed && !meterUnconfirmed;
+    const flagReason = !readingConfirmed
+      ? (photo?.ocrFailed ? "photo_unreadable" : "reading_not_in_photo")
+      : (meterUnconfirmed ? "meter_not_confirmed" : "");
 
     if (!online) {
       await saveOfflineSubmission({ type:selUtil, meterNo, cur:reading, prev:prevRead, b3tr:earned, flagged: !photoConfirmed, flagReason });
@@ -2597,7 +2701,7 @@ export default function App() {
         const res = await fetch(`${REWARD_API.replace(/\/$/, "")}/reward`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ utility: selUtil, reading, prevRead, meterNo, address: wallet, photo: photo?.base64 || "", clientFlagged: !photoConfirmed, flagReason, ocrNums: photo?.ocrNums || [] }),
+          body: JSON.stringify({ utility: selUtil, reading, prevRead, meterNo, address: wallet, photo: photo?.base64 || "", clientFlagged: !photoConfirmed, flagReason, ocrNums: photo?.ocrNums || [], meterNoConfirmed: photo?.meterNoConfirmed ?? null }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || `Reward service error ${res.status}`);
