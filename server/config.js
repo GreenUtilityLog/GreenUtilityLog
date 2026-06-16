@@ -48,3 +48,10 @@ export const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || "*";
 // is visible in the photo. Enable with OCR_ENABLED=true (needs the optional
 // tesseract.js dependency installed).
 export const OCR_ENABLED = String(process.env.OCR_ENABLED || "").toLowerCase() === "true";
+
+// Google Cloud Vision API key — when set, the /ocr endpoint reads meter photos via
+// Vision (far more accurate than in-browser OCR). Get one in Google Cloud →
+// "Credentials" → API key, with the Cloud Vision API enabled. First 1000 images a
+// month are free. Leave empty to disable the endpoint (the app falls back to
+// in-browser OCR).
+export const GOOGLE_VISION_API_KEY = process.env.GOOGLE_VISION_API_KEY || "";
