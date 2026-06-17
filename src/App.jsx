@@ -70,6 +70,16 @@ const REWARD_API = "";
 // so pointing both at one deployed backend is enough.
 const OCR_API = "";
 
+// ── ROBOFLOW (works WITHOUT a backend) ────────────────────────────────────────
+// A meter-trained model called straight from the app — the simplest way to get
+// reliable recognition without deploying a server. Create a free roboflow.com
+// account, open a meter-reading model on Roboflow Universe → "Deploy", and copy
+// the model id ("project/version") and your API key here.
+// NOTE: the key is visible in the app (fine for a test / free tier). For
+// production, move OCR server-side via OCR_API instead.
+const ROBOFLOW_MODEL   = "ocr-meter-reading/1";   // project/version (not secret)
+const ROBOFLOW_API_KEY = "YKz5jsOu4XHlhQYpT1fi";   // test only — exposed; regenerate after testing
+
 // ── FEEDBACK ──────────────────────────────────────────────────────────────────
 // Where the in-app "Send Feedback" button delivers testers' messages. It opens
 // the tester's own mail app pre-filled (no server needed). Change this to the
@@ -100,11 +110,19 @@ const X2EARN_ABI = [
   },
 ];
 
+// Convert a B3TR amount (number or decimal string) to wei (18 decimals) WITHOUT
+// floating-point error — `amount * 1e18` overflows Number's safe integer range and
+// corrupts the low digits, so build it from the decimal string instead.
+function toWei(amount) {
+  const s = String(amount).trim();
+  const neg = s.startsWith("-");
+  const [intPart = "0", fracRaw = ""] = s.replace("-", "").split(".");
+  const frac = (fracRaw + "0".repeat(18)).slice(0, 18);
+  const wei = BigInt((intPart || "0") + frac);
+  return (neg ? -wei : wei).toString();
+}
+
 // ── Build the on-chain clause for a meter submission ──────────────────────
-// Wallet connection + signing are handled by VeChain Kit (VeWorld /
-// WalletConnect / Sync2) via dapp-kit's useWallet().requestTransaction.
-// This helper only builds the transaction clause that the Kit signs & sends,
-// so it works identically on desktop and mobile.
 function buildRewardClauses(utilId, reading, prevRead, b3trAmount, userAddress, meterNo) {
   // Build proof JSON — required by VeBetterDAO
   const proof = JSON.stringify({
@@ -119,8 +137,8 @@ function buildRewardClauses(utilId, reading, prevRead, b3trAmount, userAddress, 
     version:   APP_VERSION,
   });
 
-  // Amount in wei (18 decimals)
-  const amountWei = BigInt(Math.round(b3trAmount * 1e18)).toString();
+  // Amount in wei (18 decimals) — string-based, no float rounding error.
+  const amountWei = toWei(b3trAmount);
 
   // distributeReward(appId, amount, receiver, proof) on X2EarnRewardsPool
   const clause = Clause.callFunction(
@@ -702,7 +720,9 @@ function blobToBase64(file) {
 // Read an image via the backend's Google Vision OCR. Returns the detected text, or
 // null when no backend is configured or the call fails (caller falls back to the
 // in-browser OCR). Used for both the cropped reading and the full-photo serial.
-async function remoteVisionText(file) {
+// Ask the backend's OCR (Roboflow / custom model / Google Vision) to read an image.
+// Returns { text, numbers } or null when no backend is set or every provider misses.
+async function remoteOcr(file) {
   const base = ocrBackendBase();
   if (!base) return null;
   try {
@@ -716,17 +736,54 @@ async function remoteVisionText(file) {
     if (!res.ok) return null;
     const data = await res.json().catch(() => null);
     if (!data || data.ok === false) return null;
-    return typeof data.text === "string" && data.text ? data.text : null;
+    const text = typeof data.text === "string" ? data.text : "";
+    const numbers = Array.isArray(data.numbers) ? data.numbers.map(Number).filter(Number.isFinite) : [];
+    if (!text && !numbers.length) return null;
+    return { text, numbers };
+  } catch {
+    return null;
+  }
+}
+
+// Call Roboflow's hosted meter model directly from the app (no backend). Assembles
+// the reading by sorting the detected digits left-to-right. Returns { text, numbers }
+// or null when not configured / nothing detected.
+async function roboflowDirect(file) {
+  if (!ROBOFLOW_MODEL || !ROBOFLOW_API_KEY) return null;
+  try {
+    const image = await blobToBase64(file);
+    if (!image) return null;
+    const res = await fetch(`https://serverless.roboflow.com/${ROBOFLOW_MODEL}?api_key=${ROBOFLOW_API_KEY}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: image,
+    });
+    if (!res.ok) return null;
+    const data = await res.json().catch(() => null);
+    const preds = data?.predictions;
+    if (!Array.isArray(preds) || !preds.length) return null;
+    const text = preds
+      .filter(p => (p.confidence ?? 1) >= 0.3)
+      .sort((a, b) => (a.x ?? 0) - (b.x ?? 0))
+      .map(p => String(p.class ?? "").replace(/[^0-9.]/g, ""))
+      .join("");
+    if (!text) return null;
+    const numbers = (text.match(/\d+(?:[.,]\d+)?/g) || []).map(s => parseFloat(s.replace(",", "."))).filter(Number.isFinite);
+    return { text, numbers };
   } catch {
     return null;
   }
 }
 
 async function runOCR(file, claimedReading, utilId) {
-  // Prefer the backend's Google Vision OCR when available — much more reliable.
-  const remote = await remoteVisionText(file);
-  if (remote != null) {
-    const nums = (remote.match(/\d+(?:[.,]\d+)?/g) || []).map(s => parseFloat(s.replace(",", "."))).filter(Number.isFinite);
+  // Prefer a trained-model OCR when available — much more reliable than Tesseract.
+  // First the backend's /ocr (key hidden), then Roboflow called straight from the
+  // app (no backend needed). Fall back to in-browser OCR if both miss.
+  const remote = await remoteOcr(file) || await roboflowDirect(file);
+  if (remote) {
+    const nums = remote.numbers.length
+      ? remote.numbers
+      : (remote.text.match(/\d+(?:[.,]\d+)?/g) || []).map(s => parseFloat(s.replace(",", "."))).filter(Number.isFinite);
     return { matched: true, ocrNums: nums, ocrBest: pickMeterReading(nums), ocrConfidence: 90, remote: true };
   }
   try {
@@ -773,9 +830,9 @@ async function runOCR(file, claimedReading, utilId) {
 // the digit-only reading OCR can't see them). Used to confirm the registered meter
 // number is actually visible on the photographed meter.
 async function ocrFullText(file) {
-  // Backend Google Vision first — it reads alphanumeric serials far better.
-  const remote = await remoteVisionText(file);
-  if (remote != null) return remote.toUpperCase();
+  // Backend OCR first — a trained model / Vision reads serials far better.
+  const remote = await remoteOcr(file);
+  if (remote) return (remote.text || remote.numbers.join(" ")).toUpperCase();
   try {
     const Tesseract = await loadTesseract();
     if (!Tesseract?.createWorker) return "";
@@ -2690,12 +2747,30 @@ export default function App() {
       return;
     }
 
+    // No payout path for a normal tester: without a reward backend the only option
+    // is the wallet signing distributeReward itself, which reverts unless it holds
+    // the distributor role. Rather than broadcast a doomed transaction, record the
+    // verified submission locally (no B3TR) so the flow still completes cleanly.
+    if (!REWARD_API && !isAdmin) {
+      const today = new Date();
+      const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      setSubs(prev => [{
+        id: Date.now(), type: selUtil, meterNo, cur: reading, prev: prevRead, date: dateStr,
+        b3tr: 0, status: "recorded", flagged: !photoConfirmed, flagReason, txHash: "", submittedAt: Date.now(),
+      }, ...prev]);
+      setCooldown(selUtil);
+      setAiOk(false); setPhoto(null); setReading(""); setPrevRead(""); setVerifyKey(k => k + 1);
+      setBusy(false);
+      showToast("ℹ️ Submission recorded — rewards aren't live yet (reward backend not connected).");
+      return;
+    }
+
     try {
       // Two payout paths:
       //  • REWARD_API set → a server-side reward-distributor verifies and issues
       //    the B3TR (the production model; the user signs nothing).
-      //  • otherwise → the connected wallet signs distributeReward directly
-      //    (only works if that wallet holds the distributor role — fine for tests).
+      //  • otherwise (admin only) → the connected wallet signs distributeReward
+      //    directly; only works if that wallet holds the distributor role.
       let txid;
       if (REWARD_API) {
         const res = await fetch(`${REWARD_API.replace(/\/$/, "")}/reward`, {
