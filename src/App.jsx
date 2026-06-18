@@ -2506,7 +2506,7 @@ export default function App() {
   // Wallet connection is handled by VeChain dapp-kit (VeWorld / WalletConnect
   // mobile / Sync2). useWallet() exposes the connected address and the
   // requestTransaction() signer; useWalletModal() opens the connect dialog.
-  const { account, requestTransaction, disconnect } = useWallet();
+  const { account, requestTransaction, requestCertificate, disconnect } = useWallet();
   const wallet = account || null;
   const { open: openWalletModal } = useWalletModal();
   const openConnectModal = () => openWalletModal();
@@ -2773,10 +2773,23 @@ export default function App() {
       //    directly; only works if that wallet holds the distributor role.
       let txid;
       if (REWARD_API) {
+        // Prove wallet ownership: the user signs a gasless certificate, so the
+        // backend can verify the submission really comes from `wallet` and won't
+        // issue B3TR to an address someone just typed into the request.
+        let certificate;
+        try {
+          const content = `Green Utility Log — confirm submission\nWallet: ${wallet}\nUtility: ${selUtil}\nReading: ${reading}\nTime: ${new Date().toISOString()}`;
+          const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } });
+          certificate = { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
+        } catch {
+          setBusy(false);
+          showToast("✋ Sign the confirmation in your wallet to submit");
+          return;
+        }
         const res = await fetch(`${REWARD_API.replace(/\/$/, "")}/reward`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ utility: selUtil, reading, prevRead, meterNo, address: wallet, photo: photo?.base64 || "", clientFlagged: !photoConfirmed, flagReason, ocrNums: photo?.ocrNums || [], meterNoConfirmed: photo?.meterNoConfirmed ?? null }),
+          body: JSON.stringify({ utility: selUtil, reading, prevRead, meterNo, address: wallet, photo: photo?.base64 || "", certificate, clientFlagged: !photoConfirmed, flagReason, ocrNums: photo?.ocrNums || [], meterNoConfirmed: photo?.meterNoConfirmed ?? null }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || `Reward service error ${res.status}`);
