@@ -27,13 +27,13 @@ export const APP_VERSION = "1.3.0";
 export const RATES = { electric: 0.61, gas: 0.84, water: 0.12, solar: 0.72 };
 export const UNITS = { electric: "kWh", gas: "m³", water: "L", solar: "kWh" };
 
-// Plausible daily-usage bounds per utility — mirrors the frontend anti-farming
-// engine, so the server rejects the same implausible readings.
+// Plausible usage bounds per utility — MUST match the frontend checkPlausibility
+// RANGES, otherwise a reading can pass on the client and then be rejected here.
 export const USAGE_BOUNDS = {
-  electric: [0.5, 60],
-  gas:      [0.1, 20],
-  water:    [20, 2000],
-  solar:    [0.1, 80],
+  electric: [0.1, 80],
+  gas:      [0.01, 20],
+  water:    [10, 1000],
+  solar:    [0.1, 60],
 };
 
 // Minimum gap between paid submissions for the same wallet+utility (default 20h,
@@ -55,3 +55,21 @@ export const OCR_ENABLED = String(process.env.OCR_ENABLED || "").toLowerCase() =
 // month are free. Leave empty to disable the endpoint (the app falls back to
 // in-browser OCR).
 export const GOOGLE_VISION_API_KEY = process.env.GOOGLE_VISION_API_KEY || "";
+
+// ── Roboflow (meter-trained model) ───────────────────────────────────────────
+// A model trained specifically on meter displays — usually reads them better than
+// generic OCR. Create a free account, find the model on Roboflow Universe, and set
+// ROBOFLOW_MODEL to "project/version" (e.g. "ocr-meter-reading/3") + your API key.
+export const ROBOFLOW_API_KEY = process.env.ROBOFLOW_API_KEY || "";
+export const ROBOFLOW_MODEL   = process.env.ROBOFLOW_MODEL || "ocr-meter-reading/1"; // "project/version"
+
+// ── Custom OCR service (self-hosted) ─────────────────────────────────────────
+// URL of your own OCR HTTP service (e.g. the YOLOv8 + OCR FastAPI pipeline). It is
+// POSTed { image } (base64) and should return { text } and/or { numbers: [...] }.
+// Host the model yourself; this just forwards to it.
+export const CUSTOM_OCR_URL = process.env.CUSTOM_OCR_URL || "";
+
+// Order to try the OCR providers in; the first that returns a result wins. Any not
+// configured are skipped, and the app falls back to in-browser OCR if all miss.
+export const OCR_PROVIDER_ORDER = (process.env.OCR_PROVIDER_ORDER || "roboflow,custom,vision")
+  .split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);

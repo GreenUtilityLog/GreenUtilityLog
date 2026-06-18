@@ -9,6 +9,8 @@ import { PORT, ALLOWED_ORIGIN, NETWORK, NODE_URL, APP_ID, OCR_ENABLED } from "./
 import { validateSubmission } from "./verify.js";
 import { verifyPhoto } from "./media.js";
 import { distributeReward, distributorAddress } from "./reward.js";
+import { ocrImage, ocrEnabled, ocrProviders } from "./ocr.js";
+import { verifyWalletCertificate, REQUIRE_CERT } from "./auth.js";
 
 const app = express();
 // Limit allows for a meter photo (base64) in the body.
@@ -36,8 +38,23 @@ app.get("/health", async (req, res) => {
     node: NODE_URL,
     appId: APP_ID,
     ocr: OCR_ENABLED,
+    ocrProviders: ocrProviders(),
+    requireCert: REQUIRE_CERT,
     distributor: await distributorAddress().catch(() => null),
   });
+});
+
+// Meter-photo OCR. The app POSTs an image (base64) — the cropped reading or the
+// full photo — and gets back the detected text + numbers from the first configured
+// provider that recognises it (Roboflow → custom → Vision). Keys/URLs stay on the
+// server. Returns 503 when no provider is configured, so the app falls back to
+// in-browser OCR.
+app.post("/ocr", async (req, res) => {
+  if (!ocrEnabled()) return res.status(503).json({ ok: false, error: "ocr not configured" });
+  const image = req.body?.image;
+  if (!image || typeof image !== "string") return res.status(400).json({ ok: false, error: "image is required" });
+  const { text, numbers, provider } = await ocrImage(image);
+  res.json({ ok: true, text, numbers, provider });
 });
 
 // Wallet+utility pairs with a payout in flight — prevents two concurrent
@@ -48,6 +65,13 @@ app.post("/reward", async (req, res) => {
   // 1) Structural checks + server-recomputed amount.
   const v = validateSubmission(req.body);
   if (!v.ok) return res.status(400).json({ error: v.error });
+
+  // 1b) Wallet ownership proof — the signer of the certificate must be the address
+  // we're about to reward. Stops rewards being issued to an arbitrary address.
+  if (REQUIRE_CERT) {
+    const c = verifyWalletCertificate({ certificate: req.body.certificate, address: req.body.address });
+    if (!c.ok) return res.status(401).json({ error: c.error });
+  }
 
   const lockKey = `${String(req.body.address).toLowerCase()}:${req.body.utility}`;
   if (inFlight.has(lockKey)) return res.status(429).json({ error: "a submission for this meter is already processing" });

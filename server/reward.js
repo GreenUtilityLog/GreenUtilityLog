@@ -24,6 +24,16 @@ const DISTRIBUTE_ABI = {
   stateMutability: "nonpayable",
 };
 
+// Decimal amount → wei (18 decimals) without floating-point error.
+function toWei(amount) {
+  const s = String(amount).trim();
+  const neg = s.startsWith("-");
+  const [intPart = "0", fracRaw = ""] = s.replace("-", "").split(".");
+  const frac = (fracRaw + "0".repeat(18)).slice(0, 18);
+  const wei = BigInt((intPart || "0") + frac);
+  return (neg ? -wei : wei).toString();
+}
+
 const PK = (process.env.DISTRIBUTOR_PRIVATE_KEY || "").replace(/^0x/, "");
 if (!PK) {
   console.warn("[reward] DISTRIBUTOR_PRIVATE_KEY is not set — /reward will fail until it is.");
@@ -56,7 +66,7 @@ function buildProof({ utility, meterNo, reading, prevRead, amount }) {
 export async function distributeReward({ utility, meterNo, reading, prevRead, amount, receiver }) {
   if (!signer) throw new Error("distributor key not configured");
 
-  const amountWei = BigInt(Math.round(amount * 1e18)).toString();
+  const amountWei = toWei(amount);
   const proof = buildProof({ utility, meterNo, reading, prevRead, amount });
 
   const clause = Clause.callFunction(

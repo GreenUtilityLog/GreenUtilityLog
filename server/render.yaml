@@ -1,0 +1,33 @@
+# Render.com Blueprint for the reward-distributor service.
+# In Render: New → Blueprint → point it at this repo. Render reads this file,
+# creates the web service, and asks you for the secret value(s) marked
+# `sync: false` (your distributor private key). See docs/DEPLOY_BACKEND.md.
+services:
+  - type: web
+    name: greenutilitylog-rewards
+    runtime: node
+    rootDir: server
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NETWORK
+        value: testnet
+      # Paste your hot-wallet private key in the Render dashboard (kept secret).
+      - key: DISTRIBUTOR_PRIVATE_KEY
+        sync: false
+      # Meter-photo OCR providers (all optional; first configured one wins, app
+      # falls back to in-browser OCR). Set the keys/URLs in the Render dashboard.
+      - key: GOOGLE_VISION_API_KEY
+        sync: false
+      - key: ROBOFLOW_API_KEY
+        sync: false
+      - key: ROBOFLOW_MODEL
+        sync: false
+      - key: CUSTOM_OCR_URL
+        sync: false
+      # Lock this to your exact frontend origin once you know it, e.g.
+      # https://greenutilitylog.github.io  — "*" is fine for a quick test.
+      - key: ALLOWED_ORIGIN
+        value: "*"
