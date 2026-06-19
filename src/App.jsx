@@ -60,7 +60,7 @@ const isAdminWallet = (w) => !!w && ADMIN_WALLETS.includes(w.toLowerCase());
 // user signs nothing, and you never have to grant the distributor role to every
 // wallet. See the /server folder for the matching service. Leave empty to keep
 // the direct on-chain flow (the connected wallet must hold the distributor role).
-const REWARD_API = "";
+const REWARD_API = "https://greenutilitylog-rewards.onrender.com";
 
 // ── OCR BACKEND (optional) ────────────────────────────────────────────────────
 // When set, meter photos (the cropped reading + the full photo for the meter
