@@ -232,6 +232,27 @@ function saveMeters(meters) {
   localStorage.setItem('greenlog_meters', JSON.stringify(meters));
 }
 
+// ── Submission history (per wallet) ──────────────────────────────────────────
+// The on-chain RewardDistributed events are authoritative, but they only exist for
+// PAID submissions. Until the reward backend is live, submissions are recorded but
+// not on-chain — so we also keep a per-wallet local copy, otherwise everything
+// "resets" on every reload. Keyed by wallet so a different wallet starts clean.
+const subsKey = (wallet) => `greenlog_subs_${String(wallet || "").toLowerCase()}`;
+function loadSubs(wallet) {
+  try { const s = localStorage.getItem(subsKey(wallet)); return s ? JSON.parse(s) : []; } catch { return []; }
+}
+function saveSubs(wallet, subs) {
+  try { localStorage.setItem(subsKey(wallet), JSON.stringify((subs || []).slice(0, 500))); } catch {}
+}
+// Merge on-chain (authoritative) with local entries that aren't represented there.
+function mergeSubs(local, chain) {
+  const same = (a, b) =>
+    (a.txHash && b.txHash && a.txHash === b.txHash) ||
+    (a.type === b.type && String(a.cur) === String(b.cur) && String(a.meterNo) === String(b.meterNo) && a.date === b.date);
+  const extras = (local || []).filter(l => !(chain || []).some(c => same(l, c)));
+  return [...(chain || []), ...extras].sort((a, b) => (b.submittedAt || 0) - (a.submittedAt || 0));
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // ANTI-FARMING ENGINE
 // ────────────────────────────────────────────────────────────────────────────
@@ -2099,6 +2120,10 @@ function HistoryScreen({ subs, T }) {
 // reward-distributor role (a backend), never the frontend.
 function AdminScreen({ onClose, T }) {
   const [chain, setChain] = useState({ status: "loading", rows: [], reason: null });
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState(null);
+  const [detail, setDetail] = useState({ status: "idle", rows: [] });
+
   useEffect(() => {
     let cancelled = false;
     const ctrl = new AbortController();
@@ -2108,21 +2133,107 @@ function AdminScreen({ onClose, T }) {
     return () => { cancelled = true; ctrl.abort(); };
   }, []);
 
+  // Load one wallet's full on-chain history (incl. the meter numbers it used).
+  useEffect(() => {
+    if (!selected) return;
+    let cancelled = false;
+    const ctrl = new AbortController();
+    setDetail({ status: "loading", rows: [] });
+    fetchWalletHistory({ node: ACTIVE_NODE, contract: CONTRACTS.X2EarnRewardsPool, appId: VEBETTER_APP_ID, address: selected, signal: ctrl.signal })
+      .then(res => { if (!cancelled) setDetail(res.ok ? { status: "live", rows: res.rows } : { status: "empty", rows: [] }); })
+      .catch(() => { if (!cancelled) setDetail({ status: "error", rows: [] }); });
+    return () => { cancelled = true; ctrl.abort(); };
+  }, [selected]);
+
   const totalB3tr = chain.rows.reduce((a, r) => a + (r.b3tr || 0), 0);
   const totalSubs = chain.rows.reduce((a, r) => a + (r.count || 0), 0);
 
+  const q = query.trim().toLowerCase();
+  const isFullAddr = /^0x[0-9a-f]{40}$/.test(q);
+  const filtered = q ? chain.rows.filter(r => r.addr.toLowerCase().includes(q)) : chain.rows;
+
+  const headerBar = (title, sub, onBack) => (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 18px",borderBottom:`1px solid ${T.border}`}}>
+      <div style={{display:"flex",alignItems:"center",gap:10}}>
+        {onBack && <button onClick={onBack} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:4,padding:"6px 10px",fontSize:12,fontWeight:700,color:T.textMid,cursor:"pointer"}}>←</button>}
+        <div>
+          <div style={{fontSize:14,fontWeight:800,color:T.text}}>{title}</div>
+          <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginTop:2}}>{sub}</div>
+        </div>
+      </div>
+      <button onClick={onClose} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:4,padding:"6px 12px",fontSize:11,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Close</button>
+    </div>
+  );
+
+  // ── Per-wallet detail ──────────────────────────────────────────────────────
+  if (selected) {
+    const row = chain.rows.find(r => r.addr.toLowerCase() === selected.toLowerCase());
+    const meters = (() => {
+      const m = new Map();
+      for (const r of detail.rows) {
+        if (!r.meterNo) continue;
+        const key = `${r.type}:${r.meterNo}`;
+        if (!m.has(key)) m.set(key, { utility: r.type, meterNo: r.meterNo, count: 0, last: r.cur });
+        m.get(key).count++;
+      }
+      return [...m.values()];
+    })();
+    return (
+      <div style={{position:"fixed",inset:0,background:T.bg,zIndex:320,display:"flex",flexDirection:"column"}}>
+        {headerBar("🛡️ Wallet detail", `On-chain · ${NETWORK_LABEL}`, () => setSelected(null))}
+        <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"14px"}}>
+          <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:6,padding:"12px 14px",marginBottom:14}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
+              <div style={{fontSize:13,fontWeight:700,fontFamily:"'DM Mono',monospace",color:T.text}}>{shortAddr(selected)}</div>
+              <button onClick={() => { try { navigator.clipboard.writeText(selected); } catch {} }} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:4,padding:"4px 8px",fontSize:10,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Copy</button>
+            </div>
+            <div style={{fontSize:9,color:T.textSoft,wordBreak:"break-all",marginTop:4,fontFamily:"'DM Mono',monospace"}}>{selected}</div>
+            <div style={{display:"flex",gap:16,marginTop:10}}>
+              <div><span style={{fontSize:15,fontWeight:600,color:T.green3}}>{row ? row.b3tr.toFixed(2) : (detail.rows.reduce((a,r)=>a+(parseFloat(r.b3tr)||0),0)).toFixed(2)}</span> <span style={{fontSize:9,color:T.textSoft}}>B3TR</span></div>
+              <div><span style={{fontSize:15,fontWeight:600,color:T.text}}>{detail.rows.length}</span> <span style={{fontSize:9,color:T.textSoft}}>submissions</span></div>
+              <div><span style={{fontSize:15,fontWeight:600,color:T.text}}>{meters.length}</span> <span style={{fontSize:9,color:T.textSoft}}>meters</span></div>
+            </div>
+          </div>
+
+          <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,margin:"4px 2px 8px"}}>Meters used</div>
+          {detail.status === "loading" && <div style={{textAlign:"center",color:T.textSoft,fontSize:11,padding:18}}>Loading…</div>}
+          {detail.status !== "loading" && meters.length === 0 && <div style={{color:T.textSoft,fontSize:11,padding:"6px 2px"}}>No meters found on-chain for this wallet.</div>}
+          {meters.map((m, i) => (
+            <div key={i} style={{display:"flex",alignItems:"center",gap:10,background:getColorBg(m.utility,T),border:`1px solid ${T[m.utility+"Border"]||T.border}`,borderRadius:6,padding:"9px 12px",marginBottom:6}}>
+              <span style={{fontSize:15}}>{UTIL_ICONS[m.utility]}</span>
+              <div style={{flex:1}}>
+                <div style={{fontSize:12,fontWeight:700,fontFamily:"'DM Mono',monospace",color:T.text}}>{m.meterNo}</div>
+                <div style={{fontSize:9,color:T.textSoft,textTransform:"capitalize"}}>{m.utility} · {m.count} reading{m.count!==1?"s":""} · last {m.last}</div>
+              </div>
+            </div>
+          ))}
+
+          <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,margin:"16px 2px 8px"}}>Recent submissions</div>
+          {detail.rows.slice(0, 30).map((r) => (
+            <div key={r.id} className="lb-item">
+              <span style={{fontSize:15,marginRight:8}}>{UTIL_ICONS[r.type]}</span>
+              <div style={{flex:1}}>
+                <div style={{fontSize:11,color:T.text}}>{r.date} · <span style={{fontFamily:"'DM Mono',monospace"}}>#{r.meterNo||"—"}</span></div>
+                <div style={{fontSize:9,color:T.textSoft}}>{r.prev} → {r.cur}</div>
+              </div>
+              <div className="lb-b3tr">+{parseFloat(r.b3tr).toFixed(2)}</div>
+            </div>
+          ))}
+
+          <div style={{marginTop:16,padding:"10px 12px",background:T.gasBg,border:`1px solid ${T.gasBorder}`,borderRadius:6,fontSize:10.5,color:T.textMid,lineHeight:1.6}}>
+            ℹ️ This view is read-only (the blockchain is the source of truth). <strong>Editing</strong> a wallet's meters requires the reward backend (meters are otherwise stored on each user's own device). Ask me to wire the admin edit-API once the backend is live.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Participant list + search ──────────────────────────────────────────────
   return (
     <div style={{position:"fixed",inset:0,background:T.bg,zIndex:320,display:"flex",flexDirection:"column"}}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 18px",borderBottom:`1px solid ${T.border}`}}>
-        <div>
-          <div style={{fontSize:14,fontWeight:800,color:T.text}}>🛡️ Admin · Participants</div>
-          <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginTop:2}}>Read-only on-chain monitor · {NETWORK_LABEL}</div>
-        </div>
-        <button onClick={onClose} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:4,padding:"6px 12px",fontSize:11,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Close</button>
-      </div>
-
+      {headerBar("🛡️ Admin · Participants", `Read-only on-chain monitor · ${NETWORK_LABEL}`, null)}
       <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"14px"}}>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:14}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:12}}>
           {[
             { k:"Participants",     v: chain.rows.length },
             { k:"B3TR Distributed", v: totalB3tr.toFixed(2) },
@@ -2135,6 +2246,20 @@ function AdminScreen({ onClose, T }) {
           ))}
         </div>
 
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="🔎 Search wallet address (0x…)"
+          spellCheck={false}
+          style={{width:"100%",boxSizing:"border-box",background:T.card,border:`1px solid ${T.border}`,borderRadius:6,padding:"11px 12px",fontSize:12,color:T.text,fontFamily:"'DM Mono',monospace",outline:"none",marginBottom:12}}
+        />
+
+        {isFullAddr && !filtered.some(r => r.addr.toLowerCase() === q) && (
+          <div onClick={() => setSelected(q)} style={{cursor:"pointer",background:T.green5||T.bgAlt,border:`1px solid ${T.green4||T.border}`,borderRadius:6,padding:"11px 12px",marginBottom:10,fontSize:11,fontWeight:700,color:T.green3}}>
+            Look up this wallet → {shortAddr(q)} (no rewards yet, view its meters/history)
+          </div>
+        )}
+
         {chain.status === "loading" && (
           <div style={{textAlign:"center",color:T.textSoft,fontSize:11,padding:24}}>Loading on-chain participants…</div>
         )}
@@ -2145,12 +2270,15 @@ function AdminScreen({ onClose, T }) {
               : chain.status === "error" ? "Could not reach the node — try again later." : "No on-chain submissions yet."}
           </div>
         )}
-        {chain.rows.map((r, i) => (
-          <div key={r.addr} className="lb-item">
-            <div className="lb-rank">{i + 1}</div>
+        {chain.rows.length > 0 && filtered.length === 0 && !isFullAddr && (
+          <div style={{textAlign:"center",color:T.textSoft,fontSize:11,padding:18}}>No participant matches “{query}”.</div>
+        )}
+        {filtered.map((r, i) => (
+          <div key={r.addr} className="lb-item" style={{cursor:"pointer"}} onClick={() => setSelected(r.addr)}>
+            <div className="lb-rank">{q ? "•" : i + 1}</div>
             <div style={{flex:1}}>
               <div className="lb-name" style={{fontFamily:"'SF Mono',monospace",fontSize:11}}>{shortAddr(r.addr)}</div>
-              <div style={{fontSize:9,color:T.textSoft}}>📸 {r.count} submission{r.count !== 1 ? "s" : ""}</div>
+              <div style={{fontSize:9,color:T.textSoft}}>📸 {r.count} submission{r.count !== 1 ? "s" : ""} · tap to view</div>
             </div>
             <div style={{textAlign:"right"}}>
               <div className="lb-b3tr">+{r.b3tr.toFixed(2)}</div>
@@ -2545,6 +2673,7 @@ export default function App() {
   // never belong to a real account. Whenever a wallet connects, start it at zero;
   // a wallet we haven't seen on this browser also gets its baselines re-prompted.
   const sessionWalletRef = useRef(undefined);
+  const subsHydratedRef = useRef(undefined);
   useEffect(() => {
     if (!account) return;
     const addr = account.toLowerCase();
@@ -2554,8 +2683,12 @@ export default function App() {
     let storedWallet = null;
     try { storedWallet = localStorage.getItem(WALLET_KEY); } catch {}
 
-    setSubs([]);
-    setB3tr(0);
+    // Show this wallet's locally-saved submissions immediately so nothing "resets"
+    // on reload; the on-chain history is merged in below when it arrives.
+    const local = loadSubs(addr);
+    subsHydratedRef.current = addr;
+    setSubs(local);
+    setB3tr(local.reduce((a, s) => a + (parseFloat(s.b3tr) || 0), 0));
     setReading(""); setPrevRead(""); setAiOk(false); setPhoto(null);
     setVerifyKey(k => k + 1);
     setTab("home");
@@ -2592,13 +2725,22 @@ export default function App() {
       .then(res => {
         if (cancelled || sessionWalletRef.current !== addr) return;
         if (res.ok && res.rows.length) {
-          setSubs(res.rows);
-          setB3tr(res.rows.reduce((a, s) => a + (parseFloat(s.b3tr) || 0), 0));
+          const merged = mergeSubs(local, res.rows);
+          setSubs(merged);
+          setB3tr(merged.reduce((a, s) => a + (parseFloat(s.b3tr) || 0), 0));
+          saveSubs(addr, merged);
         }
       })
       .catch(() => {});
     return () => { cancelled = true; };
   }, [account]);
+
+  // Persist this wallet's submissions on every change, so recorded (not-yet-paid)
+  // submissions survive a reload instead of resetting to an empty/seed state.
+  useEffect(() => {
+    const addr = account?.toLowerCase();
+    if (addr && subsHydratedRef.current === addr) saveSubs(addr, subs);
+  }, [subs, account]);
 
   // Auto-detect admin access from the VeBetterDAO X2EarnApps contract (the app
   // admin / moderators), on top of the hardcoded ADMIN_WALLETS allowlist.
