@@ -408,7 +408,7 @@ function useOnlineStatus() {
 const LIGHT = {
   bg:"#ede9e2", bgAlt:"#e4e0d8", white:"#f5f2ec",
   green1:"#1a3326", green2:"#264d3a", green3:"#4a7a60", green4:"#90b8a2", green5:"#dce8e1",
-  text:"#0d1812", textMid:"#334a3e", textSoft:"#7a9188",
+  text:"#0d1812", textMid:"#334a3e", textSoft:"#5e756a",
   border:"#cbc6bc", shadow:"rgba(13,24,18,0.05)", shadowMd:"rgba(13,24,18,0.10)",
   electric:"#8a4200", electricBg:"#f0e8de", electricBorder:"#b89070",
   gas:"#7a1c1c",      gasBg:"#ede0e0",    gasBorder:"#b88a8a",
