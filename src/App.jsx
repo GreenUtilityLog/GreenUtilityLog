@@ -418,16 +418,16 @@ const LIGHT = {
   heroFrom:"#1a3326", heroTo:"#264d3a",
 };
 const DARK = {
-  bg:"#0a1210", bgAlt:"#0f1a15", white:"#131d18",
-  green1:"#72b890", green2:"#5a9e78", green3:"#88cc9e", green4:"#243c30", green5:"#101c16",
-  text:"#ccc8c0", textMid:"#84a494", textSoft:"#486055",
-  border:"#1a2c22", shadow:"rgba(0,0,0,0.30)", shadowMd:"rgba(0,0,0,0.42)",
-  electric:"#c07030", electricBg:"#1a1208", electricBorder:"#3c2408",
-  gas:"#c04040",      gasBg:"#1a0c0c",    gasBorder:"#3c1212",
-  water:"#3070bc",    waterBg:"#081018",  waterBorder:"#102a50",
-  solar:"#5a9e78",    solarBg:"#0a1810",  solarBorder:"#183224",
-  card:"#131d18", navBg:"rgba(10,18,16,0.97)",
-  heroFrom:"#0c1c14", heroTo:"#1a3326",
+  bg:"#0e1714", bgAlt:"#17241e", white:"#1b2a23",
+  green1:"#83cb9f", green2:"#69af86", green3:"#97dcad", green4:"#2c463a", green5:"#16241c",
+  text:"#e9e6df", textMid:"#a8c4b4", textSoft:"#7e988a",
+  border:"#2a4034", shadow:"rgba(0,0,0,0.38)", shadowMd:"rgba(0,0,0,0.52)",
+  electric:"#dc8f50", electricBg:"#201408", electricBorder:"#4a2e0c",
+  gas:"#db6060",      gasBg:"#200e0e",    gasBorder:"#4a1818",
+  water:"#549bdf",    waterBg:"#0c1622",  waterBorder:"#173a64",
+  solar:"#69af86",    solarBg:"#0e1c14",  solarBorder:"#1f3e2d",
+  card:"#17241e", navBg:"rgba(14,23,20,0.97)",
+  heroFrom:"#102218", heroTo:"#1f3d2d",
 };
 
 const UTIL_ICONS = {
