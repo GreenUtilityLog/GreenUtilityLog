@@ -8,7 +8,7 @@ import {
   VeChainProvider,
   VeChainPrivateKeySigner,
 } from "@vechain/sdk-network";
-import { Clause, Address, ABIFunction, Mnemonic } from "@vechain/sdk-core";
+import { Clause, Address, ABIFunction, HDKey } from "@vechain/sdk-core";
 import { NODE_URL, CONTRACTS, APP_ID, APP_VERSION } from "./config.js";
 
 const DISTRIBUTE_ABI = {
@@ -37,15 +37,37 @@ function toWei(amount) {
 // Distributor key — supply EITHER a raw private key (DISTRIBUTOR_PRIVATE_KEY, hex)
 // OR a recovery phrase (DISTRIBUTOR_MNEMONIC, the 12/24 words). The mnemonic path
 // is handy when your wallet app (e.g. VeWorld) only lets you export the phrase, not
-// the key — we derive the standard VeChain account key (m/44'/818'/0'/0/0) from it.
-// Either value stays server-side and is never logged.
+// the key. A phrase holds many accounts (m/44'/818'/0'/0/i — VeWorld's account #1,
+// #2, …); set DISTRIBUTOR_ADDRESS to the exact wallet you want and we scan the first
+// accounts until it matches, so you needn't know the account index. Without it we
+// use the first account. Nothing here is ever logged except the matched index.
+const ACCOUNT_SCAN = 20;
 function loadKeyBytes() {
   const pkHex = (process.env.DISTRIBUTOR_PRIVATE_KEY || "").trim().replace(/^0x/, "");
-  if (pkHex) return Buffer.from(pkHex, "hex");
+  if (pkHex) {
+    const b = Buffer.from(pkHex, "hex");
+    if (b.length === 32) return b;
+    console.warn("[reward] DISTRIBUTOR_PRIVATE_KEY is not a valid 32-byte hex key — ignoring it.");
+  }
 
   const phrase = (process.env.DISTRIBUTOR_MNEMONIC || "").trim();
-  if (phrase) return Buffer.from(Mnemonic.toPrivateKey(phrase.split(/\s+/)));
+  if (!phrase) return null;
+  const words = phrase.split(/\s+/);
+  const want = (process.env.DISTRIBUTOR_ADDRESS || "").trim().toLowerCase();
 
+  try {
+    const scan = want ? ACCOUNT_SCAN : 1;
+    for (let i = 0; i < scan; i++) {
+      const pk = HDKey.fromMnemonic(words, HDKey.VET_DERIVATION_PATH).deriveChild(i).privateKey;
+      if (!want || Address.ofPrivateKey(pk).toString().toLowerCase() === want) {
+        if (want) console.log(`[reward] matched DISTRIBUTOR_ADDRESS at account #${i + 1}`);
+        return Buffer.from(pk);
+      }
+    }
+    console.warn(`[reward] DISTRIBUTOR_ADDRESS not found in the first ${ACCOUNT_SCAN} accounts of DISTRIBUTOR_MNEMONIC — wrong recovery phrase?`);
+  } catch (e) {
+    console.warn(`[reward] could not derive a key from DISTRIBUTOR_MNEMONIC: ${e.message}`);
+  }
   return null;
 }
 
