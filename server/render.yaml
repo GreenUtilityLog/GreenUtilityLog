@@ -14,8 +14,12 @@ services:
     envVars:
       - key: NETWORK
         value: testnet
-      # Paste your hot-wallet private key in the Render dashboard (kept secret).
+      # Distributor wallet secret — set ONE of the two below in the Render dashboard
+      # (kept secret, never in git). Use DISTRIBUTOR_MNEMONIC if your wallet app only
+      # exports the recovery phrase; otherwise use DISTRIBUTOR_PRIVATE_KEY.
       - key: DISTRIBUTOR_PRIVATE_KEY
+        sync: false
+      - key: DISTRIBUTOR_MNEMONIC
         sync: false
       # Meter-photo OCR providers (all optional; first configured one wins, app
       # falls back to in-browser OCR). Set the keys/URLs in the Render dashboard.
