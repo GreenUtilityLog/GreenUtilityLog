@@ -31,6 +31,15 @@ services:
         sync: false
       - key: CUSTOM_OCR_URL
         sync: false
+      # AI photo-authenticity check (optional). Set ANTHROPIC_API_KEY to enable a
+      # Claude vision check that rejects doctored/screenshot/watermarked/hand-drawn
+      # meter photos before paying out. Costs Anthropic API usage per submission.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: AI_PHOTO_MODEL
+        sync: false
+      - key: AI_PHOTO_MIN_CONFIDENCE
+        sync: false
       # Lock this to your exact frontend origin once you know it, e.g.
       # https://greenutilitylog.github.io  — "*" is fine for a quick test.
       - key: ALLOWED_ORIGIN

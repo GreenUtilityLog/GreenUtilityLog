@@ -11,6 +11,7 @@ import { verifyPhoto } from "./media.js";
 import { distributeReward, distributorAddress } from "./reward.js";
 import { ocrImage, ocrEnabled, ocrProviders } from "./ocr.js";
 import { verifyWalletCertificate, REQUIRE_CERT } from "./auth.js";
+import { checkPhotoAuthenticity, aiPhotoCheckEnabled } from "./authenticity.js";
 
 const app = express();
 // Limit allows for a meter photo (base64) in the body.
@@ -40,6 +41,7 @@ app.get("/health", async (req, res) => {
     ocr: OCR_ENABLED,
     ocrProviders: ocrProviders(),
     requireCert: REQUIRE_CERT,
+    aiPhotoCheck: aiPhotoCheckEnabled(),
     distributor: await distributorAddress().catch(() => null),
   });
 });
@@ -79,6 +81,13 @@ app.post("/reward", async (req, res) => {
   // 2) Photo check — real image, not a reused one (and optional OCR match).
   const photo = await verifyPhoto({ imageBase64: req.body.photo, reading: req.body.reading, ocr: OCR_ENABLED });
   if (!photo.ok) return res.status(400).json({ error: photo.error });
+
+  // 2b) AI authenticity — reject doctored / screenshotted / watermarked / hand-drawn
+  // photos before issuing a reward. No-op (allows) when ANTHROPIC_API_KEY is unset.
+  if (aiPhotoCheckEnabled()) {
+    const auth = await checkPhotoAuthenticity(req.body.photo);
+    if (!auth.ok) return res.status(400).json({ error: `photo rejected: ${auth.reason}` });
+  }
 
   // 3) Pay out, then commit cooldown + burn the photo hash (only on success).
   inFlight.add(lockKey);
