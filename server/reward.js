@@ -12,7 +12,7 @@ import { Clause, Address, ABIFunction, HDKey } from "@vechain/sdk-core";
 import { NODE_URL, CONTRACTS, APP_ID, APP_VERSION } from "./config.js";
 
 const DISTRIBUTE_ABI = {
-  name: "distributeRewardDeprecated",
+  name: "distributeReward",
   type: "function",
   inputs: [
     { name: "appId",    type: "bytes32" },
