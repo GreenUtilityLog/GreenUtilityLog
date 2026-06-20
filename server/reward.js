@@ -12,7 +12,7 @@ import { Clause, Address, ABIFunction, HDKey } from "@vechain/sdk-core";
 import { NODE_URL, CONTRACTS, APP_ID, APP_VERSION } from "./config.js";
 
 const DISTRIBUTE_ABI = {
-  name: "distributeReward",
+  name: "distributeRewardDeprecated",
   type: "function",
   inputs: [
     { name: "appId",    type: "bytes32" },
@@ -79,23 +79,41 @@ if (!keyBytes) {
 const thor = ThorClient.at(NODE_URL);
 const signer = keyBytes ? new VeChainPrivateKeySigner(keyBytes, new VeChainProvider(thor)) : null;
 
+// Optional fee delegation (VIP-191). When DELEGATION_URL is set (e.g. a
+// vechain.energy sponsorship), the distributor still signs each reward but a
+// sponsor pays the VTHO gas — so the distributor wallet needs no VTHO of its
+// own. Leave empty to have the distributor pay its own gas.
+const DELEGATION_URL = (process.env.DELEGATION_URL || "").trim();
+
 export async function distributorAddress() {
   return signer ? signer.getAddress() : null;
 }
 
-// Build the VeBetterDAO proof blob — same shape the frontend writes, so the
-// on-chain history/indexer decode it identically.
+// Build the VeBetterDAO proof blob. Top half follows the official VeBetterDAO
+// "proof of impact" schema (version/description/proof/impact) so rewards show up
+// correctly in the VeBetterDAO ecosystem; the lower half keeps our app-specific
+// fields (utility/reading/b3tr/…) that the in-app history + leaderboard decode.
+const UTILITY_LABELS = { electric: "Electricity", gas: "Gas", water: "Water", solar: "Solar" };
 function buildProof({ utility, meterNo, reading, prevRead, amount }) {
+  const label = UTILITY_LABELS[utility] || utility;
   return JSON.stringify({
-    appId:     APP_ID,
-    action:    "meter_reading",
+    // VeBetterDAO standard fields
+    version: 2,
+    description: `${label} meter reading logged via Green Utility Log`,
+    proof: {
+      text: `${utility} reading ${reading} (previous ${prevRead})${meterNo ? `, meter ${meterNo}` : ""}`,
+    },
+    impact: {},
+    // App-specific fields (decoded by our own history/leaderboard)
+    appId:      APP_ID,
+    action:     "meter_reading",
     utility,
-    meterNo:   meterNo || "",
-    reading:   String(reading),
-    prevRead:  String(prevRead),
-    b3tr:      amount,
-    timestamp: new Date().toISOString(),
-    version:   APP_VERSION,
+    meterNo:    meterNo || "",
+    reading:    String(reading),
+    prevRead:   String(prevRead),
+    b3tr:       amount,
+    timestamp:  new Date().toISOString(),
+    appVersion: APP_VERSION,
   });
 }
 
@@ -113,9 +131,11 @@ export async function distributeReward({ utility, meterNo, reading, prevRead, am
   );
 
   // sendTransaction estimates gas, builds, signs and broadcasts; resolves to txid.
+  // With DELEGATION_URL set, the gas is paid by the sponsor at that URL (VIP-191).
   const txid = await signer.sendTransaction({
     clauses: [{ to: clause.to, value: "0x0", data: clause.data }],
     comment: `Green Utility Log — ${utility} reward (${amount} B3TR)`,
+    ...(DELEGATION_URL ? { delegationUrl: DELEGATION_URL } : {}),
   });
 
   return txid;
