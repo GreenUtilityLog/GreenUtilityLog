@@ -99,6 +99,7 @@ app.post("/reward", async (req, res) => {
       prevRead: req.body.prevRead,
       amount:   v.amount,
       receiver: req.body.address,
+      avgUsage: req.body.avgUsage,
     });
     v.markPaid();
     photo.markUsed();

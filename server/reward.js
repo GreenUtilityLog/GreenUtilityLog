@@ -94,8 +94,31 @@ export async function distributorAddress() {
 // correctly in the VeBetterDAO ecosystem; the lower half keeps our app-specific
 // fields (utility/reading/b3tr/…) that the in-app history + leaderboard decode.
 const UTILITY_LABELS = { electric: "Electricity", gas: "Gas", water: "Water", solar: "Solar" };
-function buildProof({ utility, meterNo, reading, prevRead, amount }) {
+
+// Rough CO2 factors in grams CO2e per meter unit — editable estimates, not gospel.
+// electric & solar: per kWh · gas: per m³ · water: per litre.
+const CO2_PER_UNIT = { electric: 400, gas: 1900, water: 0.34, solar: 400 };
+
+// Honest sustainability impact: grams of CO2 avoided. For consumption meters
+// (electric/gas/water) that's the saving when you used LESS than your own recent
+// average; for solar it's the clean energy you produced (which offsets grid
+// power). Returns {} when there is nothing positive to claim — we never invent
+// impact. avgUsage/usage are in the meter's own unit.
+function computeImpact({ utility, usage, avgUsage }) {
+  const factor = CO2_PER_UNIT[utility];
+  if (!factor || !(usage >= 0)) return {};
+  let avoidedUnits = 0;
+  if (utility === "solar") avoidedUnits = usage;                       // clean energy produced
+  else if (avgUsage > 0 && usage < avgUsage) avoidedUnits = avgUsage - usage; // used less than usual
+  const grams = Math.round(avoidedUnits * factor);
+  return grams > 0 ? { carbon: grams } : {};
+}
+
+function buildProof({ utility, meterNo, reading, prevRead, amount, avgUsage }) {
   const label = UTILITY_LABELS[utility] || utility;
+  const usage = Math.max(0, Number(reading) - Number(prevRead));
+  const avg = Number(avgUsage) || 0;
+  const impact = computeImpact({ utility, usage, avgUsage: avg });
   return JSON.stringify({
     // VeBetterDAO standard fields
     version: 2,
@@ -103,7 +126,7 @@ function buildProof({ utility, meterNo, reading, prevRead, amount }) {
     proof: {
       text: `${utility} reading ${reading} (previous ${prevRead})${meterNo ? `, meter ${meterNo}` : ""}`,
     },
-    impact: {},
+    impact,
     // App-specific fields (decoded by our own history/leaderboard)
     appId:      APP_ID,
     action:     "meter_reading",
@@ -111,6 +134,8 @@ function buildProof({ utility, meterNo, reading, prevRead, amount }) {
     meterNo:    meterNo || "",
     reading:    String(reading),
     prevRead:   String(prevRead),
+    usage,
+    avgUsage:   avg || null,
     b3tr:       amount,
     timestamp:  new Date().toISOString(),
     appVersion: APP_VERSION,
@@ -118,11 +143,11 @@ function buildProof({ utility, meterNo, reading, prevRead, amount }) {
 }
 
 // Returns the broadcast transaction id.
-export async function distributeReward({ utility, meterNo, reading, prevRead, amount, receiver }) {
+export async function distributeReward({ utility, meterNo, reading, prevRead, amount, receiver, avgUsage }) {
   if (!signer) throw new Error("distributor key not configured");
 
   const amountWei = toWei(amount);
-  const proof = buildProof({ utility, meterNo, reading, prevRead, amount });
+  const proof = buildProof({ utility, meterNo, reading, prevRead, amount, avgUsage });
 
   const clause = Clause.callFunction(
     Address.of(CONTRACTS.X2EarnRewardsPool),
