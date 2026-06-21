@@ -41,7 +41,23 @@ export const USAGE_BOUNDS = {
 export const COOLDOWN_MS = Number(process.env.COOLDOWN_MS || 20 * 60 * 60 * 1000);
 
 export const PORT = Number(process.env.PORT || 8787);
+
+// CORS — lock the API to your frontend origin(s). Comma-separate to allow more
+// than one (e.g. your github.io page + a custom domain). Defaults to "*" (open)
+// for first-run convenience; set ALLOWED_ORIGIN in production.
 export const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || "*";
+export const ALLOWED_ORIGINS = ALLOWED_ORIGIN.split(",").map((s) => s.trim()).filter(Boolean);
+
+// Ban list — wallet addresses that may never claim. Comma-separated, case-
+// insensitive. Leave empty to ban no one.
+export const BANNED_ADDRESSES = new Set(
+  (process.env.BANNED_ADDRESSES || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean)
+);
+export const isBanned = (addr) => BANNED_ADDRESSES.has(String(addr || "").toLowerCase());
+
+// Cloudflare Turnstile (anti-bot captcha). Set TURNSTILE_SECRET to require a
+// valid captcha token on /reward; leave empty to disable the check.
+export const TURNSTILE_SECRET = process.env.TURNSTILE_SECRET || "";
 
 // Opt-in server-side OCR (tesseract.js). Off by default — the photo hash dedupe
 // and image sanity checks run regardless; OCR additionally checks the reading

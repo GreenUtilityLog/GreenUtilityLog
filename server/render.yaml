@@ -42,5 +42,13 @@ services:
         sync: false
       # Lock this to your exact frontend origin once you know it, e.g.
       # https://greenutilitylog.github.io  — "*" is fine for a quick test.
+      # Comma-separate to allow several origins.
       - key: ALLOWED_ORIGIN
         value: "*"
+      # Anti-bot captcha (optional): Cloudflare Turnstile secret. Set it (and the
+      # site key in the app) to require a captcha on each submission.
+      - key: TURNSTILE_SECRET
+        sync: false
+      # Ban list (optional): comma-separated wallet addresses that may never claim.
+      - key: BANNED_ADDRESSES
+        sync: false

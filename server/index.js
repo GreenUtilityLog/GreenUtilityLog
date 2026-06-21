@@ -5,18 +5,22 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import { PORT, ALLOWED_ORIGIN, NETWORK, NODE_URL, APP_ID, OCR_ENABLED } from "./config.js";
+import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned } from "./config.js";
 import { validateSubmission } from "./verify.js";
 import { verifyPhoto } from "./media.js";
 import { distributeReward, distributorAddress } from "./reward.js";
 import { ocrImage, ocrEnabled, ocrProviders } from "./ocr.js";
 import { verifyWalletCertificate, REQUIRE_CERT } from "./auth.js";
 import { checkPhotoAuthenticity, aiPhotoCheckEnabled } from "./authenticity.js";
+import { verifyCaptcha, captchaEnabled } from "./captcha.js";
 
 const app = express();
 // Limit allows for a meter photo (base64) in the body.
 app.use(express.json({ limit: "14mb" }));
-app.use(cors({ origin: ALLOWED_ORIGIN }));
+// Lock the API to the configured frontend origin(s). "*" stays fully open.
+app.use(cors({
+  origin: ALLOWED_ORIGINS.includes("*") ? "*" : ALLOWED_ORIGINS,
+}));
 
 // Very small in-memory IP throttle — a coarse abuse guard on top of the
 // per-wallet cooldown. Replace with a real rate limiter (e.g. express-rate-limit
@@ -24,6 +28,7 @@ app.use(cors({ origin: ALLOWED_ORIGIN }));
 const hits = new Map();
 app.use((req, res, next) => {
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket.remoteAddress || "unknown";
+  req.clientIp = ip;
   const now = Date.now();
   const win = hits.get(ip)?.filter((t) => now - t < 60_000) || [];
   if (win.length >= 30) return res.status(429).json({ error: "too many requests" });
@@ -42,6 +47,8 @@ app.get("/health", async (req, res) => {
     ocrProviders: ocrProviders(),
     requireCert: REQUIRE_CERT,
     aiPhotoCheck: aiPhotoCheckEnabled(),
+    captcha: captchaEnabled(),
+    corsLocked: !ALLOWED_ORIGINS.includes("*"),
     distributor: await distributorAddress().catch(() => null),
   });
 });
@@ -64,6 +71,15 @@ app.post("/ocr", async (req, res) => {
 const inFlight = new Set();
 
 app.post("/reward", async (req, res) => {
+  // 0) Ban list — blocked wallets can never claim.
+  if (isBanned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
+
+  // 0b) Captcha — proves the request came from a real browser, not a bot/script.
+  if (captchaEnabled()) {
+    const cap = await verifyCaptcha(req.body.captchaToken, req.clientIp);
+    if (!cap.ok) return res.status(403).json({ error: cap.error });
+  }
+
   // 1) Structural checks + server-recomputed amount.
   const v = validateSubmission(req.body);
   if (!v.ok) return res.status(400).json({ error: v.error });
