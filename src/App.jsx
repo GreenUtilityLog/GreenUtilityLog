@@ -62,6 +62,12 @@ const isAdminWallet = (w) => !!w && ADMIN_WALLETS.includes(w.toLowerCase());
 // the direct on-chain flow (the connected wallet must hold the distributor role).
 const REWARD_API = "https://greenutilitylog-rewards.onrender.com";
 
+// ── ANTI-BOT CAPTCHA (optional) ───────────────────────────────────────────────
+// Cloudflare Turnstile public site key. Set it to require a captcha on each
+// submission (the backend verifies it with TURNSTILE_SECRET). Get both free at
+// dash.cloudflare.com → Turnstile. Empty = captcha disabled.
+const TURNSTILE_SITE_KEY = "";
+
 // ── OCR BACKEND (optional) ────────────────────────────────────────────────────
 // When set, meter photos (the cropped reading + the full photo for the meter
 // number) are read by the backend's /ocr endpoint — Google Cloud Vision, far more
@@ -439,9 +445,10 @@ const UTIL_ICONS = {
 
 const UTILS = [
   { id:"electric", label:"Electric", unit:"kWh", rate:0.61, ph:["3834.8","3847.2"], hint:"Lights, appliances, boiler" },
-  { id:"gas",      label:"Gas",      unit:"m³",  rate:0.84, ph:["521.4","523.1"],   hint:"Heating & cooking" },
-  { id:"water",    label:"Water",    unit:"L",   rate:0.12, ph:["12320","12450"],    hint:"Household water usage" },
-  { id:"solar",    label:"Solar",    unit:"kWh", rate:0.72, ph:["130.1","142.3"],    hint:"Solar panel output", optional:true },
+  // Hidden for now — testing electricity first. Uncomment a line to bring that meter back.
+  // { id:"gas",      label:"Gas",      unit:"m³",  rate:0.84, ph:["521.4","523.1"],   hint:"Heating & cooking" },
+  // { id:"water",    label:"Water",    unit:"L",   rate:0.12, ph:["12320","12450"],    hint:"Household water usage" },
+  // { id:"solar",    label:"Solar",    unit:"kWh", rate:0.72, ph:["130.1","142.3"],    hint:"Solar panel output", optional:true },
 ];
 
 const HISTORY_SEED = [
@@ -1006,7 +1013,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .sub-header{padding:20px 18px 10px;}
 .sub-title{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:22px;font-weight:800;color:${T.text};letter-spacing:-0.4px;}
 .sub-sub{font-size:11px;color:${T.textSoft};margin-top:4px;text-transform:uppercase;letter-spacing:.8px;}
-.util-selector{display:grid;grid-template-columns:repeat(4,1fr);margin:0 14px 14px;border:1px solid ${T.border};border-radius:4px;overflow:hidden;}
+.util-selector{display:grid;grid-template-columns:repeat(${UTILS.length},1fr);margin:0 14px 14px;border:1px solid ${T.border};border-radius:4px;overflow:hidden;}
 .utab{display:flex;flex-direction:column;align-items:center;gap:3px;background:${T.card};border-right:1px solid ${T.border};padding:10px 4px;cursor:pointer;transition:background .12s,color .12s;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${T.textSoft};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;border-radius:0;}
 .utab:last-child{border-right:none;}
 .utab:hover,.utab.active{background:var(--ubg);color:var(--uc);}
@@ -1875,6 +1882,8 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
           </div>
         )}
 
+        {TURNSTILE_SITE_KEY && <div id="cf-turnstile" style={{display:"flex",justifyContent:"center",margin:"0 0 12px"}} />}
+
         {!wallet
           ? <button className="sbtn" onClick={() => setShowWallet(true)}>Connect Wallet to Submit</button>
           : !meterNo
@@ -2323,7 +2332,7 @@ function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, notif
         </div>
         <div className="sr-right" style={{fontSize:11,color:T.textSoft}}>→</div>
       </div>
-      {(() => {
+      {SOLAR_UTILS.length > 0 && (() => {
         const solarNo = (meters?.solar || "").trim();
         return (
           <div className="setting-row" onClick={onEditSolar}>
@@ -2662,6 +2671,8 @@ export default function App() {
   const [subs, setSubs]             = useState(HISTORY_SEED);
   const streak = computeStreak(subs); // derived from real submission dates
   const [verifyKey, setVerifyKey]   = useState(0);
+  const [captchaToken, setCaptchaToken] = useState(""); // Cloudflare Turnstile token (when enabled)
+  const turnstileId = useRef(null);
   const [notifs, setNotifs]         = useState({ daily:true, streak:true, rewards:false, lb:false });
   const [showAdmin, setShowAdmin]   = useState(false);
   const [showHelp, setShowHelp]       = useState(false);
@@ -2817,6 +2828,35 @@ export default function App() {
     setVerifyKey(k => k+1);
   };
 
+  // Cloudflare Turnstile (anti-bot): render the widget on the Submit tab when a
+  // site key is set; its token rides along with each /reward submission.
+  useEffect(() => {
+    if (!TURNSTILE_SITE_KEY || tab !== "submit") return;
+    let stop = false;
+    const render = () => {
+      if (stop || !window.turnstile) return;
+      const el = document.getElementById("cf-turnstile");
+      if (!el || el.dataset.rendered) return;
+      el.dataset.rendered = "1";
+      turnstileId.current = window.turnstile.render("#cf-turnstile", {
+        sitekey: TURNSTILE_SITE_KEY,
+        callback: (t) => setCaptchaToken(t),
+        "expired-callback": () => setCaptchaToken(""),
+        "error-callback": () => setCaptchaToken(""),
+      });
+    };
+    if (window.turnstile) { render(); return () => { stop = true; }; }
+    if (!document.getElementById("cf-turnstile-script")) {
+      const s = document.createElement("script");
+      s.id = "cf-turnstile-script";
+      s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+      s.async = true; s.defer = true; s.onload = render;
+      document.head.appendChild(s);
+    }
+    const iv = setInterval(() => { if (window.turnstile) { clearInterval(iv); render(); } }, 200);
+    return () => { stop = true; clearInterval(iv); };
+  }, [tab]);
+
   const usage = () => { const r=parseFloat(reading),p=parseFloat(prevRead); return(!r||!p||r<=p)?0:parseFloat((r-p).toFixed(2)); };
   const reward = () => parseFloat((usage()*u.rate).toFixed(2));
 
@@ -2836,6 +2876,13 @@ export default function App() {
     if (!(earned > 0)) {
       setBusy(false);
       showToast("⚠️ Enter a current reading higher than the previous one");
+      return;
+    }
+
+    // Anti-bot captcha must be solved first (only when a site key is configured).
+    if (TURNSTILE_SITE_KEY && !captchaToken) {
+      setBusy(false);
+      showToast("🤖 Complete the captcha to submit");
       return;
     }
 
@@ -2902,6 +2949,8 @@ export default function App() {
       }, ...prev]);
       setCooldown(selUtil);
       setAiOk(false); setPhoto(null); setReading(""); setPrevRead(""); setVerifyKey(k => k + 1);
+      if (window.turnstile && turnstileId.current) { try { window.turnstile.reset(turnstileId.current); } catch {} }
+      setCaptchaToken("");
       setBusy(false);
       showToast("ℹ️ Submission recorded — rewards aren't live yet (reward backend not connected).");
       return;
@@ -2931,7 +2980,7 @@ export default function App() {
         const res = await fetch(`${REWARD_API.replace(/\/$/, "")}/reward`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ utility: selUtil, reading, prevRead, meterNo, address: wallet, photo: photo?.base64 || "", certificate, clientFlagged: !photoConfirmed, flagReason, ocrNums: photo?.ocrNums || [], meterNoConfirmed: photo?.meterNoConfirmed ?? null, avgUsage: anom.avg ?? null }),
+          body: JSON.stringify({ utility: selUtil, reading, prevRead, meterNo, address: wallet, photo: photo?.base64 || "", certificate, clientFlagged: !photoConfirmed, flagReason, ocrNums: photo?.ocrNums || [], meterNoConfirmed: photo?.meterNoConfirmed ?? null, avgUsage: anom.avg ?? null, captchaToken }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || `Reward service error ${res.status}`);
