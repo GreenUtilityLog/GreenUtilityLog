@@ -16,7 +16,7 @@ import { verifyCaptcha, captchaEnabled } from "./captcha.js";
 
 const app = express();
 // Limit allows for a meter photo (base64) in the body.
-app.use(express.json({ limit: "14mb" }));
+app.use(express.json({ limit: "20mb" }));
 // Lock the API to the configured frontend origin(s). "*" stays fully open.
 app.use(cors({
   origin: ALLOWED_ORIGINS.includes("*") ? "*" : ALLOWED_ORIGINS,
@@ -95,7 +95,7 @@ app.post("/reward", async (req, res) => {
   if (inFlight.has(lockKey)) return res.status(429).json({ error: "a submission for this meter is already processing" });
 
   // 2) Photo check — real image, not a reused one (and optional OCR match).
-  const photo = await verifyPhoto({ imageBase64: req.body.photo, reading: req.body.reading, ocr: OCR_ENABLED });
+  const photo = await verifyPhoto({ imageBase64: req.body.photo, reading: req.body.reading, ocr: OCR_ENABLED, mime: req.body.photoMime });
   if (!photo.ok) return res.status(400).json({ error: photo.error });
 
   // 2b) AI authenticity — reject doctored / screenshotted / watermarked / hand-drawn

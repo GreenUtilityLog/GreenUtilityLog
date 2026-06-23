@@ -8,21 +8,25 @@ import { createHash } from "node:crypto";
 import { store } from "./store.js";
 
 const MIN_BYTES = 5 * 1024;          // reject blank/placeholder images
-const MAX_BYTES = 12 * 1024 * 1024;  // 12 MB cap
+const MAX_BYTES = 15 * 1024 * 1024;  // 15 MB cap (modern phone photos are big)
 
 // Magic-byte sniff — don't trust the client-declared mime type.
 function sniffImage(buf) {
   if (buf.length < 12) return null;
   if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "image/jpeg";
   if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return "image/png";
+  if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) return "image/gif";  // "GIF"
+  if (buf[0] === 0x42 && buf[1] === 0x4d) return "image/bmp";                     // "BM"
+  if ((buf[0] === 0x49 && buf[1] === 0x49 && buf[2] === 0x2a && buf[3] === 0x00) ||
+      (buf[0] === 0x4d && buf[1] === 0x4d && buf[2] === 0x00 && buf[3] === 0x2a)) return "image/tiff";
   if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 &&
       buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50) return "image/webp";
-  // HEIC/HEIF: bytes 4..7 spell "ftyp"
+  // ISO-BMFF (HEIC / HEIF / AVIF): bytes 4..7 spell "ftyp"
   if (buf[4] === 0x66 && buf[5] === 0x74 && buf[6] === 0x79 && buf[7] === 0x70) return "image/heic";
   return null;
 }
 
-export async function verifyPhoto({ imageBase64, reading, ocr = false } = {}) {
+export async function verifyPhoto({ imageBase64, reading, ocr = false, mime: clientMime = "" } = {}) {
   if (!imageBase64 || typeof imageBase64 !== "string") return { ok: false, error: "photo is required" };
 
   let buf;
@@ -32,8 +36,14 @@ export async function verifyPhoto({ imageBase64, reading, ocr = false } = {}) {
   if (buf.length < MIN_BYTES) return { ok: false, error: "photo is too small" };
   if (buf.length > MAX_BYTES) return { ok: false, error: "photo is too large" };
 
-  const mime = sniffImage(buf);
-  if (!mime) return { ok: false, error: "file is not a supported image" };
+  let mime = sniffImage(buf);
+  if (!mime) {
+    // Magic-byte sniff missed it. Accept when the client says it's an image and
+    // the size is sane — the hash dedupe (and optional AI check) are the real
+    // anti-farm guards. Only reject when it's clearly not an image at all.
+    if (typeof clientMime === "string" && clientMime.startsWith("image/")) mime = clientMime;
+    else return { ok: false, error: "file is not a supported image" };
+  }
 
   const hash = createHash("sha256").update(buf).digest("hex");
   if (store.hasHash(hash)) return { ok: false, error: "duplicate photo — each submission needs a fresh photo" };
