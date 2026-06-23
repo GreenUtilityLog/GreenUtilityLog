@@ -550,7 +550,11 @@ function rememberHash(h) {
 }
 
 
-const COOLDOWN_MS = 20 * 60 * 60 * 1000;
+// Cooldown between paid submissions per utility.
+// ⚠️ TESTING: set to 0 so you can submit repeatedly. Restore to
+// 20 * 60 * 60 * 1000 (20h) before going live. (Also set COOLDOWN_MS=0 in Render
+// to disable the matching server-side cooldown while testing.)
+const COOLDOWN_MS = 0; // 20 * 60 * 60 * 1000;
 function getCooldowns() {
   try { return JSON.parse(localStorage.getItem("greenlog_cooldowns") || "{}"); } catch { return {}; }
 }
@@ -2828,6 +2832,16 @@ export default function App() {
     setVerifyKey(k => k+1);
   };
 
+  // Auto-fill the "previous reading" from the last submission (or the registered
+  // baseline) so the user doesn't have to type it — and so the photo OCR has an
+  // anchor to auto-fill the new reading too. Only fills while the field is empty.
+  useEffect(() => {
+    if (prevRead) return;
+    const lastSub = subs.find(s => s.type === selUtil);
+    const v = lastSub ? lastSub.cur : (baselines[selUtil] || "");
+    if (v) setPrevRead(String(v));
+  }, [selUtil, subs, baselines, prevRead]);
+
   // Cloudflare Turnstile (anti-bot): render the widget on the Submit tab when a
   // site key is set; its token rides along with each /reward submission.
   useEffect(() => {
@@ -2980,7 +2994,7 @@ export default function App() {
         const res = await fetch(`${REWARD_API.replace(/\/$/, "")}/reward`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ utility: selUtil, reading, prevRead, meterNo, address: wallet, photo: photo?.base64 || "", certificate, clientFlagged: !photoConfirmed, flagReason, ocrNums: photo?.ocrNums || [], meterNoConfirmed: photo?.meterNoConfirmed ?? null, avgUsage: anom.avg ?? null, captchaToken }),
+          body: JSON.stringify({ utility: selUtil, reading, prevRead, meterNo, address: wallet, photo: photo?.base64 || "", photoMime: photo?.mime || "", certificate, clientFlagged: !photoConfirmed, flagReason, ocrNums: photo?.ocrNums || [], meterNoConfirmed: photo?.meterNoConfirmed ?? null, avgUsage: anom.avg ?? null, captchaToken }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || `Reward service error ${res.status}`);
