@@ -116,6 +116,10 @@ const X2EARN_ABI = [
   },
 ];
 
+// Funding the rewards pool: ERC20 approve on B3TR, then X2EarnRewardsPool.deposit.
+const ERC20_APPROVE_ABI = { name:"approve", type:"function", inputs:[{name:"spender",type:"address"},{name:"amount",type:"uint256"}], outputs:[{name:"",type:"bool"}], stateMutability:"nonpayable" };
+const DEPOSIT_ABI        = { name:"deposit", type:"function", inputs:[{name:"amount",type:"uint256"},{name:"appId",type:"bytes32"}], outputs:[], stateMutability:"nonpayable" };
+
 // Convert a B3TR amount (number or decimal string) to wei (18 decimals) WITHOUT
 // floating-point error — `amount * 1e18` overflows Number's safe integer range and
 // corrupts the low digits, so build it from the decimal string instead.
@@ -126,6 +130,27 @@ function toWei(amount) {
   const frac = (fracRaw + "0".repeat(18)).slice(0, 18);
   const wei = BigInt((intPart || "0") + frac);
   return (neg ? -wei : wei).toString();
+}
+
+// ── Build the clauses to fund the app's rewards pool (approve + deposit) ──────
+// One multi-clause transaction: approve B3TR for the pool, then deposit it into
+// the pool for this app. The connected wallet must hold the B3TR being deposited.
+function buildFundClauses(amountB3TR) {
+  const amountWei = toWei(amountB3TR);
+  const approve = Clause.callFunction(
+    Address.of(CONTRACTS.B3TR),
+    new ABIFunction(ERC20_APPROVE_ABI),
+    [CONTRACTS.X2EarnRewardsPool, amountWei]
+  );
+  const deposit = Clause.callFunction(
+    Address.of(CONTRACTS.X2EarnRewardsPool),
+    new ABIFunction(DEPOSIT_ABI),
+    [amountWei, VEBETTER_APP_ID]
+  );
+  return [
+    { to: approve.to, value: "0x0", data: approve.data, comment: `Approve ${amountB3TR} B3TR for the rewards pool` },
+    { to: deposit.to, value: "0x0", data: deposit.data, comment: `Fund rewards pool with ${amountB3TR} B3TR` },
+  ];
 }
 
 // ── Build the on-chain clause for a meter submission ──────────────────────
@@ -2131,11 +2156,13 @@ function HistoryScreen({ subs, T }) {
 // Read-only admin overlay: every on-chain participant for this app, aggregated
 // from RewardDistributed events. Monitoring only — payouts/blocking require the
 // reward-distributor role (a backend), never the frontend.
-function AdminScreen({ onClose, T }) {
+function AdminScreen({ onClose, T, onFundPool }) {
   const [chain, setChain] = useState({ status: "loading", rows: [], reason: null });
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(null);
   const [detail, setDetail] = useState({ status: "idle", rows: [] });
+  const [fundAmt, setFundAmt] = useState("100");
+  const [funding, setFunding] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -2258,6 +2285,21 @@ function AdminScreen({ onClose, T }) {
             </div>
           ))}
         </div>
+
+        {onFundPool && (
+          <div style={{background:T.card,border:`1px solid ${T.green4||T.border}`,borderRadius:6,padding:"12px 14px",marginBottom:12}}>
+            <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".6px",color:T.green3,marginBottom:6}}>🎁 Fund rewards pool</div>
+            <div style={{fontSize:10.5,color:T.textMid,lineHeight:1.5,marginBottom:10}}>Deposit B3TR from your connected wallet into this app's reward pool. You sign one transaction (approve + deposit) in your wallet.</div>
+            <div style={{display:"flex",gap:8}}>
+              <input value={fundAmt} onChange={e=>setFundAmt(e.target.value)} type="number" min="0" step="1" placeholder="B3TR amount"
+                style={{flex:1,boxSizing:"border-box",background:T.bgAlt,border:`1px solid ${T.border}`,borderRadius:6,padding:"10px 12px",fontSize:13,color:T.text,outline:"none"}} />
+              <button disabled={funding} onClick={async()=>{ setFunding(true); try { await onFundPool(fundAmt); } finally { setFunding(false); } }}
+                style={{background:T.green2,color:"#fff",border:0,borderRadius:6,padding:"10px 16px",fontWeight:700,fontSize:13,cursor:"pointer",opacity:funding?0.6:1,whiteSpace:"nowrap"}}>
+                {funding ? "Signing…" : "Fund pool"}
+              </button>
+            </div>
+          </div>
+        )}
 
         <input
           value={query}
@@ -2871,6 +2913,20 @@ export default function App() {
     return () => { stop = true; clearInterval(iv); };
   }, [tab]);
 
+  // Admin: deposit B3TR from the connected wallet into the app's rewards pool.
+  const handleFundPool = async (amount) => {
+    const amt = parseFloat(amount);
+    if (!(amt > 0)) { showToast("⚠️ Enter a B3TR amount"); return; }
+    if (!wallet) { openConnectModal(); return; }
+    try {
+      const { txid } = await requestTransaction(buildFundClauses(amt));
+      showToast(`✅ Funding ${amt} B3TR — confirm in wallet (tx ${String(txid).slice(0, 8)}…)`);
+      return txid;
+    } catch (e) {
+      showToast(`⚠️ ${e?.message || "Funding failed"}`);
+    }
+  };
+
   const usage = () => { const r=parseFloat(reading),p=parseFloat(prevRead); return(!r||!p||r<=p)?0:parseFloat((r-p).toFixed(2)); };
   const reward = () => parseFloat((usage()*u.rate).toFixed(2));
 
@@ -3045,7 +3101,7 @@ export default function App() {
       {!showIntro && !wallet && <WalletGate onConnect={openConnectModal} online={online} />}
       {needsBaselines && <BaselineOnboarding onDone={(bl, mtrs) => { setBaselines(bl); setMeters(mtrs); closeRegistration(); }} utils={regUtils} editMode={regEdit} existingBaselines={baselines} existingMeters={meters} />}
       {!onboarded && <Onboarding onDone={() => setOnboarded(true)} />}
-      {showAdmin && isAdmin && <AdminScreen onClose={() => setShowAdmin(false)} T={T} />}
+      {showAdmin && isAdmin && <AdminScreen onClose={() => setShowAdmin(false)} T={T} onFundPool={handleFundPool} />}
       {showHelp && <HelpScreen onClose={() => setShowHelp(false)} onFeedback={() => { setShowHelp(false); setShowFeedback(true); }} T={T} />}
       {showFeedback && <FeedbackScreen onClose={() => setShowFeedback(false)} onToast={showToast} wallet={wallet} tab={tab} T={T} />}
       {toast && <div className="toast">{toast}</div>}
