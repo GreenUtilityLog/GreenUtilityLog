@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "vechain": {
+      "command": "npx",
+      "args": ["-y", "@vechain/mcp-server@latest"],
+      "env": {
+        "VECHAIN_NETWORK": "testnet"
+      }
+    }
+  }
+}
