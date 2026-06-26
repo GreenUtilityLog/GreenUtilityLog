@@ -120,6 +120,25 @@ const X2EARN_ABI = [
 const ERC20_APPROVE_ABI = { name:"approve", type:"function", inputs:[{name:"spender",type:"address"},{name:"amount",type:"uint256"}], outputs:[{name:"",type:"bool"}], stateMutability:"nonpayable" };
 const DEPOSIT_ABI        = { name:"deposit", type:"function", inputs:[{name:"amount",type:"uint256"},{name:"appId",type:"bytes32"}], outputs:[], stateMutability:"nonpayable" };
 
+// ── Test-B3TR faucet (TESTNET ONLY) ───────────────────────────────────────────
+// A self-service faucet that mints a fixed batch of test-B3TR to the caller so an
+// admin can fund the rewards pool without already owning B3TR. Only meaningful on
+// testnet — there is no real-value faucet on mainnet, so the claim button is
+// hidden when NETWORK !== "testnet".
+//
+// ⚠️ VERIFY BEFORE RELYING ON IT: this address + function signature could not be
+// confirmed from inside the build sandbox (no network/docs access). The VeBetterDAO
+// testnet faucet contract address and its claim function name/args MUST be checked
+// against the official VeBetterDAO testnet docs. If the claim reverts, fix these two
+// constants — the rest of the wiring stays the same. (You can still fund the pool
+// directly via "Fund rewards pool" if your wallet already holds test-B3TR.)
+const B3TR_FAUCET_ADDRESS = "0xfca716f9c93575f428fe49402424454077ccbfee"; // TODO: verify on VeBetterDAO testnet
+// Most self-service faucets expose a no-arg claim that mints to msg.sender. If the
+// real faucet uses a different name (e.g. "claim") or takes an address arg, change
+// this fragment and buildClaimClause() below to match.
+const FAUCET_CLAIM_ABI = { name:"claimTokens", type:"function", inputs:[], outputs:[], stateMutability:"nonpayable" };
+const FAUCET_ENABLED = NETWORK === "testnet";
+
 // Convert a B3TR amount (number or decimal string) to wei (18 decimals) WITHOUT
 // floating-point error — `amount * 1e18` overflows Number's safe integer range and
 // corrupts the low digits, so build it from the decimal string instead.
@@ -151,6 +170,18 @@ function buildFundClauses(amountB3TR) {
     { to: approve.to, value: "0x0", data: approve.data, comment: `Approve ${amountB3TR} B3TR for the rewards pool` },
     { to: deposit.to, value: "0x0", data: deposit.data, comment: `Fund rewards pool with ${amountB3TR} B3TR` },
   ];
+}
+
+// ── Build the clause to claim test-B3TR from the testnet faucet ───────────────
+// One clause: call the faucet's claim function, which mints a fixed batch of
+// test-B3TR to the signer. Used so an admin without B3TR can still fund the pool.
+function buildClaimClause() {
+  const claim = Clause.callFunction(
+    Address.of(B3TR_FAUCET_ADDRESS),
+    new ABIFunction(FAUCET_CLAIM_ABI),
+    []
+  );
+  return [{ to: claim.to, value: "0x0", data: claim.data, comment: "Claim test-B3TR from the testnet faucet" }];
 }
 
 // ── Build the on-chain clause for a meter submission ──────────────────────
@@ -2156,13 +2187,14 @@ function HistoryScreen({ subs, T }) {
 // Read-only admin overlay: every on-chain participant for this app, aggregated
 // from RewardDistributed events. Monitoring only — payouts/blocking require the
 // reward-distributor role (a backend), never the frontend.
-function AdminScreen({ onClose, T, onFundPool }) {
+function AdminScreen({ onClose, T, onFundPool, onClaimB3TR }) {
   const [chain, setChain] = useState({ status: "loading", rows: [], reason: null });
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(null);
   const [detail, setDetail] = useState({ status: "idle", rows: [] });
   const [fundAmt, setFundAmt] = useState("100");
   const [funding, setFunding] = useState(false);
+  const [claiming, setClaiming] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -2298,6 +2330,15 @@ function AdminScreen({ onClose, T, onFundPool }) {
                 {funding ? "Signing…" : "Fund pool"}
               </button>
             </div>
+            {onClaimB3TR && (
+              <div style={{marginTop:10,paddingTop:10,borderTop:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
+                <div style={{fontSize:10,color:T.textSoft,lineHeight:1.45,flex:1}}>No test-B3TR yet? Claim a free batch from the testnet faucet first, then fund the pool.</div>
+                <button disabled={claiming} onClick={async()=>{ setClaiming(true); try { await onClaimB3TR(); } finally { setClaiming(false); } }}
+                  style={{background:"transparent",color:T.green3,border:`1px solid ${T.green4||T.border}`,borderRadius:6,padding:"8px 12px",fontWeight:700,fontSize:11,cursor:"pointer",opacity:claiming?0.6:1,whiteSpace:"nowrap"}}>
+                  {claiming ? "Claiming…" : "💧 Claim test-B3TR"}
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -2374,7 +2415,7 @@ function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, notif
       <div className="setting-row" onClick={onEditMeters}>
         <div className="sr-left">
           <div className="sr-icon">🔢</div>
-          <div><div className="sr-label">Meters & Baselines</div><div className="sr-sub">Electric, gas &amp; water</div></div>
+          <div><div className="sr-label">Meters & Baselines</div><div className="sr-sub">{UTILS.map(u => u.label).join(", ")}</div></div>
         </div>
         <div className="sr-right" style={{fontSize:11,color:T.textSoft}}>→</div>
       </div>
@@ -2927,6 +2968,19 @@ export default function App() {
     }
   };
 
+  // Admin: claim test-B3TR from the testnet faucet to the connected wallet, so the
+  // pool can be funded even when the wallet starts with no B3TR. Testnet only.
+  const handleClaimB3TR = async () => {
+    if (!wallet) { openConnectModal(); return; }
+    try {
+      const { txid } = await requestTransaction(buildClaimClause());
+      showToast(`✅ Claiming test-B3TR — confirm in wallet (tx ${String(txid).slice(0, 8)}…)`);
+      return txid;
+    } catch (e) {
+      showToast(`⚠️ ${e?.message || "Claim failed — check the faucet address"}`);
+    }
+  };
+
   const usage = () => { const r=parseFloat(reading),p=parseFloat(prevRead); return(!r||!p||r<=p)?0:parseFloat((r-p).toFixed(2)); };
   const reward = () => parseFloat((usage()*u.rate).toFixed(2));
 
@@ -3033,6 +3087,10 @@ export default function App() {
       //  • otherwise (admin only) → the connected wallet signs distributeReward
       //    directly; only works if that wallet holds the distributor role.
       let txid;
+      // The server recomputes the payout from its own recorded baseline, so the
+      // amount actually paid on-chain can differ from the client's `earned`. Show
+      // and store the server's number when it returns one; fall back to `earned`.
+      let paidAmount = earned;
       if (REWARD_API) {
         // Prove wallet ownership: the user signs a gasless certificate, so the
         // backend can verify the submission really comes from `wallet` and won't
@@ -3055,6 +3113,7 @@ export default function App() {
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || `Reward service error ${res.status}`);
         txid = data.txid;
+        if (data.amount != null && Number.isFinite(Number(data.amount))) paidAmount = Number(data.amount);
       } else {
         const clauses = buildRewardClauses(selUtil, reading, prevRead, earned, wallet, meterNo);
         ({ txid } = await requestTransaction(clauses));
@@ -3069,7 +3128,7 @@ export default function App() {
         cur: reading,
         prev: prevRead,
         date: dateStr,
-        b3tr: earned,
+        b3tr: paidAmount,
         status: photoConfirmed ? "confirmed" : "review",
         flagged: !photoConfirmed,
         flagReason,
@@ -3077,7 +3136,7 @@ export default function App() {
         submittedAt: Date.now()
       }, ...prev]);
 
-      setB3tr(b => b + earned);
+      setB3tr(b => b + paidAmount);
       setCooldown(selUtil);
       setAiOk(false);
       setPhoto(null);
@@ -3085,7 +3144,7 @@ export default function App() {
       setPrevRead("");
       setVerifyKey(k => k + 1);
       showToast(photoConfirmed
-        ? `✅ +${earned.toFixed(2)} B3TR on ${NETWORK_LABEL}${txid ? ` • TX: ${txid.slice(0, 10)}...` : ""}`
+        ? `✅ +${paidAmount.toFixed(2)} B3TR on ${NETWORK_LABEL}${txid ? ` • TX: ${txid.slice(0, 10)}...` : ""}`
         : `⚠️ Submitted — couldn't confirm the reading from the photo, flagged for review`);
       setBusy(false);
     } catch (e) {
@@ -3101,7 +3160,7 @@ export default function App() {
       {!showIntro && !wallet && <WalletGate onConnect={openConnectModal} online={online} />}
       {needsBaselines && <BaselineOnboarding onDone={(bl, mtrs) => { setBaselines(bl); setMeters(mtrs); closeRegistration(); }} utils={regUtils} editMode={regEdit} existingBaselines={baselines} existingMeters={meters} />}
       {!onboarded && <Onboarding onDone={() => setOnboarded(true)} />}
-      {showAdmin && isAdmin && <AdminScreen onClose={() => setShowAdmin(false)} T={T} onFundPool={handleFundPool} />}
+      {showAdmin && isAdmin && <AdminScreen onClose={() => setShowAdmin(false)} T={T} onFundPool={handleFundPool} onClaimB3TR={FAUCET_ENABLED ? handleClaimB3TR : null} />}
       {showHelp && <HelpScreen onClose={() => setShowHelp(false)} onFeedback={() => { setShowHelp(false); setShowFeedback(true); }} T={T} />}
       {showFeedback && <FeedbackScreen onClose={() => setShowFeedback(false)} onToast={showToast} wallet={wallet} tab={tab} T={T} />}
       {toast && <div className="toast">{toast}</div>}
