@@ -345,25 +345,43 @@ function checkAnomaly(utilId, usageVal, subs) {
 // above it, and the consumption (reading − prev) must be plausible for the meter.
 // Returns null when nothing is convincing, so the field is left empty for manual
 // entry instead of pre-filled with a wrong number. Water keeps 2 decimals.
-function pickPlausibleReading(nums, { utilId, prevRead }) {
-  const cand = [...new Set((nums || []).map(Number).filter(n => Number.isFinite(n) && n > 0))];
-  if (!cand.length) return null;
+function pickPlausibleReading(nums, { utilId, prevRead, preferred }) {
   const fmt = (v) => (utilId === "water" ? +v.toFixed(2) : v);
-  // Drop obvious non-readings: barcodes/serials run far longer than a meter dial.
-  const sane = cand.filter(n => String(Math.trunc(n)).length <= 8);
-  const pool = sane.length ? sane : cand;
   const prev = parseFloat(prevRead);
+  const digits = (n) => String(Math.trunc(Math.abs(n))).length;
+
+  // 1) Trust the MOST PROMINENT number read from the boxed region (the tallest /
+  //    most-confident digits — that's the meter reading the user pointed at), as
+  //    long as it's plausible against the previous reading. This is what makes the
+  //    OCR read "the selected part" instead of grabbing some other number.
+  if (preferred != null && Number.isFinite(preferred) && preferred > 0 && digits(preferred) <= 8) {
+    if (!Number.isFinite(prev) || (preferred > prev && checkPlausibility(utilId, +(preferred - prev).toFixed(2)).ok)) {
+      return fmt(preferred);
+    }
+  }
+
+  const cand = [...new Set((nums || []).map(Number).filter(n => Number.isFinite(n) && n > 0))];
+  if (!cand.length) return preferred != null && Number.isFinite(preferred) && preferred > 0 ? fmt(preferred) : null;
+  // Drop obvious non-readings: barcodes/serials run far longer than a meter dial.
+  const sane = cand.filter(n => digits(n) <= 8);
+  const pool = sane.length ? sane : cand;
+
   if (Number.isFinite(prev)) {
     const anchored = pool
       .filter(n => n > prev && checkPlausibility(utilId, +(n - prev).toFixed(2)).ok)
       .sort((a, b) => a - b);              // closest above the previous reading is likeliest
     if (anchored.length) return fmt(anchored[0]);
+    // Still no plausible anchor: prefer a candidate with the SAME number of digits
+    // as the previous reading (a meter's reading length is stable) over a random
+    // larger number like a serial fragment.
+    const prevLen = digits(prev);
+    const sameLen = pool.filter(n => digits(n) === prevLen).sort((a, b) => b - a);
+    if (sameLen.length) return fmt(sameLen[0]);
   }
-  // No usable anchor (first reading, or none matched the previous one): fall back to
-  // the largest sane number — on a meter face the reading is normally the most
-  // prominent figure. The submit-time photo check still flags it if it's wrong, so
-  // pre-filling here never bypasses verification.
-  return fmt(pool.sort((a, b) => b - a)[0]);
+  // First reading / nothing matched: the reading is normally the figure with the
+  // MOST digits on the dial (not merely the largest value). Submit-time photo check
+  // still flags it if wrong, so pre-filling here never bypasses verification.
+  return fmt(pool.sort((a, b) => digits(b) - digits(a) || b - a)[0]);
 }
 
 // Does the final entered reading actually appear on the verified photo? Reuses the
@@ -778,7 +796,10 @@ async function makeWorker(Tesseract, model) {
   const worker = model === "ssd"
     ? await Tesseract.createWorker("ssd", 1, { langPath: SSD_LANG_PATH, gzip: false, logger: () => {} })
     : await Tesseract.createWorker("eng", 1, { logger: () => {} });
-  await worker.setParameters({ tessedit_char_whitelist: "0123456789.", tessedit_pageseg_mode: "6" });
+  // PSM 7 = treat the image as a SINGLE TEXT LINE. A cropped meter reading is one
+  // line of digits, so this reads it as one number instead of fragmenting it into
+  // several (which is what made the picker grab a wrong/"random" figure).
+  await worker.setParameters({ tessedit_char_whitelist: "0123456789.", tessedit_pageseg_mode: "7" });
   return worker;
 }
 
@@ -1652,7 +1673,7 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
     // against your previous reading (a real new reading sits just above it). This
     // rejects barcodes/serials/"0" the OCR picks off the nameplate; if nothing is
     // convincing the field stays empty rather than filled with a wrong number.
-    const guess = pickPlausibleReading([...(ocrResult.ocrNums || []), ocrResult.ocrBest], { utilId, prevRead });
+    const guess = pickPlausibleReading(ocrResult.ocrNums || [], { utilId, prevRead, preferred: ocrResult.ocrBest });
     // Only auto-fill when we're reasonably sure: either it lines up with your
     // previous reading (anchored), or the OCR read it with decent confidence.
     // Otherwise leave Current blank — better to type it than to fight a wrong guess.
