@@ -7,16 +7,13 @@ Kopieer-plak de teksten, upload de bijgeleverde afbeeldingen.
 ---
 
 ## ⚠️ Lees dit eerst — testnet vs mainnet
-Je registreert op **staging.testnet** (testomgeving). De app in de code wijst
-nu naar **mainnet**-contracten en de mainnet-node. Voor een werkende
-end-to-end test moet je app naar **testnet** wijzen:
-- node → `https://testnet.vechain.org`
-- VeBetterDAO testnet-contracten (B3TR, X2EarnRewardsPool, X2EarnApps)
-- de **testnet App ID** die je na registratie krijgt
+Je registreert op **staging.testnet** (testomgeving). De app wijst **al naar
+testnet** (`NETWORK = "testnet"` in `src/App.jsx`): testnet-node, VeBetterDAO
+testnet-contracten en de testnet App ID. Je kunt dus direct end-to-end testen.
 
-➡️ Zeg het maar, dan zet ik de app in één keer om naar testnet (node +
-contracten + App ID) zodat je echt kunt testen, en later weer terug naar
-mainnet voor de lancering.
+➡️ Voor de lancering zet je de app om naar **mainnet**: `NETWORK = "mainnet"`,
+een **mainnet App ID** na mainnet-registratie, en de overige productie-instellingen
+uit `STATUS.md` (cooldown, CORS, captcha, enz.).
 
 ---
 
