@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useWallet, useWalletModal } from "@vechain/dapp-kit-react";
 import { Clause, Address, ABIFunction } from "@vechain/sdk-core";
-import { fetchOnChainLeaderboard, fetchWalletHistory, fetchIsAppAdmin } from "./leaderboard.js";
+import { fetchOnChainLeaderboard, fetchWalletHistory, fetchIsAppAdmin, fetchPoolBalance } from "./leaderboard.js";
 
 // ════════════════════════════════════════════════════════════════════════════
 // APP VERSION & VECHAIN KIT
@@ -506,6 +506,27 @@ const UTILS = [
   // { id:"water",    label:"Water",    unit:"L",   rate:0.12, ph:["12320","12450"],    hint:"Household water usage" },
   // { id:"solar",    label:"Solar",    unit:"kWh", rate:0.72, ph:["130.1","142.3"],    hint:"Solar panel output", optional:true },
 ];
+
+// ── Conservation-based reward (MUST match server/config.js) ───────────────────
+// We reward USING LESS, not using more:
+//   reward = base + max(0, benchmark - usage) * rate     (consumption meters)
+//   reward = base + usage * rate                         (solar — produced energy)
+// USAGE_BENCHMARK is a fixed "efficient usage" threshold per reading (not an
+// average — works from the first submission). Below it you earn the bonus; above
+// it you still get the base for logging. Tune to your reading cadence (~1/day).
+const REWARD_BASE     = { electric: 0.2, gas: 0.2, water: 0.1, solar: 0.2 };
+const USAGE_BENCHMARK = { electric: 8,   gas: 6,   water: 300, solar: 0   };
+const SAVING_UTILS    = new Set(["electric", "gas", "water"]); // solar rewards production
+function computeReward(utilId, usage) {
+  const u = UTILS.find(x => x.id === utilId) || {};
+  const base = REWARD_BASE[utilId] ?? 0;
+  const rate = u.rate ?? 0;
+  if (SAVING_UTILS.has(utilId)) {
+    const saved = Math.max(0, (USAGE_BENCHMARK[utilId] ?? 0) - usage);
+    return parseFloat((base + saved * rate).toFixed(2));
+  }
+  return parseFloat((base + Math.max(0, usage) * rate).toFixed(2));
+}
 
 const HISTORY_SEED = [
   { id:1,  type:"electric", cur:"3847.2", prev:"3834.8", date:"2026-05-04", b3tr:7.81,  status:"confirmed" },
@@ -1601,10 +1622,15 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
 
     setAiStep(0);
     const imgHash = await hashImage(base64);
-    const hashOk  = !!imgHash && !usedHashes.has(imgHash); // null hash = unverifiable = fail closed
-    if (!hashOk) {
+    // Only a genuine REUSED photo hard-blocks. A null hash (crypto.subtle missing
+    // on some Android webviews) no longer fails closed — the server hashes every
+    // upload and is the authoritative dedupe, so we don't block a real photo just
+    // because the browser couldn't compute its hash.
+    const isDuplicate = !!imgHash && usedHashes.has(imgHash);
+    const hashOk = !isDuplicate;
+    if (isDuplicate) {
       fraudFlags.push("duplicate_photo");
-      fraudReason = imgHash ? "Duplicate photo detected. Each submission needs a fresh photo." : "Couldn't verify the photo — please retake it.";
+      fraudReason = "Duplicate photo detected. Each submission needs a fresh photo.";
     }
 
     setAiStep(1);
@@ -1665,13 +1691,20 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
 
     if (hashOk) rememberHash(imgHash);
 
-    const verified = fraudFlags.length === 0 && score >= 40;
+    // The client check is a UX pre-filter, not the gate — the server re-verifies
+    // every photo (real image + authoritative hash dedupe) before paying out. So
+    // only a genuine REUSED photo blocks here. Other heuristics (old-file age,
+    // screenshot guess, OCR mismatch, anomaly) false-positive on real phone photos,
+    // so they no longer stop the submission — they ride along as soft review flags.
+    const blocked  = isDuplicate;
+    const verified = !blocked;
+    const softFlags = fraudFlags.filter(f => f !== "duplicate_photo");
     const meterNote = meterNoConfirmed === true ? " ✓ Meter # confirmed on photo."
-      : meterNoConfirmed === false ? " ⚠ Meter # not detected — will be flagged for review."
+      : meterNoConfirmed === false ? " ⚠ Meter # not detected — flagged for review."
       : "";
-    const summary  = verified
-      ? `${getUtil(utilId).label} meter${meterNo ? ` #${meterNo}` : ""} verified. ${ocrResult.ocrNums?.length ? "OCR read: " + ocrResult.ocrNums.slice(0,2).join(", ") + "." : "Reading accepted."}${meterNote}`
-      : (fraudReason || "Verification failed. Please retake the photo.");
+    const summary  = blocked
+      ? (fraudReason || "Verification failed. Please retake the photo.")
+      : `${getUtil(utilId).label} meter${meterNo ? ` #${meterNo}` : ""} accepted.${softFlags.length ? " ⚠ Some checks were soft — flagged for review." : ` ${ocrResult.ocrNums?.length ? "OCR read: " + ocrResult.ocrNums.slice(0,2).join(", ") + "." : "Reading accepted."}`}${meterNote}`;
 
     const finalResult = { verified, fraudFlags, fraudReason, summary, ocrNums: ocrResult.ocrNums, ocrFailed: !!ocrResult.ocrFailed, meterNoConfirmed, secScore: score, anomCheck, usageVal };
     setResult(finalResult);
@@ -2195,6 +2228,14 @@ function AdminScreen({ onClose, T, onFundPool, onClaimB3TR }) {
   const [fundAmt, setFundAmt] = useState("100");
   const [funding, setFunding] = useState(false);
   const [claiming, setClaiming] = useState(false);
+  // How much B3TR the app's reward pool currently has to pay out.
+  const [pool, setPool] = useState({ status: "loading", b3tr: 0 });
+
+  function refreshPool(signal) {
+    return fetchPoolBalance({ node: ACTIVE_NODE, contract: CONTRACTS.X2EarnRewardsPool, appId: VEBETTER_APP_ID, signal })
+      .then(res => setPool(res.ok ? { status: "live", b3tr: res.b3tr } : { status: "error", b3tr: 0 }))
+      .catch(() => setPool({ status: "error", b3tr: 0 }));
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -2202,6 +2243,7 @@ function AdminScreen({ onClose, T, onFundPool, onClaimB3TR }) {
     fetchOnChainLeaderboard({ node: ACTIVE_NODE, contract: CONTRACTS.X2EarnRewardsPool, appId: VEBETTER_APP_ID, signal: ctrl.signal })
       .then(res => { if (!cancelled) setChain(res.ok ? { status: "live", rows: res.rows } : { status: "empty", rows: [], reason: res.reason }); })
       .catch(() => { if (!cancelled) setChain({ status: "error", rows: [] }); });
+    refreshPool(ctrl.signal);
     return () => { cancelled = true; ctrl.abort(); };
   }, []);
 
@@ -2321,11 +2363,24 @@ function AdminScreen({ onClose, T, onFundPool, onClaimB3TR }) {
         {onFundPool && (
           <div style={{background:T.card,border:`1px solid ${T.green4||T.border}`,borderRadius:6,padding:"12px 14px",marginBottom:12}}>
             <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".6px",color:T.green3,marginBottom:6}}>🎁 Fund rewards pool</div>
+            {(() => {
+              const empty = pool.status === "live" && pool.b3tr <= 0;
+              const c = pool.status === "live" ? (empty ? (T.gas || "#db6060") : T.green3) : T.textSoft;
+              return (
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,background:T.bgAlt,border:`1px solid ${empty ? (T.gasBorder||T.border) : T.border}`,borderRadius:6,padding:"9px 12px",marginBottom:10}}>
+                  <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".6px",color:T.textSoft}}>Pool balance</span>
+                  <span style={{fontSize:14,fontWeight:700,color:c,fontFamily:"'DM Mono',monospace"}}>
+                    {pool.status === "loading" ? "…" : pool.status === "error" ? "—" : `${pool.b3tr.toFixed(2)} B3TR`}
+                    {empty && <span style={{fontSize:9,fontWeight:700,marginLeft:6,color:T.gas||"#db6060"}}>EMPTY</span>}
+                  </span>
+                </div>
+              );
+            })()}
             <div style={{fontSize:10.5,color:T.textMid,lineHeight:1.5,marginBottom:10}}>Deposit B3TR from your connected wallet into this app's reward pool. You sign one transaction (approve + deposit) in your wallet.</div>
             <div style={{display:"flex",gap:8}}>
               <input value={fundAmt} onChange={e=>setFundAmt(e.target.value)} type="number" min="0" step="1" placeholder="B3TR amount"
                 style={{flex:1,boxSizing:"border-box",background:T.bgAlt,border:`1px solid ${T.border}`,borderRadius:6,padding:"10px 12px",fontSize:13,color:T.text,outline:"none"}} />
-              <button disabled={funding} onClick={async()=>{ setFunding(true); try { await onFundPool(fundAmt); } finally { setFunding(false); } }}
+              <button disabled={funding} onClick={async()=>{ setFunding(true); try { await onFundPool(fundAmt); setPool(p=>({...p,status:"loading"})); setTimeout(()=>refreshPool(), 8000); } finally { setFunding(false); } }}
                 style={{background:T.green2,color:"#fff",border:0,borderRadius:6,padding:"10px 16px",fontWeight:700,fontSize:13,cursor:"pointer",opacity:funding?0.6:1,whiteSpace:"nowrap"}}>
                 {funding ? "Signing…" : "Fund pool"}
               </button>
@@ -2752,6 +2807,10 @@ export default function App() {
   const [aiOk, setAiOk]            = useState(false);
   const [reading, setReading]       = useState("");
   const [prevRead, setPrevRead]     = useState("");
+  // True once the user types in the "previous reading" field themselves — the
+  // autofill below must never clobber a value the user entered by hand.
+  const prevReadEdited = useRef(false);
+  const setPrevReadByUser = (v) => { prevReadEdited.current = true; setPrevRead(v); };
   const [busy, setBusy]             = useState(false);
   const [toast, setToast]           = useState(null);
   const [b3tr, setB3tr]             = useState(68.34);
@@ -2787,7 +2846,7 @@ export default function App() {
     subsHydratedRef.current = addr;
     setSubs(local);
     setB3tr(local.reduce((a, s) => a + (parseFloat(s.b3tr) || 0), 0));
-    setReading(""); setPrevRead(""); setAiOk(false); setPhoto(null);
+    setReading(""); setPrevRead(""); prevReadEdited.current = false; setAiOk(false); setPhoto(null);
     setVerifyKey(k => k + 1);
     setTab("home");
 
@@ -2904,26 +2963,35 @@ export default function App() {
     return () => { cancelled = true; };
   }, [online, wallet]);
 
+  // The best-known "previous reading" for a meter: the most recent submission's
+  // reading, falling back to the registered baseline. This is what next time's
+  // usage is measured from.
+  const lastReadingFor = (id) => {
+    const lastSub = subs.find(s => s.type === id);
+    return lastSub ? String(lastSub.cur) : (baselines[id] ? String(baselines[id]) : "");
+  };
+
   const handleSelUtil = (id) => {
     if (id === selUtil) return; // re-tapping the active meter shouldn't clear input
     setSelUtil(id);
     setAiOk(false);
     setPhoto(null);
     setReading("");
-    const lastSub = subs.find(s => s.type === id);
-    setPrevRead(lastSub ? lastSub.cur : (baselines[id] || ""));
+    prevReadEdited.current = false;       // switching meters → autofill may take over again
+    setPrevRead(lastReadingFor(id));
     setVerifyKey(k => k+1);
   };
 
-  // Auto-fill the "previous reading" from the last submission (or the registered
-  // baseline) so the user doesn't have to type it — and so the photo OCR has an
-  // anchor to auto-fill the new reading too. Only fills while the field is empty.
+  // Auto-fill the "previous reading" from your last submission (or the registered
+  // baseline) so you never have to type it. Unlike before, this UPGRADES a stale
+  // value (e.g. the old baseline) to your latest reading once history loads — but
+  // it never overwrites a value you typed yourself (prevReadEdited guards that).
   useEffect(() => {
-    if (prevRead) return;
-    const lastSub = subs.find(s => s.type === selUtil);
-    const v = lastSub ? lastSub.cur : (baselines[selUtil] || "");
-    if (v) setPrevRead(String(v));
-  }, [selUtil, subs, baselines, prevRead]);
+    if (prevReadEdited.current) return;          // user is in control of this field
+    const v = lastReadingFor(selUtil);
+    if (v && v !== prevRead) setPrevRead(v);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selUtil, subs, baselines]);
 
   // Cloudflare Turnstile (anti-bot): render the widget on the Submit tab when a
   // site key is set; its token rides along with each /reward submission.
@@ -2982,7 +3050,8 @@ export default function App() {
   };
 
   const usage = () => { const r=parseFloat(reading),p=parseFloat(prevRead); return(!r||!p||r<=p)?0:parseFloat((r-p).toFixed(2)); };
-  const reward = () => parseFloat((usage()*u.rate).toFixed(2));
+  // Conservation reward: you earn for using LESS than the benchmark, not more.
+  const reward = () => (usage() > 0 ? computeReward(selUtil, usage()) : 0);
 
   const handleSubmit = async () => {
     setBusy(true);
@@ -3048,7 +3117,7 @@ export default function App() {
 
     if (!online) {
       await saveOfflineSubmission({ type:selUtil, meterNo, cur:reading, prev:prevRead, b3tr:earned, flagged: !photoConfirmed, flagReason });
-      setAiOk(false); setPhoto(null); setReading(""); setPrevRead(""); setVerifyKey(k=>k+1);
+      setAiOk(false); setPhoto(null); setReading(""); setPrevRead(""); prevReadEdited.current = false; setVerifyKey(k=>k+1);
       setBusy(false);
       showToast("💾 Saved offline — syncing when online");
       return;
@@ -3072,7 +3141,7 @@ export default function App() {
         b3tr: 0, status: "recorded", flagged: !photoConfirmed, flagReason, txHash: "", submittedAt: Date.now(),
       }, ...prev]);
       setCooldown(selUtil);
-      setAiOk(false); setPhoto(null); setReading(""); setPrevRead(""); setVerifyKey(k => k + 1);
+      setAiOk(false); setPhoto(null); setReading(""); setPrevRead(""); prevReadEdited.current = false; setVerifyKey(k => k + 1);
       if (window.turnstile && turnstileId.current) { try { window.turnstile.reset(turnstileId.current); } catch {} }
       setCaptchaToken("");
       setBusy(false);
@@ -3142,6 +3211,7 @@ export default function App() {
       setPhoto(null);
       setReading("");
       setPrevRead("");
+      prevReadEdited.current = false;
       setVerifyKey(k => k + 1);
       showToast(photoConfirmed
         ? `✅ +${paidAmount.toFixed(2)} B3TR on ${NETWORK_LABEL}${txid ? ` • TX: ${txid.slice(0, 10)}...` : ""}`
@@ -3201,7 +3271,7 @@ export default function App() {
           </div>
 
           {tab==="home"      && <HomeScreen b3tr={b3tr} streak={streak} subs={subs} setTab={setTab} T={T}/>}
-          {tab==="submit"    && <SubmitScreen u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevRead} busy={busy} usage={usage} reward={reward} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab}/>}
+          {tab==="submit"    && <SubmitScreen u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} busy={busy} usage={usage} reward={reward} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab}/>}
           {tab==="charts"    && <ChartsScreen subs={subs} T={T}/>}
           {tab==="leaderboard" && <LeaderboardScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}

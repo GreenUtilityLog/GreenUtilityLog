@@ -187,6 +187,26 @@ async function callView(node, to, fragment, args, signal) {
   return abi.decodeResult(out.data);
 }
 
+// ── Rewards-pool balance (VeBetterDAO X2EarnRewardsPool) ─────────────────────
+// How much B3TR this app currently has available to pay out. This is the pot the
+// distributor draws from — when it's empty, distributeReward reverts. Read-only.
+const POOL_FN = {
+  availableFunds: { name: "availableFunds", type: "function", stateMutability: "view", inputs: [{ name: "appId", type: "bytes32" }], outputs: [{ name: "", type: "uint256" }] },
+};
+
+export async function fetchPoolBalance({ node, contract, appId, signal } = {}) {
+  if (!node || !contract || isUnsetAppId(appId)) return { ok: false, b3tr: 0 };
+  try {
+    const out = await callView(node, contract, POOL_FN.availableFunds, [appId], signal);
+    if (out == null) return { ok: false, b3tr: 0 };
+    const v = Array.isArray(out) ? out[0] : (typeof out === "object" ? Object.values(out)[0] : out);
+    let wei = 0n; try { wei = BigInt(v); } catch { wei = 0n; }
+    return { ok: true, b3tr: Number(wei / 10n ** 14n) / 1e4 }; // wei -> B3TR, 4-decimal safe
+  } catch {
+    return { ok: false, b3tr: 0 };
+  }
+}
+
 export async function fetchIsAppAdmin({ node, appsContract, appId, address, signal } = {}) {
   if (!node || !appsContract || !address || isUnsetAppId(appId)) return false;
   const addr = address.toLowerCase();
