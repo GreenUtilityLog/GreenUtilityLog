@@ -84,7 +84,10 @@ const OCR_API = "";
 // NOTE: the key is visible in the app (fine for a test / free tier). For
 // production, move OCR server-side via OCR_API instead.
 const ROBOFLOW_MODEL   = "ocr-meter-reading/1";   // project/version (not secret)
-const ROBOFLOW_API_KEY = "YKz5jsOu4XHlhQYpT1fi";   // test only — exposed; regenerate after testing
+// Removed: a hard-coded key ships in the public bundle. Server-side OCR (OCR_API /
+// the backend /ocr endpoint) or in-browser Tesseract are used instead. To use
+// Roboflow, proxy it through the backend — never put the key in the client.
+const ROBOFLOW_API_KEY = "";
 
 // ── FEEDBACK ──────────────────────────────────────────────────────────────────
 // Where the in-app "Send Feedback" button delivers testers' messages. It opens
@@ -240,7 +243,7 @@ async function generateMonthlyPDF(b3tr, subs) {
     doc.text(`Monthly Report - ${month}`, 20, 30);
     doc.setFontSize(10);
     doc.text(`Total B3TR Earned: ${b3tr.toFixed(2)} B3TR`, 20, 45);
-    doc.text(`USD Value: $${(b3tr * B3TR_USD).toFixed(2)}`, 20, 55);
+    doc.text(`Network: ${NETWORK_LABEL} (test tokens, no real-world value)`, 20, 55);
     doc.text(`Submissions: ${subs.length}`, 20, 65);
     doc.setFontSize(14);
     doc.text('Submissions', 20, 85);
@@ -1291,7 +1294,7 @@ function IntroScreen({ onStart }) {
   const slides = [
     { icon: 'logo', title: 'Welcome to Green Utility Log', sub: 'Track your electric, gas, water & solar meters. Earn real B3TR rewards on VeChain.' },
     { icon: '📸', title: 'Verify Your Meters', sub: 'Take a photo of your meter. AI-powered OCR verifies readings instantly.' },
-    { icon: '💰', title: 'Earn B3TR Rewards', sub: 'Get paid in real cryptocurrency for every meter you log. Weekly payouts guaranteed.' },
+    { icon: '💰', title: 'Earn B3TR Rewards', sub: 'Earn B3TR for logging your meter and saving energy. Testnet beta — test tokens, no real-world value yet.' },
     { icon: '🏆', title: 'Climb the Leaderboard', sub: 'Compete globally. Unlock achievement badges. Build your sustainability streak.' },
   ];
   
@@ -1876,11 +1879,11 @@ function HomeScreen({ b3tr, streak, subs, setTab, T }) {
       <div className="hero">
         <div className="hero-label">Total B3TR Earned</div>
         <div className="hero-amount">{b3tr.toFixed(2)}<span>B3TR</span></div>
-        <div className="hero-usd">≈ ${(b3tr * B3TR_USD).toFixed(2)} USD · Powered by VeChain</div>
+        <div className="hero-usd">Testnet beta · test tokens · Powered by VeChain</div>
         <div className="hero-chips">
           <div className="hchip"><div className="hchip-val">{streak}</div><div className="hchip-key">Day Streak</div></div>
           <div className="hchip"><div className="hchip-val">{subs.length}</div><div className="hchip-key">Submissions</div></div>
-          <div className="hchip"><div className="hchip-val">Top 6%</div><div className="hchip-key">Ranking</div></div>
+          <div className="hchip"><div className="hchip-val">{getTier(b3tr).name}</div><div className="hchip-key">Tier</div></div>
         </div>
       </div>
 
@@ -2824,8 +2827,8 @@ export default function App() {
   const setPrevReadByUser = (v) => { prevReadEdited.current = true; setPrevRead(v); };
   const [busy, setBusy]             = useState(false);
   const [toast, setToast]           = useState(null);
-  const [b3tr, setB3tr]             = useState(68.34);
-  const [subs, setSubs]             = useState(HISTORY_SEED);
+  const [b3tr, setB3tr]             = useState(0);     // real balance loads from chain/local on connect
+  const [subs, setSubs]             = useState([]);    // no demo data — start empty until hydrated
   const streak = computeStreak(subs); // derived from real submission dates
   const [verifyKey, setVerifyKey]   = useState(0);
   const [captchaToken, setCaptchaToken] = useState(""); // Cloudflare Turnstile token (when enabled)
@@ -2931,12 +2934,15 @@ export default function App() {
     setTimeout(() => setToast(null), 2400);
   };
 
-  // When connectivity returns (and a wallet is connected), broadcast any
-  // submissions that were queued while offline, then fold them into the
-  // dashboard. Each one prompts the wallet to sign its reward transaction.
+  // When connectivity returns (and a wallet is connected), submit any readings that
+  // were queued while offline THROUGH THE REWARD BACKEND — the same path as an online
+  // submission (the server verifies the stored photo and issues the payout). We sign a
+  // fresh gasless certificate per item; we never self-sign distributeReward (that
+  // reverts for a normal wallet). Items stored before this change (no photo) are
+  // skipped — they can't be verified server-side.
   const syncingRef = useRef(false);
   useEffect(() => {
-    if (!online || !wallet) return;
+    if (!online || !wallet || !REWARD_API) return;
     let cancelled = false;
     (async () => {
       if (syncingRef.current) return;
@@ -2946,23 +2952,33 @@ export default function App() {
         let synced = 0;
         for (const item of pending) {
           if (cancelled) break;
-          // Claim the item before broadcasting; if we crash mid-flight it stays
-          // flagged and won't be re-sent (no double payout).
+          if (!item.photo) continue; // legacy/photoless item — can't be paid, leave queued
+          // Claim the item first; if we crash mid-flight it stays flagged and won't be
+          // re-sent (no double payout).
           await markBroadcasting(item.id, true);
           try {
-            const clauses = buildRewardClauses(item.type, item.cur, item.prev, item.b3tr, wallet, item.meterNo);
-            const { txid } = await requestTransaction(clauses);
-            await markSynced(item.id, txid);
+            const content = `Green Utility Log — confirm submission\nWallet: ${wallet}\nUtility: ${item.type}\nReading: ${item.cur}\nTime: ${new Date().toISOString()}`;
+            const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } });
+            const certificate = { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
+            const res = await fetch(`${REWARD_API.replace(/\/$/, "")}/reward`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ utility: item.type, reading: item.cur, prevRead: item.prev, meterNo: item.meterNo, address: wallet, photo: item.photo, photoMime: item.photoMime || "", certificate, clientFlagged: !!item.flagged, flagReason: item.flagReason || "", ocrNums: item.ocrNums || [], meterNoConfirmed: item.meterNoConfirmed ?? null, avgUsage: item.avgUsage ?? null, captchaToken: "" }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || `reward ${res.status}`);
+            const paid = (data.amount != null && Number.isFinite(Number(data.amount))) ? Number(data.amount) : item.b3tr;
+            await markSynced(item.id, data.txid);
             if (cancelled) break;
             setSubs(prev => [{
               id: item.id, type: item.type, meterNo: item.meterNo || "",
               cur: item.cur, prev: item.prev, date: dayKey(new Date(item.id)),
-              b3tr: item.b3tr, status: "confirmed", txHash: txid || "", submittedAt: item.id,
+              b3tr: paid, status: item.flagged ? "review" : "confirmed", txHash: data.txid || "", submittedAt: item.id,
             }, ...prev]);
-            setB3tr(b => b + (parseFloat(item.b3tr) || 0));
+            setB3tr(b => b + (parseFloat(paid) || 0));
             synced++;
           } catch {
-            // Broadcast failed (e.g. user rejected) — release it for a retry.
+            // Failed (rejected cert / server error) — release it for a later retry.
             await markBroadcasting(item.id, false);
           }
         }
@@ -3127,10 +3143,20 @@ export default function App() {
       : (meterUnconfirmed ? "meter_not_confirmed" : "");
 
     if (!online) {
-      await saveOfflineSubmission({ type:selUtil, meterNo, cur:reading, prev:prevRead, b3tr:earned, flagged: !photoConfirmed, flagReason });
+      // Store the photo + OCR metadata too, so on reconnect we can submit through
+      // the reward backend exactly like an online submission (the backend needs the
+      // photo and issues the payout). Without this, an offline item could never be
+      // paid. captchaToken can't be captured offline — fine while captcha is off.
+      await saveOfflineSubmission({
+        type:selUtil, meterNo, cur:reading, prev:prevRead, b3tr:earned,
+        flagged: !photoConfirmed, flagReason,
+        photo: photo?.base64 || "", photoMime: photo?.mime || "",
+        ocrNums: photo?.ocrNums || [], meterNoConfirmed: photo?.meterNoConfirmed ?? null,
+        avgUsage: anom.avg ?? null,
+      });
       setAiOk(false); setPhoto(null); setReading(""); setPrevRead(""); prevReadEdited.current = false; setVerifyKey(k=>k+1);
       setBusy(false);
-      showToast("💾 Saved offline — syncing when online");
+      showToast("💾 Saved offline — will submit when you're back online");
       return;
     }
 
