@@ -24,8 +24,43 @@ export const APP_ID =
 export const APP_VERSION = "1.3.0";
 
 // Reward rate per unit — MUST match the frontend UTILS rates.
+// For consumption meters this is the B3TR earned per unit SAVED below the
+// benchmark (see below); for solar it's per unit produced.
 export const RATES = { electric: 0.61, gas: 0.84, water: 0.12, solar: 0.72 };
 export const UNITS = { electric: "kWh", gas: "m³", water: "L", solar: "kWh" };
+
+// ── Conservation-based reward ────────────────────────────────────────────────
+// We reward USING LESS, not using more. The reward is:
+//   base + max(0, benchmark - usage) * rate        (consumption meters)
+//   base + usage * rate                            (solar — produced energy)
+// where `usage` is this reading's consumption (current - previous).
+//
+// USAGE_BENCHMARK is a fixed "efficient usage" threshold per reading (NOT a
+// rolling average — intentionally simple and personal-history-free, so it works
+// from the very first submission). Stay below it to earn the bonus; above it you
+// still get the base for logging. Tune these to your expected reading cadence —
+// they assume roughly one reading per day. MUST match the frontend.
+export const REWARD_BASE     = { electric: 0.2, gas: 0.2, water: 0.1, solar: 0.2 };
+export const USAGE_BENCHMARK = { electric: 8,   gas: 6,   water: 300, solar: 0   };
+// Solar is rewarded for production (more is better); everything else for saving.
+export const SAVING_UTILS = new Set(["electric", "gas", "water"]);
+
+// Hard per-payout ceiling (B3TR). A stateless sanity bound enforced in verify.js
+// so no single submission can ever sign an absurd amount. Covers the legitimate
+// max (solar ≈ 0.2 + 60*0.72 ≈ 43) with headroom. Override via env for mainnet.
+export const MAX_REWARD = Number(process.env.MAX_REWARD || 50);
+
+// Reward amount for a single reading, given the utility and its usage.
+export function computeReward(utility, usage) {
+  const base = REWARD_BASE[utility] ?? 0;
+  const rate = RATES[utility] ?? 0;
+  if (SAVING_UTILS.has(utility)) {
+    const saved = Math.max(0, (USAGE_BENCHMARK[utility] ?? 0) - usage);
+    return +(base + saved * rate).toFixed(2);
+  }
+  // solar / production meters: reward the clean energy produced
+  return +(base + Math.max(0, usage) * rate).toFixed(2);
+}
 
 // Plausible usage bounds per utility — MUST match the frontend checkPlausibility
 // RANGES, otherwise a reading can pass on the client and then be rejected here.

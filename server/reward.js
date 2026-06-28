@@ -9,7 +9,7 @@ import {
   VeChainPrivateKeySigner,
 } from "@vechain/sdk-network";
 import { Clause, Address, ABIFunction, HDKey } from "@vechain/sdk-core";
-import { NODE_URL, CONTRACTS, APP_ID, APP_VERSION } from "./config.js";
+import { NODE_URL, CONTRACTS, APP_ID, APP_VERSION, USAGE_BENCHMARK, SAVING_UTILS } from "./config.js";
 
 const DISTRIBUTE_ABI = {
   name: "distributeReward",
@@ -100,25 +100,28 @@ const UTILITY_LABELS = { electric: "Electricity", gas: "Gas", water: "Water", so
 const CO2_PER_UNIT = { electric: 400, gas: 1900, water: 0.34, solar: 400 };
 
 // Honest sustainability impact: grams of CO2 avoided. For consumption meters
-// (electric/gas/water) that's the saving when you used LESS than your own recent
-// average; for solar it's the clean energy you produced (which offsets grid
-// power). Returns {} when there is nothing positive to claim — we never invent
-// impact. avgUsage/usage are in the meter's own unit.
-function computeImpact({ utility, usage, avgUsage }) {
+// (electric/gas/water) that's the saving below the efficient-usage benchmark; for
+// solar it's the clean energy you produced (which offsets grid power). Uses the
+// same server-known benchmark the reward is based on — no client-supplied average,
+// so the on-chain impact can't be fabricated. Returns {} when there's nothing
+// positive to claim. `usage` is the server-validated usage in the meter's unit.
+function computeImpact({ utility, usage }) {
   const factor = CO2_PER_UNIT[utility];
   if (!factor || !(usage >= 0)) return {};
-  let avoidedUnits = 0;
-  if (utility === "solar") avoidedUnits = usage;                       // clean energy produced
-  else if (avgUsage > 0 && usage < avgUsage) avoidedUnits = avgUsage - usage; // used less than usual
+  let avoidedUnits;
+  if (!SAVING_UTILS.has(utility)) avoidedUnits = usage;                          // solar: clean energy produced
+  else avoidedUnits = Math.max(0, (USAGE_BENCHMARK[utility] ?? 0) - usage);      // saved below the benchmark
   const grams = Math.round(avoidedUnits * factor);
   return grams > 0 ? { carbon: grams } : {};
 }
 
-function buildProof({ utility, meterNo, reading, prevRead, amount, avgUsage }) {
+// Built entirely from SERVER-validated values (usage + the server's own baseline),
+// never the raw client body — so the on-chain proof of impact matches what was
+// actually verified and paid.
+function buildProof({ utility, meterNo, reading, prevRead, usage, amount }) {
   const label = UTILITY_LABELS[utility] || utility;
-  const usage = Math.max(0, Number(reading) - Number(prevRead));
-  const avg = Number(avgUsage) || 0;
-  const impact = computeImpact({ utility, usage, avgUsage: avg });
+  const u = Math.max(0, Number(usage) || 0);
+  const impact = computeImpact({ utility, usage: u });
   return JSON.stringify({
     // VeBetterDAO standard fields
     version: 2,
@@ -134,20 +137,20 @@ function buildProof({ utility, meterNo, reading, prevRead, amount, avgUsage }) {
     meterNo:    meterNo || "",
     reading:    String(reading),
     prevRead:   String(prevRead),
-    usage,
-    avgUsage:   avg || null,
+    usage:      u,
     b3tr:       amount,
     timestamp:  new Date().toISOString(),
     appVersion: APP_VERSION,
   });
 }
 
-// Returns the broadcast transaction id.
-export async function distributeReward({ utility, meterNo, reading, prevRead, amount, receiver, avgUsage }) {
+// Returns the broadcast transaction id. `usage` and `prevRead` are the
+// server-validated values from validateSubmission, not the raw client body.
+export async function distributeReward({ utility, meterNo, reading, prevRead, usage, amount, receiver }) {
   if (!signer) throw new Error("distributor key not configured");
 
   const amountWei = toWei(amount);
-  const proof = buildProof({ utility, meterNo, reading, prevRead, amount, avgUsage });
+  const proof = buildProof({ utility, meterNo, reading, prevRead, usage, amount });
 
   const clause = Clause.callFunction(
     Address.of(CONTRACTS.X2EarnRewardsPool),

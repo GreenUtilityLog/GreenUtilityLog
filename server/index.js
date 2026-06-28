@@ -112,10 +112,10 @@ app.post("/reward", async (req, res) => {
       utility:  req.body.utility,
       meterNo:  req.body.meterNo,
       reading:  req.body.reading,
-      prevRead: req.body.prevRead,
+      prevRead: v.prev,    // server baseline, not the client-sent prevRead
+      usage:    v.usage,   // server-validated usage
       amount:   v.amount,
       receiver: req.body.address,
-      avgUsage: req.body.avgUsage,
     });
     v.markPaid();
     photo.markUsed();

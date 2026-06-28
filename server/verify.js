@@ -3,7 +3,7 @@
 // every payout is re-validated here. The reward AMOUNT is always recomputed on
 // the server — a client-sent amount is never trusted.
 
-import { RATES, UNITS, USAGE_BOUNDS, COOLDOWN_MS } from "./config.js";
+import { RATES, UNITS, USAGE_BOUNDS, COOLDOWN_MS, computeReward, MAX_REWARD } from "./config.js";
 import { store } from "./store.js";
 
 const isAddress = (a) => typeof a === "string" && /^0x[0-9a-fA-F]{40}$/.test(a);
@@ -53,13 +53,18 @@ export function validateSubmission(body) {
     return { ok: false, error: `cooldown active — try again in ~${mins} min` };
   }
 
-  // Server is the source of truth for the reward amount.
-  const amount = +(usage * RATES[utility]).toFixed(2);
+  // Server is the source of truth for the reward amount. Conservation-based:
+  // you earn for using LESS than the benchmark, not for using more.
+  const amount = computeReward(utility, usage);
   if (amount <= 0) return { ok: false, error: "computed reward is zero" };
+  // Hard per-payout ceiling — a stateless sanity bound so a bug or a crafted
+  // submission can never sign an absurd amount. Tune MAX_REWARD in config/env.
+  if (amount > MAX_REWARD) return { ok: false, error: "computed reward exceeds the per-payout cap" };
 
   return {
     ok: true,
     usage,
+    prev, // server-authoritative baseline, so the on-chain proof reflects what we validated
     amount,
     // Called only after a successful payout: start the cooldown, bind the meter
     // to this wallet, and record this reading as the new baseline for next time.
