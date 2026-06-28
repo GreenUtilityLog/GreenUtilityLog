@@ -30,18 +30,22 @@ testtokens zonder echte waarde. Gewoon veilig uitproberen. 🙂
 - Haal gratis testnet-VTHO op bij de faucet: **https://faucet.vecha.in**
   (plak je wallet-adres, vraag tokens aan). Je hebt maar een klein beetje nodig.
 
-### 3. Registreer je meters
-- Bij de eerste keer vraagt de app je meternummer + huidige stand (de *baseline*)
-  voor **elektra, gas en water**. **Zonnepanelen** zijn optioneel.
+### 3. Registreer je meter
+- Op dit moment testen we **alleen elektriciteit** (gas/water/zon volgen later).
+- Bij de eerste keer vraagt de app je meternummer + huidige stand (de *baseline*).
 - Tip: je kunt een foto van de meter maken en de app vult de stand automatisch in.
 
 ### 4. Stuur een meterstand in
-- Ga naar **Submit** (📸), kies een nutsvoorziening.
+- Ga naar **Submit** (📸) — je elektriciteitsmeter staat al geselecteerd.
 - Maak een **foto van je meter** — de app leest het getal en vult het in.
 - Controleer de stand en tik op insturen.
+- ⚠️ **Doe dit online.** Offline-inzendingen worden bij heraansluiten alsnog
+  verstuurd, maar test bij voorkeur met een werkende verbinding.
 
 ### 5. Verdien B3TR 🎉
-- Een geldige inzending levert **B3TR op testnet** op.
+- Je verdient **meer naarmate je mínder verbruikt** dan de zuinig-benchmark
+  (≈8 kWh): `basis + max(0, benchmark − verbruik) × tarief`. Dit zijn **test-B3TR
+  zonder echte waarde**.
 - Bekijk je totaal op **Home** en je positie op de **Leaderboard** (🏆).
 
 ---
@@ -51,11 +55,14 @@ testtokens zonder echte waarde. Gewoon veilig uitproberen. 🙂
 **Ik heb ingestuurd maar kreeg geen B3TR.**
 De meest voorkomende redenen:
 - De nieuwe stand is **niet hoger** dan je vorige stand.
-- Je zit nog in de **cooldown** (±20 uur per nutsvoorziening).
-- De foto leek hergebruikt of op een screenshot — maak een **verse foto** van een echte meter.
+- De **beloningspot is leeg** — vul 'm via het admin-paneel (🎁 Fund rewards pool).
+- Je zit nog in de **cooldown** (zie hieronder — staat tijdens deze testronde uit).
+- De foto leek hergebruikt — maak een **verse foto** van een echte meter.
 
 **Wat is de cooldown?**
-Je kunt per nutsvoorziening ongeveer **één keer per 20 uur** belonen — zo blijft het eerlijk.
+In productie kun je per nutsvoorziening ongeveer **één keer per 20 uur** belonen — zo
+blijft het eerlijk. **Tijdens de huidige testronde staat de cooldown uit** zodat je
+meermaals achter elkaar kunt testen.
 
 **Mijn foto wordt geweigerd.**
 Gebruik een **echte, scherpe foto** van je eigen meter (goed licht, cijfers in beeld). Geen screenshots of foto's van een scherm.
