@@ -4,6 +4,11 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
 export default defineConfig({
   base: '/GreenUtilityLog/',
+  // Don't copy a public/ folder. We don't ship static assets that way, and on
+  // GitHub an accidental FILE named "public" (instead of a folder) makes Vite
+  // crash with "ENOTDIR: not a directory, scandir public" and fails the build.
+  // Disabling publicDir makes the build robust against that.
+  publicDir: false,
   // dapp-kit creates valtio proxies (dapp-kit-ui) and subscribes to them
   // (dapp-kit-react). If more than one copy of valtio ends up in the bundle,
   // the proxy isn't recognised by the subscriber and dapp-kit crashes with
