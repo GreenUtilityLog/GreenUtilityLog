@@ -8,6 +8,7 @@ import cors from "cors";
 import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned } from "./config.js";
 import { validateSubmission } from "./verify.js";
 import { verifyPhoto } from "./media.js";
+import { store } from "./store.js";
 import { distributeReward, distributorAddress } from "./reward.js";
 import { ocrImage, ocrEnabled, ocrProviders } from "./ocr.js";
 import { verifyWalletCertificate, REQUIRE_CERT } from "./auth.js";
@@ -49,6 +50,7 @@ app.get("/health", async (req, res) => {
     aiPhotoCheck: aiPhotoCheckEnabled(),
     captcha: captchaEnabled(),
     corsLocked: !ALLOWED_ORIGINS.includes("*"),
+    durableState: store.isDurable(),
     distributor: await distributorAddress().catch(() => null),
   });
 });
