@@ -1962,18 +1962,29 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
           </div>
         </div>
 
-        {usage() > 0 && (
-          <div className="reward-preview">
-            <div>
-              <div className="rp-label">Estimated Reward</div>
-              <div className="rp-rate">{usage()} {u.unit} × {u.rate} B3TR/{u.unit}</div>
+        {usage() > 0 && (() => {
+          const bench = USAGE_BENCHMARK[u.id] ?? 0;
+          const saved = Math.max(0, bench - usage());
+          const base  = REWARD_BASE[u.id] ?? 0;
+          const isSaving = SAVING_UTILS.has(u.id);
+          const rateText = isSaving
+            ? (saved > 0
+                ? `${base} base + ${saved.toFixed(1)} ${u.unit} saved under ${bench} × ${u.rate}`
+                : `Base only — used ${usage()} ${u.unit} (target ≤ ${bench} ${u.unit})`)
+            : `${base} base + ${usage()} ${u.unit} produced × ${u.rate}`;
+          return (
+            <div className="reward-preview">
+              <div>
+                <div className="rp-label">Estimated Reward · use less, earn more</div>
+                <div className="rp-rate">{rateText}</div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div className="rp-val">+{reward()}</div>
+                <div className="rp-b3tr">B3TR</div>
+              </div>
             </div>
-            <div style={{textAlign:"right"}}>
-              <div className="rp-val">+{reward()}</div>
-              <div className="rp-b3tr">B3TR</div>
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {TURNSTILE_SITE_KEY && <div id="cf-turnstile" style={{display:"flex",justifyContent:"center",margin:"0 0 12px"}} />}
 
