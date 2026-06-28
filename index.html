@@ -4,11 +4,35 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#1a3326">
-  <meta name="description" content="Track utilities and earn B3TR on VeChain">
+  <meta name="description" content="Snap your electricity meter, log usage, earn B3TR for saving energy. A VeBetterDAO x2earn app on VeChain. Testnet beta.">
   <title>Green Utility Log</title>
+  <!-- Social link-preview card. og-image.png lives in public/ so it publishes at the
+       site root. Update the absolute URL if you host on a different path/domain. -->
+  <meta property="og:title" content="Green Utility Log — earn B3TR for saving energy">
+  <meta property="og:description" content="Snap your electricity meter, log usage, earn B3TR. A VeBetterDAO x2earn app on VeChain. Testnet beta — test tokens, no real value.">
+  <meta property="og:image" content="https://greenutilitylog.github.io/GreenUtilityLog/og-image.png">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://greenutilitylog.github.io/GreenUtilityLog/og-image.png">
 </head>
 <body>
   <div id="root"></div>
-<script type="module" src="src/main.jsx"></script>
+  <!-- Early error catcher: shows any startup error on the page (even one thrown
+       while the bundle is still loading, before the app's own handlers exist),
+       so a failure never silently leaves a blank white screen. -->
+  <script>
+    (function () {
+      function show(label, err) {
+        var detail = (err && (err.stack || err.message)) || String(err);
+        var b = document.createElement('pre');
+        b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;max-height:70vh;overflow:auto;margin:0;padding:12px;font:12px/1.4 monospace;white-space:pre-wrap;word-break:break-word;color:#fff;background:#b00020';
+        b.textContent = label + ' ' + detail;
+        document.body.appendChild(b);
+      }
+      window.addEventListener('error', function (e) { show('JS error:', e.error || e.message); });
+      window.addEventListener('unhandledrejection', function (e) { show('Promise error:', e.reason); });
+    })();
+  </script>
+  <script type="module" src="src/main.jsx"></script>
 </body>
 </html>
