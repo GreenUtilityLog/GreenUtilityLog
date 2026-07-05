@@ -11,8 +11,14 @@ const NODES = {
 export const NODE_URL = process.env.NODE_URL || NODES[NETWORK] || NODES.testnet;
 
 const CONTRACTS_BY_NET = {
-  mainnet: { X2EarnRewardsPool: "0x6Bee7DDab6c99d5B2Af0554EaEA484CE18F52631" },
-  testnet: { X2EarnRewardsPool: "0x2d2a2207c68a46fc79325d7718e639d1047b0d8b" },
+  mainnet: {
+    X2EarnRewardsPool: "0x6Bee7DDab6c99d5B2Af0554EaEA484CE18F52631",
+    X2EarnApps:        "0x8392B7CCc763dB03b47afcD8E8f5e24F9cf0554D",
+  },
+  testnet: {
+    X2EarnRewardsPool: "0x2d2a2207c68a46fc79325d7718e639d1047b0d8b",
+    X2EarnApps:        "0x0b54a094b877a25bdc95b4431eaa1e2206b1ddfe",
+  },
 };
 export const CONTRACTS = CONTRACTS_BY_NET[NETWORK] || CONTRACTS_BY_NET.testnet;
 

@@ -9,7 +9,7 @@ import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_E
 import { validateSubmission } from "./verify.js";
 import { verifyPhoto } from "./media.js";
 import { store } from "./store.js";
-import { distributeReward, distributorAddress } from "./reward.js";
+import { distributeReward, distributorAddress, chainDiagnostics } from "./reward.js";
 import { ocrImage, ocrEnabled, ocrProviders } from "./ocr.js";
 import { verifyWalletCertificate, REQUIRE_CERT } from "./auth.js";
 import { checkPhotoAuthenticity, aiPhotoCheckEnabled } from "./authenticity.js";
@@ -39,6 +39,10 @@ app.use((req, res, next) => {
 });
 
 app.get("/health", async (req, res) => {
+  // On-chain self-diagnosis: poolB3TR is the app's available reward funds;
+  // distributorAuthorized says whether our wallet holds the reward-distributor
+  // role. false on either one explains a reverting distributeReward instantly.
+  const chain = await chainDiagnostics().catch(() => ({ poolB3TR: null, distributorAuthorized: null }));
   res.json({
     ok: true,
     network: NETWORK,
@@ -52,6 +56,8 @@ app.get("/health", async (req, res) => {
     corsLocked: !ALLOWED_ORIGINS.includes("*"),
     durableState: store.isDurable(),
     distributor: await distributorAddress().catch(() => null),
+    poolB3TR: chain.poolB3TR,
+    distributorAuthorized: chain.distributorAuthorized,
   });
 });
 

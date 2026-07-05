@@ -89,6 +89,45 @@ export async function distributorAddress() {
   return signer ? signer.getAddress() : null;
 }
 
+// ── On-chain self-diagnosis ───────────────────────────────────────────────────
+// Read-only checks against the VeBetterDAO contracts so /health can say exactly
+// why payouts would fail: pool empty, or the distributor lacking the
+// reward-distributor role for this app (the two classic revert causes).
+async function callView(to, fragment, args) {
+  const abi = new ABIFunction(fragment);
+  const data = abi.encodeData(args).toString();
+  const res = await fetch(`${NODE_URL}/accounts/${to}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ data, value: "0x0" }),
+  });
+  if (!res.ok) throw new Error(`accounts call ${res.status}`);
+  const out = await res.json();
+  if (!out || out.reverted || !out.data || out.data === "0x") return null;
+  return abi.decodeResult(out.data);
+}
+
+const AVAILABLE_FUNDS_ABI = { name: "availableFunds", type: "function", stateMutability: "view", inputs: [{ name: "appId", type: "bytes32" }], outputs: [{ name: "", type: "uint256" }] };
+const IS_DISTRIBUTOR_ABI  = { name: "isRewardDistributor", type: "function", stateMutability: "view", inputs: [{ name: "appId", type: "bytes32" }, { name: "distributor", type: "address" }], outputs: [{ name: "", type: "bool" }] };
+
+const first = (v) => (Array.isArray(v) ? v[0] : (v && typeof v === "object" ? Object.values(v)[0] : v));
+
+export async function chainDiagnostics() {
+  const out = { poolB3TR: null, distributorAuthorized: null };
+  try {
+    const funds = first(await callView(CONTRACTS.X2EarnRewardsPool, AVAILABLE_FUNDS_ABI, [APP_ID]));
+    if (funds != null) out.poolB3TR = Number(BigInt(funds) / 10n ** 14n) / 1e4;
+  } catch {}
+  try {
+    const addr = signer ? await signer.getAddress() : null;
+    if (addr && CONTRACTS.X2EarnApps) {
+      const ok = first(await callView(CONTRACTS.X2EarnApps, IS_DISTRIBUTOR_ABI, [APP_ID, addr]));
+      if (ok != null) out.distributorAuthorized = ok === true;
+    }
+  } catch {}
+  return out;
+}
+
 // Build the VeBetterDAO proof blob. Top half follows the official VeBetterDAO
 // "proof of impact" schema (version/description/proof/impact) so rewards show up
 // correctly in the VeBetterDAO ecosystem; the lower half keeps our app-specific
