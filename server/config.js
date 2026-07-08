@@ -56,6 +56,31 @@ export const SAVING_UTILS = new Set(["electric", "gas", "water"]);
 // max (solar ≈ 0.2 + 60*0.72 ≈ 43) with headroom. Override via env for mainnet.
 export const MAX_REWARD = Number(process.env.MAX_REWARD || 50);
 
+// ── Eco-mode bonus ────────────────────────────────────────────────────────────
+// Users photograph an appliance (washer / dryer / dishwasher) running in eco
+// mode and earn a small FIXED bonus. Rules: at most ECO_MAX_PER_WEEK claims per
+// CALENDAR week (Monday 00:00 – Sunday 23:59 in ECO_TZ) and at least
+// ECO_COOLDOWN_MS between claims. An eco photo has no meter reading to anchor
+// it, so these caps (plus photo-hash dedupe + the optional AI check) are the guard.
+export const ECO_REWARD       = Number(process.env.ECO_REWARD || 8);     // B3TR per approved eco photo
+export const ECO_MAX_PER_WEEK = Number(process.env.ECO_MAX_PER_WEEK || 4);
+export const ECO_COOLDOWN_MS  = Number(process.env.ECO_COOLDOWN_MS || 24 * 60 * 60 * 1000); // 24h between claims
+export const ECO_TZ           = process.env.ECO_TZ || "Europe/Amsterdam";
+export const ECO_APPLIANCES   = new Set(["washer", "dryer", "dishwasher"]);
+
+// Identifier of the Monday-to-Sunday calendar week a timestamp falls in, in the
+// configured timezone (returns that week's Monday as "YYYY-MM-DD"). Two claims
+// share a weekly budget iff their keys match; the budget resets Monday morning.
+export function ecoWeekKey(ts = Date.now()) {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: ECO_TZ, year: "numeric", month: "2-digit", day: "2-digit", weekday: "short" })
+    .formatToParts(new Date(ts));
+  const get = (t) => parts.find((p) => p.type === t)?.value;
+  const daysSinceMonday = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 }[get("weekday")] ?? 0;
+  const monday = new Date(Date.UTC(+get("year"), +get("month") - 1, +get("day")));
+  monday.setUTCDate(monday.getUTCDate() - daysSinceMonday);
+  return monday.toISOString().slice(0, 10);
+}
+
 // Reward amount for a single reading, given the utility and its usage.
 export function computeReward(utility, usage) {
   const base = REWARD_BASE[utility] ?? 0;

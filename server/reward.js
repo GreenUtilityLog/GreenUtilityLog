@@ -183,27 +183,49 @@ function buildProof({ utility, meterNo, reading, prevRead, usage, amount }) {
   });
 }
 
-// Returns the broadcast transaction id. `usage` and `prevRead` are the
-// server-validated values from validateSubmission, not the raw client body.
-export async function distributeReward({ utility, meterNo, reading, prevRead, usage, amount, receiver }) {
+// Sign + broadcast one distributeReward call with the given proof blob.
+async function sendProofReward({ amount, receiver, proof, comment }) {
   if (!signer) throw new Error("distributor key not configured");
-
-  const amountWei = toWei(amount);
-  const proof = buildProof({ utility, meterNo, reading, prevRead, usage, amount });
-
   const clause = Clause.callFunction(
     Address.of(CONTRACTS.X2EarnRewardsPool),
     new ABIFunction(DISTRIBUTE_ABI),
-    [APP_ID, amountWei, receiver, proof]
+    [APP_ID, toWei(amount), receiver, proof]
   );
-
   // sendTransaction estimates gas, builds, signs and broadcasts; resolves to txid.
   // With DELEGATION_URL set, the gas is paid by the sponsor at that URL (VIP-191).
-  const txid = await signer.sendTransaction({
+  return signer.sendTransaction({
     clauses: [{ to: clause.to, value: "0x0", data: clause.data }],
-    comment: `Green Utility Log — ${utility} reward (${amount} B3TR)`,
+    comment,
     ...(DELEGATION_URL ? { delegationUrl: DELEGATION_URL } : {}),
   });
+}
 
-  return txid;
+// Returns the broadcast transaction id. `usage` and `prevRead` are the
+// server-validated values from validateSubmission, not the raw client body.
+export async function distributeReward({ utility, meterNo, reading, prevRead, usage, amount, receiver }) {
+  const proof = buildProof({ utility, meterNo, reading, prevRead, usage, amount });
+  return sendProofReward({ amount, receiver, proof, comment: `Green Utility Log — ${utility} reward (${amount} B3TR)` });
+}
+
+// Eco-mode bonus: a fixed reward for photographing an appliance running in eco
+// mode. The impact is a conservative fixed estimate (an eco cycle saves roughly
+// 0.5 kWh vs a normal cycle ≈ 200 g CO2e) — deliberately small and honest.
+const ECO_APPLIANCE_LABELS = { washer: "Washing machine", dryer: "Dryer", dishwasher: "Dishwasher" };
+
+export async function distributeEcoReward({ appliance, amount, receiver }) {
+  const label = ECO_APPLIANCE_LABELS[appliance] || "Appliance";
+  const proof = JSON.stringify({
+    version: 2,
+    description: `${label} run in eco mode, logged via Green Utility Log`,
+    proof: { text: `${label} photographed running in eco mode` },
+    impact: { carbon: 200 },
+    appId:      APP_ID,
+    action:     "eco_mode",
+    utility:    "eco",
+    appliance,
+    b3tr:       amount,
+    timestamp:  new Date().toISOString(),
+    appVersion: APP_VERSION,
+  });
+  return sendProofReward({ amount, receiver, proof, comment: `Green Utility Log — eco-mode bonus (${amount} B3TR)` });
 }
