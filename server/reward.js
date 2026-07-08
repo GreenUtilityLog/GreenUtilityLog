@@ -11,14 +11,25 @@ import {
 import { Clause, Address, ABIFunction, HDKey } from "@vechain/sdk-core";
 import { NODE_URL, CONTRACTS, APP_ID, APP_VERSION, USAGE_BENCHMARK, SAVING_UTILS } from "./config.js";
 
+// The official VeBetterDAO distribution call (X2EarnRewardsPool v10 ABI). The
+// CONTRACT builds the standard proof-of-impact JSON on-chain from these typed
+// arrays and emits it via RewardDistributed — this standard shape is what
+// VeWorld / the VeBetter app recognise and render as a "VeBetter action" on the
+// user's wallet activity. Our app-specific fields (utility, reading, …) travel
+// in `metadata`, emitted separately via the RewardMetadata event.
 const DISTRIBUTE_ABI = {
-  name: "distributeReward",
+  name: "distributeRewardWithProofAndMetadata",
   type: "function",
   inputs: [
-    { name: "appId",    type: "bytes32" },
-    { name: "amount",   type: "uint256" },
-    { name: "receiver", type: "address" },
-    { name: "proof",    type: "string"  },
+    { name: "appId",        type: "bytes32"   },
+    { name: "amount",       type: "uint256"   },
+    { name: "receiver",     type: "address"   },
+    { name: "proofTypes",   type: "string[]"  },
+    { name: "proofValues",  type: "string[]"  },
+    { name: "impactCodes",  type: "string[]"  },
+    { name: "impactValues", type: "uint256[]" },
+    { name: "description",  type: "string"    },
+    { name: "metadata",     type: "string"    },
   ],
   outputs: [{ name: "", type: "bool" }],
   stateMutability: "nonpayable",
@@ -154,42 +165,21 @@ function computeImpact({ utility, usage }) {
   return grams > 0 ? { carbon: grams } : {};
 }
 
-// Built entirely from SERVER-validated values (usage + the server's own baseline),
-// never the raw client body — so the on-chain proof of impact matches what was
-// actually verified and paid.
-function buildProof({ utility, meterNo, reading, prevRead, usage, amount }) {
-  const label = UTILITY_LABELS[utility] || utility;
-  const u = Math.max(0, Number(usage) || 0);
-  const impact = computeImpact({ utility, usage: u });
-  return JSON.stringify({
-    // VeBetterDAO standard fields
-    version: 2,
-    description: `${label} meter reading logged via Green Utility Log`,
-    proof: {
-      text: `${utility} reading ${reading} (previous ${prevRead})${meterNo ? `, meter ${meterNo}` : ""}`,
-    },
-    impact,
-    // App-specific fields (decoded by our own history/leaderboard)
-    appId:      APP_ID,
-    action:     "meter_reading",
-    utility,
-    meterNo:    meterNo || "",
-    reading:    String(reading),
-    prevRead:   String(prevRead),
-    usage:      u,
-    b3tr:       amount,
-    timestamp:  new Date().toISOString(),
-    appVersion: APP_VERSION,
-  });
-}
-
-// Sign + broadcast one distributeReward call with the given proof blob.
-async function sendProofReward({ amount, receiver, proof, comment }) {
+// Sign + broadcast one distributeRewardWithProofAndMetadata call. The contract
+// assembles the standard VeBetter proof JSON from proofText/impacts/description
+// and emits it (RewardDistributed); `metadata` is our app-specific JSON, emitted
+// via the RewardMetadata event and merged back in by the app's history decoder.
+async function sendProofReward({ amount, receiver, proofText, impacts, description, metadata, comment }) {
   if (!signer) throw new Error("distributor key not configured");
+  const impactCodes = [], impactValues = [];
+  for (const [code, val] of Object.entries(impacts || {})) {
+    const v = Math.round(Number(val) || 0);
+    if (v > 0) { impactCodes.push(code); impactValues.push(String(v)); }
+  }
   const clause = Clause.callFunction(
     Address.of(CONTRACTS.X2EarnRewardsPool),
     new ABIFunction(DISTRIBUTE_ABI),
-    [APP_ID, toWei(amount), receiver, proof]
+    [APP_ID, toWei(amount), receiver, ["text"], [proofText], impactCodes, impactValues, description, metadata]
   );
   // sendTransaction estimates gas, builds, signs and broadcasts; resolves to txid.
   // With DELEGATION_URL set, the gas is paid by the sponsor at that URL (VIP-191).
@@ -203,8 +193,34 @@ async function sendProofReward({ amount, receiver, proof, comment }) {
 // Returns the broadcast transaction id. `usage` and `prevRead` are the
 // server-validated values from validateSubmission, not the raw client body.
 export async function distributeReward({ utility, meterNo, reading, prevRead, usage, amount, receiver }) {
-  const proof = buildProof({ utility, meterNo, reading, prevRead, usage, amount });
-  return sendProofReward({ amount, receiver, proof, comment: `Green Utility Log — ${utility} reward (${amount} B3TR)` });
+  const label = UTILITY_LABELS[utility] || utility;
+  const u = Math.max(0, Number(usage) || 0);
+  const impact = computeImpact({ utility, usage: u }); // { carbon: grams } or {}
+  // Extra standard impact codes VeBetter understands: energy saved/produced (Wh)
+  // for electric & solar, litres for water. Same server-validated basis as carbon.
+  const impacts = { ...impact };
+  if (utility === "electric") {
+    const savedKwh = Math.max(0, (USAGE_BENCHMARK.electric ?? 0) - u);
+    if (savedKwh > 0) impacts.energy = savedKwh * 1000; // Wh
+  } else if (utility === "solar") {
+    impacts.energy = u * 1000; // Wh produced
+  } else if (utility === "water") {
+    const savedL = Math.max(0, (USAGE_BENCHMARK.water ?? 0) - u);
+    if (savedL > 0) impacts.water = savedL; // litres
+  }
+  const metadata = JSON.stringify({
+    action: "meter_reading", utility,
+    meterNo: meterNo || "", reading: String(reading), prevRead: String(prevRead),
+    usage: u, b3tr: amount, timestamp: new Date().toISOString(), appVersion: APP_VERSION,
+  });
+  return sendProofReward({
+    amount, receiver,
+    proofText:   `${utility} reading ${reading} (previous ${prevRead})${meterNo ? `, meter ${meterNo}` : ""}`,
+    impacts,
+    description: `${label} meter reading logged via Green Utility Log`,
+    metadata,
+    comment:     `Green Utility Log — ${utility} reward (${amount} B3TR)`,
+  });
 }
 
 // Eco-mode bonus: a fixed reward for photographing an appliance running in eco
@@ -214,18 +230,16 @@ const ECO_APPLIANCE_LABELS = { washer: "Washing machine", dryer: "Dryer", dishwa
 
 export async function distributeEcoReward({ appliance, amount, receiver }) {
   const label = ECO_APPLIANCE_LABELS[appliance] || "Appliance";
-  const proof = JSON.stringify({
-    version: 2,
-    description: `${label} run in eco mode, logged via Green Utility Log`,
-    proof: { text: `${label} photographed running in eco mode` },
-    impact: { carbon: 200 },
-    appId:      APP_ID,
-    action:     "eco_mode",
-    utility:    "eco",
-    appliance,
-    b3tr:       amount,
-    timestamp:  new Date().toISOString(),
-    appVersion: APP_VERSION,
+  const metadata = JSON.stringify({
+    action: "eco_mode", utility: "eco", appliance,
+    b3tr: amount, timestamp: new Date().toISOString(), appVersion: APP_VERSION,
   });
-  return sendProofReward({ amount, receiver, proof, comment: `Green Utility Log — eco-mode bonus (${amount} B3TR)` });
+  return sendProofReward({
+    amount, receiver,
+    proofText:   `${label} photographed running in eco mode`,
+    impacts:     { carbon: 200, energy: 500 }, // ≈0.5 kWh saved per eco cycle
+    description: `${label} run in eco mode, logged via Green Utility Log`,
+    metadata,
+    comment:     `Green Utility Log — eco-mode bonus (${amount} B3TR)`,
+  });
 }

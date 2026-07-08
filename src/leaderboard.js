@@ -26,6 +26,27 @@ const REWARD_EVENT = new ABIEvent({
 // topic0 — the event signature hash used to filter logs.
 export const REWARD_TOPIC = REWARD_EVENT.signatureHash;
 
+// event RewardMetadata(uint256 amount, bytes32 indexed appId,
+//                      address indexed receiver, string metadata,
+//                      address indexed distributor)
+// Emitted alongside RewardDistributed when the backend pays via
+// distributeRewardWithProofAndMetadata: the proof (built on-chain in the
+// standard VeBetter shape wallets recognise) no longer carries our app fields —
+// those travel here. Same data layout as RewardDistributed, so decodeRewardData
+// works for both.
+const METADATA_EVENT = new ABIEvent({
+  name: "RewardMetadata",
+  type: "event",
+  inputs: [
+    { name: "amount",      type: "uint256", indexed: false },
+    { name: "appId",       type: "bytes32", indexed: true  },
+    { name: "receiver",    type: "address", indexed: true  },
+    { name: "metadata",    type: "string",  indexed: false },
+    { name: "distributor", type: "address", indexed: true  },
+  ],
+});
+export const METADATA_TOPIC = METADATA_EVENT.signatureHash;
+
 const isUnsetAppId = (appId) => !appId || /^0x0+$/i.test(appId);
 
 // ── Browser-safe ABI decode of the RewardDistributed data area ──────────────
@@ -109,17 +130,13 @@ export async function fetchOnChainLeaderboard({ node, contract, appId, max = 200
 // decoding the proof JSON we wrote into each RewardDistributed event. This lets
 // the app restore a user's earnings, history and streak on any device — the
 // chain is the source of truth, no local storage or backend needed.
-export async function fetchWalletHistory({ node, contract, appId, address, max = 1000, signal } = {}) {
-  if (!node || !contract || !address || isUnsetAppId(appId)) return { ok: false, reason: "unavailable", rows: [] };
-  const topic2 = "0x" + address.toLowerCase().replace(/^0x/, "").padStart(64, "0");
+async function fetchLogsPaged({ node, contract, topic0, appId, topic2, max, signal, onLog }) {
   const pageSize = 256;
   let offset = 0;
-  const rows = [];
-
   for (let fetched = 0; fetched < max; ) {
     const body = {
       options: { offset, limit: pageSize },
-      criteriaSet: [{ address: contract, topic0: REWARD_TOPIC, topic1: appId, topic2 }],
+      criteriaSet: [{ address: contract, topic0, topic1: appId, topic2 }],
       order: "desc",
     };
     const res = await fetch(`${node}/logs/event`, {
@@ -131,10 +148,41 @@ export async function fetchWalletHistory({ node, contract, appId, address, max =
     if (!res.ok) throw new Error(`logs/event responded ${res.status}`);
     const logs = await res.json();
     if (!Array.isArray(logs) || logs.length === 0) break;
+    for (const log of logs) onLog(log);
+    offset  += logs.length;
+    fetched += logs.length;
+    if (logs.length < pageSize) break;
+  }
+}
 
-    for (const log of logs) {
+export async function fetchWalletHistory({ node, contract, appId, address, max = 1000, signal } = {}) {
+  if (!node || !contract || !address || isUnsetAppId(appId)) return { ok: false, reason: "unavailable", rows: [] };
+  const topic2 = "0x" + address.toLowerCase().replace(/^0x/, "").padStart(64, "0");
+  const rows = [];
+
+  // App-specific fields per payout (RewardMetadata), keyed by tx+clause so they
+  // can be merged into the matching RewardDistributed row. Best-effort: rewards
+  // paid via the old proof-only path simply have no metadata entry.
+  const metaByKey = new Map();
+  await fetchLogsPaged({
+    node, contract, topic0: METADATA_TOPIC, appId, topic2, max, signal,
+    onLog: (log) => {
+      const { proof } = decodeRewardData(log.data); // same layout: string field
+      try {
+        const m = JSON.parse(proof);
+        if (m && typeof m === "object") metaByKey.set(`${log.meta?.txID}-${log.meta?.clauseIndex ?? 0}`, m);
+      } catch {}
+    },
+  }).catch(() => {});
+
+  await fetchLogsPaged({
+    node, contract, topic0: REWARD_TOPIC, appId, topic2, max, signal,
+    onLog: (log) => {
       const { amount, proof } = decodeRewardData(log.data);
       let p = {}; try { p = JSON.parse(proof) || {}; } catch {}
+      // New-style payouts: standard on-chain proof + our fields in metadata.
+      const meta = metaByKey.get(`${log.meta?.txID}-${log.meta?.clauseIndex ?? 0}`);
+      if (meta) p = { ...p, ...meta };
       const ts = (log.meta?.blockTimestamp || 0) * 1000;
       const d = ts ? new Date(ts) : null;
       const dateStr = d
@@ -153,12 +201,8 @@ export async function fetchWalletHistory({ node, contract, appId, address, max =
         txHash:    log.meta?.txID || "",
         submittedAt: ts || Date.now(),
       });
-    }
-
-    offset  += logs.length;
-    fetched += logs.length;
-    if (logs.length < pageSize) break;
-  }
+    },
+  });
 
   rows.sort((a, b) => b.submittedAt - a.submittedAt); // newest first
   return { ok: true, rows };
