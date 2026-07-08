@@ -1942,7 +1942,7 @@ function HomeScreen({ b3tr, streak, subs, setTab, T }) {
   );
 }
 
-function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading, setReading, prevRead, setPrevRead, busy, usage, reward, handleSubmit, verifyKey, wallet, setShowWallet, subs, meters, T, setTab, onEcoSubmit, ecoBusy, ecoUsedThisWeek }) {
+function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading, setReading, prevRead, setPrevRead, busy, usage, reward, handleSubmit, verifyKey, wallet, setShowWallet, subs, meters, T, setTab, onEcoSubmit, ecoBusy, ecoUsedThisWeek, ecoCooldownMs }) {
   const meterNo  = (meters?.[selUtil] || "").trim();
 
   return (
@@ -2035,7 +2035,7 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
         }
       </div>
 
-      {onEcoSubmit && <EcoBonusCard T={T} wallet={wallet} setShowWallet={setShowWallet} onSubmit={onEcoSubmit} busy={ecoBusy} usedThisWeek={ecoUsedThisWeek} />}
+      {onEcoSubmit && <EcoBonusCard T={T} wallet={wallet} setShowWallet={setShowWallet} onSubmit={onEcoSubmit} busy={ecoBusy} usedThisWeek={ecoUsedThisWeek} cooldownMs={ecoCooldownMs} />}
     </>
   );
 }
@@ -2051,10 +2051,13 @@ const ECO_APPLIANCE_OPTIONS = [
 ];
 const ECO_MAX_PER_WEEK_UI = 4;
 
-function EcoBonusCard({ T, wallet, setShowWallet, onSubmit, busy, usedThisWeek }) {
+function EcoBonusCard({ T, wallet, setShowWallet, onSubmit, busy, usedThisWeek, cooldownMs }) {
   const [appliance, setAppliance] = useState("washer");
   const fileRef = useRef(null);
   const left = Math.max(0, ECO_MAX_PER_WEEK_UI - (usedThisWeek || 0));
+  const coolingDown = (cooldownMs || 0) > 0;
+  const canClaim = left > 0 && !coolingDown;
+  const hours = Math.ceil((cooldownMs || 0) / 3600000);
   return (
     <div style={{background:T.card,border:`1px solid ${T.green4||T.border}`,borderRadius:6,padding:"14px",margin:"12px 0"}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
@@ -2062,7 +2065,7 @@ function EcoBonusCard({ T, wallet, setShowWallet, onSubmit, busy, usedThisWeek }
         <div style={{fontSize:10,fontWeight:700,color:left ? T.green3 : T.textSoft}}>{left}/{ECO_MAX_PER_WEEK_UI} left this week</div>
       </div>
       <div style={{fontSize:10.5,color:T.textMid,lineHeight:1.5,marginBottom:10}}>
-        Running your washer, dryer or dishwasher on the <b>eco setting</b>? Photograph the appliance with the eco mode visible and earn a small bonus. Fresh photo every time.
+        Running your washer, dryer or dishwasher on the <b>eco setting</b>? Photograph the appliance with the eco mode visible and earn a bonus. Fresh photo every time — max 4 per week (Mon–Sun), one per 24h.
       </div>
       <div style={{display:"flex",gap:6,marginBottom:10}}>
         {ECO_APPLIANCE_OPTIONS.map(a => (
@@ -2077,9 +2080,12 @@ function EcoBonusCard({ T, wallet, setShowWallet, onSubmit, busy, usedThisWeek }
       </div>
       {!wallet
         ? <button className="sbtn" onClick={() => setShowWallet(true)}>Connect Wallet</button>
-        : <button className="sbtn" disabled={busy || !left} style={!left ? {opacity:.55} : undefined}
-            onClick={() => left && fileRef.current?.click()}>
-            {busy ? <><span className="spin-sm"/> Submitting…</> : !left ? "Weekly limit reached" : "📸 Photograph eco mode"}
+        : <button className="sbtn" disabled={busy || !canClaim} style={!canClaim ? {opacity:.55} : undefined}
+            onClick={() => canClaim && fileRef.current?.click()}>
+            {busy ? <><span className="spin-sm"/> Submitting…</>
+              : !left ? "Weekly limit reached — resets Monday"
+              : coolingDown ? `Next eco bonus in ~${hours}h`
+              : "📸 Photograph eco mode"}
           </button>
       }
       <input type="file" ref={fileRef} accept="image/*" capture="environment" style={{display:"none"}}
@@ -3162,9 +3168,15 @@ export default function App() {
 
   // ── Eco-mode bonus ──────────────────────────────────────────────────────────
   // Photo of an appliance running in eco mode → fixed bonus via the backend.
-  // Server enforces the real weekly cap; this local count drives the UI counter.
+  // Rules (server-enforced; these local values only drive the UI): max 4 per
+  // CALENDAR week (Monday–Sunday, resets Monday morning) + 24h between claims.
   const [ecoBusy, setEcoBusy] = useState(false);
-  const ecoUsedThisWeek = subs.filter(s => s.type === "eco" && (Date.now() - (s.submittedAt || new Date(s.date).getTime() || 0)) < 7*24*60*60*1000).length;
+  const ecoWeekStart = (() => { const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.getTime(); })();
+  const ecoSubTs = (s) => s.submittedAt || new Date(s.date).getTime() || 0;
+  const ecoSubs = subs.filter(s => s.type === "eco");
+  const ecoUsedThisWeek = ecoSubs.filter(s => ecoSubTs(s) >= ecoWeekStart).length;
+  const ecoLastTs = ecoSubs.reduce((a, s) => Math.max(a, ecoSubTs(s)), 0);
+  const ecoCooldownMs = Math.max(0, 24*60*60*1000 - (Date.now() - ecoLastTs));
   const handleEcoSubmit = async (file, appliance) => {
     if (!wallet) { openConnectModal(); return; }
     if (!online) { showToast("🌿 Eco bonus needs a connection — try again when online"); return; }
@@ -3427,7 +3439,7 @@ export default function App() {
           </div>
 
           {tab==="home"      && <HomeScreen b3tr={b3tr} streak={streak} subs={subs} setTab={setTab} T={T}/>}
-          {tab==="submit"    && <SubmitScreen u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} busy={busy} usage={usage} reward={reward} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab} onEcoSubmit={handleEcoSubmit} ecoBusy={ecoBusy} ecoUsedThisWeek={ecoUsedThisWeek}/>}
+          {tab==="submit"    && <SubmitScreen u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} busy={busy} usage={usage} reward={reward} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab} onEcoSubmit={handleEcoSubmit} ecoBusy={ecoBusy} ecoUsedThisWeek={ecoUsedThisWeek} ecoCooldownMs={ecoCooldownMs}/>}
           {tab==="charts"    && <ChartsScreen subs={subs} T={T}/>}
           {tab==="leaderboard" && <LeaderboardScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}

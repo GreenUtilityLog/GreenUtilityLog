@@ -5,7 +5,7 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, ECO_REWARD, ECO_MAX_PER_WEEK, ECO_WINDOW_MS, ECO_APPLIANCES } from "./config.js";
+import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, ECO_REWARD, ECO_MAX_PER_WEEK, ECO_COOLDOWN_MS, ECO_APPLIANCES, ecoWeekKey } from "./config.js";
 import { validateSubmission } from "./verify.js";
 import { verifyPhoto } from "./media.js";
 import { store } from "./store.js";
@@ -140,8 +140,8 @@ app.post("/reward", async (req, res) => {
 // POST /eco-action: photograph an appliance (washer/dryer/dishwasher) running in
 // eco mode → fixed ECO_REWARD. No meter reading to anchor, so the guards are:
 // photo-hash dedupe (one photo ever earns once), the optional AI authenticity
-// check, the wallet certificate, and a hard cap of ECO_MAX_PER_WEEK claims per
-// rolling 7 days per wallet.
+// check, the wallet certificate, a hard cap of ECO_MAX_PER_WEEK claims per
+// calendar week (Mon–Sun) and a 24h cooldown between claims.
 app.post("/eco-action", async (req, res) => {
   if (isBanned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
 
@@ -160,10 +160,17 @@ app.post("/eco-action", async (req, res) => {
     if (!c.ok) return res.status(401).json({ error: c.error });
   }
 
-  // Weekly cap: at most ECO_MAX_PER_WEEK paid eco photos per rolling 7 days.
-  const claims = store.ecoClaims(addr, ECO_WINDOW_MS);
-  if (claims.length >= ECO_MAX_PER_WEEK) {
-    return res.status(429).json({ error: `eco-bonus limit reached (${ECO_MAX_PER_WEEK} per week) — try again later` });
+  // Two limits: max ECO_MAX_PER_WEEK per CALENDAR week (Mon–Sun, resets Monday
+  // morning) and at least ECO_COOLDOWN_MS (24h) between two claims.
+  const claims = store.ecoClaims(addr);
+  const thisWeek = claims.filter((t) => ecoWeekKey(t) === ecoWeekKey());
+  if (thisWeek.length >= ECO_MAX_PER_WEEK) {
+    return res.status(429).json({ error: `eco-bonus limit reached (${ECO_MAX_PER_WEEK} per week) — resets Monday` });
+  }
+  const last = claims.reduce((a, t) => Math.max(a, t), 0);
+  const wait = ECO_COOLDOWN_MS - (Date.now() - last);
+  if (last && wait > 0) {
+    return res.status(429).json({ error: `eco cooldown active — next claim in ~${Math.ceil(wait / 3600000)}h` });
   }
 
   const lockKey = `${addr}:eco`;
@@ -183,7 +190,7 @@ app.post("/eco-action", async (req, res) => {
     const txid = await distributeEcoReward({ appliance, amount: ECO_REWARD, receiver: req.body.address });
     store.addEcoClaim(addr, Date.now());
     photo.markUsed();
-    res.json({ txid, amount: ECO_REWARD, remaining: ECO_MAX_PER_WEEK - claims.length - 1 });
+    res.json({ txid, amount: ECO_REWARD, remaining: ECO_MAX_PER_WEEK - thisWeek.length - 1 });
   } catch (e) {
     console.error("[/eco-action]", e?.message || e);
     res.status(502).json({ error: e?.message || "distribution failed" });

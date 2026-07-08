@@ -95,10 +95,11 @@ export const store = {
   setLastReading: (meterKey, val) => { state.readings[meterKey] = val; persist(); },
 
   // Eco-bonus claims per wallet: timestamps of paid eco photos. Pruned to the
-  // given window on read, so the count is always "claims in the rolling window".
-  ecoClaims: (addr, windowMs) => {
+  // last 14 days on read — enough to evaluate both the current calendar week
+  // and the between-claims cooldown.
+  ecoClaims: (addr) => {
     const now = Date.now();
-    const list = (state.ecoClaims[addr] || []).filter((t) => now - t < windowMs);
+    const list = (state.ecoClaims[addr] || []).filter((t) => now - t < 14 * 24 * 60 * 60 * 1000);
     state.ecoClaims[addr] = list;
     return list;
   },
