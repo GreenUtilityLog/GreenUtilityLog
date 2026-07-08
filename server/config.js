@@ -56,6 +56,16 @@ export const SAVING_UTILS = new Set(["electric", "gas", "water"]);
 // max (solar ≈ 0.2 + 60*0.72 ≈ 43) with headroom. Override via env for mainnet.
 export const MAX_REWARD = Number(process.env.MAX_REWARD || 50);
 
+// ── Eco-mode bonus ────────────────────────────────────────────────────────────
+// Users photograph an appliance (washer / dryer / dishwasher) running in eco
+// mode and earn a small FIXED bonus. Capped at ECO_MAX_PER_WEEK claims per
+// rolling 7 days per wallet — an eco photo has no meter reading to anchor it,
+// so the cap (plus photo-hash dedupe + the optional AI check) is the guard.
+export const ECO_REWARD       = Number(process.env.ECO_REWARD || 0.5);   // B3TR per approved eco photo
+export const ECO_MAX_PER_WEEK = Number(process.env.ECO_MAX_PER_WEEK || 4);
+export const ECO_WINDOW_MS    = 7 * 24 * 60 * 60 * 1000;                 // rolling week
+export const ECO_APPLIANCES   = new Set(["washer", "dryer", "dishwasher"]);
+
 // Reward amount for a single reading, given the utility and its usage.
 export function computeReward(utility, usage) {
   const base = REWARD_BASE[utility] ?? 0;

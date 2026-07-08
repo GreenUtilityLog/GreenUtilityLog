@@ -5,11 +5,11 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned } from "./config.js";
+import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, ECO_REWARD, ECO_MAX_PER_WEEK, ECO_WINDOW_MS, ECO_APPLIANCES } from "./config.js";
 import { validateSubmission } from "./verify.js";
 import { verifyPhoto } from "./media.js";
 import { store } from "./store.js";
-import { distributeReward, distributorAddress, chainDiagnostics } from "./reward.js";
+import { distributeReward, distributeEcoReward, distributorAddress, chainDiagnostics } from "./reward.js";
 import { ocrImage, ocrEnabled, ocrProviders } from "./ocr.js";
 import { verifyWalletCertificate, REQUIRE_CERT } from "./auth.js";
 import { checkPhotoAuthenticity, aiPhotoCheckEnabled } from "./authenticity.js";
@@ -130,6 +130,62 @@ app.post("/reward", async (req, res) => {
     res.json({ txid, amount: v.amount });
   } catch (e) {
     console.error("[/reward]", e?.message || e);
+    res.status(502).json({ error: e?.message || "distribution failed" });
+  } finally {
+    inFlight.delete(lockKey);
+  }
+});
+
+// ── Eco-mode bonus ────────────────────────────────────────────────────────────
+// POST /eco-action: photograph an appliance (washer/dryer/dishwasher) running in
+// eco mode → fixed ECO_REWARD. No meter reading to anchor, so the guards are:
+// photo-hash dedupe (one photo ever earns once), the optional AI authenticity
+// check, the wallet certificate, and a hard cap of ECO_MAX_PER_WEEK claims per
+// rolling 7 days per wallet.
+app.post("/eco-action", async (req, res) => {
+  if (isBanned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
+
+  if (captchaEnabled()) {
+    const cap = await verifyCaptcha(req.body.captchaToken, req.clientIp);
+    if (!cap.ok) return res.status(403).json({ error: cap.error });
+  }
+
+  const addr = String(req.body.address || "").toLowerCase();
+  if (!/^0x[0-9a-f]{40}$/.test(addr)) return res.status(400).json({ error: "invalid wallet address" });
+  const appliance = String(req.body.appliance || "").toLowerCase();
+  if (!ECO_APPLIANCES.has(appliance)) return res.status(400).json({ error: "unknown appliance" });
+
+  if (REQUIRE_CERT) {
+    const c = verifyWalletCertificate({ certificate: req.body.certificate, address: req.body.address });
+    if (!c.ok) return res.status(401).json({ error: c.error });
+  }
+
+  // Weekly cap: at most ECO_MAX_PER_WEEK paid eco photos per rolling 7 days.
+  const claims = store.ecoClaims(addr, ECO_WINDOW_MS);
+  if (claims.length >= ECO_MAX_PER_WEEK) {
+    return res.status(429).json({ error: `eco-bonus limit reached (${ECO_MAX_PER_WEEK} per week) — try again later` });
+  }
+
+  const lockKey = `${addr}:eco`;
+  if (inFlight.has(lockKey)) return res.status(429).json({ error: "an eco submission is already processing" });
+
+  // Real image + never paid for before. No OCR — there's no reading to match.
+  const photo = await verifyPhoto({ imageBase64: req.body.photo, ocr: false, mime: req.body.photoMime });
+  if (!photo.ok) return res.status(400).json({ error: photo.error });
+
+  if (aiPhotoCheckEnabled()) {
+    const auth = await checkPhotoAuthenticity(req.body.photo);
+    if (!auth.ok) return res.status(400).json({ error: `photo rejected: ${auth.reason}` });
+  }
+
+  inFlight.add(lockKey);
+  try {
+    const txid = await distributeEcoReward({ appliance, amount: ECO_REWARD, receiver: req.body.address });
+    store.addEcoClaim(addr, Date.now());
+    photo.markUsed();
+    res.json({ txid, amount: ECO_REWARD, remaining: ECO_MAX_PER_WEEK - claims.length - 1 });
+  } catch (e) {
+    console.error("[/eco-action]", e?.message || e);
     res.status(502).json({ error: e?.message || "distribution failed" });
   } finally {
     inFlight.delete(lockKey);

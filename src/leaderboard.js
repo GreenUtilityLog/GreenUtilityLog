@@ -143,6 +143,7 @@ export async function fetchWalletHistory({ node, contract, appId, address, max =
       rows.push({
         id:        log.meta?.txID ? `${log.meta.txID}-${log.meta.clauseIndex ?? 0}` : `${log.meta?.blockNumber || 0}-${rows.length}`,
         type:      p.utility || "electric",
+        appliance: p.appliance || "",
         meterNo:   p.meterNo || "",
         cur:       p.reading ?? "",
         prev:      p.prevRead ?? "",

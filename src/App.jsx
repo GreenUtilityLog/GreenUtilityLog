@@ -518,6 +518,7 @@ const UTIL_ICONS = {
   gas:      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" width="16" height="16"><path d="M10 17c-3.3 0-6-2.7-6-6 0-4 3-7 6-9 3 2 6 5 6 9 0 3.3-2.7 6-6 6z"/><path d="M10 13a2 2 0 000-4c-1.1 0-2 .9-2 2" strokeOpacity=".6"/></svg>,
   water:    <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path d="M10 2C7 6 4 9.5 4 13a6 6 0 0012 0c0-3.5-3-7-6-11z" opacity=".9"/></svg>,
   solar:    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" width="16" height="16"><circle cx="10" cy="10" r="3.5"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.6 4.6l1.4 1.4M14 14l1.4 1.4M4.6 15.4l1.4-1.4M14 6l1.4-1.4"/></svg>,
+  eco:      <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path d="M16 3c-6 0-11 3-11 9 0 1.4.4 2.6 1 3.6C7.6 12 10.5 9.5 14 8c-3 2-5.6 4.6-7 8 .9.6 2 1 3.2 1C15 17 17 11 16 3z"/></svg>,
 };
 
 const UTILS = [
@@ -616,7 +617,10 @@ const ONBOARD_SLIDES = [
 // HELPER FUNCTIONS
 // ────────────────────────────────────────────────────────────────────────────
 
-function getUtil(id){ return UTILS.find(u=>u.id===id)||UTILS[0]; }
+// Pseudo-utility for the eco-mode bonus: it shows up in history/charts like a
+// submission but has no meter reading, unit or rate.
+const ECO_UTIL = { id: "eco", label: "Eco Mode", unit: "", rate: 0, ph: ["", ""], hint: "Appliance eco-mode bonus" };
+function getUtil(id){ return id === "eco" ? ECO_UTIL : (UTILS.find(u=>u.id===id)||UTILS[0]); }
 // Registered up-front (electric/gas/water); optional ones (solar) are added later.
 const REQUIRED_UTILS = UTILS.filter(u => !u.optional);
 const SOLAR_UTILS    = UTILS.filter(u => u.id === "solar");
@@ -1868,9 +1872,14 @@ function StreakCalendar({ subs }) {
   );
 }
 
+const ECO_APPLIANCE_LABELS = { washer: "Washing machine", dryer: "Dryer", dishwasher: "Dishwasher" };
+
 function HistItem({ s, T }) {
   const util = getUtil(s.type);
-  const delta = (parseFloat(s.cur) - parseFloat(s.prev)).toFixed(2);
+  const isEco = s.type === "eco";
+  const delta = isEco
+    ? (ECO_APPLIANCE_LABELS[s.appliance] || "Eco run")
+    : (parseFloat(s.cur) - parseFloat(s.prev)).toFixed(2);
   return (
     <div className="hitem">
       <div className="hicon" style={{background: getColorBg(s.type, T), color: T[s.type] || T.electric}}>{UTIL_ICONS[s.type]}</div>
@@ -1933,7 +1942,7 @@ function HomeScreen({ b3tr, streak, subs, setTab, T }) {
   );
 }
 
-function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading, setReading, prevRead, setPrevRead, busy, usage, reward, handleSubmit, verifyKey, wallet, setShowWallet, subs, meters, T, setTab }) {
+function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading, setReading, prevRead, setPrevRead, busy, usage, reward, handleSubmit, verifyKey, wallet, setShowWallet, subs, meters, T, setTab, onEcoSubmit, ecoBusy, ecoUsedThisWeek }) {
   const meterNo  = (meters?.[selUtil] || "").trim();
 
   return (
@@ -2025,7 +2034,57 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
                   </button>
         }
       </div>
+
+      {onEcoSubmit && <EcoBonusCard T={T} wallet={wallet} setShowWallet={setShowWallet} onSubmit={onEcoSubmit} busy={ecoBusy} usedThisWeek={ecoUsedThisWeek} />}
     </>
+  );
+}
+
+// ── Eco-mode bonus card ───────────────────────────────────────────────────────
+// Photograph an appliance (washer / dryer / dishwasher) running in eco mode →
+// a small fixed B3TR bonus, max 4× per rolling week (enforced server-side; the
+// counter shown here is the local view of it).
+const ECO_APPLIANCE_OPTIONS = [
+  { id: "washer",     label: "Washer",     icon: "🫧" },
+  { id: "dryer",      label: "Dryer",      icon: "🌀" },
+  { id: "dishwasher", label: "Dishwasher", icon: "🍽️" },
+];
+const ECO_MAX_PER_WEEK_UI = 4;
+
+function EcoBonusCard({ T, wallet, setShowWallet, onSubmit, busy, usedThisWeek }) {
+  const [appliance, setAppliance] = useState("washer");
+  const fileRef = useRef(null);
+  const left = Math.max(0, ECO_MAX_PER_WEEK_UI - (usedThisWeek || 0));
+  return (
+    <div style={{background:T.card,border:`1px solid ${T.green4||T.border}`,borderRadius:6,padding:"14px",margin:"12px 0"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
+        <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".6px",color:T.green3}}>🌿 Eco Mode Bonus</div>
+        <div style={{fontSize:10,fontWeight:700,color:left ? T.green3 : T.textSoft}}>{left}/{ECO_MAX_PER_WEEK_UI} left this week</div>
+      </div>
+      <div style={{fontSize:10.5,color:T.textMid,lineHeight:1.5,marginBottom:10}}>
+        Running your washer, dryer or dishwasher on the <b>eco setting</b>? Photograph the appliance with the eco mode visible and earn a small bonus. Fresh photo every time.
+      </div>
+      <div style={{display:"flex",gap:6,marginBottom:10}}>
+        {ECO_APPLIANCE_OPTIONS.map(a => (
+          <button key={a.id} onClick={() => setAppliance(a.id)}
+            style={{flex:1,padding:"8px 4px",borderRadius:6,fontSize:11,fontWeight:700,cursor:"pointer",
+              border:`1px solid ${appliance===a.id ? T.green2 : T.border}`,
+              background: appliance===a.id ? (T.greenBg||T.bgAlt) : T.bgAlt,
+              color: appliance===a.id ? T.green3 : T.textMid}}>
+            {a.icon} {a.label}
+          </button>
+        ))}
+      </div>
+      {!wallet
+        ? <button className="sbtn" onClick={() => setShowWallet(true)}>Connect Wallet</button>
+        : <button className="sbtn" disabled={busy || !left} style={!left ? {opacity:.55} : undefined}
+            onClick={() => left && fileRef.current?.click()}>
+            {busy ? <><span className="spin-sm"/> Submitting…</> : !left ? "Weekly limit reached" : "📸 Photograph eco mode"}
+          </button>
+      }
+      <input type="file" ref={fileRef} accept="image/*" capture="environment" style={{display:"none"}}
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onSubmit(f, appliance); }} />
+    </div>
   );
 }
 
@@ -3101,6 +3160,45 @@ export default function App() {
   // Conservation reward: you earn for using LESS than the benchmark, not more.
   const reward = () => (usage() > 0 ? computeReward(selUtil, usage()) : 0);
 
+  // ── Eco-mode bonus ──────────────────────────────────────────────────────────
+  // Photo of an appliance running in eco mode → fixed bonus via the backend.
+  // Server enforces the real weekly cap; this local count drives the UI counter.
+  const [ecoBusy, setEcoBusy] = useState(false);
+  const ecoUsedThisWeek = subs.filter(s => s.type === "eco" && (Date.now() - (s.submittedAt || new Date(s.date).getTime() || 0)) < 7*24*60*60*1000).length;
+  const handleEcoSubmit = async (file, appliance) => {
+    if (!wallet) { openConnectModal(); return; }
+    if (!online) { showToast("🌿 Eco bonus needs a connection — try again when online"); return; }
+    if (!REWARD_API) { showToast("Eco bonus isn't available yet"); return; }
+    setEcoBusy(true);
+    try {
+      const base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] || ""); r.onerror = rej; r.readAsDataURL(file); });
+      let certificate = null;
+      try {
+        const content = `Green Utility Log — confirm eco-mode bonus\nWallet: ${wallet}\nAppliance: ${appliance}\nTime: ${new Date().toISOString()}`;
+        const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } });
+        certificate = { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
+      } catch {
+        showToast("✋ Sign the confirmation in your wallet to claim the eco bonus");
+        return;
+      }
+      const res = await fetch(`${REWARD_API.replace(/\/$/, "")}/eco-action`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: wallet, appliance, photo: base64, photoMime: file.type || "", certificate, captchaToken: "" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `eco service error ${res.status}`);
+      const paid = Number(data.amount) || 0;
+      setSubs(prev => [{ id: Date.now(), type: "eco", appliance, cur: "", prev: "", meterNo: "", date: dayKey(new Date()), b3tr: paid, status: "confirmed", txHash: data.txid || "", submittedAt: Date.now() }, ...prev]);
+      setB3tr(b => b + paid);
+      showToast(`🌿 Eco bonus: +${paid} B3TR!`);
+    } catch (e) {
+      showToast(`❌ Eco bonus failed: ${e?.message || "try again later"}`);
+    } finally {
+      setEcoBusy(false);
+    }
+  };
+
   const handleSubmit = async () => {
     setBusy(true);
     const earned = reward();
@@ -3329,7 +3427,7 @@ export default function App() {
           </div>
 
           {tab==="home"      && <HomeScreen b3tr={b3tr} streak={streak} subs={subs} setTab={setTab} T={T}/>}
-          {tab==="submit"    && <SubmitScreen u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} busy={busy} usage={usage} reward={reward} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab}/>}
+          {tab==="submit"    && <SubmitScreen u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} busy={busy} usage={usage} reward={reward} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab} onEcoSubmit={handleEcoSubmit} ecoBusy={ecoBusy} ecoUsedThisWeek={ecoUsedThisWeek}/>}
           {tab==="charts"    && <ChartsScreen subs={subs} T={T}/>}
           {tab==="leaderboard" && <LeaderboardScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}

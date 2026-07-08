@@ -17,7 +17,7 @@ const R_TOK = (process.env.UPSTASH_REDIS_REST_TOKEN || "").trim();
 const USE_REDIS = !!(R_URL && R_TOK);
 const REDIS_KEY = process.env.STATE_KEY || "greenutilitylog:state";
 
-const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {} };
+const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {} };
 
 async function redisCmd(cmd) {
   const res = await fetch(R_URL, {
@@ -93,6 +93,19 @@ export const store = {
   // client-sent prevRead, so a baseline can't be lowered to inflate a delta.
   lastReading: (meterKey) => (Object.prototype.hasOwnProperty.call(state.readings, meterKey) ? state.readings[meterKey] : null),
   setLastReading: (meterKey, val) => { state.readings[meterKey] = val; persist(); },
+
+  // Eco-bonus claims per wallet: timestamps of paid eco photos. Pruned to the
+  // given window on read, so the count is always "claims in the rolling window".
+  ecoClaims: (addr, windowMs) => {
+    const now = Date.now();
+    const list = (state.ecoClaims[addr] || []).filter((t) => now - t < windowMs);
+    state.ecoClaims[addr] = list;
+    return list;
+  },
+  addEcoClaim: (addr, ts) => {
+    (state.ecoClaims[addr] = state.ecoClaims[addr] || []).push(ts);
+    persist();
+  },
 
   // True when state is backed by a durable store (not the ephemeral file).
   isDurable: () => USE_REDIS,
