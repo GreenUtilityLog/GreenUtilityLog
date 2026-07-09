@@ -183,11 +183,28 @@ async function sendProofReward({ amount, receiver, proofText, impacts, descripti
   );
   // sendTransaction estimates gas, builds, signs and broadcasts; resolves to txid.
   // With DELEGATION_URL set, the gas is paid by the sponsor at that URL (VIP-191).
-  return signer.sendTransaction({
+  const txid = await signer.sendTransaction({
     clauses: [{ to: clause.to, value: "0x0", data: clause.data }],
     comment,
     ...(DELEGATION_URL ? { delegationUrl: DELEGATION_URL } : {}),
   });
+
+  // Broadcast ≠ paid. A broadcast tx can still REVERT on-chain (missing role,
+  // empty pool, …) — and the app/admin panel read the CHAIN, so reporting
+  // success on broadcast produced green toasts for payouts that never landed.
+  // Wait for the receipt and fail loudly on a revert; only a mined, non-reverted
+  // tx counts as success. On a rare timeout we let the txid through (pending).
+  let receipt = null;
+  try {
+    receipt = await thor.transactions.waitForTransaction(txid, { timeoutMs: 30000, intervalMs: 2000 });
+  } catch (e) {
+    console.warn(`[reward] receipt check inconclusive for ${txid}: ${e?.message || e}`);
+  }
+  if (receipt && receipt.reverted) {
+    console.error(`[reward] tx ${txid} REVERTED on-chain`);
+    throw new Error("payout reverted on-chain — open the admin System Check (distributor role / pool / gas) and try again");
+  }
+  return txid;
 }
 
 // Returns the broadcast transaction id. `usage` and `prevRead` are the
