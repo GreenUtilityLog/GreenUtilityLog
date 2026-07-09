@@ -2132,40 +2132,181 @@ function EcoBonusCard({ T, wallet, setShowWallet, onSubmit, busy, usedThisWeek, 
   );
 }
 
+// CO2e grams avoided per unit saved — mirrors the server's on-chain impact model.
+const CO2_PER_UNIT_UI = { electric: 400, gas: 1900, water: 0.34, solar: 400 };
+const ECO_CO2_PER_CLAIM = 200;   // grams per eco-mode run (≈0.5 kWh saved)
+const ECO_KWH_PER_CLAIM = 0.5;
+
 function ChartsScreen({ subs, T }) {
+  const mono = "'SF Mono',Menlo,'Courier New',monospace";
+  const usageOf = (s) => { const u = parseFloat(s.cur) - parseFloat(s.prev); return Number.isFinite(u) && u > 0 ? +u.toFixed(2) : 0; };
+  const meterSubs = subs.filter(s => s.type !== "eco" && usageOf(s) > 0);
+  const ecoSubs   = subs.filter(s => s.type === "eco");
+
+  // ── Headline impact numbers (same model as the on-chain proofs) ────────────
+  const totalB3TR = subs.reduce((a, s) => a + (parseFloat(s.b3tr) || 0), 0);
+  const ecoB3TR   = ecoSubs.reduce((a, s) => a + (parseFloat(s.b3tr) || 0), 0);
+  let savedUnits = 0, co2g = ecoSubs.length * ECO_CO2_PER_CLAIM, kwhSaved = ecoSubs.length * ECO_KWH_PER_CLAIM;
+  for (const s of meterSubs) {
+    const bench = USAGE_BENCHMARK[s.type] ?? 0;
+    if (SAVING_UTILS.has(s.type)) {
+      const saved = Math.max(0, bench - usageOf(s));
+      savedUnits += saved;
+      co2g += saved * (CO2_PER_UNIT_UI[s.type] || 0);
+      if (s.type === "electric") kwhSaved += saved;
+    } else if (s.type === "solar") {
+      co2g += usageOf(s) * CO2_PER_UNIT_UI.solar;
+      kwhSaved += usageOf(s);
+    }
+  }
+  const streak = computeStreak(subs);
+  const co2Label = co2g >= 1000 ? `${(co2g / 1000).toFixed(1)} kg` : `${Math.round(co2g)} g`;
+
+  // ── Weekly B3TR earnings, last 6 calendar weeks (Mon–Sun, local) ───────────
+  const weekStartOf = (ts) => { const d = new Date(ts); d.setHours(0,0,0,0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.getTime(); };
+  const thisWeek = weekStartOf(Date.now());
+  const WEEK = 7 * 24 * 60 * 60 * 1000;
+  const weeks = Array.from({ length: 6 }, (_, i) => ({ start: thisWeek - (5 - i) * WEEK, b3tr: 0, n: 0 }));
+  for (const s of subs) {
+    const ts = s.submittedAt || new Date(s.date).getTime();
+    if (!Number.isFinite(ts)) continue;
+    const w = weeks.find(w => ts >= w.start && ts < w.start + WEEK);
+    if (w) { w.b3tr += parseFloat(s.b3tr) || 0; w.n += 1; }
+  }
+  const weekMax = Math.max(...weeks.map(w => w.b3tr), 0);
+  const wkLabel = (t) => { const d = new Date(t); return `${d.getDate()}/${d.getMonth() + 1}`; };
+  const ecoThisWeek = ecoSubs.filter(s => (s.submittedAt || new Date(s.date).getTime() || 0) >= thisWeek).length;
+
+  // ── Personal records ────────────────────────────────────────────────────────
+  const bestDay = meterSubs.length ? meterSubs.reduce((a, s) => usageOf(s) < usageOf(a) ? s : a) : null;
+  const bestReward = subs.length ? subs.reduce((a, s) => (parseFloat(s.b3tr) || 0) > (parseFloat(a.b3tr) || 0) ? s : a) : null;
+
+  const Tile = ({ icon, val, unit, label, sub }) => (
+    <div className="pstat">
+      <div style={{fontSize:16,marginBottom:2}}>{icon}</div>
+      <div className="pstat-val" style={{fontSize:19}}>{val}<span style={{fontSize:11,fontWeight:600,color:T.textSoft}}> {unit}</span></div>
+      <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".6px",color:T.textSoft,marginTop:2}}>{label}</div>
+      {sub && <div style={{fontSize:9,color:T.textSoft,marginTop:1}}>{sub}</div>}
+    </div>
+  );
+
+  if (!subs.length) return (
+    <>
+      <div className="page-title">Analytics</div>
+      <div className="chart-card" style={{textAlign:"center",padding:"28px 16px"}}>
+        <div style={{fontSize:26,marginBottom:8}}>📊</div>
+        <div style={{fontSize:12,fontWeight:700,color:T.text,marginBottom:4}}>No data yet</div>
+        <div style={{fontSize:11,color:T.textSoft,lineHeight:1.5}}>Submit your first meter reading and your impact statistics will appear here.</div>
+      </div>
+    </>
+  );
+
   return (
     <>
       <div className="page-title">Analytics</div>
+
+      {/* Impact headline — the numbers that tell the sustainability story */}
+      <div className="pstat-row">
+        <Tile icon="🌍" val={co2Label.split(" ")[0]} unit={co2Label.split(" ")[1] + " CO₂e"} label="Emissions avoided" />
+        <Tile icon="⚡" val={kwhSaved.toFixed(1)} unit="kWh" label="Energy saved" sub="vs efficiency target" />
+        <Tile icon="🪙" val={totalB3TR.toFixed(2)} unit="B3TR" label="Total earned" sub={ecoB3TR > 0 ? `${(totalB3TR - ecoB3TR).toFixed(2)} meters · ${ecoB3TR.toFixed(2)} eco` : undefined} />
+        <Tile icon="🔥" val={streak} unit={streak === 1 ? "day" : "days"} label="Streak" sub={`${subs.length} submission${subs.length === 1 ? "" : "s"}`} />
+      </div>
+
+      {/* Usage vs the efficiency target — the core conservation view */}
       {UTILS.map(u => {
-        // Real per-submission consumption (current − previous), last 7, oldest→newest.
         const myS = subs.filter(s => s.type === u.id).slice(0, 7).reverse();
-        const series = myS.map(s => ({
-          v: Math.max(0, (parseFloat(s.cur) - parseFloat(s.prev)) || 0),
-          label: (s.date || "").slice(5).replace("-", "/"),
-        }));
+        const series = myS.map(s => ({ v: usageOf(s), label: (s.date || "").slice(5).replace("-", "/") }));
+        const bench = USAGE_BENCHMARK[u.id] ?? 0;
         const avg = series.length ? series.reduce((a, d) => a + d.v, 0) / series.length : 0;
-        const max = Math.max(...series.map(d => d.v), 0);
+        // Scale so the target line is always on-canvas, even when every bar is below it.
+        const maxScale = Math.max(...series.map(d => d.v), bench * 1.15, 0.001);
+        const underCount = series.filter(d => d.v <= bench).length;
         return (
           <div key={u.id} className="chart-card">
             <div className="chart-hdr">
-              <div className="chart-title">{u.label}</div>
-              <div style={{fontSize:10,color:T.textSoft}}>{series.length} reading{series.length!==1?"s":""}{series.length ? ` · avg ${avg.toFixed(2)} ${u.unit}` : ""}</div>
+              <div className="chart-title">{u.label} — usage vs target</div>
+              <div style={{fontSize:10,color:T.textSoft}}>{series.length ? `avg ${avg.toFixed(1)} ${u.unit}` : ""}</div>
             </div>
             {series.length ? (
-              <div className="chart-bars">
-                {series.map((d, i) => (
-                  <div key={i} className="chart-bar-wrap">
-                    <div className="chart-bar" style={{background: T[u.id]||T.electric, height: max > 0 ? `${Math.max(8, (d.v/max)*100)}%` : "8px"}} title={`${d.v.toFixed(2)} ${u.unit}`}/>
-                    <div className="chart-lbl">{d.label}</div>
-                  </div>
-                ))}
-              </div>
+              <>
+                <div style={{position:"relative",height:110,display:"flex",alignItems:"flex-end",gap:2,padding:"14px 2px 0"}}>
+                  {bench > 0 && (
+                    <div style={{position:"absolute",left:0,right:0,bottom:`${(bench / maxScale) * 100}%`,borderTop:`2px dashed ${T.textSoft}`,zIndex:1}}>
+                      <span style={{position:"absolute",right:2,top:-14,fontSize:9,fontWeight:700,color:T.textSoft,background:T.card,padding:"0 3px"}}>target {bench} {u.unit}</span>
+                    </div>
+                  )}
+                  {series.map((d, i) => (
+                    <div key={i} title={`${d.label}: ${d.v.toFixed(2)} ${u.unit} — ${d.v <= bench ? "under" : "above"} target`}
+                      style={{flex:1,height:`${Math.max(4, (d.v / maxScale) * 100)}%`,background: d.v <= bench ? T.green3 : T.electric,borderRadius:"4px 4px 0 0"}} />
+                  ))}
+                </div>
+                <div style={{display:"flex",gap:2,padding:"2px 2px 0"}}>
+                  {series.map((d, i) => <div key={i} style={{flex:1,textAlign:"center",fontSize:8.5,color:T.textSoft}}>{d.label}</div>)}
+                </div>
+                <div style={{display:"flex",gap:12,marginTop:8,fontSize:9.5,color:T.textMid}}>
+                  <span><span style={{display:"inline-block",width:8,height:8,borderRadius:2,background:T.green3,marginRight:4,verticalAlign:"middle"}}/>under target ({underCount})</span>
+                  <span><span style={{display:"inline-block",width:8,height:8,borderRadius:2,background:T.electric,marginRight:4,verticalAlign:"middle"}}/>above target ({series.length - underCount})</span>
+                </div>
+              </>
             ) : (
               <div style={{padding:"18px 4px",fontSize:11,color:T.textSoft,textAlign:"center"}}>No readings yet — log this meter to see your usage.</div>
             )}
           </div>
         );
       })}
+
+      {/* Earnings per calendar week */}
+      <div className="chart-card">
+        <div className="chart-hdr">
+          <div className="chart-title">B3TR earned per week</div>
+          <div style={{fontSize:10,color:T.textSoft}}>last 6 weeks</div>
+        </div>
+        <div style={{position:"relative",height:90,display:"flex",alignItems:"flex-end",gap:4,padding:"12px 2px 0"}}>
+          {weeks.map((w, i) => (
+            <div key={i} title={`week of ${wkLabel(w.start)}: ${w.b3tr.toFixed(2)} B3TR (${w.n} submission${w.n === 1 ? "" : "s"})`}
+              style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end",height:"100%"}}>
+              {w.b3tr > 0 && w.b3tr === weekMax && <div style={{fontSize:9,fontWeight:700,color:T.textMid,fontFamily:mono,marginBottom:2}}>{w.b3tr.toFixed(1)}</div>}
+              <div style={{width:"100%",height: weekMax > 0 ? `${Math.max(4, (w.b3tr / weekMax) * 72)}%` : "4px",background: w.b3tr > 0 ? T.green3 : T.bgAlt,borderRadius:"4px 4px 0 0"}} />
+            </div>
+          ))}
+        </div>
+        <div style={{display:"flex",gap:4,padding:"2px 2px 0"}}>
+          {weeks.map((w, i) => <div key={i} style={{flex:1,textAlign:"center",fontSize:8.5,color: w.start === thisWeek ? T.green3 : T.textSoft,fontWeight: w.start === thisWeek ? 700 : 400}}>{w.start === thisWeek ? "now" : wkLabel(w.start)}</div>)}
+        </div>
+      </div>
+
+      {/* Eco bonus + personal records */}
+      <div className="chart-card">
+        <div className="chart-hdr"><div className="chart-title">🌿 Eco bonus this week</div><div style={{fontSize:10,color:T.textSoft}}>resets Monday</div></div>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginTop:4}}>
+          <div style={{display:"flex",gap:5}}>
+            {Array.from({ length: 4 }, (_, i) => (
+              <div key={i} style={{width:26,height:26,borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,
+                background: i < ecoThisWeek ? T.green5 : T.bgAlt,border:`1px solid ${i < ecoThisWeek ? T.green3 : T.border}`}}>{i < ecoThisWeek ? "🌿" : ""}</div>
+            ))}
+          </div>
+          <div style={{fontSize:11,color:T.textMid,lineHeight:1.45}}>{ecoThisWeek}/4 claims used · {ecoSubs.length} total ({ecoB3TR.toFixed(2)} B3TR)</div>
+        </div>
+      </div>
+
+      {(bestDay || bestReward) && (
+        <div className="chart-card">
+          <div className="chart-hdr"><div className="chart-title">🏅 Personal records</div></div>
+          {bestDay && (
+            <div style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${T.border}`,fontSize:11}}>
+              <span style={{color:T.textMid}}>Most efficient reading</span>
+              <span style={{fontWeight:700,color:T.green3,fontFamily:mono}}>{usageOf(bestDay).toFixed(2)} {getUtil(bestDay.type).unit} · {bestDay.date}</span>
+            </div>
+          )}
+          {bestReward && (
+            <div style={{display:"flex",justifyContent:"space-between",padding:"7px 0",fontSize:11}}>
+              <span style={{color:T.textMid}}>Biggest single reward</span>
+              <span style={{fontWeight:700,color:T.green3,fontFamily:mono}}>+{(parseFloat(bestReward.b3tr) || 0).toFixed(2)} B3TR · {bestReward.date}</span>
+            </div>
+          )}
+        </div>
+      )}
     </>
   );
 }
