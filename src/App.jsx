@@ -1944,13 +1944,31 @@ function HomeScreen({ b3tr, streak, subs, setTab, T }) {
 
 function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading, setReading, prevRead, setPrevRead, busy, usage, reward, handleSubmit, verifyKey, wallet, setShowWallet, subs, meters, T, setTab, onEcoSubmit, ecoBusy, ecoUsedThisWeek, ecoCooldownMs }) {
   const meterNo  = (meters?.[selUtil] || "").trim();
+  // Two sub-tabs: the meter-reading flow and the eco-mode bonus each get their
+  // own screen instead of being stacked below each other.
+  const [subTab, setSubTab] = useState("meter");
+
+  const segBtn = (active) => ({
+    flex: 1, padding: "10px 8px", borderRadius: 6, fontSize: 12, fontWeight: 800,
+    cursor: "pointer", letterSpacing: ".3px",
+    border: `1px solid ${active ? T.green2 : T.border}`,
+    background: active ? T.green2 : T.bgAlt,
+    color: active ? "#fff" : T.textMid,
+  });
 
   return (
     <>
       <div className="sub-header">
         <div className="sub-title">Daily Submission</div>
-        <div className="sub-sub">Log your meter reading · Earn B3TR on VeChain</div>
+        <div className="sub-sub">{subTab === "eco" ? "Eco-mode bonus · Earn B3TR on VeChain" : "Log your meter reading · Earn B3TR on VeChain"}</div>
       </div>
+
+      <div style={{display:"flex",gap:8,margin:"0 14px 14px"}}>
+        <button style={segBtn(subTab === "meter")} onClick={() => setSubTab("meter")}>📸 Meter Reading</button>
+        {onEcoSubmit && <button style={segBtn(subTab === "eco")} onClick={() => setSubTab("eco")}>🌿 Eco Bonus</button>}
+      </div>
+
+      {subTab === "meter" && (<>
       <div className="util-selector">
         {UTILS.map(ut => (
           <button key={ut.id} className={`utab ${selUtil===ut.id?"active":""}`}
@@ -2034,8 +2052,11 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
                   </button>
         }
       </div>
+      </>)}
 
-      {onEcoSubmit && <EcoBonusCard T={T} wallet={wallet} setShowWallet={setShowWallet} onSubmit={onEcoSubmit} busy={ecoBusy} usedThisWeek={ecoUsedThisWeek} cooldownMs={ecoCooldownMs} />}
+      {subTab === "eco" && onEcoSubmit && (
+        <EcoBonusCard T={T} wallet={wallet} setShowWallet={setShowWallet} onSubmit={onEcoSubmit} busy={ecoBusy} usedThisWeek={ecoUsedThisWeek} cooldownMs={ecoCooldownMs} />
+      )}
     </>
   );
 }
@@ -2059,7 +2080,7 @@ function EcoBonusCard({ T, wallet, setShowWallet, onSubmit, busy, usedThisWeek, 
   const canClaim = left > 0 && !coolingDown;
   const hours = Math.ceil((cooldownMs || 0) / 3600000);
   return (
-    <div style={{background:T.card,border:`1px solid ${T.green4||T.border}`,borderRadius:6,padding:"14px",margin:"12px 0"}}>
+    <div style={{background:T.card,border:`1px solid ${T.green4||T.border}`,borderRadius:6,padding:"14px",margin:"0 14px 14px"}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
         <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".6px",color:T.green3}}>🌿 Eco Mode Bonus</div>
         <div style={{fontSize:10,fontWeight:700,color:left ? T.green3 : T.textSoft}}>{left}/{ECO_MAX_PER_WEEK_UI} left this week</div>
