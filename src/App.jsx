@@ -497,6 +497,7 @@ const LIGHT = {
   gas:"#7a1c1c",      gasBg:"#ede0e0",    gasBorder:"#b88a8a",
   water:"#10386a",    waterBg:"#dde8f4",  waterBorder:"#80a8cc",
   solar:"#264d3a",    solarBg:"#dce8e1",  solarBorder:"#90b8a2",
+  eco:"#264d3a",      ecoBg:"#dce8e1",    ecoBorder:"#90b8a2",
   card:"#f5f2ec", navBg:"rgba(237,233,226,0.97)",
   heroFrom:"#1a3326", heroTo:"#264d3a",
 };
@@ -509,6 +510,7 @@ const DARK = {
   gas:"#db6060",      gasBg:"#200e0e",    gasBorder:"#4a1818",
   water:"#549bdf",    waterBg:"#0c1622",  waterBorder:"#173a64",
   solar:"#69af86",    solarBg:"#0e1c14",  solarBorder:"#1f3e2d",
+  eco:"#69af86",      ecoBg:"#0e1c14",    ecoBorder:"#1f3e2d",
   card:"#17241e", navBg:"rgba(14,23,20,0.97)",
   heroFrom:"#102218", heroTo:"#1f3d2d",
 };
@@ -1136,7 +1138,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .vz-icon{font-size:26px;margin-bottom:2px;}
 .vz-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${T.text};}
 .vz-sub{font-size:10px;color:${T.textSoft};}
-.vz-meter{font-size:10px;font-weight:700;font-family:'DM Mono',monospace;color:${T.green1};background:${T.bgAlt};border:1px solid ${T.border};border-radius:3px;padding:2px 8px;letter-spacing:.4px;}
+.vz-meter{font-size:10px;font-weight:700;font-family:'SF Mono',Menlo,'Courier New',monospace;color:${T.green1};background:${T.bgAlt};border:1px solid ${T.border};border-radius:3px;padding:2px 8px;letter-spacing:.4px;}
 .vz-verifying{display:flex;flex-direction:column;align-items:center;gap:12px;padding:26px;}
 .ai-ring{width:36px;height:36px;border-radius:50%;border:2px solid ${T.border};border-top-color:${T.green3};animation:spin .8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -1167,7 +1169,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .rp-rate{font-size:10px;color:${T.textSoft};margin-top:3px;font-family:'SF Mono',Menlo,'Courier New',monospace;}
 .rp-val{font-size:28px;font-weight:500;color:${T.text};font-family:'SF Mono',Menlo,'Courier New',monospace;letter-spacing:-0.5px;}
 .rp-b3tr{font-size:9px;color:${T.textSoft};text-transform:uppercase;letter-spacing:1.4px;}
-.sbtn{width:100%;background:linear-gradient(135deg,${T.green1},${T.green2});border:none;border-radius:4px;padding:14px;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;letter-spacing:1px;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 12px rgba(26,51,38,0.2);}
+.sbtn{width:100%;background:linear-gradient(135deg,${T.green1},${T.green2});border:none;border-radius:4px;padding:14px;color:${T.bg};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;letter-spacing:1px;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 12px rgba(26,51,38,0.2);}
 .sbtn:hover:not(:disabled){box-shadow:0 6px 20px rgba(26,51,38,0.3);transform:translateY(-1px);}
 .sbtn:disabled{opacity:.4;cursor:not-allowed;}
 
@@ -1477,7 +1479,7 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
         {shown.map(u => {
           const needsMeter = required.includes(u);
           const locked = isLocked(u);
-          const lockedInput = {width:"100%",background:"rgba(26,51,38,0.05)",border:"1px solid rgba(26,51,38,0.12)",borderRadius:3,padding:"7px 10px",fontSize:13,fontFamily:"'DM Mono',monospace",color:"#5a6f64",outline:"none",marginBottom:6,cursor:"not-allowed"};
+          const lockedInput = {width:"100%",background:"rgba(26,51,38,0.05)",border:"1px solid rgba(26,51,38,0.12)",borderRadius:3,padding:"7px 10px",fontSize:13,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:"#5a6f64",outline:"none",marginBottom:6,cursor:"not-allowed"};
           return (
           <div key={u.id} style={{display:"flex",alignItems:"flex-start",gap:12,background:"rgba(26,51,38,0.06)",borderRadius:4,padding:"10px 14px",border:"1px solid rgba(26,51,38,0.12)"}}>
             <span style={{width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center",color:"#264d3a",flexShrink:0,marginTop:2}}>{UTIL_ICONS[u.id]}</span>
@@ -1489,7 +1491,7 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
                 placeholder={needsMeter ? "Meter / EAN number" : "Meter / EAN number (optional)"}
                 value={meters[u.id]}
                 onChange={locked ? undefined : (e => setMeters(m => ({...m,[u.id]:e.target.value})))}
-                style={locked ? lockedInput : {width:"100%",background:"rgba(26,51,38,0.04)",border:`1px solid ${((meters[u.id]||"").trim() || !needsMeter) ? "rgba(26,51,38,0.15)" : "rgba(180,60,40,0.45)"}`,borderRadius:3,padding:"7px 10px",fontSize:13,fontFamily:"'DM Mono',monospace",color:"#0d1812",outline:"none",marginBottom:6}}
+                style={locked ? lockedInput : {width:"100%",background:"rgba(26,51,38,0.04)",border:`1px solid ${((meters[u.id]||"").trim() || !needsMeter) ? "rgba(26,51,38,0.15)" : "rgba(180,60,40,0.45)"}`,borderRadius:3,padding:"7px 10px",fontSize:13,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:"#0d1812",outline:"none",marginBottom:6}}
               />
               {locked ? (
                 <input type="text" readOnly value={`${baselines[u.id] || ""} ${u.unit}`} style={lockedInput} />
@@ -1501,7 +1503,7 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
                 placeholder={`Current reading · e.g. ${u.ph[0]}`}
                 value={baselines[u.id]}
                 onChange={e => setBaselines(b => ({...b,[u.id]:e.target.value}))}
-                style={{width:"100%",boxSizing:"border-box",background:"rgba(26,51,38,0.04)",border:"1px solid rgba(26,51,38,0.15)",borderRadius:3,padding:"7px 10px",fontSize:14,fontFamily:"'DM Mono',monospace",color:"#0d1812",outline:"none"}}
+                style={{width:"100%",boxSizing:"border-box",background:"rgba(26,51,38,0.04)",border:"1px solid rgba(26,51,38,0.15)",borderRadius:3,padding:"7px 10px",fontSize:14,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:"#0d1812",outline:"none"}}
               />
               )}
             </div>
@@ -1628,7 +1630,7 @@ function MeterCropper({ imgUrl, onCancel, onConfirm }) {
   );
 }
 
-function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRead, subs, meterNo }) {
+function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRead, subs, meterNo, T }) {
   const [phase, setPhase] = useState("idle");
   const [result, setResult] = useState(null);
   const [secScore, setSecScore] = useState(null);
@@ -1795,8 +1797,8 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
     <div className="verify-zone error">
       <div className="vz-result">
         {photoUrl && <img className="vz-photo" src={photoUrl} alt="Captured meter" />}
-        <div style={{fontSize:12,fontWeight:700,color:"#7a1c1c",marginBottom:8}}>⚠️ Verification failed</div>
-        <div style={{fontSize:11,color:"#666",marginBottom:12}}>{result.summary}</div>
+        <div style={{fontSize:12,fontWeight:700,color:T?.gas||"#7a1c1c",marginBottom:8}}>⚠️ Verification failed</div>
+        <div style={{fontSize:11,color:T?.textMid||"#666",marginBottom:12}}>{result.summary}</div>
         <div className="vr-retry" onClick={reset}>Try again</div>
       </div>
     </div>
@@ -1812,10 +1814,10 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
         </div>
         <div className="vr-summary">{result.summary}</div>
         {result.anomCheck?.anomaly && (
-          <div style={{marginTop:12,padding:10,background:"#fff3e0",border:"1px solid #FFB74D",borderRadius:4}}>
-            <div style={{fontSize:11,fontWeight:700,color:"#E65100"}}>⚠️ High Usage Detected</div>
-            <div style={{fontSize:10,color:"#666",marginTop:4}}>This reading is {result.anomCheck.avg ? Math.round(result.usageVal/result.anomCheck.avg*100) : "significantly"} higher than your average.</div>
-            <div style={{fontSize:10,color:"#E65100",marginTop:4,fontWeight:600}}>Allow anyway? Tap Submit to continue.</div>
+          <div style={{marginTop:12,padding:10,background:T?.electricBg||"#fff3e0",border:`1px solid ${T?.electricBorder||"#FFB74D"}`,borderRadius:4}}>
+            <div style={{fontSize:11,fontWeight:700,color:T?.electric||"#E65100"}}>⚠️ High Usage Detected</div>
+            <div style={{fontSize:10,color:T?.textMid||"#666",marginTop:4}}>This reading is {result.anomCheck.avg ? `${Math.round((result.usageVal/result.anomCheck.avg - 1)*100)}%` : "significantly"} higher than your average.</div>
+            <div style={{fontSize:10,color:T?.electric||"#E65100",marginTop:4,fontWeight:600}}>Allow anyway? Tap Submit to continue.</div>
           </div>
         )}
         <div className="vr-retry" onClick={reset}>Retake photo</div>
@@ -1884,9 +1886,9 @@ function HistItem({ s, T }) {
     <div className="hitem">
       <div className="hicon" style={{background: getColorBg(s.type, T), color: T[s.type] || T.electric}}>{UTIL_ICONS[s.type]}</div>
       <div className="hinfo">
-        <div className="htitle">{util.label}{s.meterNo ? <span style={{fontWeight:400,color:T.textSoft,fontFamily:"'DM Mono',monospace",fontSize:9}}> · #{s.meterNo}</span> : null}</div>
+        <div className="htitle">{util.label}{s.meterNo ? <span style={{fontWeight:400,color:T.textSoft,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",fontSize:9}}> · #{s.meterNo}</span> : null}</div>
         <div className="hdate">{s.date}</div>
-        <div style={{color: T[s.type] || T.electric}}>{delta} {util.unit}</div>
+        <div style={{color: T[s.type] || T.electric, fontSize: isEco ? 12 : undefined}}>{delta}{util.unit ? ` ${util.unit}` : ""}</div>
       </div>
       <div className="hright">
         <div className="hb3tr">+{parseFloat(s.b3tr).toFixed(2)}</div>
@@ -1949,11 +1951,14 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
   const [subTab, setSubTab] = useState("meter");
 
   const segBtn = (active) => ({
-    flex: 1, padding: "10px 8px", borderRadius: 6, fontSize: 12, fontWeight: 800,
+    flex: 1, padding: "10px 8px", minHeight: 44, borderRadius: 6, fontSize: 12, fontWeight: 800,
     cursor: "pointer", letterSpacing: ".3px",
     border: `1px solid ${active ? T.green2 : T.border}`,
     background: active ? T.green2 : T.bgAlt,
-    color: active ? "#fff" : T.textMid,
+    // T.bg flips with the theme (near-white on light, near-black on dark), so the
+    // active label keeps contrast on the green fill in BOTH themes — plain #fff
+    // fails on dark mode's light green.
+    color: active ? T.bg : T.textMid,
   });
 
   return (
@@ -1968,6 +1973,11 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
         {onEcoSubmit && <button style={segBtn(subTab === "eco")} onClick={() => setSubTab("eco")}>🌿 Eco Bonus</button>}
       </div>
 
+      {/* Captcha lives OUTSIDE the sub-tab conditionals: both the meter submission
+          and the eco claim ride the same token, and the widget must stay mounted
+          when the user switches tabs. */}
+      {TURNSTILE_SITE_KEY && <div id="cf-turnstile" style={{display:"flex",justifyContent:"center",margin:"0 0 12px"}} />}
+
       {subTab === "meter" && (<>
       <div className="util-selector">
         {UTILS.map(ut => (
@@ -1981,10 +1991,10 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
 
       <div style={{margin:"0 14px 12px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"9px 12px",background:meterNo?getColorBg(selUtil,T):T.gasBg,border:`1px solid ${meterNo?(T[selUtil+"Border"]||T.electricBorder):T.gasBorder}`,borderRadius:6}}>
         <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft}}>Registered meter</div>
-        <div style={{fontSize:12,fontWeight:700,fontFamily:"'DM Mono',monospace",color:meterNo?(T[selUtil]||T.text):T.gas}}>{meterNo || "Not registered"}</div>
+        <div style={{fontSize:12,fontWeight:700,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:meterNo?(T[selUtil]||T.text):T.gas}}>{meterNo || "Not registered"}</div>
       </div>
 
-      <VerifyZone key={verifyKey} utilId={selUtil} reading={reading} prevRead={prevRead} subs={subs} meterNo={meterNo}
+      <VerifyZone key={verifyKey} utilId={selUtil} reading={reading} prevRead={prevRead} subs={subs} meterNo={meterNo} T={T}
         onOcrReading={(v) => { if (!String(reading).trim()) setReading(String(v)); }}
         onVerified={(res, img, mime) => { setAiOk(true); setPhoto?.(img ? { base64: img, mime, ocrNums: res?.ocrNums || [], ocrFailed: !!res?.ocrFailed, meterNoConfirmed: res?.meterNoConfirmed ?? null } : null); }}
         onReset={() => { setAiOk(false); setPhoto?.(null); }} />
@@ -1996,7 +2006,7 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
           <li>🔢 Ensure all numbers are visible and readable</li>
           <li>⚡ Avoid shadows or glare on the display</li>
           <li>📱 Hold your phone steady for sharp image</li>
-          <li>🔄 Fresh photo needed - each meter per 20 hours</li>
+          <li>🔄 Fresh photo needed — a photo can only ever earn once</li>
           <li>✓ AI must verify before submitting to blockchain</li>
         </ul>
       </div>
@@ -2020,14 +2030,14 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
           const isSaving = SAVING_UTILS.has(u.id);
           const rateText = isSaving
             ? (saved > 0
-                ? `${base} base + ${saved.toFixed(1)} ${u.unit} saved under ${bench} × ${u.rate}`
-                : `Base only — used ${usage()} ${u.unit} (target ≤ ${bench} ${u.unit})`)
-            : `${base} base + ${usage()} ${u.unit} produced × ${u.rate}`;
+                ? `${base} base + ${saved.toFixed(1)} ${u.unit} saved × ${u.rate} B3TR (target ≤ ${bench} ${u.unit})`
+                : `Base only — used ${usage()} ${u.unit}, target is ≤ ${bench} ${u.unit}`)
+            : `${base} base + ${usage()} ${u.unit} produced × ${u.rate} B3TR`;
           return (
             <div className="reward-preview">
               <div>
-                <div className="rp-label">Estimated Reward · use less, earn more</div>
-                <div className="rp-rate">{rateText}</div>
+                <div className="rp-label">Estimated Reward</div>
+                <div className="rp-rate">Use less, earn more · {rateText}</div>
               </div>
               <div style={{textAlign:"right"}}>
                 <div className="rp-val">+{reward()}</div>
@@ -2036,8 +2046,6 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
             </div>
           );
         })()}
-
-        {TURNSTILE_SITE_KEY && <div id="cf-turnstile" style={{display:"flex",justifyContent:"center",margin:"0 0 12px"}} />}
 
         {!wallet
           ? <button className="sbtn" onClick={() => setShowWallet(true)}>Connect Wallet to Submit</button>
@@ -2066,7 +2074,7 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
 // a small fixed B3TR bonus, max 4× per rolling week (enforced server-side; the
 // counter shown here is the local view of it).
 const ECO_APPLIANCE_OPTIONS = [
-  { id: "washer",     label: "Washer",     icon: "🫧" },
+  { id: "washer",     label: "Washer",     icon: "🧺" },
   { id: "dryer",      label: "Dryer",      icon: "🌀" },
   { id: "dishwasher", label: "Dishwasher", icon: "🍽️" },
 ];
@@ -2091,9 +2099,9 @@ function EcoBonusCard({ T, wallet, setShowWallet, onSubmit, busy, usedThisWeek, 
       <div style={{display:"flex",gap:6,marginBottom:10}}>
         {ECO_APPLIANCE_OPTIONS.map(a => (
           <button key={a.id} onClick={() => setAppliance(a.id)}
-            style={{flex:1,padding:"8px 4px",borderRadius:6,fontSize:11,fontWeight:700,cursor:"pointer",
+            style={{flex:1,padding:"8px 4px",minHeight:44,borderRadius:6,fontSize:11,fontWeight:700,cursor:"pointer",
               border:`1px solid ${appliance===a.id ? T.green2 : T.border}`,
-              background: appliance===a.id ? (T.greenBg||T.bgAlt) : T.bgAlt,
+              background: appliance===a.id ? T.green5 : T.bgAlt,
               color: appliance===a.id ? T.green3 : T.textMid}}>
             {a.icon} {a.label}
           </button>
@@ -2324,7 +2332,7 @@ function HistoryScreen({ subs, T }) {
     <>
       <div style={{padding:"18px 20px 10px",display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
         <div className="page-title" style={{padding:0}}>History</div>
-        <div style={{fontSize:11,color:T.textSoft,fontFamily:"'DM Mono',monospace"}}>{subs.length} total</div>
+        <div style={{fontSize:11,color:T.textSoft,fontFamily:"'SF Mono',Menlo,'Courier New',monospace"}}>{subs.length} total</div>
       </div>
       <div className="filter-row">
         {[{id:"all",l:"All"},...UTILS.map(u=>({id:u.id,l:u.label}))].map(f=>(
@@ -2419,10 +2427,10 @@ function AdminScreen({ onClose, T, onFundPool, onClaimB3TR }) {
         <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"14px"}}>
           <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:6,padding:"12px 14px",marginBottom:14}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
-              <div style={{fontSize:13,fontWeight:700,fontFamily:"'DM Mono',monospace",color:T.text}}>{shortAddr(selected)}</div>
+              <div style={{fontSize:13,fontWeight:700,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:T.text}}>{shortAddr(selected)}</div>
               <button onClick={() => { try { navigator.clipboard.writeText(selected); } catch {} }} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:4,padding:"4px 8px",fontSize:10,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Copy</button>
             </div>
-            <div style={{fontSize:9,color:T.textSoft,wordBreak:"break-all",marginTop:4,fontFamily:"'DM Mono',monospace"}}>{selected}</div>
+            <div style={{fontSize:9,color:T.textSoft,wordBreak:"break-all",marginTop:4,fontFamily:"'SF Mono',Menlo,'Courier New',monospace"}}>{selected}</div>
             <div style={{display:"flex",gap:16,marginTop:10}}>
               <div><span style={{fontSize:15,fontWeight:600,color:T.green3}}>{row ? row.b3tr.toFixed(2) : (detail.rows.reduce((a,r)=>a+(parseFloat(r.b3tr)||0),0)).toFixed(2)}</span> <span style={{fontSize:9,color:T.textSoft}}>B3TR</span></div>
               <div><span style={{fontSize:15,fontWeight:600,color:T.text}}>{detail.rows.length}</span> <span style={{fontSize:9,color:T.textSoft}}>submissions</span></div>
@@ -2437,7 +2445,7 @@ function AdminScreen({ onClose, T, onFundPool, onClaimB3TR }) {
             <div key={i} style={{display:"flex",alignItems:"center",gap:10,background:getColorBg(m.utility,T),border:`1px solid ${T[m.utility+"Border"]||T.border}`,borderRadius:6,padding:"9px 12px",marginBottom:6}}>
               <span style={{fontSize:15}}>{UTIL_ICONS[m.utility]}</span>
               <div style={{flex:1}}>
-                <div style={{fontSize:12,fontWeight:700,fontFamily:"'DM Mono',monospace",color:T.text}}>{m.meterNo}</div>
+                <div style={{fontSize:12,fontWeight:700,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:T.text}}>{m.meterNo}</div>
                 <div style={{fontSize:9,color:T.textSoft,textTransform:"capitalize"}}>{m.utility} · {m.count} reading{m.count!==1?"s":""} · last {m.last}</div>
               </div>
             </div>
@@ -2448,7 +2456,7 @@ function AdminScreen({ onClose, T, onFundPool, onClaimB3TR }) {
             <div key={r.id} className="lb-item">
               <span style={{fontSize:15,marginRight:8}}>{UTIL_ICONS[r.type]}</span>
               <div style={{flex:1}}>
-                <div style={{fontSize:11,color:T.text}}>{r.date} · <span style={{fontFamily:"'DM Mono',monospace"}}>#{r.meterNo||"—"}</span></div>
+                <div style={{fontSize:11,color:T.text}}>{r.date} · <span style={{fontFamily:"'SF Mono',Menlo,'Courier New',monospace"}}>#{r.meterNo||"—"}</span></div>
                 <div style={{fontSize:9,color:T.textSoft}}>{r.prev} → {r.cur}</div>
               </div>
               <div className="lb-b3tr">+{parseFloat(r.b3tr).toFixed(2)}</div>
@@ -2486,13 +2494,13 @@ function AdminScreen({ onClose, T, onFundPool, onClaimB3TR }) {
             <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".6px",color:T.green3,marginBottom:6}}>🎁 Fund rewards pool</div>
             {(() => {
               const empty = pool.status === "live" && pool.b3tr <= 0;
-              const c = pool.status === "live" ? (empty ? (T.gas || "#db6060") : T.green3) : T.textSoft;
+              const c = pool.status === "live" ? (empty ? T.gas : T.green3) : T.textSoft;
               return (
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,background:T.bgAlt,border:`1px solid ${empty ? (T.gasBorder||T.border) : T.border}`,borderRadius:6,padding:"9px 12px",marginBottom:10}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,background:T.bgAlt,border:`1px solid ${empty ? T.gasBorder : T.border}`,borderRadius:6,padding:"9px 12px",marginBottom:10}}>
                   <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".6px",color:T.textSoft}}>Pool balance</span>
-                  <span style={{fontSize:14,fontWeight:700,color:c,fontFamily:"'DM Mono',monospace"}}>
+                  <span style={{display:"inline-flex",alignItems:"center",fontSize:14,fontWeight:700,color:c,fontFamily:"'SF Mono',Menlo,'Courier New',monospace"}}>
                     {pool.status === "loading" ? "…" : pool.status === "error" ? "—" : `${pool.b3tr.toFixed(2)} B3TR`}
-                    {empty && <span style={{fontSize:9,fontWeight:700,marginLeft:6,color:T.gas||"#db6060"}}>EMPTY</span>}
+                    {empty && <span style={{fontSize:9,fontWeight:700,marginLeft:6,color:T.gas,background:T.gasBg,border:`1px solid ${T.gasBorder}`,borderRadius:2,padding:"1px 5px"}}>EMPTY</span>}
                   </span>
                 </div>
               );
@@ -2523,7 +2531,7 @@ function AdminScreen({ onClose, T, onFundPool, onClaimB3TR }) {
           onChange={(e) => setQuery(e.target.value)}
           placeholder="🔎 Search wallet address (0x…)"
           spellCheck={false}
-          style={{width:"100%",boxSizing:"border-box",background:T.card,border:`1px solid ${T.border}`,borderRadius:6,padding:"11px 12px",fontSize:12,color:T.text,fontFamily:"'DM Mono',monospace",outline:"none",marginBottom:12}}
+          style={{width:"100%",boxSizing:"border-box",background:T.card,border:`1px solid ${T.border}`,borderRadius:6,padding:"11px 12px",fontSize:12,color:T.text,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",outline:"none",marginBottom:12}}
         />
 
         {isFullAddr && !filtered.some(r => r.addr.toLowerCase() === q) && (
@@ -2710,8 +2718,8 @@ function HelpScreen({ onClose, onFeedback, T }) {
   ];
   const faqs = [
     { q: "Is this real money?", a: "No. Everything runs on VeChain testnet, so the B3TR you earn are test tokens with no real value — perfect for trying things out safely." },
-    { q: "I submitted but got no B3TR — why?", a: "Most common reasons: the new reading isn't higher than your last one, you're still within the ~20h cooldown for that utility, or the photo was reused/looked like a screenshot. Try a fresh photo of an actual meter." },
-    { q: "What's the cooldown?", a: "You can earn once per utility roughly every 20 hours. This keeps things fair while testing." },
+    { q: "I submitted but got no B3TR — why?", a: "Most common reasons: the new reading isn't higher than your last one, the photo was reused, or a cooldown is active for that utility. Try a fresh photo of an actual meter." },
+    { q: "What's the cooldown?", a: "During the testnet beta the cooldown is disabled so you can test freely. At launch you'll earn once per utility roughly every 20 hours to keep things fair." },
     { q: "My photo was rejected.", a: "Use a real, clear photo of your own meter — good lighting, numbers in focus, no screenshots or photos of a screen." },
     { q: "I cleared my browser / reconnected and lost my meters?", a: "Reconnecting the SAME wallet keeps your meters and baselines. Only connecting a different wallet starts a fresh setup." },
     { q: "My wallet won't connect.", a: "Make sure VeWorld is switched to Testnet. On mobile, use the in-app browser or WalletConnect QR." },
@@ -3202,6 +3210,7 @@ export default function App() {
     if (!wallet) { openConnectModal(); return; }
     if (!online) { showToast("🌿 Eco bonus needs a connection — try again when online"); return; }
     if (!REWARD_API) { showToast("Eco bonus isn't available yet"); return; }
+    if (TURNSTILE_SITE_KEY && !captchaToken) { showToast("🤖 Complete the verification checkbox first"); return; }
     setEcoBusy(true);
     try {
       const base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] || ""); r.onerror = rej; r.readAsDataURL(file); });
@@ -3217,7 +3226,7 @@ export default function App() {
       const res = await fetch(`${REWARD_API.replace(/\/$/, "")}/eco-action`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: wallet, appliance, photo: base64, photoMime: file.type || "", certificate, captchaToken: "" }),
+        body: JSON.stringify({ address: wallet, appliance, photo: base64, photoMime: file.type || "", certificate, captchaToken }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `eco service error ${res.status}`);
