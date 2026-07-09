@@ -252,6 +252,57 @@ export async function fetchPoolBalance({ node, contract, appId, signal } = {}) {
   }
 }
 
+// ── Full payout self-diagnosis (runs in the ADMIN's browser) ─────────────────
+// Checks every classic reason a payout fails, straight from the chain:
+//   1. pool funds for this appId          → distributeReward reverts when 0
+//   2. distributor has the reward role    → reverts when false
+//   3. distributor wallet has VTHO (gas)  → tx can never be sent when 0
+//   4. how many payouts ever landed       → ground truth for "nothing shows up"
+const IS_DISTRIBUTOR_FN = { name: "isRewardDistributor", type: "function", stateMutability: "view", inputs: [{ name: "appId", type: "bytes32" }, { name: "distributor", type: "address" }], outputs: [{ name: "", type: "bool" }] };
+const firstVal = (v) => (Array.isArray(v) ? v[0] : (v && typeof v === "object" ? Object.values(v)[0] : v));
+
+export async function fetchDiagnostics({ node, poolContract, appsContract, appId, distributor, signal } = {}) {
+  const out = { poolB3TR: null, distributorAuthorized: null, distributorVTHO: null, payoutCount: null, lastPayoutAt: null };
+  if (!node || isUnsetAppId(appId)) return out;
+  // 1. pool funds
+  try { const r = await fetchPoolBalance({ node, contract: poolContract, appId, signal }); if (r.ok) out.poolB3TR = r.b3tr; } catch {}
+  // 2. distributor role
+  try {
+    if (distributor && appsContract) {
+      const ok = firstVal(await callView(node, appsContract, IS_DISTRIBUTOR_FN, [appId, distributor], signal));
+      if (ok != null) out.distributorAuthorized = ok === true;
+    }
+  } catch {}
+  // 3. distributor gas (VTHO = the account's `energy`)
+  try {
+    if (distributor) {
+      const res = await fetch(`${node}/accounts/${distributor}`, { signal });
+      if (res.ok) {
+        const acc = await res.json();
+        let wei = 0n; try { wei = BigInt(acc.energy || "0x0"); } catch {}
+        out.distributorVTHO = Number(wei / 10n ** 14n) / 1e4;
+      }
+    }
+  } catch {}
+  // 4. payouts ever recorded for this app
+  try {
+    const res = await fetch(`${node}/logs/event`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ options: { offset: 0, limit: 20 }, criteriaSet: [{ address: poolContract, topic0: REWARD_TOPIC, topic1: appId }], order: "desc" }),
+      signal,
+    });
+    if (res.ok) {
+      const logs = await res.json();
+      if (Array.isArray(logs)) {
+        out.payoutCount = logs.length;
+        out.lastPayoutAt = logs[0]?.meta?.blockTimestamp ? logs[0].meta.blockTimestamp * 1000 : null;
+      }
+    }
+  } catch {}
+  return out;
+}
+
 export async function fetchIsAppAdmin({ node, appsContract, appId, address, signal } = {}) {
   if (!node || !appsContract || !address || isUnsetAppId(appId)) return false;
   const addr = address.toLowerCase();
