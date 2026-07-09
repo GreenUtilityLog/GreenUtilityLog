@@ -1968,6 +1968,11 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
         {onEcoSubmit && <button style={segBtn(subTab === "eco")} onClick={() => setSubTab("eco")}>🌿 Eco Bonus</button>}
       </div>
 
+      {/* Captcha lives OUTSIDE the sub-tab conditionals: both the meter submission
+          and the eco claim ride the same token, and the widget must stay mounted
+          when the user switches tabs. */}
+      {TURNSTILE_SITE_KEY && <div id="cf-turnstile" style={{display:"flex",justifyContent:"center",margin:"0 0 12px"}} />}
+
       {subTab === "meter" && (<>
       <div className="util-selector">
         {UTILS.map(ut => (
@@ -1996,7 +2001,7 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
           <li>🔢 Ensure all numbers are visible and readable</li>
           <li>⚡ Avoid shadows or glare on the display</li>
           <li>📱 Hold your phone steady for sharp image</li>
-          <li>🔄 Fresh photo needed - each meter per 20 hours</li>
+          <li>🔄 Fresh photo needed — a photo can only ever earn once</li>
           <li>✓ AI must verify before submitting to blockchain</li>
         </ul>
       </div>
@@ -2036,8 +2041,6 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
             </div>
           );
         })()}
-
-        {TURNSTILE_SITE_KEY && <div id="cf-turnstile" style={{display:"flex",justifyContent:"center",margin:"0 0 12px"}} />}
 
         {!wallet
           ? <button className="sbtn" onClick={() => setShowWallet(true)}>Connect Wallet to Submit</button>
@@ -3202,6 +3205,7 @@ export default function App() {
     if (!wallet) { openConnectModal(); return; }
     if (!online) { showToast("🌿 Eco bonus needs a connection — try again when online"); return; }
     if (!REWARD_API) { showToast("Eco bonus isn't available yet"); return; }
+    if (TURNSTILE_SITE_KEY && !captchaToken) { showToast("🤖 Complete the verification checkbox first"); return; }
     setEcoBusy(true);
     try {
       const base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] || ""); r.onerror = rej; r.readAsDataURL(file); });
@@ -3217,7 +3221,7 @@ export default function App() {
       const res = await fetch(`${REWARD_API.replace(/\/$/, "")}/eco-action`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: wallet, appliance, photo: base64, photoMime: file.type || "", certificate, captchaToken: "" }),
+        body: JSON.stringify({ address: wallet, appliance, photo: base64, photoMime: file.type || "", certificate, captchaToken }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `eco service error ${res.status}`);
