@@ -165,22 +165,26 @@ function computeImpact({ utility, usage }) {
   return grams > 0 ? { carbon: grams } : {};
 }
 
-// Sign + broadcast one distributeRewardWithProofAndMetadata call. The contract
-// assembles the standard VeBetter proof JSON from proofText/impacts/description
-// and emits it (RewardDistributed); `metadata` is our app-specific JSON, emitted
-// via the RewardMetadata event and merged back in by the app's history decoder.
-async function sendProofReward({ amount, receiver, proofText, impacts, description, metadata, comment }) {
-  if (!signer) throw new Error("distributor key not configured");
-  const impactCodes = [], impactValues = [];
-  for (const [code, val] of Object.entries(impacts || {})) {
-    const v = Math.round(Number(val) || 0);
-    if (v > 0) { impactCodes.push(code); impactValues.push(String(v)); }
-  }
-  const clause = Clause.callFunction(
-    Address.of(CONTRACTS.X2EarnRewardsPool),
-    new ABIFunction(DISTRIBUTE_ABI),
-    [APP_ID, toWei(amount), receiver, ["text"], [proofText], impactCodes, impactValues, description, metadata]
-  );
+// Legacy single-proof-string variant — kept as an automatic fallback in case the
+// deployed pool proxy predates distributeRewardWithProofAndMetadata.
+const LEGACY_DISTRIBUTE_ABI = {
+  name: "distributeReward",
+  type: "function",
+  inputs: [
+    { name: "appId",    type: "bytes32" },
+    { name: "amount",   type: "uint256" },
+    { name: "receiver", type: "address" },
+    { name: "proof",    type: "string"  },
+  ],
+  outputs: [{ name: "", type: "bool" }],
+  stateMutability: "nonpayable",
+};
+
+// Broadcast one clause and wait for its receipt. Broadcast ≠ paid: a broadcast
+// tx can still REVERT on-chain — and the app/admin read the CHAIN, so reporting
+// success on broadcast produced green toasts for payouts that never landed.
+async function sendClause(abi, args, comment) {
+  const clause = Clause.callFunction(Address.of(CONTRACTS.X2EarnRewardsPool), new ABIFunction(abi), args);
   // sendTransaction estimates gas, builds, signs and broadcasts; resolves to txid.
   // With DELEGATION_URL set, the gas is paid by the sponsor at that URL (VIP-191).
   const txid = await signer.sendTransaction({
@@ -188,23 +192,48 @@ async function sendProofReward({ amount, receiver, proofText, impacts, descripti
     comment,
     ...(DELEGATION_URL ? { delegationUrl: DELEGATION_URL } : {}),
   });
-
-  // Broadcast ≠ paid. A broadcast tx can still REVERT on-chain (missing role,
-  // empty pool, …) — and the app/admin panel read the CHAIN, so reporting
-  // success on broadcast produced green toasts for payouts that never landed.
-  // Wait for the receipt and fail loudly on a revert; only a mined, non-reverted
-  // tx counts as success. On a rare timeout we let the txid through (pending).
   let receipt = null;
   try {
     receipt = await thor.transactions.waitForTransaction(txid, { timeoutMs: 30000, intervalMs: 2000 });
   } catch (e) {
     console.warn(`[reward] receipt check inconclusive for ${txid}: ${e?.message || e}`);
   }
-  if (receipt && receipt.reverted) {
-    console.error(`[reward] tx ${txid} REVERTED on-chain`);
+  // On a rare receipt timeout treat as pending (not reverted).
+  return { txid, reverted: !!(receipt && receipt.reverted) };
+}
+
+// Sign + broadcast the payout. Preferred path: distributeRewardWithProofAndMetadata
+// (the contract builds the standard VeBetter proof that wallets recognise, and our
+// app fields ride in `metadata`). If that call REVERTS — e.g. the deployed testnet
+// proxy predates it — we automatically retry once via the legacy distributeReward
+// with a self-built proof JSON, so a payout succeeds on whichever path the
+// deployed contract supports. Only a mined, non-reverted tx counts as success.
+async function sendProofReward({ amount, receiver, proofText, impacts, description, metadata, comment }) {
+  if (!signer) throw new Error("distributor key not configured");
+  const impactCodes = [], impactValues = [], impactObj = {};
+  for (const [code, val] of Object.entries(impacts || {})) {
+    const v = Math.round(Number(val) || 0);
+    if (v > 0) { impactCodes.push(code); impactValues.push(String(v)); impactObj[code] = v; }
+  }
+
+  const modern = await sendClause(
+    DISTRIBUTE_ABI,
+    [APP_ID, toWei(amount), receiver, ["text"], [proofText], impactCodes, impactValues, description, metadata],
+    comment
+  ).catch((e) => { console.warn(`[reward] modern call failed to send: ${e?.message || e}`); return { txid: null, reverted: true }; });
+  if (modern.txid && !modern.reverted) return modern.txid;
+  console.warn(`[reward] distributeRewardWithProofAndMetadata ${modern.txid ? `reverted (${modern.txid})` : "unavailable"} — retrying via legacy distributeReward`);
+
+  let meta = {}; try { meta = JSON.parse(metadata) || {}; } catch {}
+  const legacyProof = JSON.stringify({
+    version: 2, description, proof: { text: proofText }, impact: impactObj, appId: APP_ID, ...meta,
+  });
+  const legacy = await sendClause(LEGACY_DISTRIBUTE_ABI, [APP_ID, toWei(amount), receiver, legacyProof], `${comment} (legacy)`);
+  if (legacy.reverted) {
+    console.error(`[reward] legacy tx ${legacy.txid} ALSO reverted on-chain`);
     throw new Error("payout reverted on-chain — open the admin System Check (distributor role / pool / gas) and try again");
   }
-  return txid;
+  return legacy.txid;
 }
 
 // Returns the broadcast transaction id. `usage` and `prevRead` are the
