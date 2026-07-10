@@ -380,9 +380,13 @@ function pickPlausibleReading(nums, { utilId, prevRead, preferred }) {
     const prevLen = digits(prev);
     const sameLen = pool.filter(n => digits(n) === prevLen).sort((a, b) => b - a);
     if (sameLen.length) return fmt(sameLen[0]);
+    // We HAVE a baseline and nothing fits it — every candidate is OCR garbage
+    // (mangled label text, serial fragments). Autofilling would put a wrong
+    // number in the field, so leave it empty for manual entry instead.
+    return null;
   }
-  // First reading / nothing matched: the reading is normally the figure with the
-  // MOST digits on the dial (not merely the largest value). Submit-time photo check
+  // First reading (no anchor): the reading is normally the figure with the MOST
+  // digits on the dial (not merely the largest value). Submit-time photo check
   // still flags it if wrong, so pre-filling here never bypasses verification.
   return fmt(pool.sort((a, b) => digits(b) - digits(a) || b - a)[0]);
 }
@@ -826,18 +830,24 @@ function extractCandidates(data) {
 }
 
 // Recognise `sources` (one or more pre-processed canvases) with a single worker
-// of the given model. Returns merged candidates + text + best confidence.
+// of the given model. Runs TWO segmentation passes per source — single-line
+// (PSM 7, ideal when the user boxed just the digits) and block (PSM 6, rescues
+// crops that also caught a label line like "Geleverd laag:") — and merges the
+// candidates; the plausibility picker downstream chooses the sane one.
 async function recognizeAll(Tesseract, model, sources) {
   const worker = await makeWorker(Tesseract, model);
   let cands = [], text = "", confidence = 0;
   try {
-    for (const src of sources) {
-      if (!src) continue;
-      const data = await worker.recognize(src).then(r => r.data).catch(() => null);
-      if (!data) continue;
-      cands = cands.concat(extractCandidates(data));
-      if (data.text) text = data.text;
-      confidence = Math.max(confidence, data.confidence || 0);
+    for (const psm of ["7", "6"]) {
+      await worker.setParameters({ tessedit_pageseg_mode: psm }).catch(() => {});
+      for (const src of sources) {
+        if (!src) continue;
+        const data = await worker.recognize(src).then(r => r.data).catch(() => null);
+        if (!data) continue;
+        cands = cands.concat(extractCandidates(data));
+        if (data.text && data.text.trim().length > text.trim().length) text = data.text;
+        confidence = Math.max(confidence, data.confidence || 0);
+      }
     }
   } finally {
     try { await worker.terminate(); } catch {}
@@ -1612,7 +1622,7 @@ function MeterCropper({ imgUrl, onCancel, onConfirm }) {
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(10,18,14,0.96)",zIndex:360,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:16}}>
       <div style={{color:"#fff",fontSize:14,fontWeight:800,marginBottom:4,textAlign:"center"}}>Align the reading</div>
-      <div style={{color:"rgba(255,255,255,0.7)",fontSize:11,marginBottom:14,textAlign:"center"}}>Drag the box over the digits, then tap Scan</div>
+      <div style={{color:"rgba(255,255,255,0.7)",fontSize:11,marginBottom:14,textAlign:"center"}}>Box ONLY the digits row (e.g. 003755) — leave out any text above or below it</div>
       <div style={{position:"relative",maxWidth:"100%",maxHeight:"60vh",touchAction:"none"}}>
         <img ref={imgRef} src={imgUrl} onLoad={onImgLoad} alt="" draggable={false}
           style={{display:"block",maxWidth:"100%",maxHeight:"60vh",userSelect:"none",pointerEvents:"none",borderRadius:6}} />
@@ -1772,7 +1782,7 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
         <div className="vz-idle">
           <div className="vz-icon">✂️</div>
           <div className="vz-title">Align the reading</div>
-          <div className="vz-sub">Box the digits, then scan</div>
+          <div className="vz-sub">Box only the digits row, then scan</div>
         </div>
       </div>
       <MeterCropper imgUrl={photoUrl} onCancel={reset} onConfirm={(cropBlob) => runVerify(origFileRef.current, cropBlob)} />
