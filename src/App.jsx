@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useWallet, useWalletModal } from "@vechain/dapp-kit-react";
 import { Clause, Address, ABIFunction } from "@vechain/sdk-core";
-import { fetchOnChainLeaderboard, fetchWalletHistory, fetchIsAppAdmin, fetchPoolBalance } from "./leaderboard.js";
+import { fetchOnChainLeaderboard, fetchWalletHistory, fetchIsAppAdmin, fetchPoolBalance, fetchDiagnostics } from "./leaderboard.js";
 
 // ════════════════════════════════════════════════════════════════════════════
 // APP VERSION & VECHAIN KIT
@@ -36,6 +36,9 @@ const NETWORKS = {
 export const ACTIVE_NODE = NETWORKS[NETWORK].node;
 const CONTRACTS = NETWORKS[NETWORK].contracts;
 const NETWORK_LABEL = NETWORK === "mainnet" ? "VeChain Mainnet" : "VeChain Testnet";
+// Block explorer for the active network — history rows and admin checks link here
+// so every payout is verifiable on-chain with one tap.
+const EXPLORER = NETWORK === "mainnet" ? "https://explore.vechain.org" : "https://explore-testnet.vechain.org";
 
 // ── YOUR APP ID — set this after registering on VeBetterDAO ───────────────
 // Get your App ID by registering at the governance site (testnet:
@@ -1882,12 +1885,18 @@ function HistItem({ s, T }) {
   const delta = isEco
     ? (ECO_APPLIANCE_LABELS[s.appliance] || "Eco run")
     : (parseFloat(s.cur) - parseFloat(s.prev)).toFixed(2);
+  // Tapping a paid submission opens the real transaction on the block explorer —
+  // one-tap on-chain proof (VeWorld's own Activity tab won't show these, because
+  // the user's wallet never signs the payout; the distributor does).
+  const txUrl = s.txHash ? `${EXPLORER}/transactions/${s.txHash}` : null;
   return (
-    <div className="hitem">
+    <div className="hitem" onClick={() => { if (txUrl) window.open(txUrl, "_blank", "noopener"); }}
+      style={txUrl ? { cursor: "pointer" } : undefined}
+      title={txUrl ? "View this transaction on the VeChain explorer" : undefined}>
       <div className="hicon" style={{background: getColorBg(s.type, T), color: T[s.type] || T.electric}}>{UTIL_ICONS[s.type]}</div>
       <div className="hinfo">
         <div className="htitle">{util.label}{s.meterNo ? <span style={{fontWeight:400,color:T.textSoft,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",fontSize:9}}> · #{s.meterNo}</span> : null}</div>
-        <div className="hdate">{s.date}</div>
+        <div className="hdate">{s.date}{txUrl ? <span style={{color:T.textSoft}}> · tx ↗</span> : null}</div>
         <div style={{color: T[s.type] || T.electric, fontSize: isEco ? 12 : undefined}}>{delta}{util.unit ? ` ${util.unit}` : ""}</div>
       </div>
       <div className="hright">
@@ -2359,6 +2368,31 @@ function AdminScreen({ onClose, T, onFundPool, onClaimB3TR }) {
   const [claiming, setClaiming] = useState(false);
   // How much B3TR the app's reward pool currently has to pay out.
   const [pool, setPool] = useState({ status: "loading", b3tr: 0 });
+  // Full payout self-diagnosis: backend health + on-chain checks, run from THIS
+  // browser so it works even when the server can't see the chain. Pinpoints the
+  // exact reason payouts fail instead of leaving the admin guessing.
+  const [diag, setDiag] = useState({ status: "loading" });
+
+  async function runDiagnostics(signal) {
+    const d = { status: "done", backend: null, health: null, chain: null };
+    try {
+      const res = await fetch(`${REWARD_API.replace(/\/$/, "")}/health`, { signal });
+      d.backend = res.ok;
+      if (res.ok) d.health = await res.json();
+    } catch { d.backend = false; }
+    const distributor = d.health?.distributor || null;
+    try {
+      d.chain = await fetchDiagnostics({
+        node: ACTIVE_NODE,
+        poolContract: CONTRACTS.X2EarnRewardsPool,
+        appsContract: CONTRACTS.X2EarnApps,
+        appId: VEBETTER_APP_ID,
+        distributor,
+        signal,
+      });
+    } catch { d.chain = null; }
+    setDiag(d);
+  }
 
   function refreshPool(signal) {
     return fetchPoolBalance({ node: ACTIVE_NODE, contract: CONTRACTS.X2EarnRewardsPool, appId: VEBETTER_APP_ID, signal })
@@ -2373,6 +2407,7 @@ function AdminScreen({ onClose, T, onFundPool, onClaimB3TR }) {
       .then(res => { if (!cancelled) setChain(res.ok ? { status: "live", rows: res.rows } : { status: "empty", rows: [], reason: res.reason }); })
       .catch(() => { if (!cancelled) setChain({ status: "error", rows: [] }); });
     refreshPool(ctrl.signal);
+    runDiagnostics(ctrl.signal).catch(() => {});
     return () => { cancelled = true; ctrl.abort(); };
   }, []);
 
@@ -2488,6 +2523,50 @@ function AdminScreen({ onClose, T, onFundPool, onClaimB3TR }) {
             </div>
           ))}
         </div>
+
+        {(() => {
+          const h = diag.health, c = diag.chain;
+          const authorized = c?.distributorAuthorized ?? h?.distributorAuthorized ?? null;
+          const poolOk = (c?.poolB3TR ?? h?.poolB3TR ?? null);
+          const vtho = c?.distributorVTHO ?? null;
+          const payouts = c?.payoutCount ?? null;
+          const Row = ({ ok, label, fix }) => (
+            <div style={{display:"flex",gap:8,alignItems:"flex-start",padding:"6px 0",borderBottom:`1px solid ${T.border}`}}>
+              <span style={{fontSize:13,lineHeight:"16px"}}>{ok === null ? "◌" : ok ? "✅" : "❌"}</span>
+              <div style={{flex:1}}>
+                <div style={{fontSize:11.5,fontWeight:700,color:ok === false ? T.gas : T.text}}>{label}</div>
+                {ok === false && fix && <div style={{fontSize:10.5,color:T.textMid,lineHeight:1.45,marginTop:2}}>{fix}</div>}
+              </div>
+            </div>
+          );
+          return (
+            <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:6,padding:"12px 14px",marginBottom:12}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".6px",color:T.green3}}>🩺 System check</div>
+                <button onClick={() => { setDiag({ status: "loading" }); runDiagnostics().catch(() => {}); }}
+                  style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"5px 10px",fontSize:10,fontWeight:700,color:T.textMid,cursor:"pointer"}}>
+                  {diag.status === "loading" ? "…" : "↻ Re-run"}
+                </button>
+              </div>
+              {diag.status === "loading" ? (
+                <div style={{fontSize:11,color:T.textSoft,padding:"8px 0"}}>Running checks…</div>
+              ) : (
+                <>
+                  <Row ok={diag.backend} label={`Reward backend online${h?.network ? ` (${h.network})` : ""}`}
+                    fix="The Render service is unreachable or asleep — open the /health URL once to wake it, and check the Render dashboard." />
+                  <Row ok={authorized} label="Distributor wallet has the reward-distributor role"
+                    fix={`THIS IS THE USUAL CAUSE OF REVERTED PAYOUTS. In the VeBetterDAO testnet dashboard, open your app → settings → Reward distributors, and add ${h?.distributor || "the distributor wallet"} — then sign and retry.`} />
+                  <Row ok={poolOk === null ? null : poolOk > 0} label={`Reward pool funded${poolOk != null ? ` (${poolOk.toFixed(2)} B3TR)` : ""}`}
+                    fix="The pool for this app id is empty — use the Fund rewards pool card below." />
+                  <Row ok={vtho === null ? null : vtho >= 1} label={`Distributor has gas${vtho != null ? ` (${vtho.toFixed(1)} VTHO)` : ""}`}
+                    fix={`Send free testnet VTHO to ${h?.distributor || "the distributor wallet"} via faucet.vecha.in.`} />
+                  <Row ok={payouts === null ? null : payouts > 0} label={payouts != null ? `${payouts >= 20 ? "20+" : payouts} payout${payouts === 1 ? "" : "s"} recorded on-chain${c?.lastPayoutAt ? ` — last ${new Date(c.lastPayoutAt).toLocaleString()}` : ""}` : "Payouts recorded on-chain"}
+                    fix="No payout has EVER landed on-chain for this app id. Fix the failing checks above, submit a reading, then re-run this check." />
+                </>
+              )}
+            </div>
+          );
+        })()}
 
         {onFundPool && (
           <div style={{background:T.card,border:`1px solid ${T.green4||T.border}`,borderRadius:6,padding:"12px 14px",marginBottom:12}}>
