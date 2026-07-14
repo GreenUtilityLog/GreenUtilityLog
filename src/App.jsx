@@ -40,6 +40,19 @@ const NETWORK_LABEL = NETWORK === "mainnet" ? "VeChain Mainnet" : "VeChain Testn
 // so every payout is verifiable on-chain with one tap.
 const EXPLORER = NETWORK === "mainnet" ? "https://explore.vechain.org" : "https://explore-testnet.vechain.org";
 
+// Photos must come from a PHONE CAMERA, not a file picker. The inputs use
+// capture="environment" (mobile browsers open the camera directly), desktop is
+// blocked entirely, and a freshness gate rejects photos not taken just now —
+// gallery picks and downloaded/AI-generated images are minutes-to-years old.
+const IS_MOBILE = typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || "");
+const MAX_PHOTO_AGE_MS = 15 * 60 * 1000; // camera capture is seconds old; be lenient for slow flows
+function photoTooOld(file) {
+  // Some webviews report lastModified 0/epoch for camera shots — only reject
+  // when we positively know the file is old (a real timestamp well in the past).
+  const lm = Number(file?.lastModified) || 0;
+  return lm > 24 * 60 * 60 * 1000 && (Date.now() - lm) > MAX_PHOTO_AGE_MS;
+}
+
 // ── YOUR APP ID — set this after registering on VeBetterDAO ───────────────
 // Get your App ID by registering at the governance site (testnet:
 // https://staging.testnet.governance.vebetterdao.org/apps). It is a bytes32
@@ -1757,6 +1770,15 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
 
   const handleFile = (e) => {
     const file = e.target.files[0]; if (!file) return;
+    e.target.value = "";
+    // Freshness gate: a camera capture is seconds old. A file that is verifiably
+    // older was picked from the gallery or downloaded (where AI-generated images
+    // come from) — reject it and ask for a live shot.
+    if (photoTooOld(file)) {
+      setResult({ summary: "This photo wasn't taken just now. Tap the camera and photograph your meter live — gallery uploads and saved images aren't accepted." });
+      setPhase("error");
+      return;
+    }
     origFileRef.current = file;
     setPhotoUrl(URL.createObjectURL(file));   // show a preview of what was captured
     setPhase("crop");                          // let the user box the reading first
@@ -1764,13 +1786,25 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
 
   const reset = () => { setPhase("idle"); setResult(null); setSecScore(null); setPhotoUrl(null); origFileRef.current = null; onReset(); };
 
+  // Desktop has no phone camera — and a file picker invites downloaded or
+  // AI-generated images. Block capture entirely outside a mobile browser.
+  if (phase === "idle" && !IS_MOBILE) return (
+    <div className="verify-zone">
+      <div className="vz-idle">
+        <div className="vz-icon">📵</div>
+        <div className="vz-title">Phone camera required</div>
+        <div className="vz-sub">Open this app on your phone (VeWorld's in-app browser) and photograph the meter live — file uploads aren't accepted.</div>
+      </div>
+    </div>
+  );
+
   if (phase === "idle") return (
     <div className="verify-zone" onClick={() => cooldownMs === 0 && fileInputRef.current?.click()}>
       <div className="vz-idle">
         <div className="vz-icon">📸</div>
         <div className="vz-title">Verify Meter</div>
         {meterNo && <div className="vz-meter">Meter #{meterNo}</div>}
-        <div className="vz-sub">{cooldownMs > 0 ? `Next submission in ${fmtCooldown(cooldownMs)}` : "Tap to photograph"}</div>
+        <div className="vz-sub">{cooldownMs > 0 ? `Next submission in ${fmtCooldown(cooldownMs)}` : "Tap to photograph with your camera"}</div>
       </div>
       <input type="file" ref={fileInputRef} onChange={handleFile} accept="image/*" style={{display:"none"}} capture="environment" />
     </div>
@@ -2147,7 +2181,9 @@ function EcoBonusCard({ T, wallet, setShowWallet, onSubmit, busy, usedThisWeek, 
           </button>
         ))}
       </div>
-      {!wallet
+      {!IS_MOBILE
+        ? <button className="sbtn" disabled style={{opacity:.55}}>📵 Phone camera required — open on your phone</button>
+        : !wallet
         ? <button className="sbtn" onClick={() => setShowWallet(true)}>Connect Wallet</button>
         : <button className="sbtn" disabled={busy || !canClaim} style={!canClaim ? {opacity:.55} : undefined}
             onClick={() => canClaim && fileRef.current?.click()}>
@@ -3504,6 +3540,7 @@ export default function App() {
     if (!online) { showToast("🌿 Eco bonus needs a connection — try again when online"); return; }
     if (!REWARD_API) { showToast("Eco bonus isn't available yet"); return; }
     if (TURNSTILE_SITE_KEY && !captchaToken) { showToast("🤖 Complete the verification checkbox first"); return; }
+    if (photoTooOld(file)) { showToast("📸 Take the photo live with your camera — saved images aren't accepted"); return; }
     setEcoBusy(true);
     try {
       const base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] || ""); r.onerror = rej; r.readAsDataURL(file); });
