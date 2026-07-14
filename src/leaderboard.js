@@ -259,13 +259,25 @@ export async function fetchPoolBalance({ node, contract, appId, signal } = {}) {
 //   3. distributor wallet has VTHO (gas)  → tx can never be sent when 0
 //   4. how many payouts ever landed       → ground truth for "nothing shows up"
 const IS_DISTRIBUTOR_FN = { name: "isRewardDistributor", type: "function", stateMutability: "view", inputs: [{ name: "appId", type: "bytes32" }, { name: "distributor", type: "address" }], outputs: [{ name: "", type: "bool" }] };
+// v10 two-bucket model: when the rewards-pool feature is enabled for an app,
+// distributeReward pays from rewardsPoolBalance, NOT from availableFunds —
+// deposits land in availableFunds and must be moved over by the app admin.
+const REWARDS_POOL_ENABLED_FN = { name: "isRewardsPoolEnabled", type: "function", stateMutability: "view", inputs: [{ name: "appId", type: "bytes32" }], outputs: [{ name: "", type: "bool" }] };
+const REWARDS_POOL_BALANCE_FN = { name: "rewardsPoolBalance", type: "function", stateMutability: "view", inputs: [{ name: "appId", type: "bytes32" }], outputs: [{ name: "", type: "uint256" }] };
 const firstVal = (v) => (Array.isArray(v) ? v[0] : (v && typeof v === "object" ? Object.values(v)[0] : v));
 
 export async function fetchDiagnostics({ node, poolContract, appsContract, appId, distributor, signal } = {}) {
-  const out = { poolB3TR: null, distributorAuthorized: null, distributorVTHO: null, payoutCount: null, lastPayoutAt: null };
+  const out = { poolB3TR: null, distributorAuthorized: null, distributorVTHO: null, payoutCount: null, lastPayoutAt: null, rewardsPoolEnabled: null, rewardsPoolB3TR: null };
   if (!node || isUnsetAppId(appId)) return out;
   // 1. pool funds
   try { const r = await fetchPoolBalance({ node, contract: poolContract, appId, signal }); if (r.ok) out.poolB3TR = r.b3tr; } catch {}
+  // 1b. distributable rewards-pool bucket
+  try {
+    const en = firstVal(await callView(node, poolContract, REWARDS_POOL_ENABLED_FN, [appId], signal));
+    if (en != null) out.rewardsPoolEnabled = en === true;
+    const bal = firstVal(await callView(node, poolContract, REWARDS_POOL_BALANCE_FN, [appId], signal));
+    if (bal != null) { let wei = 0n; try { wei = BigInt(bal); } catch {} out.rewardsPoolB3TR = Number(wei / 10n ** 14n) / 1e4; }
+  } catch {}
   // 2. distributor role
   try {
     if (distributor && appsContract) {
