@@ -60,6 +60,8 @@ app.get("/health", async (req, res) => {
     distributorAuthorized: chain.distributorAuthorized,
     rewardsPoolEnabled: chain.rewardsPoolEnabled,
     rewardsPoolB3TR: chain.rewardsPoolB3TR,
+    // Gas sponsorship (VIP-191): when set, the distributor needs no VTHO of its own.
+    delegation: !!(process.env.DELEGATION_URL || "").trim(),
   });
 });
 

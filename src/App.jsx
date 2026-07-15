@@ -44,7 +44,19 @@ const EXPLORER = NETWORK === "mainnet" ? "https://explore.vechain.org" : "https:
 // capture="environment" (mobile browsers open the camera directly), desktop is
 // blocked entirely, and a freshness gate rejects photos not taken just now —
 // gallery picks and downloaded/AI-generated images are minutes-to-years old.
-const IS_MOBILE = typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || "");
+// iPadOS 13+ reports a Macintosh UA — detect it via multi-touch support.
+const IS_MOBILE = typeof navigator !== "undefined" && (
+  /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || "") ||
+  ((navigator.maxTouchPoints || 0) > 1 && /Macintosh/i.test(navigator.userAgent || ""))
+);
+
+// Parse a "YYYY-MM-DD" day key as LOCAL midnight. `new Date("YYYY-MM-DD")` parses
+// as UTC midnight, which shifts the day in western timezones and puts records in
+// the wrong week bucket. Used as the fallback when a record has no submittedAt.
+function localDayTs(dateStr) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateStr || ""));
+  return m ? new Date(+m[1], +m[2] - 1, +m[3]).getTime() : NaN;
+}
 const MAX_PHOTO_AGE_MS = 15 * 60 * 1000; // camera capture is seconds old; be lenient for slow flows
 function photoTooOld(file) {
   // Some webviews report lastModified 0/epoch for camera shots — only reject
@@ -2235,14 +2247,14 @@ function ChartsScreen({ subs, T }) {
   const WEEK = 7 * 24 * 60 * 60 * 1000;
   const weeks = Array.from({ length: 6 }, (_, i) => ({ start: thisWeek - (5 - i) * WEEK, b3tr: 0, n: 0 }));
   for (const s of subs) {
-    const ts = s.submittedAt || new Date(s.date).getTime();
+    const ts = s.submittedAt || localDayTs(s.date);
     if (!Number.isFinite(ts)) continue;
     const w = weeks.find(w => ts >= w.start && ts < w.start + WEEK);
     if (w) { w.b3tr += parseFloat(s.b3tr) || 0; w.n += 1; }
   }
   const weekMax = Math.max(...weeks.map(w => w.b3tr), 0);
   const wkLabel = (t) => { const d = new Date(t); return `${d.getDate()}/${d.getMonth() + 1}`; };
-  const ecoThisWeek = ecoSubs.filter(s => (s.submittedAt || new Date(s.date).getTime() || 0) >= thisWeek).length;
+  const ecoThisWeek = ecoSubs.filter(s => (s.submittedAt || localDayTs(s.date) || 0) >= thisWeek).length;
 
   // ── Personal records ────────────────────────────────────────────────────────
   const bestDay = meterSubs.length ? meterSubs.reduce((a, s) => usageOf(s) < usageOf(a) ? s : a) : null;
@@ -2284,7 +2296,10 @@ function ChartsScreen({ subs, T }) {
       {UTILS.map(u => {
         const myS = subs.filter(s => s.type === u.id).slice(0, 7).reverse();
         const series = myS.map(s => ({ v: usageOf(s), label: (s.date || "").slice(5).replace("-", "/") }));
-        const bench = USAGE_BENCHMARK[u.id] ?? 0;
+        // Production meters (solar) have no "stay under" target — more is better,
+        // so they get plain green bars and no target framing.
+        const saving = SAVING_UTILS.has(u.id);
+        const bench = saving ? (USAGE_BENCHMARK[u.id] ?? 0) : 0;
         const avg = series.length ? series.reduce((a, d) => a + d.v, 0) / series.length : 0;
         // Scale so the target line is always on-canvas, even when every bar is below it.
         const maxScale = Math.max(...series.map(d => d.v), bench * 1.15, 0.001);
@@ -2292,7 +2307,7 @@ function ChartsScreen({ subs, T }) {
         return (
           <div key={u.id} className="chart-card">
             <div className="chart-hdr">
-              <div className="chart-title">{u.label} — usage vs target</div>
+              <div className="chart-title">{u.label} — {saving ? "usage vs target" : "production"}</div>
               <div style={{fontSize:10,color:T.textSoft}}>{series.length ? `avg ${avg.toFixed(1)} ${u.unit}` : ""}</div>
             </div>
             {series.length ? (
@@ -2304,17 +2319,19 @@ function ChartsScreen({ subs, T }) {
                     </div>
                   )}
                   {series.map((d, i) => (
-                    <div key={i} title={`${d.label}: ${d.v.toFixed(2)} ${u.unit} — ${d.v <= bench ? "under" : "above"} target`}
-                      style={{flex:1,height:`${Math.max(4, (d.v / maxScale) * 100)}%`,background: d.v <= bench ? T.green3 : T.electric,borderRadius:"4px 4px 0 0"}} />
+                    <div key={i} title={`${d.label}: ${d.v.toFixed(2)} ${u.unit}${saving ? ` — ${d.v <= bench ? "under" : "above"} target` : " produced"}`}
+                      style={{flex:1,height:`${Math.max(4, (d.v / maxScale) * 100)}%`,background: !saving || d.v <= bench ? T.green3 : T.electric,borderRadius:"4px 4px 0 0"}} />
                   ))}
                 </div>
                 <div style={{display:"flex",gap:2,padding:"2px 2px 0"}}>
                   {series.map((d, i) => <div key={i} style={{flex:1,textAlign:"center",fontSize:8.5,color:T.textSoft}}>{d.label}</div>)}
                 </div>
+                {saving && (
                 <div style={{display:"flex",gap:12,marginTop:8,fontSize:9.5,color:T.textMid}}>
                   <span><span style={{display:"inline-block",width:8,height:8,borderRadius:2,background:T.green3,marginRight:4,verticalAlign:"middle"}}/>under target ({underCount})</span>
                   <span><span style={{display:"inline-block",width:8,height:8,borderRadius:2,background:T.electric,marginRight:4,verticalAlign:"middle"}}/>above target ({series.length - underCount})</span>
                 </div>
+                )}
               </>
             ) : (
               <div style={{padding:"18px 4px",fontSize:11,color:T.textSoft,textAlign:"center"}}>No readings yet — log this meter to see your usage.</div>
@@ -2764,21 +2781,29 @@ function AdminScreen({ onClose, T, onFundPool, onMoveToRewardsPool, onClaimB3TR 
                     fix="The Render service is unreachable or asleep — open the /health URL once to wake it, and check the Render dashboard." />
                   <Row ok={authorized} label="Distributor wallet has the reward-distributor role"
                     fix={`THIS IS THE USUAL CAUSE OF REVERTED PAYOUTS. In the VeBetterDAO testnet dashboard, open your app → settings → Reward distributors, and add ${h?.distributor || "the distributor wallet"} — then sign and retry.`} />
-                  <Row ok={poolOk === null ? null : poolOk > 0} label={`Reward pool funded${poolOk != null ? ` (${poolOk.toFixed(2)} B3TR available)` : ""}`}
-                    fix="The pool for this app id is empty — use the Fund rewards pool card below." />
                   {(() => {
                     const rpEnabled = c?.rewardsPoolEnabled ?? h?.rewardsPoolEnabled ?? null;
                     const rpBal = c?.rewardsPoolB3TR ?? h?.rewardsPoolB3TR ?? null;
+                    // With the rewards-pool feature ON, moving the whole deposit into
+                    // the distributable bucket legitimately empties availableFunds —
+                    // total funding is what matters, so count BOTH buckets here.
+                    const totalFunded = (poolOk ?? 0) + (rpEnabled === true ? (rpBal ?? 0) : 0);
+                    const fundedOk = poolOk === null && rpBal === null ? null : totalFunded > 0;
                     // Feature off → payouts draw straight from available funds (fine).
                     // Feature ON → the distributable bucket itself must hold B3TR.
-                    const ok = rpEnabled === null ? null : (rpEnabled === false ? true : (rpBal === null ? null : rpBal > 0));
-                    return <Row ok={ok}
-                      label={rpEnabled === false
-                        ? "Distributable balance (rewards-pool feature off — pays from available funds)"
-                        : `Distributable rewards-pool balance${rpBal != null ? ` (${rpBal.toFixed(2)} B3TR)` : ""}`}
-                      fix="FOUND IT — the rewards-pool feature is ON for this app, so payouts draw from THIS bucket, not from 'available funds'. Your deposit is sitting in the wrong bucket. Use the 'Move to rewards pool' button below (you sign as app admin), then re-run this check." />;
+                    const distOk = rpEnabled === null ? null : (rpEnabled === false ? true : (rpBal === null ? null : rpBal > 0));
+                    return (<>
+                      <Row ok={fundedOk} label={`Reward pool funded${poolOk != null ? ` (${poolOk.toFixed(2)} available${rpEnabled === true && rpBal != null ? ` + ${rpBal.toFixed(2)} distributable` : ""})` : ""}`}
+                        fix="No B3TR in either bucket for this app id — use the Fund rewards pool card below." />
+                      <Row ok={distOk}
+                        label={rpEnabled === false
+                          ? "Distributable balance (rewards-pool feature off — pays from available funds)"
+                          : `Distributable rewards-pool balance${rpBal != null ? ` (${rpBal.toFixed(2)} B3TR)` : ""}`}
+                        fix="FOUND IT — the rewards-pool feature is ON for this app, so payouts draw from THIS bucket, not from 'available funds'. Your deposit is sitting in the wrong bucket. Use the 'Move to rewards pool' button below (you sign as app admin), then re-run this check." />
+                    </>);
                   })()}
-                  <Row ok={vtho === null ? null : vtho >= 1} label={`Distributor has gas${vtho != null ? ` (${vtho.toFixed(1)} VTHO)` : ""}`}
+                  <Row ok={h?.delegation ? true : (vtho === null ? null : vtho >= 1)}
+                    label={h?.delegation ? "Gas sponsored via fee delegation" : `Distributor has gas${vtho != null ? ` (${vtho.toFixed(1)} VTHO)` : ""}`}
                     fix={`Send free testnet VTHO to ${h?.distributor || "the distributor wallet"} via faucet.vecha.in.`} />
                   <Row ok={payouts === null ? null : payouts > 0} label={payouts != null ? `${payouts >= 20 ? "20+" : payouts} payout${payouts === 1 ? "" : "s"} recorded on-chain${c?.lastPayoutAt ? ` — last ${new Date(c.lastPayoutAt).toLocaleString()}` : ""}` : "Payouts recorded on-chain"}
                     fix="No payout has EVER landed on-chain for this app id. Fix the failing checks above, submit a reading, then re-run this check." />
@@ -3530,7 +3555,7 @@ export default function App() {
   // CALENDAR week (Monday–Sunday, resets Monday morning) + 24h between claims.
   const [ecoBusy, setEcoBusy] = useState(false);
   const ecoWeekStart = (() => { const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.getTime(); })();
-  const ecoSubTs = (s) => s.submittedAt || new Date(s.date).getTime() || 0;
+  const ecoSubTs = (s) => s.submittedAt || localDayTs(s.date) || 0;
   const ecoSubs = subs.filter(s => s.type === "eco");
   const ecoUsedThisWeek = ecoSubs.filter(s => ecoSubTs(s) >= ecoWeekStart).length;
   const ecoLastTs = ecoSubs.reduce((a, s) => Math.max(a, ecoSubTs(s)), 0);
