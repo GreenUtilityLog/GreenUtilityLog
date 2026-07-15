@@ -153,5 +153,7 @@ export const CUSTOM_OCR_URL = process.env.CUSTOM_OCR_URL || "";
 
 // Order to try the OCR providers in; the first that returns a result wins. Any not
 // configured are skipped, and the app falls back to in-browser OCR if all miss.
-export const OCR_PROVIDER_ORDER = (process.env.OCR_PROVIDER_ORDER || "roboflow,custom,vision")
+// "claude" reads the meter with Claude vision and needs only ANTHROPIC_API_KEY —
+// the same key that enables the AI photo-authenticity check.
+export const OCR_PROVIDER_ORDER = (process.env.OCR_PROVIDER_ORDER || "roboflow,custom,vision,claude")
   .split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);

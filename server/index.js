@@ -58,6 +58,8 @@ app.get("/health", async (req, res) => {
     distributor: await distributorAddress().catch(() => null),
     poolB3TR: chain.poolB3TR,
     distributorAuthorized: chain.distributorAuthorized,
+    rewardsPoolEnabled: chain.rewardsPoolEnabled,
+    rewardsPoolB3TR: chain.rewardsPoolB3TR,
   });
 });
 

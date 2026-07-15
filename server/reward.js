@@ -120,14 +120,28 @@ async function callView(to, fragment, args) {
 
 const AVAILABLE_FUNDS_ABI = { name: "availableFunds", type: "function", stateMutability: "view", inputs: [{ name: "appId", type: "bytes32" }], outputs: [{ name: "", type: "uint256" }] };
 const IS_DISTRIBUTOR_ABI  = { name: "isRewardDistributor", type: "function", stateMutability: "view", inputs: [{ name: "appId", type: "bytes32" }, { name: "distributor", type: "address" }], outputs: [{ name: "", type: "bool" }] };
+// v10 two-bucket model: when the rewards-pool feature is ENABLED for an app,
+// distributeReward draws from rewardsPoolBalance — NOT from availableFunds.
+// Deposits land in availableFunds; the admin must move them over. This is the
+// classic "pool looks funded but every payout reverts" trap.
+const REWARDS_POOL_ENABLED_ABI = { name: "isRewardsPoolEnabled", type: "function", stateMutability: "view", inputs: [{ name: "appId", type: "bytes32" }], outputs: [{ name: "", type: "bool" }] };
+const REWARDS_POOL_BALANCE_ABI = { name: "rewardsPoolBalance", type: "function", stateMutability: "view", inputs: [{ name: "appId", type: "bytes32" }], outputs: [{ name: "", type: "uint256" }] };
 
 const first = (v) => (Array.isArray(v) ? v[0] : (v && typeof v === "object" ? Object.values(v)[0] : v));
 
 export async function chainDiagnostics() {
-  const out = { poolB3TR: null, distributorAuthorized: null };
+  const out = { poolB3TR: null, distributorAuthorized: null, rewardsPoolEnabled: null, rewardsPoolB3TR: null };
   try {
     const funds = first(await callView(CONTRACTS.X2EarnRewardsPool, AVAILABLE_FUNDS_ABI, [APP_ID]));
     if (funds != null) out.poolB3TR = Number(BigInt(funds) / 10n ** 14n) / 1e4;
+  } catch {}
+  try {
+    const en = first(await callView(CONTRACTS.X2EarnRewardsPool, REWARDS_POOL_ENABLED_ABI, [APP_ID]));
+    if (en != null) out.rewardsPoolEnabled = en === true;
+  } catch {}
+  try {
+    const bal = first(await callView(CONTRACTS.X2EarnRewardsPool, REWARDS_POOL_BALANCE_ABI, [APP_ID]));
+    if (bal != null) out.rewardsPoolB3TR = Number(BigInt(bal) / 10n ** 14n) / 1e4;
   } catch {}
   try {
     const addr = signer ? await signer.getAddress() : null;
@@ -180,6 +194,31 @@ const LEGACY_DISTRIBUTE_ABI = {
   stateMutability: "nonpayable",
 };
 
+// Decode a solidity Error(string) revert payload into its message.
+function decodeRevertReason(data) {
+  try {
+    const hex = String(data || "").replace(/^0x/, "");
+    if (!hex.startsWith("08c379a0")) return "";
+    const body = hex.slice(8);
+    const len = Number(BigInt("0x" + body.slice(64, 128)));
+    return Buffer.from(body.slice(128, 128 + len * 2), "hex").toString("utf8");
+  } catch { return ""; }
+}
+
+// Dry-run a clause via the node (free, instant). Returns { reverted, reason } —
+// the contract's OWN error message, so failures stop being a guessing game.
+async function simulateClause(clause, caller) {
+  const res = await fetch(`${NODE_URL}/accounts/*`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ clauses: [{ to: clause.to, value: "0x0", data: clause.data }], caller }),
+  });
+  if (!res.ok) throw new Error(`simulation call ${res.status}`);
+  const [out] = await res.json();
+  if (!out) throw new Error("empty simulation result");
+  return { reverted: !!out.reverted, reason: out.reverted ? (decodeRevertReason(out.data) || out.vmError || "execution reverted") : "" };
+}
+
 // Broadcast one clause and wait for its receipt. Broadcast ≠ paid: a broadcast
 // tx can still REVERT on-chain — and the app/admin read the CHAIN, so reporting
 // success on broadcast produced green toasts for payouts that never landed.
@@ -210,30 +249,55 @@ async function sendClause(abi, args, comment) {
 // deployed contract supports. Only a mined, non-reverted tx counts as success.
 async function sendProofReward({ amount, receiver, proofText, impacts, description, metadata, comment }) {
   if (!signer) throw new Error("distributor key not configured");
+  const caller = await signer.getAddress();
   const impactCodes = [], impactValues = [], impactObj = {};
   for (const [code, val] of Object.entries(impacts || {})) {
     const v = Math.round(Number(val) || 0);
     if (v > 0) { impactCodes.push(code); impactValues.push(String(v)); impactObj[code] = v; }
   }
 
-  const modern = await sendClause(
-    DISTRIBUTE_ABI,
-    [APP_ID, toWei(amount), receiver, ["text"], [proofText], impactCodes, impactValues, description, metadata],
-    comment
-  ).catch((e) => { console.warn(`[reward] modern call failed to send: ${e?.message || e}`); return { txid: null, reverted: true }; });
-  if (modern.txid && !modern.reverted) return modern.txid;
-  console.warn(`[reward] distributeRewardWithProofAndMetadata ${modern.txid ? `reverted (${modern.txid})` : "unavailable"} — retrying via legacy distributeReward`);
-
   let meta = {}; try { meta = JSON.parse(metadata) || {}; } catch {}
   const legacyProof = JSON.stringify({
     version: 2, description, proof: { text: proofText }, impact: impactObj, appId: APP_ID, ...meta,
   });
-  const legacy = await sendClause(LEGACY_DISTRIBUTE_ABI, [APP_ID, toWei(amount), receiver, legacyProof], `${comment} (legacy)`);
-  if (legacy.reverted) {
-    console.error(`[reward] legacy tx ${legacy.txid} ALSO reverted on-chain`);
-    throw new Error("payout reverted on-chain — open the admin System Check (distributor role / pool / gas) and try again");
+  const modernClause = Clause.callFunction(Address.of(CONTRACTS.X2EarnRewardsPool), new ABIFunction(DISTRIBUTE_ABI),
+    [APP_ID, toWei(amount), receiver, ["text"], [proofText], impactCodes, impactValues, description, metadata]);
+  const legacyClause = Clause.callFunction(Address.of(CONTRACTS.X2EarnRewardsPool), new ABIFunction(LEGACY_DISTRIBUTE_ABI),
+    [APP_ID, toWei(amount), receiver, legacyProof]);
+
+  // SIMULATE first (free): pick the variant the deployed contract accepts, and
+  // when both would revert, surface the contract's own reason instead of
+  // burning gas on a doomed tx and guessing afterwards.
+  let useModern = true, modernReason = "", legacyReason = "";
+  try {
+    const sim = await simulateClause(modernClause, caller);
+    if (sim.reverted) { useModern = false; modernReason = sim.reason; }
+  } catch (e) { console.warn(`[reward] modern simulation inconclusive: ${e?.message || e}`); }
+  if (!useModern) {
+    try {
+      const sim = await simulateClause(legacyClause, caller);
+      if (sim.reverted) legacyReason = sim.reason;
+    } catch (e) { console.warn(`[reward] legacy simulation inconclusive: ${e?.message || e}`); }
+    if (legacyReason) {
+      const reason = modernReason || legacyReason;
+      console.error(`[reward] payout would revert — modern: "${modernReason}" · legacy: "${legacyReason}"`);
+      throw new Error(`payout would revert: ${reason}`);
+    }
+    console.warn(`[reward] modern variant reverts ("${modernReason}") — using legacy distributeReward`);
   }
-  return legacy.txid;
+
+  const attempt = await sendClause(
+    useModern ? DISTRIBUTE_ABI : LEGACY_DISTRIBUTE_ABI,
+    useModern
+      ? [APP_ID, toWei(amount), receiver, ["text"], [proofText], impactCodes, impactValues, description, metadata]
+      : [APP_ID, toWei(amount), receiver, legacyProof],
+    useModern ? comment : `${comment} (legacy)`
+  );
+  if (attempt.reverted) {
+    console.error(`[reward] tx ${attempt.txid} reverted on-chain despite clean simulation`);
+    throw new Error("payout reverted on-chain — re-run the admin System Check and try again");
+  }
+  return attempt.txid;
 }
 
 // Returns the broadcast transaction id. `usage` and `prevRead` are the
