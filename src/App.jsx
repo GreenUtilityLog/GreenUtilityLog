@@ -40,6 +40,19 @@ const NETWORK_LABEL = NETWORK === "mainnet" ? "VeChain Mainnet" : "VeChain Testn
 // so every payout is verifiable on-chain with one tap.
 const EXPLORER = NETWORK === "mainnet" ? "https://explore.vechain.org" : "https://explore-testnet.vechain.org";
 
+// Photos must come from a PHONE CAMERA, not a file picker. The inputs use
+// capture="environment" (mobile browsers open the camera directly), desktop is
+// blocked entirely, and a freshness gate rejects photos not taken just now —
+// gallery picks and downloaded/AI-generated images are minutes-to-years old.
+const IS_MOBILE = typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || "");
+const MAX_PHOTO_AGE_MS = 15 * 60 * 1000; // camera capture is seconds old; be lenient for slow flows
+function photoTooOld(file) {
+  // Some webviews report lastModified 0/epoch for camera shots — only reject
+  // when we positively know the file is old (a real timestamp well in the past).
+  const lm = Number(file?.lastModified) || 0;
+  return lm > 24 * 60 * 60 * 1000 && (Date.now() - lm) > MAX_PHOTO_AGE_MS;
+}
+
 // ── YOUR APP ID — set this after registering on VeBetterDAO ───────────────
 // Get your App ID by registering at the governance site (testnet:
 // https://staging.testnet.governance.vebetterdao.org/apps). It is a bytes32
@@ -1757,6 +1770,15 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
 
   const handleFile = (e) => {
     const file = e.target.files[0]; if (!file) return;
+    e.target.value = "";
+    // Freshness gate: a camera capture is seconds old. A file that is verifiably
+    // older was picked from the gallery or downloaded (where AI-generated images
+    // come from) — reject it and ask for a live shot.
+    if (photoTooOld(file)) {
+      setResult({ summary: "This photo wasn't taken just now. Tap the camera and photograph your meter live — gallery uploads and saved images aren't accepted." });
+      setPhase("error");
+      return;
+    }
     origFileRef.current = file;
     setPhotoUrl(URL.createObjectURL(file));   // show a preview of what was captured
     setPhase("crop");                          // let the user box the reading first
@@ -1764,13 +1786,25 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
 
   const reset = () => { setPhase("idle"); setResult(null); setSecScore(null); setPhotoUrl(null); origFileRef.current = null; onReset(); };
 
+  // Desktop has no phone camera — and a file picker invites downloaded or
+  // AI-generated images. Block capture entirely outside a mobile browser.
+  if (phase === "idle" && !IS_MOBILE) return (
+    <div className="verify-zone">
+      <div className="vz-idle">
+        <div className="vz-icon">📵</div>
+        <div className="vz-title">Phone camera required</div>
+        <div className="vz-sub">Open this app on your phone (VeWorld's in-app browser) and photograph the meter live — file uploads aren't accepted.</div>
+      </div>
+    </div>
+  );
+
   if (phase === "idle") return (
     <div className="verify-zone" onClick={() => cooldownMs === 0 && fileInputRef.current?.click()}>
       <div className="vz-idle">
         <div className="vz-icon">📸</div>
         <div className="vz-title">Verify Meter</div>
         {meterNo && <div className="vz-meter">Meter #{meterNo}</div>}
-        <div className="vz-sub">{cooldownMs > 0 ? `Next submission in ${fmtCooldown(cooldownMs)}` : "Tap to photograph"}</div>
+        <div className="vz-sub">{cooldownMs > 0 ? `Next submission in ${fmtCooldown(cooldownMs)}` : "Tap to photograph with your camera"}</div>
       </div>
       <input type="file" ref={fileInputRef} onChange={handleFile} accept="image/*" style={{display:"none"}} capture="environment" />
     </div>
@@ -2115,6 +2149,27 @@ function EcoBonusCard({ T, wallet, setShowWallet, onSubmit, busy, usedThisWeek, 
       <div style={{fontSize:10.5,color:T.textMid,lineHeight:1.5,marginBottom:10}}>
         Running your washer, dryer or dishwasher on the <b>eco setting</b>? Photograph the appliance with the eco mode visible and earn a bonus. Fresh photo every time — max 4 per week (Mon–Sun), one per 24h.
       </div>
+
+      {/* Example of a valid photo, shown BEFORE the user shoots/uploads one: the
+          appliance's panel with the ECO setting clearly selected and readable. */}
+      <div style={{display:"flex",gap:10,alignItems:"center",background:T.bgAlt,border:`1px dashed ${T.border}`,borderRadius:6,padding:"8px 10px",marginBottom:10}}>
+        <svg width="92" height="60" viewBox="0 0 92 60" aria-label="Example: appliance panel with ECO selected" style={{flexShrink:0}}>
+          <rect x="1" y="1" width="90" height="58" rx="6" fill={T.card} stroke={T.border}/>
+          <rect x="8" y="8" width="40" height="20" rx="3" fill={T.green5} stroke={T.green4||T.border}/>
+          <text x="28" y="22" textAnchor="middle" fontSize="11" fontWeight="800" fill={T.green3} fontFamily="-apple-system,sans-serif">ECO</text>
+          <circle cx="68" cy="30" r="14" fill={T.bgAlt} stroke={T.border}/>
+          <line x1="68" y1="30" x2="58" y2="22" stroke={T.green3} strokeWidth="2.5" strokeLinecap="round"/>
+          <circle cx="54" cy="18" r="2.5" fill={T.green3}/>
+          <rect x="8" y="34" width="12" height="12" rx="2" fill={T.bgAlt} stroke={T.border}/>
+          <rect x="24" y="34" width="12" height="12" rx="2" fill={T.bgAlt} stroke={T.border}/>
+          <text x="14" y="55" fontSize="6.5" fill={T.textSoft} fontFamily="-apple-system,sans-serif">40°</text>
+          <text x="30" y="55" fontSize="6.5" fill={T.textSoft} fontFamily="-apple-system,sans-serif">60°</text>
+        </svg>
+        <div style={{fontSize:10,color:T.textMid,lineHeight:1.5}}>
+          <b style={{color:T.green3}}>Example photo:</b> the appliance's panel or dial with <b>ECO</b> selected and clearly readable. Include the whole panel, not just the light.
+        </div>
+      </div>
+
       <div style={{display:"flex",gap:6,marginBottom:10}}>
         {ECO_APPLIANCE_OPTIONS.map(a => (
           <button key={a.id} onClick={() => setAppliance(a.id)}
@@ -2126,7 +2181,9 @@ function EcoBonusCard({ T, wallet, setShowWallet, onSubmit, busy, usedThisWeek, 
           </button>
         ))}
       </div>
-      {!wallet
+      {!IS_MOBILE
+        ? <button className="sbtn" disabled style={{opacity:.55}}>📵 Phone camera required — open on your phone</button>
+        : !wallet
         ? <button className="sbtn" onClick={() => setShowWallet(true)}>Connect Wallet</button>
         : <button className="sbtn" disabled={busy || !canClaim} style={!canClaim ? {opacity:.55} : undefined}
             onClick={() => canClaim && fileRef.current?.click()}>
@@ -2509,7 +2566,7 @@ function HistoryScreen({ subs, T }) {
 // Read-only admin overlay: every on-chain participant for this app, aggregated
 // from RewardDistributed events. Monitoring only — payouts/blocking require the
 // reward-distributor role (a backend), never the frontend.
-function AdminScreen({ onClose, T, onFundPool, onClaimB3TR }) {
+function AdminScreen({ onClose, T, onFundPool, onMoveToRewardsPool, onClaimB3TR }) {
   const [chain, setChain] = useState({ status: "loading", rows: [], reason: null });
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(null);
@@ -2707,8 +2764,20 @@ function AdminScreen({ onClose, T, onFundPool, onClaimB3TR }) {
                     fix="The Render service is unreachable or asleep — open the /health URL once to wake it, and check the Render dashboard." />
                   <Row ok={authorized} label="Distributor wallet has the reward-distributor role"
                     fix={`THIS IS THE USUAL CAUSE OF REVERTED PAYOUTS. In the VeBetterDAO testnet dashboard, open your app → settings → Reward distributors, and add ${h?.distributor || "the distributor wallet"} — then sign and retry.`} />
-                  <Row ok={poolOk === null ? null : poolOk > 0} label={`Reward pool funded${poolOk != null ? ` (${poolOk.toFixed(2)} B3TR)` : ""}`}
+                  <Row ok={poolOk === null ? null : poolOk > 0} label={`Reward pool funded${poolOk != null ? ` (${poolOk.toFixed(2)} B3TR available)` : ""}`}
                     fix="The pool for this app id is empty — use the Fund rewards pool card below." />
+                  {(() => {
+                    const rpEnabled = c?.rewardsPoolEnabled ?? h?.rewardsPoolEnabled ?? null;
+                    const rpBal = c?.rewardsPoolB3TR ?? h?.rewardsPoolB3TR ?? null;
+                    // Feature off → payouts draw straight from available funds (fine).
+                    // Feature ON → the distributable bucket itself must hold B3TR.
+                    const ok = rpEnabled === null ? null : (rpEnabled === false ? true : (rpBal === null ? null : rpBal > 0));
+                    return <Row ok={ok}
+                      label={rpEnabled === false
+                        ? "Distributable balance (rewards-pool feature off — pays from available funds)"
+                        : `Distributable rewards-pool balance${rpBal != null ? ` (${rpBal.toFixed(2)} B3TR)` : ""}`}
+                      fix="FOUND IT — the rewards-pool feature is ON for this app, so payouts draw from THIS bucket, not from 'available funds'. Your deposit is sitting in the wrong bucket. Use the 'Move to rewards pool' button below (you sign as app admin), then re-run this check." />;
+                  })()}
                   <Row ok={vtho === null ? null : vtho >= 1} label={`Distributor has gas${vtho != null ? ` (${vtho.toFixed(1)} VTHO)` : ""}`}
                     fix={`Send free testnet VTHO to ${h?.distributor || "the distributor wallet"} via faucet.vecha.in.`} />
                   <Row ok={payouts === null ? null : payouts > 0} label={payouts != null ? `${payouts >= 20 ? "20+" : payouts} payout${payouts === 1 ? "" : "s"} recorded on-chain${c?.lastPayoutAt ? ` — last ${new Date(c.lastPayoutAt).toLocaleString()}` : ""}` : "Payouts recorded on-chain"}
@@ -2740,10 +2809,19 @@ function AdminScreen({ onClose, T, onFundPool, onClaimB3TR }) {
               <input value={fundAmt} onChange={e=>setFundAmt(e.target.value)} type="number" min="0" step="1" placeholder="B3TR amount"
                 style={{flex:1,boxSizing:"border-box",background:T.bgAlt,border:`1px solid ${T.border}`,borderRadius:6,padding:"10px 12px",fontSize:13,color:T.text,outline:"none"}} />
               <button disabled={funding} onClick={async()=>{ setFunding(true); try { await onFundPool(fundAmt); setPool(p=>({...p,status:"loading"})); setTimeout(()=>refreshPool(), 8000); } finally { setFunding(false); } }}
-                style={{background:T.green2,color:"#fff",border:0,borderRadius:6,padding:"10px 16px",fontWeight:700,fontSize:13,cursor:"pointer",opacity:funding?0.6:1,whiteSpace:"nowrap"}}>
+                style={{background:T.green2,color:T.bg,border:0,borderRadius:6,padding:"10px 16px",fontWeight:700,fontSize:13,cursor:"pointer",opacity:funding?0.6:1,whiteSpace:"nowrap"}}>
                 {funding ? "Signing…" : "Fund pool"}
               </button>
             </div>
+            {onMoveToRewardsPool && (
+              <div style={{marginTop:8,display:"flex",alignItems:"center",gap:8}}>
+                <div style={{fontSize:10,color:T.textSoft,lineHeight:1.45,flex:1}}>Payouts reverting while funded? Move the deposit into the app's distributable rewards-pool bucket (same amount field above).</div>
+                <button disabled={funding} onClick={async()=>{ setFunding(true); try { await onMoveToRewardsPool(fundAmt); setTimeout(()=>{ setDiag({ status: "loading" }); runDiagnostics().catch(() => {}); }, 8000); } finally { setFunding(false); } }}
+                  style={{background:"transparent",color:T.green3,border:`1px solid ${T.green4||T.border}`,borderRadius:6,padding:"8px 12px",fontWeight:700,fontSize:11,cursor:"pointer",whiteSpace:"nowrap",opacity:funding?0.6:1}}>
+                  ⇄ Move to rewards pool
+                </button>
+              </div>
+            )}
             {onClaimB3TR && (
               <div style={{marginTop:10,paddingTop:10,borderTop:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
                 <div style={{fontSize:10,color:T.textSoft,lineHeight:1.45,flex:1}}>No test-B3TR yet? Claim a free batch from the testnet faucet first, then fund the pool.</div>
@@ -3408,6 +3486,27 @@ export default function App() {
     }
   };
 
+  // Admin: move deposited B3TR from the app's `availableFunds` bucket into its
+  // `rewardsPoolBalance` bucket. On v10 pools with the rewards-pool feature ON,
+  // distributeReward pays ONLY from that second bucket — deposits alone aren't
+  // distributable, which made every payout revert while the pool "looked" funded.
+  // The caller must be the app admin (this wallet is).
+  const handleMoveToRewardsPool = async (amount) => {
+    const amt = parseFloat(amount);
+    if (!(amt > 0)) { showToast("⚠️ Enter a B3TR amount"); return; }
+    if (!wallet) { openConnectModal(); return; }
+    try {
+      const fn = new ABIFunction({ name: "increaseRewardsPoolBalance", type: "function", stateMutability: "nonpayable", inputs: [{ name: "appId", type: "bytes32" }, { name: "amount", type: "uint256" }], outputs: [] });
+      const wei = BigInt(Math.round(amt * 1e6)) * 10n ** 12n; // 6-decimal-safe -> wei
+      const clause = Clause.callFunction(Address.of(CONTRACTS.X2EarnRewardsPool), fn, [VEBETTER_APP_ID, wei.toString()]);
+      const { txid } = await requestTransaction([{ to: clause.to, value: "0x0", data: clause.data, comment: `Move ${amt} B3TR to rewards pool` }]);
+      showToast(`✅ Moving ${amt} B3TR to the rewards pool (tx ${String(txid).slice(0, 8)}…)`);
+      return txid;
+    } catch (e) {
+      showToast(`⚠️ ${e?.message || "Move failed"}`);
+    }
+  };
+
   // Admin: claim test-B3TR from the testnet faucet to the connected wallet, so the
   // pool can be funded even when the wallet starts with no B3TR. Testnet only.
   const handleClaimB3TR = async () => {
@@ -3441,6 +3540,7 @@ export default function App() {
     if (!online) { showToast("🌿 Eco bonus needs a connection — try again when online"); return; }
     if (!REWARD_API) { showToast("Eco bonus isn't available yet"); return; }
     if (TURNSTILE_SITE_KEY && !captchaToken) { showToast("🤖 Complete the verification checkbox first"); return; }
+    if (photoTooOld(file)) { showToast("📸 Take the photo live with your camera — saved images aren't accepted"); return; }
     setEcoBusy(true);
     try {
       const base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] || ""); r.onerror = rej; r.readAsDataURL(file); });
@@ -3658,7 +3758,7 @@ export default function App() {
       {!showIntro && !wallet && <WalletGate onConnect={openConnectModal} online={online} />}
       {needsBaselines && <BaselineOnboarding onDone={(bl, mtrs) => { setBaselines(bl); setMeters(mtrs); closeRegistration(); }} utils={regUtils} editMode={regEdit} existingBaselines={baselines} existingMeters={meters} />}
       {!onboarded && <Onboarding onDone={() => setOnboarded(true)} />}
-      {showAdmin && isAdmin && <AdminScreen onClose={() => setShowAdmin(false)} T={T} onFundPool={handleFundPool} onClaimB3TR={FAUCET_ENABLED ? handleClaimB3TR : null} />}
+      {showAdmin && isAdmin && <AdminScreen onClose={() => setShowAdmin(false)} T={T} onFundPool={handleFundPool} onMoveToRewardsPool={handleMoveToRewardsPool} onClaimB3TR={FAUCET_ENABLED ? handleClaimB3TR : null} />}
       {showHelp && <HelpScreen onClose={() => setShowHelp(false)} onFeedback={() => { setShowHelp(false); setShowFeedback(true); }} T={T} />}
       {showFeedback && <FeedbackScreen onClose={() => setShowFeedback(false)} onToast={showToast} wallet={wallet} tab={tab} T={T} />}
       {toast && <div className="toast">{toast}</div>}
