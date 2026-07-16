@@ -271,10 +271,13 @@ export async function fetchDiagnostics({ node, poolContract, appsContract, appId
   if (!node || isUnsetAppId(appId)) return out;
   // 1. pool funds
   try { const r = await fetchPoolBalance({ node, contract: poolContract, appId, signal }); if (r.ok) out.poolB3TR = r.b3tr; } catch {}
-  // 1b. distributable rewards-pool bucket
+  // 1b. distributable rewards-pool bucket (independent reads — one failing
+  // shouldn't blank the other in the System Check)
   try {
     const en = firstVal(await callView(node, poolContract, REWARDS_POOL_ENABLED_FN, [appId], signal));
     if (en != null) out.rewardsPoolEnabled = en === true;
+  } catch {}
+  try {
     const bal = firstVal(await callView(node, poolContract, REWARDS_POOL_BALANCE_FN, [appId], signal));
     if (bal != null) { let wei = 0n; try { wei = BigInt(bal); } catch {} out.rewardsPoolB3TR = Number(wei / 10n ** 14n) / 1e4; }
   } catch {}
