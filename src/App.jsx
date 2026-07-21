@@ -3377,9 +3377,15 @@ export default function App() {
   const u = getUtil(selUtil);
   const online = useOnlineStatus();
 
+  // Success/info toasts auto-hide; ERROR toasts stick until dismissed and can be
+  // copied — a revert reason you can't read or screenshot is useless.
+  const toastTimer = useRef(null);
   const showToast = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2400);
+    const text = String(msg ?? "");
+    const isError = /^[❌⚠️✋🤖📸]|revert|failed|error/iu.test(text);
+    clearTimeout(toastTimer.current);
+    setToast({ msg: text, sticky: isError });
+    if (!isError) toastTimer.current = setTimeout(() => setToast(null), 2400);
   };
 
   // When connectivity returns (and a wallet is connected), submit any readings that
@@ -3786,7 +3792,19 @@ export default function App() {
       {showAdmin && isAdmin && <AdminScreen onClose={() => setShowAdmin(false)} T={T} onFundPool={handleFundPool} onMoveToRewardsPool={handleMoveToRewardsPool} onClaimB3TR={FAUCET_ENABLED ? handleClaimB3TR : null} />}
       {showHelp && <HelpScreen onClose={() => setShowHelp(false)} onFeedback={() => { setShowHelp(false); setShowFeedback(true); }} T={T} />}
       {showFeedback && <FeedbackScreen onClose={() => setShowFeedback(false)} onToast={showToast} wallet={wallet} tab={tab} T={T} />}
-      {toast && <div className="toast">{toast}</div>}
+      {toast && (toast.sticky ? (
+        <div className="toast" style={{whiteSpace:"pre-wrap",maxWidth:"88vw",textAlign:"left",lineHeight:1.5,background:T.gasBg,color:T.gas,border:`1px solid ${T.gasBorder}`,padding:"12px 14px"}}>
+          <div style={{wordBreak:"break-word"}}>{toast.msg}</div>
+          <div style={{display:"flex",gap:8,marginTop:10}}>
+            <button onClick={() => { try { navigator.clipboard?.writeText(toast.msg); } catch {} }}
+              style={{flex:1,background:T.gas,color:T.bg,border:0,borderRadius:5,padding:"8px 10px",fontSize:11,fontWeight:800,cursor:"pointer"}}>📋 Copy error</button>
+            <button onClick={() => setToast(null)}
+              style={{background:"transparent",color:T.gas,border:`1px solid ${T.gasBorder}`,borderRadius:5,padding:"8px 12px",fontSize:11,fontWeight:800,cursor:"pointer"}}>✕ Close</button>
+          </div>
+        </div>
+      ) : (
+        <div className="toast">{toast.msg}</div>
+      ))}
 
       <div className="app">
         <div className="z1 scr">
