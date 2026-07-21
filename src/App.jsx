@@ -2583,7 +2583,7 @@ function HistoryScreen({ subs, T }) {
 // Read-only admin overlay: every on-chain participant for this app, aggregated
 // from RewardDistributed events. Monitoring only — payouts/blocking require the
 // reward-distributor role (a backend), never the frontend.
-function AdminScreen({ onClose, T, onFundPool, onMoveToRewardsPool, onClaimB3TR }) {
+function AdminScreen({ onClose, T, onFundPool, onMoveToRewardsPool, onDisableRewardsPool, onClaimB3TR }) {
   const [chain, setChain] = useState({ status: "loading", rows: [], reason: null });
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(null);
@@ -2841,9 +2841,18 @@ function AdminScreen({ onClose, T, onFundPool, onMoveToRewardsPool, onClaimB3TR 
             {onMoveToRewardsPool && (
               <div style={{marginTop:8,display:"flex",alignItems:"center",gap:8}}>
                 <div style={{fontSize:10,color:T.textSoft,lineHeight:1.45,flex:1}}>Payouts reverting while funded? Move the deposit into the app's distributable rewards-pool bucket (same amount field above).</div>
-                <button disabled={funding} onClick={async()=>{ setFunding(true); try { await onMoveToRewardsPool(fundAmt); setTimeout(()=>{ setDiag({ status: "loading" }); runDiagnostics().catch(() => {}); }, 8000); } finally { setFunding(false); } }}
+                <button disabled={funding} onClick={async()=>{ setFunding(true); try { await onMoveToRewardsPool(fundAmt); setDiag({ status: "loading" }); runDiagnostics().catch(() => {}); } finally { setFunding(false); } }}
                   style={{background:"transparent",color:T.green3,border:`1px solid ${T.green4||T.border}`,borderRadius:6,padding:"8px 12px",fontWeight:700,fontSize:11,cursor:"pointer",whiteSpace:"nowrap",opacity:funding?0.6:1}}>
                   ⇄ Move to rewards pool
+                </button>
+              </div>
+            )}
+            {onDisableRewardsPool && (
+              <div style={{marginTop:8,display:"flex",alignItems:"center",gap:8}}>
+                <div style={{fontSize:10,color:T.textSoft,lineHeight:1.45,flex:1}}>Or turn the rewards-pool feature OFF so payouts draw straight from available funds (no bucket-moving needed).</div>
+                <button disabled={funding} onClick={async()=>{ setFunding(true); try { await onDisableRewardsPool(); setDiag({ status: "loading" }); runDiagnostics().catch(() => {}); } finally { setFunding(false); } }}
+                  style={{background:"transparent",color:T.textMid,border:`1px solid ${T.border}`,borderRadius:6,padding:"8px 12px",fontWeight:700,fontSize:11,cursor:"pointer",whiteSpace:"nowrap",opacity:funding?0.6:1}}>
+                  🔧 Disable feature
                 </button>
               </div>
             )}
@@ -3517,25 +3526,80 @@ export default function App() {
     }
   };
 
-  // Admin: move deposited B3TR from the app's `availableFunds` bucket into its
-  // `rewardsPoolBalance` bucket. On v10 pools with the rewards-pool feature ON,
-  // distributeReward pays ONLY from that second bucket — deposits alone aren't
-  // distributable, which made every payout revert while the pool "looked" funded.
-  // The caller must be the app admin (this wallet is).
+  // Run an admin transaction HONESTLY: simulate first (so a doomed call shows
+  // the contract's own revert reason BEFORE signing), then broadcast and wait
+  // for the receipt — success is only reported when the tx actually landed.
+  const runAdminTx = async ({ fn, args, label }) => {
+    if (!wallet) { openConnectModal(); return; }
+    const clause = Clause.callFunction(Address.of(CONTRACTS.X2EarnRewardsPool), new ABIFunction(fn), args);
+    // 1. Dry-run with THIS wallet as caller — free, instant, names the blocker.
+    try {
+      const res = await fetch(`${ACTIVE_NODE}/accounts/*`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clauses: [{ to: clause.to, value: "0x0", data: clause.data }], caller: wallet }),
+      });
+      const [out] = await res.json();
+      if (out?.reverted) {
+        let reason = out.vmError || "execution reverted";
+        const hex = String(out.data || "").replace(/^0x/, "");
+        if (hex.startsWith("08c379a0")) {
+          try {
+            const len = parseInt(hex.slice(8 + 64, 8 + 128), 16);
+            const b = new Uint8Array(len); const s = hex.slice(8 + 128, 8 + 128 + len * 2);
+            for (let i = 0; i < len; i++) b[i] = parseInt(s.substr(i * 2, 2), 16);
+            reason = new TextDecoder().decode(b) || reason;
+          } catch {}
+        }
+        showToast(`❌ ${label} would revert: ${reason}`);
+        return;
+      }
+    } catch { /* simulation unavailable — proceed and rely on the receipt */ }
+    // 2. Sign + broadcast, then wait for the on-chain receipt.
+    let txid;
+    try {
+      ({ txid } = await requestTransaction([{ to: clause.to, value: "0x0", data: clause.data, comment: label }]));
+    } catch (e) { showToast(`⚠️ ${e?.message || `${label} was not signed`}`); return; }
+    for (let i = 0; i < 15; i++) {
+      await new Promise(r => setTimeout(r, 2500));
+      try {
+        const r = await fetch(`${ACTIVE_NODE}/transactions/${txid}/receipt`);
+        if (r.ok) {
+          const receipt = await r.json();
+          if (receipt) {
+            if (receipt.reverted) showToast(`❌ ${label} REVERTED on-chain (tx ${String(txid).slice(0, 10)}…) — see ${EXPLORER}/transactions/${txid}`);
+            else showToast(`✅ ${label} confirmed on-chain!`);
+            return txid;
+          }
+        }
+      } catch {}
+    }
+    showToast(`⚠️ ${label}: still pending — check ${EXPLORER}/transactions/${txid}`);
+    return txid;
+  };
+
+  // Admin: move deposited B3TR from `availableFunds` into `rewardsPoolBalance` —
+  // on v10 pools with the rewards-pool feature ON, distributeReward pays ONLY
+  // from that second bucket ("not enough funds in the rewards pool" otherwise).
   const handleMoveToRewardsPool = async (amount) => {
     const amt = parseFloat(amount);
     if (!(amt > 0)) { showToast("⚠️ Enter a B3TR amount"); return; }
-    if (!wallet) { openConnectModal(); return; }
-    try {
-      const fn = new ABIFunction({ name: "increaseRewardsPoolBalance", type: "function", stateMutability: "nonpayable", inputs: [{ name: "appId", type: "bytes32" }, { name: "amount", type: "uint256" }], outputs: [] });
-      const wei = BigInt(Math.round(amt * 1e6)) * 10n ** 12n; // 6-decimal-safe -> wei
-      const clause = Clause.callFunction(Address.of(CONTRACTS.X2EarnRewardsPool), fn, [VEBETTER_APP_ID, wei.toString()]);
-      const { txid } = await requestTransaction([{ to: clause.to, value: "0x0", data: clause.data, comment: `Move ${amt} B3TR to rewards pool` }]);
-      showToast(`✅ Moving ${amt} B3TR to the rewards pool (tx ${String(txid).slice(0, 8)}…)`);
-      return txid;
-    } catch (e) {
-      showToast(`⚠️ ${e?.message || "Move failed"}`);
-    }
+    const wei = BigInt(Math.round(amt * 1e6)) * 10n ** 12n; // 6-decimal-safe -> wei
+    return runAdminTx({
+      fn: { name: "increaseRewardsPoolBalance", type: "function", stateMutability: "nonpayable", inputs: [{ name: "appId", type: "bytes32" }, { name: "amount", type: "uint256" }], outputs: [] },
+      args: [VEBETTER_APP_ID, wei.toString()],
+      label: `Move ${amt} B3TR to rewards pool`,
+    });
+  };
+
+  // Admin fallback: turn the rewards-pool feature OFF for this app, so payouts
+  // draw straight from availableFunds (where the deposit already sits) and the
+  // bucket-moving dance disappears entirely.
+  const handleDisableRewardsPool = async () => {
+    return runAdminTx({
+      fn: { name: "toggleRewardsPoolBalance", type: "function", stateMutability: "nonpayable", inputs: [{ name: "appId", type: "bytes32" }, { name: "enable", type: "bool" }], outputs: [] },
+      args: [VEBETTER_APP_ID, false],
+      label: "Disable rewards-pool feature",
+    });
   };
 
   // Admin: claim test-B3TR from the testnet faucet to the connected wallet, so the
@@ -3789,7 +3853,7 @@ export default function App() {
       {!showIntro && !wallet && <WalletGate onConnect={openConnectModal} online={online} />}
       {needsBaselines && <BaselineOnboarding onDone={(bl, mtrs) => { setBaselines(bl); setMeters(mtrs); closeRegistration(); }} utils={regUtils} editMode={regEdit} existingBaselines={baselines} existingMeters={meters} />}
       {!onboarded && <Onboarding onDone={() => setOnboarded(true)} />}
-      {showAdmin && isAdmin && <AdminScreen onClose={() => setShowAdmin(false)} T={T} onFundPool={handleFundPool} onMoveToRewardsPool={handleMoveToRewardsPool} onClaimB3TR={FAUCET_ENABLED ? handleClaimB3TR : null} />}
+      {showAdmin && isAdmin && <AdminScreen onClose={() => setShowAdmin(false)} T={T} onFundPool={handleFundPool} onMoveToRewardsPool={handleMoveToRewardsPool} onDisableRewardsPool={handleDisableRewardsPool} onClaimB3TR={FAUCET_ENABLED ? handleClaimB3TR : null} />}
       {showHelp && <HelpScreen onClose={() => setShowHelp(false)} onFeedback={() => { setShowHelp(false); setShowFeedback(true); }} T={T} />}
       {showFeedback && <FeedbackScreen onClose={() => setShowFeedback(false)} onToast={showToast} wallet={wallet} tab={tab} T={T} />}
       {toast && (toast.sticky ? (
