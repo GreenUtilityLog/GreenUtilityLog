@@ -267,8 +267,16 @@ const REWARDS_POOL_BALANCE_FN = { name: "rewardsPoolBalance", type: "function", 
 const firstVal = (v) => (Array.isArray(v) ? v[0] : (v && typeof v === "object" ? Object.values(v)[0] : v));
 
 export async function fetchDiagnostics({ node, poolContract, appsContract, appId, distributor, signal } = {}) {
-  const out = { poolB3TR: null, distributorAuthorized: null, distributorVTHO: null, payoutCount: null, lastPayoutAt: null, rewardsPoolEnabled: null, rewardsPoolB3TR: null };
+  const out = { poolB3TR: null, distributorAuthorized: null, distributorVTHO: null, payoutCount: null, lastPayoutAt: null, rewardsPoolEnabled: null, rewardsPoolB3TR: null, appAdmin: null };
   if (!node || isUnsetAppId(appId)) return out;
+  // 0. who is the on-chain APP ADMIN (the only wallet the contract lets manage
+  //    the rewards-pool buckets)
+  try {
+    if (appsContract) {
+      const a = firstVal(await callView(node, appsContract, X2EARN_APPS_FN.appAdmin, [appId], signal));
+      if (a) out.appAdmin = String(a);
+    }
+  } catch {}
   // 1. pool funds
   try { const r = await fetchPoolBalance({ node, contract: poolContract, appId, signal }); if (r.ok) out.poolB3TR = r.b3tr; } catch {}
   // 1b. distributable rewards-pool bucket (independent reads — one failing
