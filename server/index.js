@@ -9,7 +9,7 @@ import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_E
 import { validateSubmission } from "./verify.js";
 import { verifyPhoto } from "./media.js";
 import { store } from "./store.js";
-import { distributeReward, distributeEcoReward, distributorAddress, chainDiagnostics } from "./reward.js";
+import { distributeReward, distributeEcoReward, distributorAddress, chainDiagnostics, moveToRewardsPool } from "./reward.js";
 import { ocrImage, ocrEnabled, ocrProviders } from "./ocr.js";
 import { verifyWalletCertificate, REQUIRE_CERT } from "./auth.js";
 import { checkPhotoAuthenticity, aiPhotoCheckEnabled } from "./authenticity.js";
@@ -60,9 +60,39 @@ app.get("/health", async (req, res) => {
     distributorAuthorized: chain.distributorAuthorized,
     rewardsPoolEnabled: chain.rewardsPoolEnabled,
     rewardsPoolB3TR: chain.rewardsPoolB3TR,
+    appAdmin: chain.appAdmin,
     // Gas sponsorship (VIP-191): when set, the distributor needs no VTHO of its own.
     delegation: !!(process.env.DELEGATION_URL || "").trim(),
   });
+});
+
+// ── Admin: move funds into the distributable rewards-pool bucket ─────────────
+// The contract only lets the on-chain APP ADMIN call increaseRewardsPoolBalance.
+// When the DISTRIBUTOR wallet holds that role, this endpoint performs the move
+// server-side for a verified admin user (the app calls it automatically when the
+// user's own wallet lacks the role). Guarded by the wallet certificate plus an
+// allowlist of admin user wallets (ADMIN_WALLETS env, comma-separated).
+const ADMIN_USER_WALLETS = (process.env.ADMIN_WALLETS || "0x3a007383fce8dcccdb92cf9efe0e609a652a1f29")
+  .toLowerCase().split(",").map((s) => s.trim()).filter(Boolean);
+
+app.post("/admin/move-rewards-pool", async (req, res) => {
+  const addr = String(req.body.address || "").toLowerCase();
+  if (!/^0x[0-9a-f]{40}$/.test(addr) || !ADMIN_USER_WALLETS.includes(addr)) {
+    return res.status(403).json({ error: "not an admin wallet" });
+  }
+  if (REQUIRE_CERT) {
+    const c = verifyWalletCertificate({ certificate: req.body.certificate, address: req.body.address });
+    if (!c.ok) return res.status(401).json({ error: c.error });
+  }
+  const amount = Number(req.body.amount);
+  if (!(amount > 0 && amount <= 1_000_000)) return res.status(400).json({ error: "invalid amount" });
+  try {
+    const txid = await moveToRewardsPool(amount);
+    res.json({ txid, amount });
+  } catch (e) {
+    console.error("[/admin/move-rewards-pool]", e?.message || e);
+    res.status(502).json({ error: e?.message || "move failed" });
+  }
 });
 
 // Meter-photo OCR. The app POSTs an image (base64) — the cropped reading or the

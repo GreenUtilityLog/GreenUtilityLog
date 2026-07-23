@@ -127,10 +127,18 @@ const IS_DISTRIBUTOR_ABI  = { name: "isRewardDistributor", type: "function", sta
 const REWARDS_POOL_ENABLED_ABI = { name: "isRewardsPoolEnabled", type: "function", stateMutability: "view", inputs: [{ name: "appId", type: "bytes32" }], outputs: [{ name: "", type: "bool" }] };
 const REWARDS_POOL_BALANCE_ABI = { name: "rewardsPoolBalance", type: "function", stateMutability: "view", inputs: [{ name: "appId", type: "bytes32" }], outputs: [{ name: "", type: "uint256" }] };
 
+const APP_ADMIN_ABI = { name: "appAdmin", type: "function", stateMutability: "view", inputs: [{ name: "appId", type: "bytes32" }], outputs: [{ name: "", type: "address" }] };
+
 const first = (v) => (Array.isArray(v) ? v[0] : (v && typeof v === "object" ? Object.values(v)[0] : v));
 
 export async function chainDiagnostics() {
-  const out = { poolB3TR: null, distributorAuthorized: null, rewardsPoolEnabled: null, rewardsPoolB3TR: null };
+  const out = { poolB3TR: null, distributorAuthorized: null, rewardsPoolEnabled: null, rewardsPoolB3TR: null, appAdmin: null };
+  try {
+    if (CONTRACTS.X2EarnApps) {
+      const a = first(await callView(CONTRACTS.X2EarnApps, APP_ADMIN_ABI, [APP_ID]));
+      if (a) out.appAdmin = String(a);
+    }
+  } catch {}
   try {
     const funds = first(await callView(CONTRACTS.X2EarnRewardsPool, AVAILABLE_FUNDS_ABI, [APP_ID]));
     if (funds != null) out.poolB3TR = Number(BigInt(funds) / 10n ** 14n) / 1e4;
@@ -177,6 +185,24 @@ function computeImpact({ utility, usage }) {
   else avoidedUnits = Math.max(0, (USAGE_BENCHMARK[utility] ?? 0) - usage);      // saved below the benchmark
   const grams = Math.round(avoidedUnits * factor);
   return grams > 0 ? { carbon: grams } : {};
+}
+
+// Move deposited B3TR from the app's availableFunds bucket into its
+// distributable rewardsPoolBalance bucket, SIGNED BY THE DISTRIBUTOR wallet.
+// Only works when the distributor happens to be the on-chain app admin (the
+// contract requires isAppAdmin) — the /admin/move-rewards-pool endpoint uses
+// this as the fallback when the user's own wallet lacks the admin role.
+const INCREASE_RP_ABI = { name: "increaseRewardsPoolBalance", type: "function", stateMutability: "nonpayable", inputs: [{ name: "appId", type: "bytes32" }, { name: "amount", type: "uint256" }], outputs: [] };
+
+export async function moveToRewardsPool(amount) {
+  if (!signer) throw new Error("distributor key not configured");
+  const caller = await signer.getAddress();
+  const clause = Clause.callFunction(Address.of(CONTRACTS.X2EarnRewardsPool), new ABIFunction(INCREASE_RP_ABI), [APP_ID, toWei(amount)]);
+  const sim = await simulateClause(clause, caller).catch(() => null);
+  if (sim && sim.reverted) throw new Error(`move would revert: ${sim.reason}`);
+  const attempt = await sendClause(INCREASE_RP_ABI, [APP_ID, toWei(amount)], `Move ${amount} B3TR to rewards pool`);
+  if (attempt.reverted) throw new Error("move reverted on-chain");
+  return attempt.txid;
 }
 
 // Legacy single-proof-string variant — kept as an automatic fallback in case the
