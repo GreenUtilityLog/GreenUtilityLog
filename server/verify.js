@@ -37,11 +37,16 @@ export function validateSubmission(body) {
     prev = parseFloat(prevRead);
     if (!Number.isFinite(prev)) return { ok: false, error: "invalid baseline reading" };
   }
-  if (r <= prev) return { ok: false, error: `current reading (${r}) must exceed the last recorded reading (${prev})` };
+  // A meter never runs backwards, so a LOWER reading is rejected. An EQUAL
+  // reading (zero consumption) is valid — it's the best conservation outcome and
+  // earns the maximum reward.
+  if (r < prev) return { ok: false, error: `current reading (${r}) can't be lower than the last recorded reading (${prev})` };
 
   const usage = +(r - prev).toFixed(2);
   const [lo, hi] = USAGE_BOUNDS[utility] || [0, Infinity];
-  if (usage < lo || usage > hi) {
+  // usage 0 (equal readings) is allowed; only a tiny-but-nonzero delta below the
+  // plausible floor, or an abnormally high delta, is rejected.
+  if ((usage > 0 && usage < lo) || usage > hi) {
     return { ok: false, error: `usage ${usage} ${UNITS[utility]} is outside the plausible range` };
   }
 
