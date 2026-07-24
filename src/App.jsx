@@ -354,7 +354,9 @@ function checkPlausibility(utilId, usageVal) {
   const RANGES = { electric: { min:0.1, max:80 }, gas: { min:0.01, max:20 }, water: { min:10, max:1000}, solar: { min:0.1, max:60 } };
   const range = RANGES[utilId];
   if (!range) return { ok:true };
-  if (usageVal < range.min) return { ok:false, reason:`Usage too low (${usageVal} < ${range.min})` };
+  // Zero usage (current == previous) is explicitly valid — the best conservation
+  // outcome. Only a tiny-but-nonzero delta may be a typo, and high is abnormal.
+  if (usageVal > 0 && usageVal < range.min) return { ok:false, reason:`Usage too low (${usageVal} < ${range.min})` };
   if (usageVal > range.max) return { ok:false, reason:`Abnormally high (${usageVal} > ${range.max})` };
   return { ok:true };
 }
@@ -1737,7 +1739,7 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
     // Plausibility/anomaly run on CONSUMPTION (current − previous), not the
     // absolute meter value, otherwise a normal reading like 3847 always trips.
     const r = parseFloat(reading), p = parseFloat(prevRead);
-    const usageVal   = (Number.isFinite(r) && Number.isFinite(p) && r > p) ? +(r - p).toFixed(2) : null;
+    const usageVal   = (Number.isFinite(r) && Number.isFinite(p) && r >= p) ? +(r - p).toFixed(2) : null;
     const plausCheck = usageVal != null ? checkPlausibility(utilId, usageVal) : { ok:true };
     const anomCheck  = usageVal != null ? checkAnomaly(utilId, usageVal, subs) : { ok:true, anomaly:false };
     if (!plausCheck.ok) { fraudFlags.push("implausible_reading"); fraudReason = fraudReason || plausCheck.reason; }
@@ -2011,6 +2013,10 @@ function HomeScreen({ b3tr, streak, subs, setTab, T }) {
 
 function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading, setReading, prevRead, setPrevRead, busy, usage, reward, handleSubmit, verifyKey, wallet, setShowWallet, subs, meters, T, setTab, onEcoSubmit, ecoBusy, ecoUsedThisWeek, ecoCooldownMs }) {
   const meterNo  = (meters?.[selUtil] || "").trim();
+  // Submittable when current ≥ previous (equal = zero usage = valid, max reward).
+  const _r = parseFloat(reading), _p = parseFloat(prevRead);
+  const readingReady = Number.isFinite(_r) && Number.isFinite(_p) && _r >= _p;
+  const readingLower = Number.isFinite(_r) && Number.isFinite(_p) && _r < _p;
   // Two sub-tabs: the meter-reading flow and the eco-mode bonus each get their
   // own screen instead of being stacked below each other.
   const [subTab, setSubTab] = useState("meter");
@@ -2088,13 +2094,15 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
           </div>
         </div>
 
-        {usage() > 0 && (() => {
+        {readingReady && (() => {
           const bench = USAGE_BENCHMARK[u.id] ?? 0;
           const saved = Math.max(0, bench - usage());
           const base  = REWARD_BASE[u.id] ?? 0;
           const isSaving = SAVING_UTILS.has(u.id);
           const rateText = isSaving
-            ? (saved > 0
+            ? (usage() === 0
+                ? `${base} base + no consumption — maximum saving! (${bench} ${u.unit} under target × ${u.rate} B3TR)`
+                : saved > 0
                 ? `${base} base + ${saved.toFixed(1)} ${u.unit} saved × ${u.rate} B3TR (target ≤ ${bench} ${u.unit})`
                 : `Base only — used ${usage()} ${u.unit}, target is ≤ ${bench} ${u.unit}`)
             : `${base} base + ${usage()} ${u.unit} produced × ${u.rate} B3TR`;
@@ -2118,8 +2126,10 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
             ? <button className="sbtn" disabled style={{opacity:.55}}>Register this meter first</button>
             : !aiOk
               ? <button className="sbtn" disabled style={{opacity:.55}}>📸 Verify a meter photo to submit</button>
-              : usage() <= 0
-                ? <button className="sbtn" disabled style={{opacity:.55}}>Enter a current reading above</button>
+              : readingLower
+                ? <button className="sbtn" disabled style={{opacity:.55}}>Current can't be lower than previous</button>
+                : !readingReady
+                ? <button className="sbtn" disabled style={{opacity:.55}}>Enter the current reading above</button>
                 : <button className="sbtn" disabled={busy} onClick={handleSubmit}>
                     {busy ? <><span className="spin-sm"/> Submitting on VeChain…</> : <>Submit & Earn B3TR</>}
                   </button>
@@ -2147,11 +2157,14 @@ const ECO_MAX_PER_WEEK_UI = 4;
 
 function EcoBonusCard({ T, wallet, setShowWallet, onSubmit, busy, usedThisWeek, cooldownMs }) {
   const [appliance, setAppliance] = useState("washer");
+  const [preview, setPreview] = useState(null); // { file, url } — shown before submitting
   const fileRef = useRef(null);
   const left = Math.max(0, ECO_MAX_PER_WEEK_UI - (usedThisWeek || 0));
   const coolingDown = (cooldownMs || 0) > 0;
   const canClaim = left > 0 && !coolingDown;
   const hours = Math.ceil((cooldownMs || 0) / 3600000);
+  const clearPreview = () => setPreview(p => { if (p?.url) { try { URL.revokeObjectURL(p.url); } catch {} } return null; });
+  useEffect(() => () => { if (preview?.url) { try { URL.revokeObjectURL(preview.url); } catch {} } }, [preview]);
   return (
     <div style={{background:T.card,border:`1px solid ${T.green4||T.border}`,borderRadius:6,padding:"14px",margin:"0 14px 14px"}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
@@ -2193,7 +2206,22 @@ function EcoBonusCard({ T, wallet, setShowWallet, onSubmit, busy, usedThisWeek, 
           </button>
         ))}
       </div>
-      {!IS_MOBILE
+      {/* After shooting, PREVIEW the photo and let the user confirm or retake
+          before it's submitted — no accidental sends. */}
+      {preview ? (
+        <div>
+          <img src={preview.url} alt="Eco mode photo" style={{width:"100%",maxHeight:220,objectFit:"cover",borderRadius:6,border:`1px solid ${T.border}`,display:"block"}} />
+          <div style={{fontSize:10.5,color:T.textMid,margin:"8px 0 10px"}}>Is the <b>ECO</b> setting clearly visible? Submit for your {ECO_APPLIANCE_OPTIONS.find(a=>a.id===appliance)?.label} bonus, or retake.</div>
+          <div style={{display:"flex",gap:8}}>
+            <button className="sbtn" style={{flex:1}} disabled={busy}
+              onClick={() => { const f = preview.file; clearPreview(); onSubmit(f, appliance); }}>
+              {busy ? <><span className="spin-sm"/> Submitting…</> : "✅ Submit for bonus"}
+            </button>
+            <button disabled={busy} onClick={() => { clearPreview(); fileRef.current?.click(); }}
+              style={{background:"transparent",color:T.textMid,border:`1px solid ${T.border}`,borderRadius:4,padding:"0 16px",fontWeight:700,fontSize:12,cursor:"pointer"}}>↻ Retake</button>
+          </div>
+        </div>
+      ) : !IS_MOBILE
         ? <button className="sbtn" disabled style={{opacity:.55}}>📵 Phone camera required — open on your phone</button>
         : !wallet
         ? <button className="sbtn" onClick={() => setShowWallet(true)}>Connect Wallet</button>
@@ -2206,7 +2234,7 @@ function EcoBonusCard({ T, wallet, setShowWallet, onSubmit, busy, usedThisWeek, 
           </button>
       }
       <input type="file" ref={fileRef} accept="image/*" capture="environment" style={{display:"none"}}
-        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onSubmit(f, appliance); }} />
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) setPreview({ file: f, url: URL.createObjectURL(f) }); }} />
     </div>
   );
 }
@@ -3658,9 +3686,14 @@ export default function App() {
     }
   };
 
-  const usage = () => { const r=parseFloat(reading),p=parseFloat(prevRead); return(!r||!p||r<=p)?0:parseFloat((r-p).toFixed(2)); };
+  // A reading is submittable when it's a number that's EQUAL TO or higher than
+  // the previous one. Equal means zero consumption — the ultimate conservation —
+  // so it's valid and earns the maximum reward. Only a LOWER reading is rejected
+  // (a real meter never runs backwards).
+  const readingReady = () => { const r=parseFloat(reading),p=parseFloat(prevRead); return Number.isFinite(r)&&Number.isFinite(p)&&r>=p; };
+  const usage = () => { const r=parseFloat(reading),p=parseFloat(prevRead); return readingReady()?parseFloat((r-p).toFixed(2)):0; };
   // Conservation reward: you earn for using LESS than the benchmark, not more.
-  const reward = () => (usage() > 0 ? computeReward(selUtil, usage()) : 0);
+  const reward = () => (readingReady() ? computeReward(selUtil, usage()) : 0);
 
   // ── Eco-mode bonus ──────────────────────────────────────────────────────────
   // Photo of an appliance running in eco mode → fixed bonus via the backend.
@@ -3721,10 +3754,14 @@ export default function App() {
       return;
     }
 
-    // Don't broadcast a zero/NaN reward (blank or non-increasing readings).
+    // Block only blank or LOWER readings — equal (zero usage) is valid and earns
+    // the max reward, so reward() returns > 0 for it.
     if (!(earned > 0)) {
       setBusy(false);
-      showToast("⚠️ Enter a current reading higher than the previous one");
+      const p = parseFloat(prevRead), r = parseFloat(reading);
+      showToast(Number.isFinite(r) && Number.isFinite(p) && r < p
+        ? "⚠️ The current reading can't be lower than the previous one"
+        : "⚠️ Enter the current meter reading");
       return;
     }
 
