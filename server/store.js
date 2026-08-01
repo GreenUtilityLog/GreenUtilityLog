@@ -17,7 +17,7 @@ const R_TOK = (process.env.UPSTASH_REDIS_REST_TOKEN || "").trim();
 const USE_REDIS = !!(R_URL && R_TOK);
 const REDIS_KEY = process.env.STATE_KEY || "greenutilitylog:state";
 
-const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {} };
+const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {} };
 
 async function redisCmd(cmd) {
   const res = await fetch(R_URL, {
@@ -107,6 +107,26 @@ export const store = {
     (state.ecoClaims[addr] = state.ecoClaims[addr] || []).push(ts);
     persist();
   },
+
+  // ── Smart-meter link (beta) ────────────────────────────────────────────────
+  // A device token binds a physical reader to one wallet. A P1/HAN reader (or Home
+  // Assistant) POSTs the live meter total to /meter-ingest with this token; nobody
+  // without the token can push a reading, so it can't be spoofed for another wallet.
+  //   meterLinks:   token   -> { address, meterNo, createdAt }
+  //   linkReadings: address -> { reading, meterNo, at, source }
+  setMeterLink: (token, obj) => { state.meterLinks[token] = obj; persist(); },
+  getMeterLink: (token) => state.meterLinks[token] || null,
+  // Reverse lookup so a wallet re-pairing reuses/overwrites its own token rather
+  // than accumulating orphans.
+  getLinkByAddress: (addr) => {
+    const a = String(addr).toLowerCase();
+    for (const [token, v] of Object.entries(state.meterLinks)) {
+      if (v && String(v.address).toLowerCase() === a) return { token, ...v };
+    }
+    return null;
+  },
+  setLinkReading: (addr, obj) => { state.linkReadings[String(addr).toLowerCase()] = obj; persist(); },
+  getLinkReading: (addr) => state.linkReadings[String(addr).toLowerCase()] || null,
 
   // True when state is backed by a durable store (not the ephemeral file).
   isDurable: () => USE_REDIS,

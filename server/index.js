@@ -3,6 +3,7 @@
 // GET  /health  : service + distributor status.
 
 import "dotenv/config";
+import { randomBytes } from "node:crypto";
 import express from "express";
 import cors from "cors";
 import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, ECO_REWARD, ECO_MAX_PER_WEEK, ECO_COOLDOWN_MS, ECO_APPLIANCES, ecoWeekKey } from "./config.js";
@@ -14,6 +15,7 @@ import { ocrImage, ocrEnabled, ocrProviders } from "./ocr.js";
 import { verifyWalletCertificate, REQUIRE_CERT } from "./auth.js";
 import { checkPhotoAuthenticity, aiPhotoCheckEnabled } from "./authenticity.js";
 import { verifyCaptcha, captchaEnabled } from "./captcha.js";
+import { enodeEnabled, enodeInfo, createMeterLink, fetchLatestReading } from "./enode.js";
 
 const app = express();
 // Limit allows for a meter photo (base64) in the body.
@@ -63,6 +65,9 @@ app.get("/health", async (req, res) => {
     appAdmin: chain.appAdmin,
     // Gas sponsorship (VIP-191): when set, the distributor needs no VTHO of its own.
     delegation: !!(process.env.DELEGATION_URL || "").trim(),
+    // Smart-meter sources: the free push path is always on; enode only when configured.
+    meterIngest: true,
+    enode: enodeInfo(),
   });
 });
 
@@ -230,6 +235,123 @@ app.post("/eco-action", async (req, res) => {
     res.status(502).json({ error: e?.message || "distribution failed" });
   } finally {
     inFlight.delete(lockKey);
+  }
+});
+
+// ── Smart-meter ingestion (beta) ─────────────────────────────────────────────
+// Goal: an automatic, worldwide meter reading so users don't depend on a good
+// photo. Two sources, one store (store.linkReadings, keyed by wallet):
+//   1) FREE PUSH — a P1/HAN reader or Home Assistant POSTs the live total to
+//      /meter-ingest with a device token this wallet paired. No file uploads, no
+//      OCR; the reading is machine-read at the meter. Works anywhere such a reader
+//      exists (NL/BE P1, Nordics HAN, or any script that can read the meter).
+//   2) ENODE (optional) — global aggregator; see enode.js. Env-gated.
+// Either way the value is surfaced to the app, which submits it through the SAME
+// /reward validation (monotonic vs last reading, bounds, cooldown, reward cap).
+
+const publicBase = (req) =>
+  (process.env.PUBLIC_BASE_URL || "").trim().replace(/\/$/, "") ||
+  `${req.headers["x-forwarded-proto"] || req.protocol}://${req.headers.host}`;
+
+// Pair a device to this wallet. Cert-authed (proves wallet ownership) → returns a
+// secret device token + the exact URL a reader should POST readings to. Re-pairing
+// the same wallet reuses its token so it can't accumulate orphans.
+app.post("/meter/pair", (req, res) => {
+  const address = String(req.body.address || "");
+  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
+  if (REQUIRE_CERT) {
+    const c = verifyWalletCertificate({ certificate: req.body.certificate, address });
+    if (!c.ok) return res.status(401).json({ error: c.error });
+  }
+  const meterNo = String(req.body.meterNo || "").trim();
+  const existing = store.getLinkByAddress(address);
+  const token = existing?.token || randomBytes(24).toString("hex");
+  store.setMeterLink(token, { address: address.toLowerCase(), meterNo, createdAt: Date.now() });
+  res.json({
+    token,
+    ingestUrl: `${publicBase(req)}/meter-ingest`,
+    // A ready-to-paste example a reader / Home Assistant automation can POST.
+    example: {
+      method: "POST",
+      url: `${publicBase(req)}/meter-ingest`,
+      headers: { "Content-Type": "application/json" },
+      body: { token, reading: 12345.6 },
+    },
+  });
+});
+
+// The endpoint a reader posts to. Token-authed (the token IS the secret binding to
+// a wallet) — deliberately no wallet cert, since an unattended device can't sign.
+app.post("/meter-ingest", (req, res) => {
+  const token = String(req.body.token || "");
+  const link = store.getMeterLink(token);
+  if (!link) return res.status(401).json({ error: "unknown device token" });
+  const reading = Number(req.body.reading);
+  if (!Number.isFinite(reading) || reading < 0) return res.status(400).json({ error: "invalid reading" });
+  store.setLinkReading(link.address, {
+    reading,
+    meterNo: String(req.body.meterNo || link.meterNo || "").trim() || null,
+    at: Date.now(),
+    source: "push",
+  });
+  res.json({ ok: true });
+});
+
+// The app polls this to show / prefill the latest automatically-received reading.
+app.get("/meter/latest", (req, res) => {
+  const address = String(req.query.address || "");
+  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
+  const r = store.getLinkReading(address);
+  const link = store.getLinkByAddress(address);
+  res.json({ paired: !!link, reading: r || null });
+});
+
+// ── Enode source (optional) ──────────────────────────────────────────────────
+// Create a Link session; the app opens the returned linkUrl so the user authorises
+// their meter with Enode. Cert-authed so a link is only ever created for the
+// wallet that owns it.
+app.post("/meter/enode/link", async (req, res) => {
+  if (!enodeEnabled()) return res.status(503).json({ error: "enode not configured" });
+  const address = String(req.body.address || "");
+  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
+  if (REQUIRE_CERT) {
+    const c = verifyWalletCertificate({ certificate: req.body.certificate, address });
+    if (!c.ok) return res.status(401).json({ error: c.error });
+  }
+  try {
+    const session = await createMeterLink(address);
+    res.json({ linkUrl: session?.linkUrl || session?.url || null, session });
+  } catch (e) {
+    console.error("[/meter/enode/link]", e?.message || e);
+    res.status(502).json({ error: e?.message || "enode link failed" });
+  }
+});
+
+// Pull the latest reading from Enode into linkReadings. Returns `raw` so the exact
+// meter schema can be locked down against a live account (then tighten pickReading).
+app.post("/meter/enode/sync", async (req, res) => {
+  if (!enodeEnabled()) return res.status(503).json({ error: "enode not configured" });
+  const address = String(req.body.address || "");
+  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
+  if (REQUIRE_CERT) {
+    const c = verifyWalletCertificate({ certificate: req.body.certificate, address });
+    if (!c.ok) return res.status(401).json({ error: c.error });
+  }
+  try {
+    const latest = await fetchLatestReading(address);
+    if (!latest) return res.json({ linked: false });
+    if (Number.isFinite(latest.reading)) {
+      store.setLinkReading(address, {
+        reading: latest.reading,
+        meterNo: latest.meterId || null,
+        at: Date.now(),
+        source: "enode",
+      });
+    }
+    res.json({ linked: true, reading: latest.reading, unit: latest.unit, field: latest.field, raw: latest.raw });
+  } catch (e) {
+    console.error("[/meter/enode/sync]", e?.message || e);
+    res.status(502).json({ error: e?.message || "enode sync failed" });
   }
 });
 
