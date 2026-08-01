@@ -2011,7 +2011,182 @@ function HomeScreen({ b3tr, streak, subs, setTab, T }) {
   );
 }
 
-function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading, setReading, prevRead, setPrevRead, busy, usage, reward, handleSubmit, verifyKey, wallet, setShowWallet, subs, meters, T, setTab, onEcoSubmit, ecoBusy, ecoUsedThisWeek, ecoCooldownMs }) {
+// ── Smart-meter card (beta) ──────────────────────────────────────────────────
+// Automatic meter readings, so a good photo isn't the only path. Two sources feed
+// one backend store (keyed by wallet):
+//   • Push — pair a device (P1/HAN reader or Home Assistant) that POSTs the live
+//     total to the backend. Free, works worldwide wherever such a reader exists.
+//   • Enode — global aggregator; only shown when the backend has Enode configured.
+// Step 1 (this) pairs the source and shows the live reading; "Use this reading"
+// prefills the Current field. Photoless auto-payout is the next step.
+function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy }) {
+  const { requestCertificate } = useWallet();
+  const API = (REWARD_API || "").replace(/\/$/, "");
+  const [health, setHealth] = useState(null);
+  const [latest, setLatest] = useState(null);   // { paired, reading }
+  const [pair, setPair] = useState(null);        // { token, ingestUrl, example }
+  const [busy, setBusy] = useState("");          // "pair" | "enode" | "sync"
+  const [err, setErr] = useState("");
+  const [copied, setCopied] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const signCert = async () => {
+    const content = `Green Utility Log — link smart meter\nWallet: ${wallet}\nTime: ${new Date().toISOString()}`;
+    const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } });
+    return { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
+  };
+
+  const refreshLatest = async () => {
+    if (!API || !wallet) return;
+    try {
+      const r = await fetch(`${API}/meter/latest?address=${wallet}`);
+      if (r.ok) setLatest(await r.json());
+    } catch { /* offline — leave as-is */ }
+  };
+
+  // Load backend capabilities once, then poll the latest reading while open.
+  useEffect(() => {
+    if (!API) return;
+    fetch(`${API}/health`).then(r => r.ok ? r.json() : null).then(h => h && setHealth(h)).catch(() => {});
+  }, [API]);
+  useEffect(() => {
+    if (!open || !wallet) return;
+    refreshLatest();
+    const id = setInterval(refreshLatest, 15000);
+    return () => clearInterval(id);
+  }, [open, wallet, API]);
+
+  const doPair = async () => {
+    setErr(""); setBusy("pair");
+    try {
+      const certificate = await signCert();
+      const r = await fetch(`${API}/meter/pair`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: wallet, certificate }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `pair failed (${r.status})`);
+      setPair(d);
+    } catch (e) { setErr(e?.message || "pairing failed"); }
+    finally { setBusy(""); }
+  };
+
+  const doEnodeLink = async () => {
+    setErr(""); setBusy("enode");
+    try {
+      const certificate = await signCert();
+      const r = await fetch(`${API}/meter/enode/link`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: wallet, certificate }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `link failed (${r.status})`);
+      if (d.linkUrl) window.open(d.linkUrl, "_blank", "noopener");
+      else setErr("Enode returned no link URL");
+    } catch (e) { setErr(e?.message || "Enode link failed"); }
+    finally { setBusy(""); }
+  };
+
+  const doEnodeSync = async () => {
+    setErr(""); setBusy("sync");
+    try {
+      const certificate = await signCert();
+      const r = await fetch(`${API}/meter/enode/sync`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: wallet, certificate }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `sync failed (${r.status})`);
+      if (!d.linked) setErr("No meter linked yet — connect one via Enode first.");
+      await refreshLatest();
+    } catch (e) { setErr(e?.message || "Enode sync failed"); }
+    finally { setBusy(""); }
+  };
+
+  const copy = (text, tag) => {
+    try { navigator.clipboard?.writeText(text); setCopied(tag); setTimeout(() => setCopied(""), 1500); } catch { /* no clipboard */ }
+  };
+
+  const enodeOn = !!health?.enode?.enabled;
+  const rd = latest?.reading;
+  const box = { margin: "0 14px 12px", padding: 12, background: T.ecoBg || T.waterBg, border: `1px solid ${T.ecoBorder || T.waterBorder}`, borderRadius: 8 };
+  const btn = (bg) => ({ padding: "9px 12px", fontSize: 12, fontWeight: 700, color: "#fff", background: bg, border: "none", borderRadius: 6, cursor: "pointer" });
+  const mono = { fontFamily: "'SF Mono',Menlo,'Courier New',monospace" };
+
+  if (!API) return null;
+
+  return (
+    <div style={box}>
+      <button onClick={() => setOpen(o => !o)} style={{ display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between", gap: 10, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+        <span style={{ fontSize: 12, fontWeight: 800, color: T.eco || T.water }}>🔗 Connect smart meter <span style={{ fontWeight: 600, color: T.textSoft }}>· automatic reading (beta)</span></span>
+        <span style={{ color: T.textSoft, fontSize: 13 }}>{open ? "▲" : "▼"}</span>
+      </button>
+
+      {open && (
+        <div style={{ marginTop: 10 }}>
+          <div style={{ fontSize: 11, color: T.textSoft, lineHeight: 1.6, marginBottom: 10 }}>
+            A reader at your meter pushes the reading here automatically — so a blurry photo isn't the only way. Pair a device below, or connect a provider.
+          </div>
+
+          {/* Live reading */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "9px 11px", background: T.bg, border: `1px solid ${T.border || T.waterBorder}`, borderRadius: 6, marginBottom: 10 }}>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft }}>Latest received</div>
+              <div style={{ ...mono, fontSize: 15, fontWeight: 800, color: rd != null ? (T.eco || T.text) : T.textSoft }}>
+                {rd != null ? `${rd.reading} kWh` : latest?.paired ? "waiting for reader…" : "no reading yet"}
+              </div>
+              {rd?.source && <div style={{ fontSize: 10, color: T.textSoft }}>via {rd.source}{rd.at ? ` · ${new Date(rd.at).toLocaleString()}` : ""}</div>}
+            </div>
+            {rd != null && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {onAutoSubmit && (
+                  <button disabled={!!autoBusy} onClick={onAutoSubmit} style={{ ...btn(T.eco || T.electric), opacity: autoBusy ? .6 : 1 }}>
+                    {autoBusy ? "Submitting…" : "Submit — no photo"}
+                  </button>
+                )}
+                <button onClick={() => setReading(String(rd.reading))} style={{ ...btn(T.textSoft), padding: "6px 10px", fontSize: 11 }}>Use in form</button>
+              </div>
+            )}
+          </div>
+          {rd != null && onAutoSubmit && (
+            <div style={{ fontSize: 10, color: T.textSoft, margin: "-4px 0 10px", lineHeight: 1.5 }}>
+              Photoless payout works once this meter has a baseline — do one normal photo submission first, then automatic readings pay out on their own.
+            </div>
+          )}
+
+          {/* Actions */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {!wallet
+              ? <div style={{ fontSize: 11, color: T.textSoft }}>Connect your wallet to pair a device.</div>
+              : <>
+                  <button disabled={!!busy} onClick={doPair} style={{ ...btn(T.electric), opacity: busy ? .6 : 1 }}>{busy === "pair" ? "Pairing…" : "Pair a device (free)"}</button>
+                  {enodeOn && <button disabled={!!busy} onClick={doEnodeLink} style={{ ...btn("#6c5ce7"), opacity: busy ? .6 : 1 }}>{busy === "enode" ? "Opening…" : "Connect via Enode (global)"}</button>}
+                  {enodeOn && <button disabled={!!busy} onClick={doEnodeSync} style={{ ...btn(T.textSoft), opacity: busy ? .6 : 1 }}>{busy === "sync" ? "Syncing…" : "Sync now"}</button>}
+                </>}
+          </div>
+
+          {err && <div style={{ marginTop: 10, fontSize: 11, color: "#e74c3c", background: "rgba(231,76,60,.08)", border: "1px solid rgba(231,76,60,.3)", borderRadius: 6, padding: "8px 10px", wordBreak: "break-word" }}>{err}</div>}
+
+          {/* Pairing result — token + where a reader should POST */}
+          {pair && (
+            <div style={{ marginTop: 10, padding: 10, background: T.bg, border: `1px dashed ${T.border || T.waterBorder}`, borderRadius: 6 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft }}>Device token</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "3px 0 8px" }}>
+                <code style={{ ...mono, fontSize: 11, color: T.text, wordBreak: "break-all", flex: 1 }}>{pair.token}</code>
+                <button onClick={() => copy(pair.token, "tok")} style={{ ...btn(T.textSoft), padding: "5px 9px", fontSize: 11 }}>{copied === "tok" ? "✓" : "Copy"}</button>
+              </div>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft }}>Reader posts to</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "3px 0 8px" }}>
+                <code style={{ ...mono, fontSize: 11, color: T.text, wordBreak: "break-all", flex: 1 }}>{pair.ingestUrl}</code>
+                <button onClick={() => copy(pair.ingestUrl, "url")} style={{ ...btn(T.textSoft), padding: "5px 9px", fontSize: 11 }}>{copied === "url" ? "✓" : "Copy"}</button>
+              </div>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft }}>Example (JSON body)</div>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginTop: 3 }}>
+                <pre style={{ ...mono, fontSize: 10, color: T.text, background: T.ecoBg || T.waterBg, padding: 8, borderRadius: 5, overflowX: "auto", flex: 1, margin: 0 }}>{`curl -X POST ${pair.ingestUrl} \\
+  -H "Content-Type: application/json" \\
+  -d '{"token":"${pair.token}","reading":12345.6}'`}</pre>
+              </div>
+              <div style={{ fontSize: 10, color: T.textSoft, marginTop: 6 }}>Point a P1/HAN reader or a Home Assistant automation at this. It keeps pushing your live meter total — no photo needed.</div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading, setReading, prevRead, setPrevRead, busy, usage, reward, handleSubmit, verifyKey, wallet, setShowWallet, subs, meters, T, setTab, onEcoSubmit, ecoBusy, ecoUsedThisWeek, ecoCooldownMs, onMeterAutoSubmit, meterAutoBusy }) {
   const meterNo  = (meters?.[selUtil] || "").trim();
   // Submittable when current ≥ previous (equal = zero usage = valid, max reward).
   const _r = parseFloat(reading), _p = parseFloat(prevRead);
@@ -2064,6 +2239,8 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
         <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft}}>Registered meter</div>
         <div style={{fontSize:12,fontWeight:700,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:meterNo?(T[selUtil]||T.text):T.gas}}>{meterNo || "Not registered"}</div>
       </div>
+
+      {selUtil === "electric" && <SmartMeterCard wallet={wallet} setReading={setReading} T={T} onAutoSubmit={onMeterAutoSubmit} autoBusy={meterAutoBusy} />}
 
       <VerifyZone key={verifyKey} utilId={selUtil} reading={reading} prevRead={prevRead} subs={subs} meterNo={meterNo} T={T}
         onOcrReading={(v) => { if (!String(reading).trim()) setReading(String(v)); }}
@@ -3742,6 +3919,48 @@ export default function App() {
     }
   };
 
+  // ── Photoless automatic submission (Step 2) ─────────────────────────────────
+  // Submit the latest automatically-received meter reading — no photo. The backend
+  // pays out only if the meter already has a baseline (set by a prior photo
+  // submission) and the reading is fresh; all the normal reward rules still apply.
+  const [meterAutoBusy, setMeterAutoBusy] = useState(false);
+  const handleMeterAutoSubmit = async () => {
+    if (!wallet) { openConnectModal(); return; }
+    if (!online) { showToast("⚡ Automatic submit needs a connection — try again when online"); return; }
+    if (!REWARD_API) { showToast("Automatic submit isn't available yet"); return; }
+    const meterNo = (meters["electric"] || "").trim();
+    if (!meterNo) { showToast("⚠️ Register your electricity meter number first"); return; }
+    if (TURNSTILE_SITE_KEY && !captchaToken) { showToast("🤖 Complete the verification checkbox first"); return; }
+    setMeterAutoBusy(true);
+    try {
+      let certificate;
+      try {
+        const content = `Green Utility Log — confirm automatic meter submission\nWallet: ${wallet}\nMeter: ${meterNo}\nTime: ${new Date().toISOString()}`;
+        const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } });
+        certificate = { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
+      } catch {
+        setMeterAutoBusy(false);
+        showToast("✋ Sign the confirmation in your wallet to submit");
+        return;
+      }
+      const res = await fetch(`${REWARD_API.replace(/\/$/, "")}/reward-from-meter`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: wallet, utility: "electric", meterNo, certificate, captchaToken }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `service error ${res.status}`);
+      const paid = Number(data.amount) || 0;
+      setSubs(prev => [{ id: Date.now(), type: "electric", meterNo, cur: data.reading != null ? String(data.reading) : "", prev: "", date: dayKey(new Date()), b3tr: paid, status: "confirmed", txHash: data.txid || "", submittedAt: Date.now() }, ...prev]);
+      setB3tr(b => b + paid);
+      showToast(`⚡ Automatic reading: +${paid} B3TR!`);
+    } catch (e) {
+      showToast(`❌ Automatic submit failed: ${e?.message || "try again later"}`);
+    } finally {
+      setMeterAutoBusy(false);
+    }
+  };
+
   const handleSubmit = async () => {
     setBusy(true);
     const earned = reward();
@@ -3986,7 +4205,7 @@ export default function App() {
           </div>
 
           {tab==="home"      && <HomeScreen b3tr={b3tr} streak={streak} subs={subs} setTab={setTab} T={T}/>}
-          {tab==="submit"    && <SubmitScreen u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} busy={busy} usage={usage} reward={reward} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab} onEcoSubmit={handleEcoSubmit} ecoBusy={ecoBusy} ecoUsedThisWeek={ecoUsedThisWeek} ecoCooldownMs={ecoCooldownMs}/>}
+          {tab==="submit"    && <SubmitScreen u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} busy={busy} usage={usage} reward={reward} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab} onEcoSubmit={handleEcoSubmit} ecoBusy={ecoBusy} ecoUsedThisWeek={ecoUsedThisWeek} ecoCooldownMs={ecoCooldownMs} onMeterAutoSubmit={handleMeterAutoSubmit} meterAutoBusy={meterAutoBusy}/>}
           {tab==="charts"    && <ChartsScreen subs={subs} T={T}/>}
           {tab==="leaderboard" && <LeaderboardScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}
