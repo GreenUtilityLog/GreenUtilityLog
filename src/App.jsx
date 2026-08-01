@@ -1464,9 +1464,6 @@ function IntroScreen({ onStart }) {
   );
 }
 
-// Default baselines used when a meter is registered without a starting reading.
-const BASELINE_DEFAULTS = { electric:"3834.8", gas:"521.4", water:"12320", solar:"130.1" };
-
 function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, editMode, T }) {
   // Which utilities this screen registers. Defaults to the required ones
   // (electric/gas/water); solar is added separately as an optional extra.
@@ -1487,7 +1484,14 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
   // In edit mode every shown meter is expected; on first setup only the
   // non-optional ones are required to continue.
   const required = editMode ? shown : shown.filter(u => !u.optional);
-  const allMetersFilled = required.every(u => (meters[u.id] || "").trim().length > 0);
+  const hasNo = (u) => (meters[u.id] || "").trim().length > 0;
+  // The baseline is the user's REAL current reading — the starting point every
+  // future usage is measured from. It's required (no invented default), otherwise
+  // the first submission would compute a nonsense delta.
+  const hasBaseline = (u) => { const v = parseFloat(baselines[u.id]); return Number.isFinite(v) && v >= 0; };
+  // A meter is complete only with BOTH its number and a starting reading. Optional
+  // meters need a baseline only once their number is filled in.
+  const allMetersFilled = required.every(hasNo) && shown.filter(u => required.includes(u) || hasNo(u)).every(hasBaseline);
 
   const handleDone = () => {
     if (!allMetersFilled) return;
@@ -1495,7 +1499,9 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
     const nextBaselines = { ...(existingBaselines || {}) };
     const nextMeters    = { ...(existingMeters || {}) };
     for (const u of shown) {
-      nextBaselines[u.id] = (baselines[u.id] || "").trim() || BASELINE_DEFAULTS[u.id];
+      // Use the reading the user actually entered; fall back only to an existing
+      // (already-registered) baseline, never to an invented default.
+      nextBaselines[u.id] = (baselines[u.id] || "").trim() || (existingBaselines?.[u.id] || "");
       nextMeters[u.id]    = (meters[u.id] || "").trim();
     }
     saveBaselines(nextBaselines);
@@ -1508,7 +1514,7 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
     ? "Your registered meters are locked to keep your readings tamper-proof. A meter number and baseline can't be changed once set."
     : isSolarOnly
       ? "Generating your own power? Add your solar meter number and its current export reading."
-      : "Enter each meter number, then type its current reading. The meter number is logged with every submission to keep your readings verifiable.";
+      : "Enter each meter number and its current reading. That first reading becomes your baseline (starting point) — future submissions measure usage from it, so enter the real number on your meter now.";
 
   return (
     <div className="onboard">
@@ -1541,10 +1547,10 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
                 type="number"
                 step="0.01"
                 inputMode="decimal"
-                placeholder={`Current reading · e.g. ${u.ph[0]}`}
+                placeholder={`Current reading on the meter · e.g. ${u.ph[0]}`}
                 value={baselines[u.id]}
                 onChange={e => setBaselines(b => ({...b,[u.id]:e.target.value}))}
-                style={editInput(true)}
+                style={editInput(hasBaseline(u))}
               />
               )}
             </div>
@@ -1554,7 +1560,7 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
       </div>
       {!isSolarOnly && !allLocked && <div style={{fontSize:11,color:T.textSoft,marginTop:16,textAlign:"center"}}>ℹ️ Got solar panels? Add them later in Settings.</div>}
       {allLocked && <div style={{fontSize:11,color:T.textSoft,marginTop:16,textAlign:"center"}}>🔒 Locked to prevent fraud. To replace a meter, contact support.</div>}
-      {!allMetersFilled && <div style={{fontSize:11,color:"#e0553d",marginTop:6,textAlign:"center"}}>Enter a meter number for every meter to continue.</div>}
+      {!allMetersFilled && <div style={{fontSize:11,color:"#e0553d",marginTop:6,textAlign:"center"}}>Enter a meter number <b>and</b> its current reading for every meter to continue.</div>}
       <button className="ob-btn" onClick={handleDone} disabled={!allMetersFilled} style={!allMetersFilled?{opacity:.5,cursor:"not-allowed"}:undefined}>{allLocked ? "Done" : (isSolarOnly ? "Save Solar Meter" : "Complete Setup")}</button>
     </div>
   );
