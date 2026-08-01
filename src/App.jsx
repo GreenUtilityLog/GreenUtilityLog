@@ -2012,23 +2012,28 @@ function HomeScreen({ b3tr, streak, subs, setTab, T }) {
 }
 
 // ── Smart-meter card (beta) ──────────────────────────────────────────────────
-// Automatic meter readings, so a good photo isn't the only path. Two sources feed
-// one backend store (keyed by wallet):
-//   • Push — pair a device (P1/HAN reader or Home Assistant) that POSTs the live
-//     total to the backend. Free, works worldwide wherever such a reader exists.
-//   • Enode — global aggregator; only shown when the backend has Enode configured.
-// Step 1 (this) pairs the source and shows the live reading; "Use this reading"
-// prefills the Current field. Photoless auto-payout is the next step.
+// The friendly, photoless path. Everyday users just type their current reading and
+// tap one button — no camera, no OCR. Under the hood the value goes to the same
+// backend store a real reader would push to (device token, cached after a one-time
+// pairing), then the photoless payout endpoint issues B3TR. All the technical bits
+// (device token, ingest URL, P1/Home-Assistant setup, Enode) live in a collapsed
+// "Automatic setup" section so they never clutter the simple flow.
 function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy }) {
   const { requestCertificate } = useWallet();
   const API = (REWARD_API || "").replace(/\/$/, "");
-  const [health, setHealth] = useState(null);
-  const [latest, setLatest] = useState(null);   // { paired, reading }
-  const [pair, setPair] = useState(null);        // { token, ingestUrl, example }
-  const [busy, setBusy] = useState("");          // "pair" | "enode" | "sync"
-  const [err, setErr] = useState("");
-  const [copied, setCopied] = useState("");
-  const [open, setOpen] = useState(false);
+  const ingestUrl = `${API}/meter-ingest`;
+  const tkKey = wallet ? `gul_mtoken_${wallet.toLowerCase()}` : "";
+
+  const [health, setHealth]   = useState(null);
+  const [latest, setLatest]   = useState(null);   // { paired, reading }
+  const [token, setToken]     = useState("");     // paired device token (cached)
+  const [manual, setManual]   = useState("");     // the reading the user typed
+  const [sending, setSending] = useState(false);  // manual send+submit in flight
+  const [busy, setBusy]       = useState("");     // "enode" | "sync"
+  const [err, setErr]         = useState("");
+  const [copied, setCopied]   = useState("");
+  const [open, setOpen]       = useState(false);
+  const [advOpen, setAdvOpen] = useState(false);
 
   const signCert = async () => {
     const content = `Green Utility Log — link smart meter\nWallet: ${wallet}\nTime: ${new Date().toISOString()}`;
@@ -2044,11 +2049,15 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy }) {
     } catch { /* offline — leave as-is */ }
   };
 
-  // Load backend capabilities once, then poll the latest reading while open.
+  // Load backend capabilities once; load any cached device token for this wallet.
   useEffect(() => {
     if (!API) return;
     fetch(`${API}/health`).then(r => r.ok ? r.json() : null).then(h => h && setHealth(h)).catch(() => {});
   }, [API]);
+  useEffect(() => {
+    if (!tkKey) { setToken(""); return; }
+    try { setToken(localStorage.getItem(tkKey) || ""); } catch { /* no storage */ }
+  }, [tkKey]);
   useEffect(() => {
     if (!open || !wallet) return;
     refreshLatest();
@@ -2056,16 +2065,37 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy }) {
     return () => clearInterval(id);
   }, [open, wallet, API]);
 
-  const doPair = async () => {
-    setErr(""); setBusy("pair");
+  // Pair once (one wallet signature ever) and remember the token so future sends
+  // need no popup. Returns the token to use for /meter-ingest.
+  const ensureToken = async () => {
+    if (token) return token;
+    const certificate = await signCert();
+    const r = await fetch(`${API}/meter/pair`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: wallet, certificate }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || `pairing failed (${r.status})`);
+    setToken(d.token);
+    try { localStorage.setItem(tkKey, d.token); } catch { /* no storage */ }
+    return d.token;
+  };
+
+  // The one-tap path: send the typed reading to the backend, then pay it out.
+  const sendAndEarn = async () => {
+    const rv = parseFloat(manual);
+    if (!Number.isFinite(rv) || rv < 0) { setErr("Enter a valid meter reading (kWh)."); return; }
+    setErr(""); setSending(true);
     try {
-      const certificate = await signCert();
-      const r = await fetch(`${API}/meter/pair`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: wallet, certificate }) });
+      const tk = await ensureToken();
+      const r = await fetch(ingestUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: tk, reading: rv }) });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error || `pair failed (${r.status})`);
-      setPair(d);
-    } catch (e) { setErr(e?.message || "pairing failed"); }
-    finally { setBusy(""); }
+      if (!r.ok) throw new Error(d.error || `couldn't send the reading (${r.status})`);
+      await refreshLatest();
+      setManual("");
+      if (onAutoSubmit) await onAutoSubmit();   // pays out + shows its own toast/history
+    } catch (e) {
+      setErr(e?.message || "sending failed");
+    } finally {
+      setSending(false);
+    }
   };
 
   const doEnodeLink = async () => {
@@ -2094,90 +2124,112 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy }) {
     finally { setBusy(""); }
   };
 
+  const showToken = async () => {   // Advanced: reveal/create the device token for a reader
+    setErr("");
+    try { await ensureToken(); } catch (e) { setErr(e?.message || "pairing failed"); }
+  };
+
   const copy = (text, tag) => {
     try { navigator.clipboard?.writeText(text); setCopied(tag); setTimeout(() => setCopied(""), 1500); } catch { /* no clipboard */ }
   };
 
   const enodeOn = !!health?.enode?.enabled;
   const rd = latest?.reading;
+  const busyAny = sending || !!autoBusy;
   const box = { margin: "0 14px 12px", padding: 12, background: T.ecoBg || T.waterBg, border: `1px solid ${T.ecoBorder || T.waterBorder}`, borderRadius: 8 };
   const btn = (bg) => ({ padding: "9px 12px", fontSize: 12, fontWeight: 700, color: "#fff", background: bg, border: "none", borderRadius: 6, cursor: "pointer" });
   const mono = { fontFamily: "'SF Mono',Menlo,'Courier New',monospace" };
+  const inputStyle = { flex: 1, minWidth: 0, padding: "10px 12px", fontSize: 15, fontWeight: 700, ...mono, color: T.text, background: T.bg, border: `1px solid ${T.border || T.waterBorder}`, borderRadius: 6, outline: "none" };
 
   if (!API) return null;
 
   return (
     <div style={box}>
       <button onClick={() => setOpen(o => !o)} style={{ display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between", gap: 10, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-        <span style={{ fontSize: 12, fontWeight: 800, color: T.eco || T.water }}>🔗 Connect smart meter <span style={{ fontWeight: 600, color: T.textSoft }}>· automatic reading (beta)</span></span>
+        <span style={{ fontSize: 12, fontWeight: 800, color: T.eco || T.water }}>⚡ Submit without a photo <span style={{ fontWeight: 600, color: T.textSoft }}>· type or auto-read (beta)</span></span>
         <span style={{ color: T.textSoft, fontSize: 13 }}>{open ? "▲" : "▼"}</span>
       </button>
 
       {open && (
         <div style={{ marginTop: 10 }}>
           <div style={{ fontSize: 11, color: T.textSoft, lineHeight: 1.6, marginBottom: 10 }}>
-            A reader at your meter pushes the reading here automatically — so a blurry photo isn't the only way. Pair a device below, or connect a provider.
+            Photo won't read well? Just type your current meter reading and tap once — no camera needed. A P1 reader can also send it automatically (see setup below).
           </div>
 
-          {/* Live reading */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "9px 11px", background: T.bg, border: `1px solid ${T.border || T.waterBorder}`, borderRadius: 6, marginBottom: 10 }}>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft }}>Latest received</div>
-              <div style={{ ...mono, fontSize: 15, fontWeight: 800, color: rd != null ? (T.eco || T.text) : T.textSoft }}>
-                {rd != null ? `${rd.reading} kWh` : latest?.paired ? "waiting for reader…" : "no reading yet"}
-              </div>
-              {rd?.source && <div style={{ fontSize: 10, color: T.textSoft }}>via {rd.source}{rd.at ? ` · ${new Date(rd.at).toLocaleString()}` : ""}</div>}
+          {!wallet ? (
+            <div style={{ fontSize: 11, color: T.textSoft }}>Connect your wallet to submit a reading.</div>
+          ) : (<>
+            {/* Manual reading → one-tap submit */}
+            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft, marginBottom: 5 }}>Current meter reading (kWh)</div>
+            <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+              <input type="number" step="0.01" inputMode="decimal" placeholder="e.g. 8421.3" value={manual}
+                onChange={(e) => setManual(e.target.value)} style={inputStyle} />
+              <button disabled={busyAny} onClick={sendAndEarn} style={{ ...btn(T.eco || T.electric), whiteSpace: "nowrap", opacity: busyAny ? .6 : 1 }}>
+                {busyAny ? "Submitting…" : "Submit & earn"}
+              </button>
             </div>
+            <div style={{ fontSize: 10, color: T.textSoft, marginTop: 6, lineHeight: 1.5 }}>
+              First time on this meter? Do <b>one photo submission</b> above to set the baseline — after that, typing (or a reader) is enough to earn.
+            </div>
+
+            {/* Latest auto-received reading (from a real reader / Enode) */}
             {rd != null && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {onAutoSubmit && (
-                  <button disabled={!!autoBusy} onClick={onAutoSubmit} style={{ ...btn(T.eco || T.electric), opacity: autoBusy ? .6 : 1 }}>
-                    {autoBusy ? "Submitting…" : "Submit — no photo"}
-                  </button>
-                )}
-                <button onClick={() => setReading(String(rd.reading))} style={{ ...btn(T.textSoft), padding: "6px 10px", fontSize: 11 }}>Use in form</button>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "8px 11px", background: T.bg, border: `1px solid ${T.border || T.waterBorder}`, borderRadius: 6, marginTop: 10 }}>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft }}>Auto-received</div>
+                  <div style={{ ...mono, fontSize: 14, fontWeight: 800, color: T.eco || T.text }}>{rd.reading} kWh</div>
+                  {rd.source && <div style={{ fontSize: 10, color: T.textSoft }}>via {rd.source}{rd.at ? ` · ${new Date(rd.at).toLocaleString()}` : ""}</div>}
+                </div>
+                <button onClick={() => setManual(String(rd.reading))} style={{ ...btn(T.textSoft), padding: "6px 10px", fontSize: 11 }}>Use</button>
               </div>
             )}
-          </div>
-          {rd != null && onAutoSubmit && (
-            <div style={{ fontSize: 10, color: T.textSoft, margin: "-4px 0 10px", lineHeight: 1.5 }}>
-              Photoless payout works once this meter has a baseline — do one normal photo submission first, then automatic readings pay out on their own.
-            </div>
-          )}
-
-          {/* Actions */}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {!wallet
-              ? <div style={{ fontSize: 11, color: T.textSoft }}>Connect your wallet to pair a device.</div>
-              : <>
-                  <button disabled={!!busy} onClick={doPair} style={{ ...btn(T.electric), opacity: busy ? .6 : 1 }}>{busy === "pair" ? "Pairing…" : "Pair a device (free)"}</button>
-                  {enodeOn && <button disabled={!!busy} onClick={doEnodeLink} style={{ ...btn("#6c5ce7"), opacity: busy ? .6 : 1 }}>{busy === "enode" ? "Opening…" : "Connect via Enode (global)"}</button>}
-                  {enodeOn && <button disabled={!!busy} onClick={doEnodeSync} style={{ ...btn(T.textSoft), opacity: busy ? .6 : 1 }}>{busy === "sync" ? "Syncing…" : "Sync now"}</button>}
-                </>}
-          </div>
+          </>)}
 
           {err && <div style={{ marginTop: 10, fontSize: 11, color: "#e74c3c", background: "rgba(231,76,60,.08)", border: "1px solid rgba(231,76,60,.3)", borderRadius: 6, padding: "8px 10px", wordBreak: "break-word" }}>{err}</div>}
 
-          {/* Pairing result — token + where a reader should POST */}
-          {pair && (
-            <div style={{ marginTop: 10, padding: 10, background: T.bg, border: `1px dashed ${T.border || T.waterBorder}`, borderRadius: 6 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft }}>Device token</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "3px 0 8px" }}>
-                <code style={{ ...mono, fontSize: 11, color: T.text, wordBreak: "break-all", flex: 1 }}>{pair.token}</code>
-                <button onClick={() => copy(pair.token, "tok")} style={{ ...btn(T.textSoft), padding: "5px 9px", fontSize: 11 }}>{copied === "tok" ? "✓" : "Copy"}</button>
-              </div>
-              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft }}>Reader posts to</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "3px 0 8px" }}>
-                <code style={{ ...mono, fontSize: 11, color: T.text, wordBreak: "break-all", flex: 1 }}>{pair.ingestUrl}</code>
-                <button onClick={() => copy(pair.ingestUrl, "url")} style={{ ...btn(T.textSoft), padding: "5px 9px", fontSize: 11 }}>{copied === "url" ? "✓" : "Copy"}</button>
-              </div>
-              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft }}>Example (JSON body)</div>
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginTop: 3 }}>
-                <pre style={{ ...mono, fontSize: 10, color: T.text, background: T.ecoBg || T.waterBg, padding: 8, borderRadius: 5, overflowX: "auto", flex: 1, margin: 0 }}>{`curl -X POST ${pair.ingestUrl} \\
+          {/* ── Advanced: automatic setup (collapsed) ─────────────────────────── */}
+          {wallet && (
+            <div style={{ marginTop: 12, borderTop: `1px solid ${T.ecoBorder || T.waterBorder}`, paddingTop: 10 }}>
+              <button onClick={() => setAdvOpen(o => !o)} style={{ display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between", background: "none", border: "none", cursor: "pointer", padding: 0, color: T.textSoft, fontSize: 11, fontWeight: 700 }}>
+                <span>⚙️ Automatic setup (P1 reader / Home Assistant{enodeOn ? " / Enode" : ""})</span>
+                <span>{advOpen ? "▲" : "▼"}</span>
+              </button>
+
+              {advOpen && (
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ fontSize: 10, color: T.textSoft, lineHeight: 1.6, marginBottom: 8 }}>
+                    Have a P1/HAN reader or Home Assistant? Point it at the URL below with your token and it keeps sending your meter total — then you never type anything.
+                  </div>
+
+                  {!token ? (
+                    <button onClick={showToken} style={btn(T.electric)}>Get my device token</button>
+                  ) : (
+                    <div style={{ padding: 10, background: T.bg, border: `1px dashed ${T.border || T.waterBorder}`, borderRadius: 6 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft }}>Device token</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "3px 0 8px" }}>
+                        <code style={{ ...mono, fontSize: 11, color: T.text, wordBreak: "break-all", flex: 1 }}>{token}</code>
+                        <button onClick={() => copy(token, "tok")} style={{ ...btn(T.textSoft), padding: "5px 9px", fontSize: 11 }}>{copied === "tok" ? "✓" : "Copy"}</button>
+                      </div>
+                      <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft }}>Reader posts to</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "3px 0 8px" }}>
+                        <code style={{ ...mono, fontSize: 11, color: T.text, wordBreak: "break-all", flex: 1 }}>{ingestUrl}</code>
+                        <button onClick={() => copy(ingestUrl, "url")} style={{ ...btn(T.textSoft), padding: "5px 9px", fontSize: 11 }}>{copied === "url" ? "✓" : "Copy"}</button>
+                      </div>
+                      <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft }}>Example</div>
+                      <pre style={{ ...mono, fontSize: 10, color: T.text, background: T.ecoBg || T.waterBg, padding: 8, borderRadius: 5, overflowX: "auto", margin: "3px 0 0" }}>{`curl -X POST ${ingestUrl} \\
   -H "Content-Type: application/json" \\
-  -d '{"token":"${pair.token}","reading":12345.6}'`}</pre>
-              </div>
-              <div style={{ fontSize: 10, color: T.textSoft, marginTop: 6 }}>Point a P1/HAN reader or a Home Assistant automation at this. It keeps pushing your live meter total — no photo needed.</div>
+  -d '{"token":"${token}","reading":12345.6}'`}</pre>
+                    </div>
+                  )}
+
+                  {enodeOn && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+                      <button disabled={!!busy} onClick={doEnodeLink} style={{ ...btn("#6c5ce7"), opacity: busy ? .6 : 1 }}>{busy === "enode" ? "Opening…" : "Connect via Enode (global)"}</button>
+                      <button disabled={!!busy} onClick={doEnodeSync} style={{ ...btn(T.textSoft), opacity: busy ? .6 : 1 }}>{busy === "sync" ? "Syncing…" : "Sync now"}</button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
