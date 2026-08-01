@@ -74,7 +74,8 @@ same store.
 | POST | `/reward-from-meter` | wallet cert | **photoless payout** from the latest ingested reading |
 
 `METER_MAX_AGE_MS` (default 48h) bounds how old an ingested reading may be and
-still pay out.
+still pay out. `AUTO_SUBMIT_MS` (≥ 60000, unset = off) enables the hands-off
+scheduler that submits paired meters automatically.
 
 `GET /health` reports `meterIngest: true` and `enode: { enabled, env }`.
 
@@ -90,8 +91,16 @@ still pay out.
   invent a meter or its starting value). All the usual rules still apply
   (cooldown, monotonic reading, plausibility bounds, per-payout cap). In the app:
   the **Submit — no photo** button on the smart-meter card.
-- **Step 3 (later):** more first-class sources (HomeWizard local/cloud, Tibber) and
-  a scheduled background auto-submit so it's hands-off.
+- **Step 3 (done):** hands-off scheduled auto-submit. Set `AUTO_SUBMIT_MS` on the
+  backend (ms between sweeps, ≥ 60000) and it walks every paired meter and submits
+  its latest pushed reading automatically — no app, no per-submit signature (the
+  device token, bound to the wallet at pairing, is the authorisation). Each ingested
+  reading pays at most once (a reading is only submitted if it arrived after the
+  wallet's last payout), and every other rule (baseline, freshness, cooldown,
+  bounds, cap) is enforced exactly like the manual path. The pairing call now stores
+  the registered meter number so the scheduler knows which baseline to measure from.
+  `GET /health` reports `autoSubmit`.
+- **Step 4 (later):** more first-class sources (HomeWizard local/cloud, Tibber).
 
 ### Trust model (Step 2)
 A photo proved "a real meter showing this number." Without it, two things replace

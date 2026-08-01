@@ -68,6 +68,8 @@ app.get("/health", async (req, res) => {
     // Smart-meter sources: the free push path is always on; enode only when configured.
     meterIngest: true,
     enode: enodeInfo(),
+    // Scheduled hands-off auto-submit (Step 3) — on when AUTO_SUBMIT_MS ≥ 60000.
+    autoSubmit: Number(process.env.AUTO_SUBMIT_MS || 0) >= 60000,
   });
 });
 
@@ -365,6 +367,50 @@ app.post("/meter/enode/sync", async (req, res) => {
 // monotonicity, plausibility bounds and per-payout cap all still apply.
 const METER_MAX_AGE_MS = Number(process.env.METER_MAX_AGE_MS || 48 * 60 * 60 * 1000);
 
+// Core settle logic shared by the manual endpoint (Step 2) and the scheduled
+// auto-submit (Step 3). Returns { ok, ... } or { ok:false, code, error }; it does
+// NOT do ban/captcha/cert — the caller owns request-level auth. All the reward
+// rules still come from validateSubmission (cooldown, monotonicity, bounds, cap).
+async function settleMeterReading({ address, utility = "electric", meterNo }) {
+  const addr = String(address);
+  meterNo = String(meterNo || "").trim();
+  if (!meterNo) return { ok: false, code: 400, error: "register your meter number first" };
+
+  const latest = store.getLinkReading(addr);
+  if (!latest || !Number.isFinite(Number(latest.reading))) {
+    return { ok: false, code: 400, error: "no automatic reading yet — pair a device or connect a source first" };
+  }
+  if (Date.now() - (latest.at || 0) > METER_MAX_AGE_MS) {
+    return { ok: false, code: 400, error: "the automatic reading is stale — refresh your reader/source, then try again" };
+  }
+  // The auto path never sets the FIRST reading, so a device can't invent a meter
+  // or its starting value — a photo submission must have set the baseline first.
+  if (store.lastReading(meterNo.toLowerCase()) == null) {
+    return { ok: false, code: 400, error: "submit one photo reading first to set this meter's baseline — then automatic readings pay out" };
+  }
+
+  const v = validateSubmission({ utility, reading: Number(latest.reading), meterNo, address: addr });
+  if (!v.ok) return { ok: false, code: 400, error: v.error };
+
+  const lockKey = `${addr.toLowerCase()}:${utility}`;
+  if (inFlight.has(lockKey)) return { ok: false, code: 429, error: "a submission for this meter is already processing" };
+  inFlight.add(lockKey);
+  try {
+    const txid = await distributeReward({
+      utility, meterNo,
+      reading:  Number(latest.reading),
+      prevRead: v.prev,
+      usage:    v.usage,
+      amount:   v.amount,
+      receiver: addr,
+    });
+    v.markPaid();
+    return { ok: true, txid, amount: v.amount, usage: v.usage, reading: Number(latest.reading), source: latest.source || "meter" };
+  } finally {
+    inFlight.delete(lockKey);
+  }
+}
+
 app.post("/reward-from-meter", async (req, res) => {
   if (isBanned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
   if (captchaEnabled()) {
@@ -377,52 +423,53 @@ app.post("/reward-from-meter", async (req, res) => {
     const c = verifyWalletCertificate({ certificate: req.body.certificate, address });
     if (!c.ok) return res.status(401).json({ error: c.error });
   }
-
-  const utility = String(req.body.utility || "electric");
-  const meterNo = String(req.body.meterNo || "").trim();
-  if (!meterNo) return res.status(400).json({ error: "register your meter number first" });
-
-  // A fresh automatic reading must exist for this wallet.
-  const latest = store.getLinkReading(address);
-  if (!latest || !Number.isFinite(Number(latest.reading))) {
-    return res.status(400).json({ error: "no automatic reading yet — pair a device or connect a source first" });
-  }
-  if (Date.now() - (latest.at || 0) > METER_MAX_AGE_MS) {
-    return res.status(400).json({ error: "the automatic reading is stale — refresh your reader/source, then try again" });
-  }
-
-  // Require an established baseline: the auto path never sets the FIRST reading,
-  // so a device can't invent a meter or its starting value out of thin air.
-  if (store.lastReading(meterNo.trim().toLowerCase()) == null) {
-    return res.status(400).json({ error: "submit one photo reading first to set this meter's baseline — then automatic readings pay out" });
-  }
-
-  // Server recomputes everything from its own recorded baseline (client prev is
-  // ignored inside validateSubmission when a baseline exists).
-  const v = validateSubmission({ utility, reading: Number(latest.reading), meterNo, address });
-  if (!v.ok) return res.status(400).json({ error: v.error });
-
-  const lockKey = `${address.toLowerCase()}:${utility}`;
-  if (inFlight.has(lockKey)) return res.status(429).json({ error: "a submission for this meter is already processing" });
-  inFlight.add(lockKey);
   try {
-    const txid = await distributeReward({
-      utility, meterNo,
-      reading:  Number(latest.reading),
-      prevRead: v.prev,
-      usage:    v.usage,
-      amount:   v.amount,
-      receiver: address,
-    });
-    v.markPaid();
-    res.json({ txid, amount: v.amount, usage: v.usage, reading: Number(latest.reading), source: latest.source || "meter" });
+    const r = await settleMeterReading({ address, utility: String(req.body.utility || "electric"), meterNo: req.body.meterNo });
+    if (!r.ok) return res.status(r.code || 400).json({ error: r.error });
+    res.json({ txid: r.txid, amount: r.amount, usage: r.usage, reading: r.reading, source: r.source });
   } catch (e) {
     console.error("[/reward-from-meter]", e?.message || e);
     res.status(502).json({ error: e?.message || "distribution failed" });
-  } finally {
-    inFlight.delete(lockKey);
   }
 });
+
+// ── Scheduled auto-submit (Step 3, opt-in) ───────────────────────────────────
+// Fully hands-off: on a timer, walk every paired meter and submit its latest
+// pushed reading automatically — no app, no per-submit signature (the device
+// token, bound to the wallet at pairing time, is the authorisation). Opt-in via
+// AUTO_SUBMIT_MS (ms between sweeps; min 60000). Off when unset.
+//   • Only pays a reading that arrived AFTER the wallet's last payout, so the same
+//     reading is never paid twice even if COOLDOWN_MS is 0 during testing.
+//   • Everything else (baseline required, freshness, cooldown, bounds, cap) is
+//     enforced by settleMeterReading, exactly like the manual path.
+const AUTO_SUBMIT_MS = Number(process.env.AUTO_SUBMIT_MS || 0);
+let autoTickBusy = false;
+async function autoSubmitTick() {
+  for (const link of store.allMeterLinks()) {
+    const meterNo = String(link.meterNo || "").trim();
+    if (!meterNo || isBanned(link.address)) continue;
+    const latest = store.getLinkReading(link.address);
+    if (!latest) continue;
+    // Skip unless this reading is newer than the last payout for this wallet.
+    const lastPaid = store.getCooldown(`${String(link.address).toLowerCase()}:electric`);
+    if ((latest.at || 0) <= lastPaid) continue;
+    try {
+      const r = await settleMeterReading({ address: link.address, utility: "electric", meterNo });
+      if (r.ok) console.log(`[auto-submit] ${link.address} +${r.amount} B3TR (${r.txid})`);
+      // Non-ok results (stale / cooldown / no baseline) are normal skips, not errors.
+    } catch (e) {
+      console.error("[auto-submit]", link.address, e?.message || e);
+    }
+  }
+}
+if (AUTO_SUBMIT_MS >= 60000) {
+  setInterval(() => {
+    if (autoTickBusy) return;
+    autoTickBusy = true;
+    autoSubmitTick().catch(() => {}).finally(() => { autoTickBusy = false; });
+  }, AUTO_SUBMIT_MS);
+  console.log(`[auto-submit] enabled — sweeping every ${Math.round(AUTO_SUBMIT_MS / 1000)}s`);
+}
 
 app.listen(PORT, () => {
   console.log(`Reward distributor listening on :${PORT} (${NETWORK})`);

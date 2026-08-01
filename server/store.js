@@ -127,6 +127,9 @@ export const store = {
   },
   setLinkReading: (addr, obj) => { state.linkReadings[String(addr).toLowerCase()] = obj; persist(); },
   getLinkReading: (addr) => state.linkReadings[String(addr).toLowerCase()] || null,
+  // All paired links — used by the scheduled auto-submit (Step 3) to walk every
+  // wallet that has a device pushing readings.
+  allMeterLinks: () => Object.entries(state.meterLinks).map(([token, v]) => ({ token, ...v })),
 
   // True when state is backed by a durable store (not the ephemeral file).
   isDurable: () => USE_REDIS,

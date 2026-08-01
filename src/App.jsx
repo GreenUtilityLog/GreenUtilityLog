@@ -2025,7 +2025,7 @@ function HomeScreen({ b3tr, streak, subs, setTab, T }) {
 // pairing), then the photoless payout endpoint issues B3TR. All the technical bits
 // (device token, ingest URL, P1/Home-Assistant setup, Enode) live in a collapsed
 // "Automatic setup" section so they never clutter the simple flow.
-function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy }) {
+function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo }) {
   const { requestCertificate } = useWallet();
   const API = (REWARD_API || "").replace(/\/$/, "");
   const ingestUrl = `${API}/meter-ingest`;
@@ -2077,7 +2077,9 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy }) {
   const ensureToken = async () => {
     if (token) return token;
     const certificate = await signCert();
-    const r = await fetch(`${API}/meter/pair`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: wallet, certificate }) });
+    // Send the registered meter number so the backend scheduler (auto-submit) knows
+    // which meter's baseline to measure this wallet's readings against.
+    const r = await fetch(`${API}/meter/pair`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: wallet, meterNo: meterNo || "", certificate }) });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || `pairing failed (${r.status})`);
     setToken(d.token);
@@ -2299,7 +2301,7 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
         <div style={{fontSize:12,fontWeight:700,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:meterNo?(T[selUtil]||T.text):T.gas}}>{meterNo || "Not registered"}</div>
       </div>
 
-      {selUtil === "electric" && <SmartMeterCard wallet={wallet} setReading={setReading} T={T} onAutoSubmit={onMeterAutoSubmit} autoBusy={meterAutoBusy} />}
+      {selUtil === "electric" && <SmartMeterCard wallet={wallet} setReading={setReading} T={T} onAutoSubmit={onMeterAutoSubmit} autoBusy={meterAutoBusy} meterNo={meterNo} />}
 
       <VerifyZone key={verifyKey} utilId={selUtil} reading={reading} prevRead={prevRead} subs={subs} meterNo={meterNo} T={T}
         onOcrReading={(v) => { if (!String(reading).trim()) setReading(String(v)); }}
