@@ -1464,10 +1464,7 @@ function IntroScreen({ onStart }) {
   );
 }
 
-// Default baselines used when a meter is registered without a starting reading.
-const BASELINE_DEFAULTS = { electric:"3834.8", gas:"521.4", water:"12320", solar:"130.1" };
-
-function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, editMode }) {
+function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, editMode, T }) {
   // Which utilities this screen registers. Defaults to the required ones
   // (electric/gas/water); solar is added separately as an optional extra.
   const shown = (utils && utils.length) ? utils : UTILS.filter(u => !u.optional);
@@ -1487,7 +1484,14 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
   // In edit mode every shown meter is expected; on first setup only the
   // non-optional ones are required to continue.
   const required = editMode ? shown : shown.filter(u => !u.optional);
-  const allMetersFilled = required.every(u => (meters[u.id] || "").trim().length > 0);
+  const hasNo = (u) => (meters[u.id] || "").trim().length > 0;
+  // The baseline is the user's REAL current reading — the starting point every
+  // future usage is measured from. It's required (no invented default), otherwise
+  // the first submission would compute a nonsense delta.
+  const hasBaseline = (u) => { const v = parseFloat(baselines[u.id]); return Number.isFinite(v) && v >= 0; };
+  // A meter is complete only with BOTH its number and a starting reading. Optional
+  // meters need a baseline only once their number is filled in.
+  const allMetersFilled = required.every(hasNo) && shown.filter(u => required.includes(u) || hasNo(u)).every(hasBaseline);
 
   const handleDone = () => {
     if (!allMetersFilled) return;
@@ -1495,7 +1499,9 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
     const nextBaselines = { ...(existingBaselines || {}) };
     const nextMeters    = { ...(existingMeters || {}) };
     for (const u of shown) {
-      nextBaselines[u.id] = (baselines[u.id] || "").trim() || BASELINE_DEFAULTS[u.id];
+      // Use the reading the user actually entered; fall back only to an existing
+      // (already-registered) baseline, never to an invented default.
+      nextBaselines[u.id] = (baselines[u.id] || "").trim() || (existingBaselines?.[u.id] || "");
       nextMeters[u.id]    = (meters[u.id] || "").trim();
     }
     saveBaselines(nextBaselines);
@@ -1508,30 +1514,31 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
     ? "Your registered meters are locked to keep your readings tamper-proof. A meter number and baseline can't be changed once set."
     : isSolarOnly
       ? "Generating your own power? Add your solar meter number and its current export reading."
-      : "Enter each meter number, then type its current reading. The meter number is logged with every submission to keep your readings verifiable.";
+      : "Enter each meter number and its current reading. That first reading becomes your baseline (starting point) — future submissions measure usage from it, so enter the real number on your meter now.";
 
   return (
     <div className="onboard">
       <div className="ob-icon">{isSolarOnly ? "☀️" : "⚙️"}</div>
-      <div className="ob-title" style={{color:"#1a3326"}}>{title}</div>
-      <div className="ob-sub">{sub}</div>
+      <div className="ob-title" style={{color:T.text}}>{title}</div>
+      <div className="ob-sub" style={{color:T.textMid}}>{sub}</div>
       <div style={{width:"100%",maxWidth:320,display:"flex",flexDirection:"column",gap:8,marginTop:20}}>
         {shown.map(u => {
           const needsMeter = required.includes(u);
           const locked = isLocked(u);
-          const lockedInput = {width:"100%",background:"rgba(26,51,38,0.05)",border:"1px solid rgba(26,51,38,0.12)",borderRadius:3,padding:"7px 10px",fontSize:13,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:"#5a6f64",outline:"none",marginBottom:6,cursor:"not-allowed"};
+          const lockedInput = {width:"100%",boxSizing:"border-box",background:T.bgAlt,border:`1px solid ${T.border}`,borderRadius:3,padding:"7px 10px",fontSize:13,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:T.textMid,outline:"none",marginBottom:6,cursor:"not-allowed"};
+          const editInput = (ok) => ({width:"100%",boxSizing:"border-box",background:T.bg,border:`1px solid ${ok ? T.border : "rgba(220,80,60,0.7)"}`,borderRadius:3,padding:"7px 10px",fontSize:14,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:T.text,outline:"none",marginBottom:6});
           return (
-          <div key={u.id} style={{display:"flex",alignItems:"flex-start",gap:12,background:"rgba(26,51,38,0.06)",borderRadius:4,padding:"10px 14px",border:"1px solid rgba(26,51,38,0.12)"}}>
-            <span style={{width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center",color:"#264d3a",flexShrink:0,marginTop:2}}>{UTIL_ICONS[u.id]}</span>
-            <div style={{flex:1}}>
-              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:"#7a9188",marginBottom:4}}>{u.label} <span style={{fontWeight:400}}>({u.unit})</span>{locked ? <span style={{fontWeight:400,textTransform:"none",letterSpacing:0,color:"#264d3a"}}> · 🔒 locked</span> : (!needsMeter && <span style={{fontWeight:400,textTransform:"none",letterSpacing:0}}> · optional</span>)}</div>
+          <div key={u.id} style={{display:"flex",alignItems:"flex-start",gap:12,background:T.card,borderRadius:4,padding:"10px 14px",border:`1px solid ${T.border}`}}>
+            <span style={{width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center",color:T[u.id]||T.text,flexShrink:0,marginTop:2}}>{UTIL_ICONS[u.id]}</span>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginBottom:4}}>{u.label} <span style={{fontWeight:400}}>({u.unit})</span>{locked ? <span style={{fontWeight:400,textTransform:"none",letterSpacing:0,color:T.eco||T.text}}> · 🔒 locked</span> : (!needsMeter && <span style={{fontWeight:400,textTransform:"none",letterSpacing:0}}> · optional</span>)}</div>
               <input
                 type="text"
                 readOnly={locked}
                 placeholder={needsMeter ? "Meter / EAN number" : "Meter / EAN number (optional)"}
                 value={meters[u.id]}
                 onChange={locked ? undefined : (e => setMeters(m => ({...m,[u.id]:e.target.value})))}
-                style={locked ? lockedInput : {width:"100%",background:"rgba(26,51,38,0.04)",border:`1px solid ${((meters[u.id]||"").trim() || !needsMeter) ? "rgba(26,51,38,0.15)" : "rgba(180,60,40,0.45)"}`,borderRadius:3,padding:"7px 10px",fontSize:13,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:"#0d1812",outline:"none",marginBottom:6}}
+                style={locked ? lockedInput : editInput((meters[u.id]||"").trim() || !needsMeter)}
               />
               {locked ? (
                 <input type="text" readOnly value={`${baselines[u.id] || ""} ${u.unit}`} style={lockedInput} />
@@ -1540,10 +1547,10 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
                 type="number"
                 step="0.01"
                 inputMode="decimal"
-                placeholder={`Current reading · e.g. ${u.ph[0]}`}
+                placeholder={`Current reading on the meter · e.g. ${u.ph[0]}`}
                 value={baselines[u.id]}
                 onChange={e => setBaselines(b => ({...b,[u.id]:e.target.value}))}
-                style={{width:"100%",boxSizing:"border-box",background:"rgba(26,51,38,0.04)",border:"1px solid rgba(26,51,38,0.15)",borderRadius:3,padding:"7px 10px",fontSize:14,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:"#0d1812",outline:"none"}}
+                style={editInput(hasBaseline(u))}
               />
               )}
             </div>
@@ -1551,9 +1558,9 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
           );
         })}
       </div>
-      {!isSolarOnly && !allLocked && <div style={{fontSize:11,color:"#7a9188",marginTop:16,textAlign:"center"}}>ℹ️ Got solar panels? Add them later in Settings.</div>}
-      {allLocked && <div style={{fontSize:11,color:"#7a9188",marginTop:16,textAlign:"center"}}>🔒 Locked to prevent fraud. To replace a meter, contact support.</div>}
-      {!allMetersFilled && <div style={{fontSize:11,color:"#b43c28",marginTop:6,textAlign:"center"}}>Enter a meter number for every meter to continue.</div>}
+      {!isSolarOnly && !allLocked && <div style={{fontSize:11,color:T.textSoft,marginTop:16,textAlign:"center"}}>ℹ️ Got solar panels? Add them later in Settings.</div>}
+      {allLocked && <div style={{fontSize:11,color:T.textSoft,marginTop:16,textAlign:"center"}}>🔒 Locked to prevent fraud. To replace a meter, contact support.</div>}
+      {!allMetersFilled && <div style={{fontSize:11,color:"#e0553d",marginTop:6,textAlign:"center"}}>Enter a meter number <b>and</b> its current reading for every meter to continue.</div>}
       <button className="ob-btn" onClick={handleDone} disabled={!allMetersFilled} style={!allMetersFilled?{opacity:.5,cursor:"not-allowed"}:undefined}>{allLocked ? "Done" : (isSolarOnly ? "Save Solar Meter" : "Complete Setup")}</button>
     </div>
   );
@@ -4202,7 +4209,7 @@ export default function App() {
       <style>{CSS}</style>
       {showIntro && <IntroScreen onStart={() => { setShowIntro(false); localStorage.setItem('greenlog_seen_intro', 'true'); }} />}
       {!showIntro && !wallet && <WalletGate onConnect={openConnectModal} online={online} />}
-      {needsBaselines && <BaselineOnboarding onDone={(bl, mtrs) => { setBaselines(bl); setMeters(mtrs); closeRegistration(); }} utils={regUtils} editMode={regEdit} existingBaselines={baselines} existingMeters={meters} />}
+      {needsBaselines && <BaselineOnboarding onDone={(bl, mtrs) => { setBaselines(bl); setMeters(mtrs); closeRegistration(); }} utils={regUtils} editMode={regEdit} existingBaselines={baselines} existingMeters={meters} T={T} />}
       {!onboarded && <Onboarding onDone={() => setOnboarded(true)} />}
       {showAdmin && isAdmin && <AdminScreen onClose={() => setShowAdmin(false)} T={T} wallet={wallet} onFundPool={handleFundPool} onMoveToRewardsPool={handleMoveToRewardsPool} onDisableRewardsPool={handleDisableRewardsPool} onClaimB3TR={FAUCET_ENABLED ? handleClaimB3TR : null} />}
       {showHelp && <HelpScreen onClose={() => setShowHelp(false)} onFeedback={() => { setShowHelp(false); setShowFeedback(true); }} T={T} />}
