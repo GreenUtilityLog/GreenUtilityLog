@@ -71,6 +71,10 @@ same store.
 | GET | `/meter/latest?address=` | — | latest reading for the app |
 | POST | `/meter/enode/link` | wallet cert | start an Enode link session |
 | POST | `/meter/enode/sync` | wallet cert | pull latest Enode reading (+ raw) |
+| POST | `/reward-from-meter` | wallet cert | **photoless payout** from the latest ingested reading |
+
+`METER_MAX_AGE_MS` (default 48h) bounds how old an ingested reading may be and
+still pay out.
 
 `GET /health` reports `meterIngest: true` and `enode: { enabled, env }`.
 
@@ -78,9 +82,23 @@ same store.
 
 ## Roadmap
 - **Step 1 (done):** pairing + ingestion + Enode adapter + app card showing the live
-  reading, "Use this reading" prefills the Current field.
-- **Step 2 (next):** photoless payout — a `/reward-from-meter` endpoint that trusts a
-  fresh ingested reading (cert-authed) instead of a photo, so the whole submission is
-  automatic.
+  reading, "Use in form" prefills the Current field.
+- **Step 2 (done):** photoless payout — `POST /reward-from-meter` (cert-authed) pays
+  from a fresh ingested reading instead of a photo. Trust anchors: the device
+  token→wallet binding **and** an existing meter baseline (the meter must be
+  registered + baselined by one normal photo submission first, so a device can't
+  invent a meter or its starting value). All the usual rules still apply
+  (cooldown, monotonic reading, plausibility bounds, per-payout cap). In the app:
+  the **Submit — no photo** button on the smart-meter card.
 - **Step 3 (later):** more first-class sources (HomeWizard local/cloud, Tibber) and
-  a background auto-submit on a schedule.
+  a scheduled background auto-submit so it's hands-off.
+
+### Trust model (Step 2)
+A photo proved "a real meter showing this number." Without it, two things replace
+that proof:
+1. **Device-token binding** — only a reader holding the wallet's secret token can
+   push a reading, so a value can't be forged for someone else's wallet.
+2. **Established baseline** — the auto path never sets the *first* reading; usage is
+   always a delta from a server-recorded baseline that a photo submission created.
+   Combined with the per-meter→wallet binding and the cooldown, a device can't farm
+   more than the genuine conservation reward for the energy actually (not) used.

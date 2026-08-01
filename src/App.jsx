@@ -2019,7 +2019,7 @@ function HomeScreen({ b3tr, streak, subs, setTab, T }) {
 //   • Enode — global aggregator; only shown when the backend has Enode configured.
 // Step 1 (this) pairs the source and shows the live reading; "Use this reading"
 // prefills the Current field. Photoless auto-payout is the next step.
-function SmartMeterCard({ wallet, setReading, T }) {
+function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy }) {
   const { requestCertificate } = useWallet();
   const API = (REWARD_API || "").replace(/\/$/, "");
   const [health, setHealth] = useState(null);
@@ -2129,9 +2129,21 @@ function SmartMeterCard({ wallet, setReading, T }) {
               {rd?.source && <div style={{ fontSize: 10, color: T.textSoft }}>via {rd.source}{rd.at ? ` · ${new Date(rd.at).toLocaleString()}` : ""}</div>}
             </div>
             {rd != null && (
-              <button onClick={() => setReading(String(rd.reading))} style={btn(T.eco || T.electric)}>Use this reading</button>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {onAutoSubmit && (
+                  <button disabled={!!autoBusy} onClick={onAutoSubmit} style={{ ...btn(T.eco || T.electric), opacity: autoBusy ? .6 : 1 }}>
+                    {autoBusy ? "Submitting…" : "Submit — no photo"}
+                  </button>
+                )}
+                <button onClick={() => setReading(String(rd.reading))} style={{ ...btn(T.textSoft), padding: "6px 10px", fontSize: 11 }}>Use in form</button>
+              </div>
             )}
           </div>
+          {rd != null && onAutoSubmit && (
+            <div style={{ fontSize: 10, color: T.textSoft, margin: "-4px 0 10px", lineHeight: 1.5 }}>
+              Photoless payout works once this meter has a baseline — do one normal photo submission first, then automatic readings pay out on their own.
+            </div>
+          )}
 
           {/* Actions */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -2174,7 +2186,7 @@ function SmartMeterCard({ wallet, setReading, T }) {
   );
 }
 
-function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading, setReading, prevRead, setPrevRead, busy, usage, reward, handleSubmit, verifyKey, wallet, setShowWallet, subs, meters, T, setTab, onEcoSubmit, ecoBusy, ecoUsedThisWeek, ecoCooldownMs }) {
+function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading, setReading, prevRead, setPrevRead, busy, usage, reward, handleSubmit, verifyKey, wallet, setShowWallet, subs, meters, T, setTab, onEcoSubmit, ecoBusy, ecoUsedThisWeek, ecoCooldownMs, onMeterAutoSubmit, meterAutoBusy }) {
   const meterNo  = (meters?.[selUtil] || "").trim();
   // Submittable when current ≥ previous (equal = zero usage = valid, max reward).
   const _r = parseFloat(reading), _p = parseFloat(prevRead);
@@ -2228,7 +2240,7 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
         <div style={{fontSize:12,fontWeight:700,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:meterNo?(T[selUtil]||T.text):T.gas}}>{meterNo || "Not registered"}</div>
       </div>
 
-      {selUtil === "electric" && <SmartMeterCard wallet={wallet} setReading={setReading} T={T} />}
+      {selUtil === "electric" && <SmartMeterCard wallet={wallet} setReading={setReading} T={T} onAutoSubmit={onMeterAutoSubmit} autoBusy={meterAutoBusy} />}
 
       <VerifyZone key={verifyKey} utilId={selUtil} reading={reading} prevRead={prevRead} subs={subs} meterNo={meterNo} T={T}
         onOcrReading={(v) => { if (!String(reading).trim()) setReading(String(v)); }}
@@ -3907,6 +3919,48 @@ export default function App() {
     }
   };
 
+  // ── Photoless automatic submission (Step 2) ─────────────────────────────────
+  // Submit the latest automatically-received meter reading — no photo. The backend
+  // pays out only if the meter already has a baseline (set by a prior photo
+  // submission) and the reading is fresh; all the normal reward rules still apply.
+  const [meterAutoBusy, setMeterAutoBusy] = useState(false);
+  const handleMeterAutoSubmit = async () => {
+    if (!wallet) { openConnectModal(); return; }
+    if (!online) { showToast("⚡ Automatic submit needs a connection — try again when online"); return; }
+    if (!REWARD_API) { showToast("Automatic submit isn't available yet"); return; }
+    const meterNo = (meters["electric"] || "").trim();
+    if (!meterNo) { showToast("⚠️ Register your electricity meter number first"); return; }
+    if (TURNSTILE_SITE_KEY && !captchaToken) { showToast("🤖 Complete the verification checkbox first"); return; }
+    setMeterAutoBusy(true);
+    try {
+      let certificate;
+      try {
+        const content = `Green Utility Log — confirm automatic meter submission\nWallet: ${wallet}\nMeter: ${meterNo}\nTime: ${new Date().toISOString()}`;
+        const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } });
+        certificate = { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
+      } catch {
+        setMeterAutoBusy(false);
+        showToast("✋ Sign the confirmation in your wallet to submit");
+        return;
+      }
+      const res = await fetch(`${REWARD_API.replace(/\/$/, "")}/reward-from-meter`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: wallet, utility: "electric", meterNo, certificate, captchaToken }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `service error ${res.status}`);
+      const paid = Number(data.amount) || 0;
+      setSubs(prev => [{ id: Date.now(), type: "electric", meterNo, cur: data.reading != null ? String(data.reading) : "", prev: "", date: dayKey(new Date()), b3tr: paid, status: "confirmed", txHash: data.txid || "", submittedAt: Date.now() }, ...prev]);
+      setB3tr(b => b + paid);
+      showToast(`⚡ Automatic reading: +${paid} B3TR!`);
+    } catch (e) {
+      showToast(`❌ Automatic submit failed: ${e?.message || "try again later"}`);
+    } finally {
+      setMeterAutoBusy(false);
+    }
+  };
+
   const handleSubmit = async () => {
     setBusy(true);
     const earned = reward();
@@ -4151,7 +4205,7 @@ export default function App() {
           </div>
 
           {tab==="home"      && <HomeScreen b3tr={b3tr} streak={streak} subs={subs} setTab={setTab} T={T}/>}
-          {tab==="submit"    && <SubmitScreen u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} busy={busy} usage={usage} reward={reward} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab} onEcoSubmit={handleEcoSubmit} ecoBusy={ecoBusy} ecoUsedThisWeek={ecoUsedThisWeek} ecoCooldownMs={ecoCooldownMs}/>}
+          {tab==="submit"    && <SubmitScreen u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} busy={busy} usage={usage} reward={reward} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab} onEcoSubmit={handleEcoSubmit} ecoBusy={ecoBusy} ecoUsedThisWeek={ecoUsedThisWeek} ecoCooldownMs={ecoCooldownMs} onMeterAutoSubmit={handleMeterAutoSubmit} meterAutoBusy={meterAutoBusy}/>}
           {tab==="charts"    && <ChartsScreen subs={subs} T={T}/>}
           {tab==="leaderboard" && <LeaderboardScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}

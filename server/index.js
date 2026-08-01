@@ -355,6 +355,75 @@ app.post("/meter/enode/sync", async (req, res) => {
   }
 });
 
+// ── Photoless payout from an ingested reading (Step 2, beta) ─────────────────
+// Pay out from an automatically-received meter reading — no photo. The trust
+// anchor shifts from photo-authenticity to (a) the device-token→wallet binding
+// that produced the reading and (b) an already-established meter baseline: the
+// meter must first be registered + baselined by a normal photo submission (which
+// binds meterNo→wallet and records the last reading). After that, pushes/syncs
+// can pay automatically. Reuses validateSubmission, so the same cooldown,
+// monotonicity, plausibility bounds and per-payout cap all still apply.
+const METER_MAX_AGE_MS = Number(process.env.METER_MAX_AGE_MS || 48 * 60 * 60 * 1000);
+
+app.post("/reward-from-meter", async (req, res) => {
+  if (isBanned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
+  if (captchaEnabled()) {
+    const cap = await verifyCaptcha(req.body.captchaToken, req.clientIp);
+    if (!cap.ok) return res.status(403).json({ error: cap.error });
+  }
+  const address = String(req.body.address || "");
+  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
+  if (REQUIRE_CERT) {
+    const c = verifyWalletCertificate({ certificate: req.body.certificate, address });
+    if (!c.ok) return res.status(401).json({ error: c.error });
+  }
+
+  const utility = String(req.body.utility || "electric");
+  const meterNo = String(req.body.meterNo || "").trim();
+  if (!meterNo) return res.status(400).json({ error: "register your meter number first" });
+
+  // A fresh automatic reading must exist for this wallet.
+  const latest = store.getLinkReading(address);
+  if (!latest || !Number.isFinite(Number(latest.reading))) {
+    return res.status(400).json({ error: "no automatic reading yet — pair a device or connect a source first" });
+  }
+  if (Date.now() - (latest.at || 0) > METER_MAX_AGE_MS) {
+    return res.status(400).json({ error: "the automatic reading is stale — refresh your reader/source, then try again" });
+  }
+
+  // Require an established baseline: the auto path never sets the FIRST reading,
+  // so a device can't invent a meter or its starting value out of thin air.
+  if (store.lastReading(meterNo.trim().toLowerCase()) == null) {
+    return res.status(400).json({ error: "submit one photo reading first to set this meter's baseline — then automatic readings pay out" });
+  }
+
+  // Server recomputes everything from its own recorded baseline (client prev is
+  // ignored inside validateSubmission when a baseline exists).
+  const v = validateSubmission({ utility, reading: Number(latest.reading), meterNo, address });
+  if (!v.ok) return res.status(400).json({ error: v.error });
+
+  const lockKey = `${address.toLowerCase()}:${utility}`;
+  if (inFlight.has(lockKey)) return res.status(429).json({ error: "a submission for this meter is already processing" });
+  inFlight.add(lockKey);
+  try {
+    const txid = await distributeReward({
+      utility, meterNo,
+      reading:  Number(latest.reading),
+      prevRead: v.prev,
+      usage:    v.usage,
+      amount:   v.amount,
+      receiver: address,
+    });
+    v.markPaid();
+    res.json({ txid, amount: v.amount, usage: v.usage, reading: Number(latest.reading), source: latest.source || "meter" });
+  } catch (e) {
+    console.error("[/reward-from-meter]", e?.message || e);
+    res.status(502).json({ error: e?.message || "distribution failed" });
+  } finally {
+    inFlight.delete(lockKey);
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Reward distributor listening on :${PORT} (${NETWORK})`);
 });
