@@ -55,25 +55,44 @@ async function loadState() {
 let state = await loadState();
 console.log(`[store] backend: ${USE_REDIS ? "Upstash Redis (durable)" : `file ${FILE} (ephemeral on free hosts)`}`);
 
+// Write the current state out now. Async so a graceful shutdown can await it.
+async function writeNow() {
+  const blob = JSON.stringify(state);
+  if (USE_REDIS) {
+    try { await redisCmd(["SET", REDIS_KEY, blob]); }
+    catch (e) { console.error("[store] Redis save failed:", e?.message || e); }
+    return;
+  }
+  try {
+    // Atomic-ish: write a temp file then rename, so a crash mid-write can't
+    // corrupt the live state file (the old boot loader silently started fresh).
+    const tmp = `${FILE}.tmp`;
+    writeFileSync(tmp, blob);
+    renameSync(tmp, FILE);
+  } catch (e) {
+    console.error("[store] save failed:", e?.message || e);
+  }
+}
+
+// Debounced persist WITH a hard max-wait, so anti-farming writes (cooldowns, burnt
+// photo hashes, baselines) can't be starved indefinitely by a steady write stream —
+// a pure trailing debounce never flushes under sustained load. First pending write
+// starts the clock; we flush at the latest MAX_WAIT_MS after it.
 let timer = null;
+let firstPendingAt = 0;
+const MAX_WAIT_MS = 2000;
 function persist() {
+  if (!firstPendingAt) firstPendingAt = Date.now();
   clearTimeout(timer);
-  timer = setTimeout(() => {
-    const blob = JSON.stringify(state);
-    if (USE_REDIS) {
-      redisCmd(["SET", REDIS_KEY, blob]).catch((e) => console.error("[store] Redis save failed:", e?.message || e));
-      return;
-    }
-    try {
-      // Atomic-ish: write a temp file then rename, so a crash mid-write can't
-      // corrupt the live state file (the old boot loader silently started fresh).
-      const tmp = `${FILE}.tmp`;
-      writeFileSync(tmp, blob);
-      renameSync(tmp, FILE);
-    } catch (e) {
-      console.error("[store] save failed:", e?.message || e);
-    }
-  }, 500);
+  const waited = Date.now() - firstPendingAt;
+  const delay = waited >= MAX_WAIT_MS ? 0 : Math.min(500, MAX_WAIT_MS - waited);
+  timer = setTimeout(() => { timer = null; firstPendingAt = 0; writeNow(); }, delay);
+}
+// Flush any pending write immediately and await it. Called on graceful shutdown
+// (SIGTERM/SIGINT) so a redeploy can't drop a just-committed payout's state.
+async function flush() {
+  clearTimeout(timer); timer = null; firstPendingAt = 0;
+  await writeNow();
 }
 
 export const store = {
@@ -81,9 +100,12 @@ export const store = {
   getCooldown: (key) => state.cooldowns[key] || 0,
   setCooldown: (key, ts) => { state.cooldowns[key] = ts; persist(); },
 
-  // used photo hashes (one photo can only ever earn once)
+  // used photo hashes (one photo can only ever earn once). addHash reserves a hash
+  // synchronously at verify time; delHash rolls that reservation back if the payout
+  // it was reserved for never completes.
   hasHash: (h) => Object.prototype.hasOwnProperty.call(state.hashes, h),
   addHash: (h) => { state.hashes[h] = Date.now(); persist(); },
+  delHash: (h) => { if (Object.prototype.hasOwnProperty.call(state.hashes, h)) { delete state.hashes[h]; persist(); } },
 
   // meter number -> the address that first claimed it (anti meter-sharing)
   meterOwner: (meterKey) => state.meterOwners[meterKey] || null,
@@ -179,4 +201,7 @@ export const store = {
 
   // True when state is backed by a durable store (not the ephemeral file).
   isDurable: () => USE_REDIS,
+
+  // Flush any debounced write immediately (awaitable) — for graceful shutdown.
+  flush,
 };

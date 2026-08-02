@@ -6,7 +6,7 @@ import "dotenv/config";
 import { randomBytes } from "node:crypto";
 import express from "express";
 import cors from "cors";
-import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, ECO_REWARD, ECO_MAX_PER_WEEK, ECO_COOLDOWN_MS, ECO_APPLIANCES, ecoWeekKey } from "./config.js";
+import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, ECO_REWARD, ECO_MAX_PER_WEEK, ECO_COOLDOWN_MS, ECO_APPLIANCES, ecoWeekKey, RATES } from "./config.js";
 import { validateSubmission } from "./verify.js";
 import { verifyPhoto } from "./media.js";
 import { store } from "./store.js";
@@ -256,23 +256,27 @@ app.post("/reward", async (req, res) => {
     if (!c.ok) return res.status(401).json({ error: c.error });
   }
 
+  // Claim the in-flight lock SYNCHRONOUSLY, before any await, or two concurrent
+  // requests both pass the has() check and double-pay (TOCTOU). Everything after
+  // runs in the try so every early return still releases the lock in finally.
   const lockKey = `${String(req.body.address).toLowerCase()}:${req.body.utility}`;
   if (inFlight.has(lockKey)) return res.status(429).json({ error: "a submission for this meter is already processing" });
-
-  // 2) Photo check — real image, not a reused one (and optional OCR match).
-  const photo = await verifyPhoto({ imageBase64: req.body.photo, reading: req.body.reading, ocr: OCR_ENABLED, mime: req.body.photoMime });
-  if (!photo.ok) return res.status(400).json({ error: photo.error });
-
-  // 2b) AI authenticity — reject doctored / screenshotted / watermarked / hand-drawn
-  // photos before issuing a reward. No-op (allows) when ANTHROPIC_API_KEY is unset.
-  if (aiPhotoCheckEnabled()) {
-    const auth = await checkPhotoAuthenticity(req.body.photo);
-    if (!auth.ok) return res.status(400).json({ error: `photo rejected: ${auth.reason}` });
-  }
-
-  // 3) Pay out, then commit cooldown + burn the photo hash (only on success).
   inFlight.add(lockKey);
+  let photo = null, committed = false;
   try {
+    // 2) Photo check — real image, not a reused one (and optional OCR match). This
+    // reserves the photo hash immediately; the finally rolls it back unless we pay.
+    photo = await verifyPhoto({ imageBase64: req.body.photo, reading: req.body.reading, ocr: OCR_ENABLED, mime: req.body.photoMime });
+    if (!photo.ok) return res.status(400).json({ error: photo.error });
+
+    // 2b) AI authenticity — reject doctored / screenshotted / watermarked / hand-drawn
+    // photos before issuing a reward. No-op (allows) when ANTHROPIC_API_KEY is unset.
+    if (aiPhotoCheckEnabled()) {
+      const auth = await checkPhotoAuthenticity(req.body.photo);
+      if (!auth.ok) return res.status(400).json({ error: `photo rejected: ${auth.reason}` });
+    }
+
+    // 3) Pay out, then commit cooldown + baseline (only on success).
     const txid = await distributeReward({
       utility:  req.body.utility,
       meterNo:  req.body.meterNo,
@@ -283,7 +287,7 @@ app.post("/reward", async (req, res) => {
       receiver: req.body.address,
     });
     v.markPaid();
-    photo.markUsed();
+    committed = true; // payout landed — keep the reserved photo hash + committed cooldown
     // Archive the photo for admin review (opt-in via R2 creds). Fire-and-forget —
     // must never delay or fail the payout. Keyed by txid so it lines up with the
     // on-chain history row shown in admin.
@@ -293,6 +297,9 @@ app.post("/reward", async (req, res) => {
     console.error("[/reward]", e?.message || e);
     res.status(502).json({ error: e?.message || "distribution failed" });
   } finally {
+    // Release the photo reservation if we didn't actually pay, so a failed payout
+    // doesn't permanently burn the user's photo.
+    if (!committed && photo?.ok) photo.unreserve();
     inFlight.delete(lockKey);
   }
 });
@@ -334,29 +341,31 @@ app.post("/eco-action", async (req, res) => {
     return res.status(429).json({ error: `eco cooldown active — next claim in ~${Math.ceil(wait / 3600000)}h` });
   }
 
+  // Claim the lock synchronously before any await (same TOCTOU fix as /reward).
   const lockKey = `${addr}:eco`;
   if (inFlight.has(lockKey)) return res.status(429).json({ error: "an eco submission is already processing" });
-
-  // Real image + never paid for before. No OCR — there's no reading to match.
-  const photo = await verifyPhoto({ imageBase64: req.body.photo, ocr: false, mime: req.body.photoMime });
-  if (!photo.ok) return res.status(400).json({ error: photo.error });
-
-  if (aiPhotoCheckEnabled()) {
-    const auth = await checkPhotoAuthenticity(req.body.photo);
-    if (!auth.ok) return res.status(400).json({ error: `photo rejected: ${auth.reason}` });
-  }
-
   inFlight.add(lockKey);
+  let photo = null, committed = false;
   try {
+    // Real image + never paid for before (reserved here). No OCR — no reading to match.
+    photo = await verifyPhoto({ imageBase64: req.body.photo, ocr: false, mime: req.body.photoMime });
+    if (!photo.ok) return res.status(400).json({ error: photo.error });
+
+    if (aiPhotoCheckEnabled()) {
+      const auth = await checkPhotoAuthenticity(req.body.photo);
+      if (!auth.ok) return res.status(400).json({ error: `photo rejected: ${auth.reason}` });
+    }
+
     const txid = await distributeEcoReward({ appliance, amount: ECO_REWARD, receiver: req.body.address });
     store.addEcoClaim(addr, Date.now());
-    photo.markUsed();
+    committed = true; // payout landed — keep the reserved photo hash + recorded claim
     archivePhoto(txid, req.body.photo, req.body.photoMime, req.body.address);
     res.json({ txid, amount: ECO_REWARD, remaining: ECO_MAX_PER_WEEK - thisWeek.length - 1 });
   } catch (e) {
     console.error("[/eco-action]", e?.message || e);
     res.status(502).json({ error: e?.message || "distribution failed" });
   } finally {
+    if (!committed && photo?.ok) photo.unreserve();
     inFlight.delete(lockKey);
   }
 });
@@ -387,9 +396,12 @@ app.post("/meter/pair", (req, res) => {
     if (!c.ok) return res.status(401).json({ error: c.error });
   }
   const meterNo = String(req.body.meterNo || "").trim();
+  // Remember which utility this meter is, so the scheduled auto-submit pays it at
+  // the right rate/bounds/cooldown instead of always assuming electric.
+  const utility = RATES[String(req.body.utility || "").toLowerCase()] ? String(req.body.utility).toLowerCase() : "electric";
   const existing = store.getLinkByAddress(address);
   const token = existing?.token || randomBytes(24).toString("hex");
-  store.setMeterLink(token, { address: address.toLowerCase(), meterNo, createdAt: Date.now() });
+  store.setMeterLink(token, { address: address.toLowerCase(), meterNo, utility, createdAt: Date.now() });
   res.json({
     token,
     ingestUrl: `${publicBase(req)}/meter-ingest`,
@@ -569,13 +581,14 @@ async function autoSubmitTick() {
   for (const link of store.allMeterLinks()) {
     const meterNo = String(link.meterNo || "").trim();
     if (!meterNo || banned(link.address)) continue;
+    const utility = RATES[link.utility] ? link.utility : "electric";
     const latest = store.getLinkReading(link.address);
     if (!latest) continue;
-    // Skip unless this reading is newer than the last payout for this wallet.
-    const lastPaid = store.getCooldown(`${String(link.address).toLowerCase()}:electric`);
+    // Skip unless this reading is newer than the last payout for this wallet+utility.
+    const lastPaid = store.getCooldown(`${String(link.address).toLowerCase()}:${utility}`);
     if ((latest.at || 0) <= lastPaid) continue;
     try {
-      const r = await settleMeterReading({ address: link.address, utility: "electric", meterNo });
+      const r = await settleMeterReading({ address: link.address, utility, meterNo });
       if (r.ok) console.log(`[auto-submit] ${link.address} +${r.amount} B3TR (${r.txid})`);
       // Non-ok results (stale / cooldown / no baseline) are normal skips, not errors.
     } catch (e) {
@@ -617,6 +630,23 @@ if (PHOTO_RETENTION_MS > 0) {
   }, 60 * 60 * 1000);
 }
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Reward distributor listening on :${PORT} (${NETWORK})`);
 });
+
+// Graceful shutdown: a redeploy/scale-down sends SIGTERM. Flush any debounced
+// anti-farming state (cooldowns, burnt photo hashes, baselines) before exiting so a
+// just-committed payout can't be replayed after the restart. Guarded against double
+// invocation and a hard 5s cap so we never hang the platform's shutdown.
+let shuttingDown = false;
+async function shutdown(sig) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`[shutdown] ${sig} — flushing state…`);
+  const cap = setTimeout(() => process.exit(0), 5000);
+  try { await store.flush(); } catch (e) { console.error("[shutdown] flush failed:", e?.message || e); }
+  clearTimeout(cap);
+  server.close(() => process.exit(0));
+}
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));

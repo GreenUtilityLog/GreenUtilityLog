@@ -363,8 +363,12 @@ function checkPlausibility(utilId, usageVal) {
 
 function checkAnomaly(utilId, usageVal, subs) {
   const recent = subs.filter(s=>s.type===utilId).slice(0,14);
-  if (recent.length < 3) return { ok:true, anomaly:false };
-  const avg = recent.reduce((a,s)=>a+(parseFloat(s.cur)-parseFloat(s.prev)),0)/recent.length;
+  // Only rows with a real prev→cur delta count. Photoless/auto-submit rows store an
+  // empty prev, so parseFloat("") = NaN; without this filter a single such row makes
+  // avg NaN and silently disables the anomaly gate for the whole utility.
+  const deltas = recent.map(s=>parseFloat(s.cur)-parseFloat(s.prev)).filter(Number.isFinite);
+  if (deltas.length < 3) return { ok:true, anomaly:false };
+  const avg = deltas.reduce((a,d)=>a+d,0)/deltas.length;
   if (avg > 0 && usageVal > avg * 3.5) return { ok:false, anomaly:true, reason:`Usage is ${(usageVal/avg).toFixed(1)}x your average`, avg };
   return { ok:true, anomaly:false, avg:parseFloat(avg.toFixed(2)) };
 }
@@ -1693,7 +1697,21 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
   const runVerify = async (file, ocrSource) => {
     setPhase("verifying"); setAiStep(0);
     const mime   = file.type;
-    const base64 = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result.split(",")[1]); r.readAsDataURL(file); });
+    let base64;
+    try {
+      // Reject on read errors too — without onerror a failed read leaves the promise
+      // unsettled and the UI stuck on "verifying" with no way out but a reload.
+      base64 = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result.split(",")[1]);
+        r.onerror = () => rej(r.error || new Error("could not read the photo"));
+        r.readAsDataURL(file);
+      });
+    } catch {
+      setResult({ summary: "Couldn't read that photo — please tap the camera and take it again." });
+      setPhase("error");
+      return;
+    }
     const fraudFlags = [];
     let   fraudReason = null;
 
@@ -2666,6 +2684,9 @@ function LeaderboardScreen({ b3tr, streak, subs, wallet, T }) {
   const nextTier = TIERS[TIERS.indexOf(currentTier) + 1];
   const progressPercent = nextTier ? Math.min(100, Math.round((b3tr - currentTier.min) / (nextTier.min - currentTier.min) * 100)) : 100;
   const b3trNeeded = nextTier ? Math.max(0, nextTier.min - b3tr) : 0;
+  // The "100 B3TR Achievement" goal is a fixed 100, NOT the gap to the next tier —
+  // reusing b3trNeeded showed a wrong number for anyone already past 100.
+  const to100 = Math.max(0, 100 - b3tr);
   const dailyAvg = subs.length > 0 ? (b3tr / subs.length).toFixed(2) : "0.00";
   const withBonus = (parseFloat(dailyAvg) * currentTier.multiplier).toFixed(2);
   const bonusExtra = (withBonus - dailyAvg).toFixed(2);
@@ -2758,7 +2779,7 @@ function LeaderboardScreen({ b3tr, streak, subs, wallet, T }) {
       <div style={{margin:"0 14px 14px",padding:14,background:T.card,border:`1px solid ${T.border}`,borderRadius:5}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
           <div style={{fontSize:11,fontWeight:700,color:T.text}}>100 B3TR Achievement</div>
-          <div style={{fontSize:10,fontWeight:700,color:T.green3,fontFamily:"'SF Mono',monospace"}}>{b3trNeeded.toFixed(2)} away</div>
+          <div style={{fontSize:10,fontWeight:700,color:T.green3,fontFamily:"'SF Mono',monospace"}}>{to100 > 0 ? `${to100.toFixed(2)} away` : "Achieved ✓"}</div>
         </div>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
           <div style={{fontSize:11,fontWeight:700,color:T.text}}>#1 Global Rank</div>
