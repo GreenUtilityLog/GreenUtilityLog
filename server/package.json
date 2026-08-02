@@ -21,6 +21,8 @@
     "express": "^4.21.2"
   },
   "optionalDependencies": {
-    "tesseract.js": "^5.1.1"
+    "tesseract.js": "^5.1.1",
+    "aws4fetch": "^1.0.20",
+    "sharp": "^0.33.5"
   }
 }

@@ -2962,6 +2962,83 @@ function WalletAdminActions({ T, address, meters, onAdminApi, onToast }) {
   );
 }
 
+// One row in a wallet's "Recent submissions" list. Renders the submission clearly
+// per type (meter reading vs eco bonus) and — when the server's photo archive is on
+// — lets an admin pull up the actual photo behind the payout (📷) or erase it (🗑️).
+function SubmissionRow({ r, T, onAdminApi, onToast, archiveOn }) {
+  const MONO = "'SF Mono',Menlo,'Courier New',monospace";
+  const isEco = !!r.appliance || r.type === "eco";
+  const p = parseFloat(r.prev), c = parseFloat(r.cur);
+  const usage = (Number.isFinite(p) && Number.isFinite(c)) ? +(c - p).toFixed(2) : null;
+  const unit = (UTILS.find((x) => x.id === r.type)?.unit) || "kWh";
+  const txUrl = r.txHash ? `${EXPLORER}/transactions/${r.txHash}` : null;
+  const canPhoto = archiveOn && !!r.txHash;
+  const [photo, setPhoto] = useState({ status: "idle", dataUrl: null }); // idle|loading|shown|none|deleted|busy
+
+  const loadPhoto = async (e) => {
+    e.stopPropagation();
+    if (photo.status === "shown") { setPhoto({ status: "idle", dataUrl: null }); return; } // toggle closed
+    setPhoto({ status: "loading", dataUrl: null });
+    try {
+      const d = await onAdminApi("/admin/photo", { txid: r.txHash });
+      if (d.found && d.dataUrl) setPhoto({ status: "shown", dataUrl: d.dataUrl });
+      else { setPhoto({ status: "none", dataUrl: null }); onToast?.("📭 No photo stored for this submission"); }
+    } catch (err) { setPhoto({ status: "idle", dataUrl: null }); onToast?.(`⚠️ ${err.message}`); }
+  };
+  const deletePhoto = async (e) => {
+    e.stopPropagation();
+    if (!window.confirm("Delete this photo from storage? This cannot be undone.")) return;
+    setPhoto({ status: "busy", dataUrl: photo.dataUrl });
+    try {
+      await onAdminApi("/admin/photo-delete", { txid: r.txHash });
+      setPhoto({ status: "deleted", dataUrl: null });
+      onToast?.("🗑️ Photo deleted");
+    } catch (err) { setPhoto({ status: "shown", dataUrl: photo.dataUrl }); onToast?.(`⚠️ ${err.message}`); }
+  };
+
+  const iconBtn = (label, onClick, disabled) => (
+    <button onClick={onClick} disabled={disabled}
+      style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"3px 7px",fontSize:12,cursor:disabled?"default":"pointer",color:T.textMid,lineHeight:1}}>{label}</button>
+  );
+
+  return (
+    <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:8,marginBottom:6,overflow:"hidden"}}>
+      <div onClick={() => txUrl && window.open(txUrl, "_blank", "noopener")}
+        title={txUrl ? "View this transaction on the VeChain explorer" : undefined}
+        style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",cursor:txUrl?"pointer":"default"}}>
+        <span style={{fontSize:16}}>{isEco ? "🌿" : (UTIL_ICONS[r.type] || "⚡")}</span>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:12,fontWeight:700,color:T.text}}>
+            {isEco ? "Eco bonus" : "Meter reading"}
+            {!isEco && r.meterNo ? <span style={{fontWeight:400,color:T.textSoft,fontFamily:MONO,fontSize:10}}> · #{r.meterNo}</span> : null}
+          </div>
+          <div style={{fontSize:10,color:T.textSoft,fontFamily:MONO}}>
+            {isEco
+              ? (r.appliance ? `${r.appliance} on eco mode` : "appliance on eco mode")
+              : (usage != null ? `${r.prev} → ${r.cur} · ${usage} ${unit} used` : (r.cur !== "" ? `reading ${r.cur}` : "reading"))}
+          </div>
+          <div style={{fontSize:9,color:T.textSoft,marginTop:2}}>{r.date}{txUrl ? " · tx ↗" : ""}</div>
+        </div>
+        {canPhoto && photo.status !== "deleted" && (
+          <span onClick={(e) => e.stopPropagation()} style={{display:"flex",gap:4}}>
+            {iconBtn(photo.status === "loading" ? "…" : photo.status === "shown" ? "📷 ▲" : "📷", loadPhoto, photo.status === "loading" || photo.status === "busy")}
+            {photo.status === "shown" && iconBtn("🗑️", deletePhoto, false)}
+          </span>
+        )}
+        <div style={{fontSize:13,fontWeight:800,color:T.green3,fontFamily:MONO,whiteSpace:"nowrap"}}>+{parseFloat(r.b3tr).toFixed(2)}</div>
+      </div>
+      {photo.status === "shown" && photo.dataUrl && (
+        <div style={{padding:"0 12px 12px"}}>
+          <img src={photo.dataUrl} alt="submission" style={{maxWidth:"100%",borderRadius:6,border:`1px solid ${T.border}`,display:"block"}} />
+        </div>
+      )}
+      {photo.status === "deleted" && (
+        <div style={{padding:"0 12px 10px",fontSize:10,color:T.textSoft}}>🗑️ Photo deleted.</div>
+      )}
+    </div>
+  );
+}
+
 function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDisableRewardsPool, onClaimB3TR, onAdminApi, onToast }) {
   const [chain, setChain] = useState({ status: "loading", rows: [], reason: null });
   const [query, setQuery] = useState("");
@@ -3120,34 +3197,14 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
             );
           })()}
 
-          {detail.rows.slice(0, 30).map((r) => {
-            const MONO = "'SF Mono',Menlo,'Courier New',monospace";
-            const isEco = !!r.appliance || r.type === "eco";
-            const p = parseFloat(r.prev), c = parseFloat(r.cur);
-            const usage = (Number.isFinite(p) && Number.isFinite(c)) ? +(c - p).toFixed(2) : null;
-            const unit = (UTILS.find(x => x.id === r.type)?.unit) || "kWh";
-            const txUrl = r.txHash ? `${EXPLORER}/transactions/${r.txHash}` : null;
-            return (
-              <div key={r.id} onClick={() => txUrl && window.open(txUrl, "_blank", "noopener")}
-                title={txUrl ? "View this transaction on the VeChain explorer" : undefined}
-                style={{display:"flex",alignItems:"center",gap:10,background:T.card,border:`1px solid ${T.border}`,borderRadius:8,padding:"10px 12px",marginBottom:6,cursor:txUrl?"pointer":"default"}}>
-                <span style={{fontSize:16}}>{isEco ? "🌿" : (UTIL_ICONS[r.type] || "⚡")}</span>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:12,fontWeight:700,color:T.text}}>
-                    {isEco ? "Eco bonus" : "Meter reading"}
-                    {!isEco && r.meterNo ? <span style={{fontWeight:400,color:T.textSoft,fontFamily:MONO,fontSize:10}}> · #{r.meterNo}</span> : null}
-                  </div>
-                  <div style={{fontSize:10,color:T.textSoft,fontFamily:MONO}}>
-                    {isEco
-                      ? (r.appliance ? `${r.appliance} on eco mode` : "appliance on eco mode")
-                      : (usage != null ? `${r.prev} → ${r.cur} · ${usage} ${unit} used` : (r.cur !== "" ? `reading ${r.cur}` : "reading"))}
-                  </div>
-                  <div style={{fontSize:9,color:T.textSoft,marginTop:2}}>{r.date}{txUrl ? " · tx ↗" : ""}</div>
-                </div>
-                <div style={{fontSize:13,fontWeight:800,color:T.green3,fontFamily:MONO,whiteSpace:"nowrap"}}>+{parseFloat(r.b3tr).toFixed(2)}</div>
-              </div>
-            );
-          })}
+          {detail.rows.slice(0, 30).map((r) => (
+            <SubmissionRow key={r.id} r={r} T={T} onAdminApi={onAdminApi} onToast={onToast} archiveOn={!!(onAdminApi && diag.health?.photoArchive)} />
+          ))}
+          {onAdminApi && diag.health && !diag.health.photoArchive && detail.rows.length > 0 && (
+            <div style={{marginTop:2,fontSize:9.5,color:T.textSoft,padding:"0 2px"}}>
+              📷 Photo review is off. Set the R2 keys in the backend to keep a thumbnail of each submission here.
+            </div>
+          )}
 
           {onAdminApi
             ? <WalletAdminActions T={T} address={selected} meters={meters} onAdminApi={onAdminApi} onToast={onToast} />

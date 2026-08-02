@@ -10,6 +10,7 @@ import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_E
 import { validateSubmission } from "./verify.js";
 import { verifyPhoto } from "./media.js";
 import { store } from "./store.js";
+import { putPhoto, getPhotoDataUrl, deletePhoto, photoStoreEnabled } from "./photostore.js";
 import { distributeReward, distributeEcoReward, distributorAddress, chainDiagnostics, moveToRewardsPool } from "./reward.js";
 import { ocrImage, ocrEnabled, ocrProviders } from "./ocr.js";
 import { verifyWalletCertificate, REQUIRE_CERT } from "./auth.js";
@@ -54,6 +55,7 @@ app.get("/health", async (req, res) => {
     ocrProviders: ocrProviders(),
     requireCert: REQUIRE_CERT,
     aiPhotoCheck: aiPhotoCheckEnabled(),
+    photoArchive: photoStoreEnabled(),
     captcha: captchaEnabled(),
     corsLocked: !ALLOWED_ORIGINS.includes("*"),
     durableState: store.isDurable(),
@@ -99,6 +101,17 @@ function verifyAdmin(req) {
   return { ok: true, addr };
 }
 const isAddr = (a) => /^0x[0-9a-fA-F]{40}$/.test(String(a || ""));
+
+// Archive a submission photo for later admin review. Best-effort and non-blocking:
+// uploads a downscaled thumbnail to R2 and records it in the retention index. Any
+// failure is swallowed so it can never affect the payout. No-op unless R2 is set up.
+function archivePhoto(txid, photoBase64, mime, addr) {
+  if (!txid || !photoBase64 || !photoStoreEnabled()) return;
+  Promise.resolve()
+    .then(() => putPhoto(txid, photoBase64, mime))
+    .then((ok) => { if (ok) store.addPhoto(txid, addr); })
+    .catch((e) => console.error("[archivePhoto]", e?.message || e));
+}
 
 app.post("/admin/move-rewards-pool", async (req, res) => {
   const addr = String(req.body.address || "").toLowerCase();
@@ -182,6 +195,29 @@ app.post("/admin/reset-cooldown", (req, res) => {
   res.json({ ok: true, targetWallet: target.toLowerCase(), utility });
 });
 
+// Fetch the archived photo behind a payout (keyed by its txID) so an admin can eyeball
+// it for fraud. Returns { found, dataUrl } — dataUrl is a downscaled thumbnail.
+app.post("/admin/photo", async (req, res) => {
+  const a = verifyAdmin(req);
+  if (!a.ok) return res.status(a.code).json({ error: a.error });
+  if (!photoStoreEnabled()) return res.json({ ok: true, enabled: false, found: false });
+  const txid = String(req.body.txid || "").trim();
+  if (!txid) return res.status(400).json({ error: "txid is required" });
+  const dataUrl = await getPhotoDataUrl(txid);
+  res.json({ ok: true, enabled: true, found: !!dataUrl, dataUrl: dataUrl || null });
+});
+
+// Delete one archived photo (per-submission 🗑️ in admin, or a GDPR erase request).
+app.post("/admin/photo-delete", async (req, res) => {
+  const a = verifyAdmin(req);
+  if (!a.ok) return res.status(a.code).json({ error: a.error });
+  const txid = String(req.body.txid || "").trim();
+  if (!txid) return res.status(400).json({ error: "txid is required" });
+  const ok = await deletePhoto(txid);
+  store.delPhoto(txid);
+  res.json({ ok: true, deleted: ok, txid });
+});
+
 // Meter-photo OCR. The app POSTs an image (base64) — the cropped reading or the
 // full photo — and gets back the detected text + numbers from the first configured
 // provider that recognises it (Roboflow → custom → Vision). Keys/URLs stay on the
@@ -248,6 +284,10 @@ app.post("/reward", async (req, res) => {
     });
     v.markPaid();
     photo.markUsed();
+    // Archive the photo for admin review (opt-in via R2 creds). Fire-and-forget —
+    // must never delay or fail the payout. Keyed by txid so it lines up with the
+    // on-chain history row shown in admin.
+    archivePhoto(txid, req.body.photo, req.body.photoMime, req.body.address);
     res.json({ txid, amount: v.amount });
   } catch (e) {
     console.error("[/reward]", e?.message || e);
@@ -311,6 +351,7 @@ app.post("/eco-action", async (req, res) => {
     const txid = await distributeEcoReward({ appliance, amount: ECO_REWARD, receiver: req.body.address });
     store.addEcoClaim(addr, Date.now());
     photo.markUsed();
+    archivePhoto(txid, req.body.photo, req.body.photoMime, req.body.address);
     res.json({ txid, amount: ECO_REWARD, remaining: ECO_MAX_PER_WEEK - thisWeek.length - 1 });
   } catch (e) {
     console.error("[/eco-action]", e?.message || e);
@@ -549,6 +590,31 @@ if (AUTO_SUBMIT_MS >= 60000) {
     autoSubmitTick().catch(() => {}).finally(() => { autoTickBusy = false; });
   }, AUTO_SUBMIT_MS);
   console.log(`[auto-submit] enabled — sweeping every ${Math.round(AUTO_SUBMIT_MS / 1000)}s`);
+}
+
+// ── Photo-archive retention sweep ────────────────────────────────────────────
+// Auto-delete archived photos older than PHOTO_RETENTION_DAYS (default 30) so we
+// never hoard users' personal photos. Runs hourly; no-op when the archive is off.
+const PHOTO_RETENTION_DAYS = Number(process.env.PHOTO_RETENTION_DAYS || 30);
+const PHOTO_RETENTION_MS = Math.max(0, PHOTO_RETENTION_DAYS) * 24 * 60 * 60 * 1000;
+let sweepBusy = false;
+async function photoRetentionSweep() {
+  if (!photoStoreEnabled() || PHOTO_RETENTION_MS <= 0) return;
+  const expired = store.expiredPhotos(PHOTO_RETENTION_MS);
+  if (!expired.length) return;
+  let gone = 0;
+  for (const id of expired) {
+    try { await deletePhoto(id); store.delPhoto(id); gone++; }
+    catch (e) { console.error("[photo-retention]", id, e?.message || e); }
+  }
+  if (gone) console.log(`[photo-retention] deleted ${gone} photo(s) older than ${PHOTO_RETENTION_DAYS}d`);
+}
+if (PHOTO_RETENTION_MS > 0) {
+  setInterval(() => {
+    if (sweepBusy) return;
+    sweepBusy = true;
+    photoRetentionSweep().catch(() => {}).finally(() => { sweepBusy = false; });
+  }, 60 * 60 * 1000);
 }
 
 app.listen(PORT, () => {

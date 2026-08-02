@@ -17,7 +17,7 @@ const R_TOK = (process.env.UPSTASH_REDIS_REST_TOKEN || "").trim();
 const USE_REDIS = !!(R_URL && R_TOK);
 const REDIS_KEY = process.env.STATE_KEY || "greenutilitylog:state";
 
-const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {} };
+const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {} };
 
 async function redisCmd(cmd) {
   const res = await fetch(R_URL, {
@@ -153,6 +153,29 @@ export const store = {
   }),
   // Clear the cooldown for a wallet+utility so the user can resubmit right away.
   clearCooldown: (addr, utility) => { delete state.cooldowns[`${String(addr).toLowerCase()}:${utility}`]; persist(); },
+
+  // ── Admin: archived-photo index ─────────────────────────────────────────────
+  // Maps a payout txID -> { at, addr } for photos kept in the R2 archive. This is
+  // only an index for retention/lookup; the image bytes live in R2 (photostore.js),
+  // never here. Small (~a few dozen bytes each), safe for the single-blob state.
+  addPhoto: (id, addr) => {
+    const k = String(id || "").toLowerCase();
+    if (!k) return;
+    state.photos[k] = { at: Date.now(), addr: String(addr || "").toLowerCase() };
+    persist();
+  },
+  hasPhoto: (id) => Object.prototype.hasOwnProperty.call(state.photos, String(id || "").toLowerCase()),
+  delPhoto: (id) => {
+    const k = String(id || "").toLowerCase();
+    if (Object.prototype.hasOwnProperty.call(state.photos, k)) { delete state.photos[k]; persist(); return true; }
+    return false;
+  },
+  // Ids older than maxAgeMs — the retention sweep deletes these from R2 then calls
+  // delPhoto on each.
+  expiredPhotos: (maxAgeMs) => {
+    const cutoff = Date.now() - maxAgeMs;
+    return Object.entries(state.photos).filter(([, v]) => (v?.at || 0) < cutoff).map(([k]) => k);
+  },
 
   // True when state is backed by a durable store (not the ephemeral file).
   isDurable: () => USE_REDIS,
