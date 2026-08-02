@@ -3094,16 +3094,60 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
           ))}
 
           <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,margin:"16px 2px 8px"}}>Recent submissions</div>
-          {detail.rows.slice(0, 30).map((r) => (
-            <div key={r.id} className="lb-item">
-              <span style={{fontSize:15,marginRight:8}}>{UTIL_ICONS[r.type]}</span>
-              <div style={{flex:1}}>
-                <div style={{fontSize:11,color:T.text}}>{r.date} · <span style={{fontFamily:"'SF Mono',Menlo,'Courier New',monospace"}}>#{r.meterNo||"—"}</span></div>
-                <div style={{fontSize:9,color:T.textSoft}}>{r.prev} → {r.cur}</div>
+          {detail.status === "loading" && <div style={{textAlign:"center",color:T.textSoft,fontSize:11,padding:14}}>Loading…</div>}
+
+          {/* Example rows when the wallet has no submissions yet — so you can see
+              exactly how a real one will look. */}
+          {detail.status !== "loading" && detail.rows.length === 0 && (() => {
+            const MONO = "'SF Mono',Menlo,'Courier New',monospace";
+            const ghost = (icon, title, sub, amt) => (
+              <div style={{display:"flex",alignItems:"center",gap:10,background:T.bgAlt,border:`1px dashed ${T.border}`,borderRadius:8,padding:"10px 12px",marginBottom:6,opacity:.7}}>
+                <span style={{fontSize:16}}>{icon}</span>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:12,fontWeight:700,color:T.textMid}}>{title}</div>
+                  <div style={{fontSize:10,color:T.textSoft,fontFamily:MONO}}>{sub}</div>
+                  <div style={{fontSize:9,color:T.textSoft,marginTop:2}}>2026-08-02 · tx ↗</div>
+                </div>
+                <div style={{fontSize:13,fontWeight:800,color:T.green3,fontFamily:MONO,whiteSpace:"nowrap"}}>{amt}</div>
               </div>
-              <div className="lb-b3tr">+{parseFloat(r.b3tr).toFixed(2)}</div>
-            </div>
-          ))}
+            );
+            return (
+              <div>
+                <div style={{fontSize:10,color:T.textSoft,marginBottom:8}}>No submissions yet — here's what they'll look like (example):</div>
+                {ghost("⚡", "Meter reading", "3775 → 3776 · 1.0 kWh used", "+4.47")}
+                {ghost("🌿", "Eco bonus", "washer on eco mode", "+8.00")}
+              </div>
+            );
+          })()}
+
+          {detail.rows.slice(0, 30).map((r) => {
+            const MONO = "'SF Mono',Menlo,'Courier New',monospace";
+            const isEco = !!r.appliance || r.type === "eco";
+            const p = parseFloat(r.prev), c = parseFloat(r.cur);
+            const usage = (Number.isFinite(p) && Number.isFinite(c)) ? +(c - p).toFixed(2) : null;
+            const unit = (UTILS.find(x => x.id === r.type)?.unit) || "kWh";
+            const txUrl = r.txHash ? `${EXPLORER}/transactions/${r.txHash}` : null;
+            return (
+              <div key={r.id} onClick={() => txUrl && window.open(txUrl, "_blank", "noopener")}
+                title={txUrl ? "View this transaction on the VeChain explorer" : undefined}
+                style={{display:"flex",alignItems:"center",gap:10,background:T.card,border:`1px solid ${T.border}`,borderRadius:8,padding:"10px 12px",marginBottom:6,cursor:txUrl?"pointer":"default"}}>
+                <span style={{fontSize:16}}>{isEco ? "🌿" : (UTIL_ICONS[r.type] || "⚡")}</span>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:12,fontWeight:700,color:T.text}}>
+                    {isEco ? "Eco bonus" : "Meter reading"}
+                    {!isEco && r.meterNo ? <span style={{fontWeight:400,color:T.textSoft,fontFamily:MONO,fontSize:10}}> · #{r.meterNo}</span> : null}
+                  </div>
+                  <div style={{fontSize:10,color:T.textSoft,fontFamily:MONO}}>
+                    {isEco
+                      ? (r.appliance ? `${r.appliance} on eco mode` : "appliance on eco mode")
+                      : (usage != null ? `${r.prev} → ${r.cur} · ${usage} ${unit} used` : (r.cur !== "" ? `reading ${r.cur}` : "reading"))}
+                  </div>
+                  <div style={{fontSize:9,color:T.textSoft,marginTop:2}}>{r.date}{txUrl ? " · tx ↗" : ""}</div>
+                </div>
+                <div style={{fontSize:13,fontWeight:800,color:T.green3,fontFamily:MONO,whiteSpace:"nowrap"}}>+{parseFloat(r.b3tr).toFixed(2)}</div>
+              </div>
+            );
+          })}
 
           {onAdminApi
             ? <WalletAdminActions T={T} address={selected} meters={meters} onAdminApi={onAdminApi} onToast={onToast} />
