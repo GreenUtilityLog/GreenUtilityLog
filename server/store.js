@@ -17,7 +17,7 @@ const R_TOK = (process.env.UPSTASH_REDIS_REST_TOKEN || "").trim();
 const USE_REDIS = !!(R_URL && R_TOK);
 const REDIS_KEY = process.env.STATE_KEY || "greenutilitylog:state";
 
-const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {} };
+const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {} };
 
 async function redisCmd(cmd) {
   const res = await fetch(R_URL, {
@@ -55,25 +55,44 @@ async function loadState() {
 let state = await loadState();
 console.log(`[store] backend: ${USE_REDIS ? "Upstash Redis (durable)" : `file ${FILE} (ephemeral on free hosts)`}`);
 
+// Write the current state out now. Async so a graceful shutdown can await it.
+async function writeNow() {
+  const blob = JSON.stringify(state);
+  if (USE_REDIS) {
+    try { await redisCmd(["SET", REDIS_KEY, blob]); }
+    catch (e) { console.error("[store] Redis save failed:", e?.message || e); }
+    return;
+  }
+  try {
+    // Atomic-ish: write a temp file then rename, so a crash mid-write can't
+    // corrupt the live state file (the old boot loader silently started fresh).
+    const tmp = `${FILE}.tmp`;
+    writeFileSync(tmp, blob);
+    renameSync(tmp, FILE);
+  } catch (e) {
+    console.error("[store] save failed:", e?.message || e);
+  }
+}
+
+// Debounced persist WITH a hard max-wait, so anti-farming writes (cooldowns, burnt
+// photo hashes, baselines) can't be starved indefinitely by a steady write stream —
+// a pure trailing debounce never flushes under sustained load. First pending write
+// starts the clock; we flush at the latest MAX_WAIT_MS after it.
 let timer = null;
+let firstPendingAt = 0;
+const MAX_WAIT_MS = 2000;
 function persist() {
+  if (!firstPendingAt) firstPendingAt = Date.now();
   clearTimeout(timer);
-  timer = setTimeout(() => {
-    const blob = JSON.stringify(state);
-    if (USE_REDIS) {
-      redisCmd(["SET", REDIS_KEY, blob]).catch((e) => console.error("[store] Redis save failed:", e?.message || e));
-      return;
-    }
-    try {
-      // Atomic-ish: write a temp file then rename, so a crash mid-write can't
-      // corrupt the live state file (the old boot loader silently started fresh).
-      const tmp = `${FILE}.tmp`;
-      writeFileSync(tmp, blob);
-      renameSync(tmp, FILE);
-    } catch (e) {
-      console.error("[store] save failed:", e?.message || e);
-    }
-  }, 500);
+  const waited = Date.now() - firstPendingAt;
+  const delay = waited >= MAX_WAIT_MS ? 0 : Math.min(500, MAX_WAIT_MS - waited);
+  timer = setTimeout(() => { timer = null; firstPendingAt = 0; writeNow(); }, delay);
+}
+// Flush any pending write immediately and await it. Called on graceful shutdown
+// (SIGTERM/SIGINT) so a redeploy can't drop a just-committed payout's state.
+async function flush() {
+  clearTimeout(timer); timer = null; firstPendingAt = 0;
+  await writeNow();
 }
 
 export const store = {
@@ -81,9 +100,12 @@ export const store = {
   getCooldown: (key) => state.cooldowns[key] || 0,
   setCooldown: (key, ts) => { state.cooldowns[key] = ts; persist(); },
 
-  // used photo hashes (one photo can only ever earn once)
+  // used photo hashes (one photo can only ever earn once). addHash reserves a hash
+  // synchronously at verify time; delHash rolls that reservation back if the payout
+  // it was reserved for never completes.
   hasHash: (h) => Object.prototype.hasOwnProperty.call(state.hashes, h),
   addHash: (h) => { state.hashes[h] = Date.now(); persist(); },
+  delHash: (h) => { if (Object.prototype.hasOwnProperty.call(state.hashes, h)) { delete state.hashes[h]; persist(); } },
 
   // meter number -> the address that first claimed it (anti meter-sharing)
   meterOwner: (meterKey) => state.meterOwners[meterKey] || null,
@@ -154,6 +176,32 @@ export const store = {
   // Clear the cooldown for a wallet+utility so the user can resubmit right away.
   clearCooldown: (addr, utility) => { delete state.cooldowns[`${String(addr).toLowerCase()}:${utility}`]; persist(); },
 
+  // ── Admin: archived-photo index ─────────────────────────────────────────────
+  // Maps a payout txID -> { at, addr } for photos kept in the R2 archive. This is
+  // only an index for retention/lookup; the image bytes live in R2 (photostore.js),
+  // never here. Small (~a few dozen bytes each), safe for the single-blob state.
+  addPhoto: (id, addr) => {
+    const k = String(id || "").toLowerCase();
+    if (!k) return;
+    state.photos[k] = { at: Date.now(), addr: String(addr || "").toLowerCase() };
+    persist();
+  },
+  hasPhoto: (id) => Object.prototype.hasOwnProperty.call(state.photos, String(id || "").toLowerCase()),
+  delPhoto: (id) => {
+    const k = String(id || "").toLowerCase();
+    if (Object.prototype.hasOwnProperty.call(state.photos, k)) { delete state.photos[k]; persist(); return true; }
+    return false;
+  },
+  // Ids older than maxAgeMs — the retention sweep deletes these from R2 then calls
+  // delPhoto on each.
+  expiredPhotos: (maxAgeMs) => {
+    const cutoff = Date.now() - maxAgeMs;
+    return Object.entries(state.photos).filter(([, v]) => (v?.at || 0) < cutoff).map(([k]) => k);
+  },
+
   // True when state is backed by a durable store (not the ephemeral file).
   isDurable: () => USE_REDIS,
+
+  // Flush any debounced write immediately (awaitable) — for graceful shutdown.
+  flush,
 };

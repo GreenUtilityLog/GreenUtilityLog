@@ -363,8 +363,12 @@ function checkPlausibility(utilId, usageVal) {
 
 function checkAnomaly(utilId, usageVal, subs) {
   const recent = subs.filter(s=>s.type===utilId).slice(0,14);
-  if (recent.length < 3) return { ok:true, anomaly:false };
-  const avg = recent.reduce((a,s)=>a+(parseFloat(s.cur)-parseFloat(s.prev)),0)/recent.length;
+  // Only rows with a real prev→cur delta count. Photoless/auto-submit rows store an
+  // empty prev, so parseFloat("") = NaN; without this filter a single such row makes
+  // avg NaN and silently disables the anomaly gate for the whole utility.
+  const deltas = recent.map(s=>parseFloat(s.cur)-parseFloat(s.prev)).filter(Number.isFinite);
+  if (deltas.length < 3) return { ok:true, anomaly:false };
+  const avg = deltas.reduce((a,d)=>a+d,0)/deltas.length;
   if (avg > 0 && usageVal > avg * 3.5) return { ok:false, anomaly:true, reason:`Usage is ${(usageVal/avg).toFixed(1)}x your average`, avg };
   return { ok:true, anomaly:false, avg:parseFloat(avg.toFixed(2)) };
 }
@@ -1693,7 +1697,21 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
   const runVerify = async (file, ocrSource) => {
     setPhase("verifying"); setAiStep(0);
     const mime   = file.type;
-    const base64 = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result.split(",")[1]); r.readAsDataURL(file); });
+    let base64;
+    try {
+      // Reject on read errors too — without onerror a failed read leaves the promise
+      // unsettled and the UI stuck on "verifying" with no way out but a reload.
+      base64 = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result.split(",")[1]);
+        r.onerror = () => rej(r.error || new Error("could not read the photo"));
+        r.readAsDataURL(file);
+      });
+    } catch {
+      setResult({ summary: "Couldn't read that photo — please tap the camera and take it again." });
+      setPhase("error");
+      return;
+    }
     const fraudFlags = [];
     let   fraudReason = null;
 
@@ -2666,6 +2684,9 @@ function LeaderboardScreen({ b3tr, streak, subs, wallet, T }) {
   const nextTier = TIERS[TIERS.indexOf(currentTier) + 1];
   const progressPercent = nextTier ? Math.min(100, Math.round((b3tr - currentTier.min) / (nextTier.min - currentTier.min) * 100)) : 100;
   const b3trNeeded = nextTier ? Math.max(0, nextTier.min - b3tr) : 0;
+  // The "100 B3TR Achievement" goal is a fixed 100, NOT the gap to the next tier —
+  // reusing b3trNeeded showed a wrong number for anyone already past 100.
+  const to100 = Math.max(0, 100 - b3tr);
   const dailyAvg = subs.length > 0 ? (b3tr / subs.length).toFixed(2) : "0.00";
   const withBonus = (parseFloat(dailyAvg) * currentTier.multiplier).toFixed(2);
   const bonusExtra = (withBonus - dailyAvg).toFixed(2);
@@ -2758,7 +2779,7 @@ function LeaderboardScreen({ b3tr, streak, subs, wallet, T }) {
       <div style={{margin:"0 14px 14px",padding:14,background:T.card,border:`1px solid ${T.border}`,borderRadius:5}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
           <div style={{fontSize:11,fontWeight:700,color:T.text}}>100 B3TR Achievement</div>
-          <div style={{fontSize:10,fontWeight:700,color:T.green3,fontFamily:"'SF Mono',monospace"}}>{b3trNeeded.toFixed(2)} away</div>
+          <div style={{fontSize:10,fontWeight:700,color:T.green3,fontFamily:"'SF Mono',monospace"}}>{to100 > 0 ? `${to100.toFixed(2)} away` : "Achieved ✓"}</div>
         </div>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
           <div style={{fontSize:11,fontWeight:700,color:T.text}}>#1 Global Rank</div>
@@ -2962,6 +2983,83 @@ function WalletAdminActions({ T, address, meters, onAdminApi, onToast }) {
   );
 }
 
+// One row in a wallet's "Recent submissions" list. Renders the submission clearly
+// per type (meter reading vs eco bonus) and — when the server's photo archive is on
+// — lets an admin pull up the actual photo behind the payout (📷) or erase it (🗑️).
+function SubmissionRow({ r, T, onAdminApi, onToast, archiveOn }) {
+  const MONO = "'SF Mono',Menlo,'Courier New',monospace";
+  const isEco = !!r.appliance || r.type === "eco";
+  const p = parseFloat(r.prev), c = parseFloat(r.cur);
+  const usage = (Number.isFinite(p) && Number.isFinite(c)) ? +(c - p).toFixed(2) : null;
+  const unit = (UTILS.find((x) => x.id === r.type)?.unit) || "kWh";
+  const txUrl = r.txHash ? `${EXPLORER}/transactions/${r.txHash}` : null;
+  const canPhoto = archiveOn && !!r.txHash;
+  const [photo, setPhoto] = useState({ status: "idle", dataUrl: null }); // idle|loading|shown|none|deleted|busy
+
+  const loadPhoto = async (e) => {
+    e.stopPropagation();
+    if (photo.status === "shown") { setPhoto({ status: "idle", dataUrl: null }); return; } // toggle closed
+    setPhoto({ status: "loading", dataUrl: null });
+    try {
+      const d = await onAdminApi("/admin/photo", { txid: r.txHash });
+      if (d.found && d.dataUrl) setPhoto({ status: "shown", dataUrl: d.dataUrl });
+      else { setPhoto({ status: "none", dataUrl: null }); onToast?.("📭 No photo stored for this submission"); }
+    } catch (err) { setPhoto({ status: "idle", dataUrl: null }); onToast?.(`⚠️ ${err.message}`); }
+  };
+  const deletePhoto = async (e) => {
+    e.stopPropagation();
+    if (!window.confirm("Delete this photo from storage? This cannot be undone.")) return;
+    setPhoto({ status: "busy", dataUrl: photo.dataUrl });
+    try {
+      await onAdminApi("/admin/photo-delete", { txid: r.txHash });
+      setPhoto({ status: "deleted", dataUrl: null });
+      onToast?.("🗑️ Photo deleted");
+    } catch (err) { setPhoto({ status: "shown", dataUrl: photo.dataUrl }); onToast?.(`⚠️ ${err.message}`); }
+  };
+
+  const iconBtn = (label, onClick, disabled) => (
+    <button onClick={onClick} disabled={disabled}
+      style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"3px 7px",fontSize:12,cursor:disabled?"default":"pointer",color:T.textMid,lineHeight:1}}>{label}</button>
+  );
+
+  return (
+    <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:8,marginBottom:6,overflow:"hidden"}}>
+      <div onClick={() => txUrl && window.open(txUrl, "_blank", "noopener")}
+        title={txUrl ? "View this transaction on the VeChain explorer" : undefined}
+        style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",cursor:txUrl?"pointer":"default"}}>
+        <span style={{fontSize:16}}>{isEco ? "🌿" : (UTIL_ICONS[r.type] || "⚡")}</span>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:12,fontWeight:700,color:T.text}}>
+            {isEco ? "Eco bonus" : "Meter reading"}
+            {!isEco && r.meterNo ? <span style={{fontWeight:400,color:T.textSoft,fontFamily:MONO,fontSize:10}}> · #{r.meterNo}</span> : null}
+          </div>
+          <div style={{fontSize:10,color:T.textSoft,fontFamily:MONO}}>
+            {isEco
+              ? (r.appliance ? `${r.appliance} on eco mode` : "appliance on eco mode")
+              : (usage != null ? `${r.prev} → ${r.cur} · ${usage} ${unit} used` : (r.cur !== "" ? `reading ${r.cur}` : "reading"))}
+          </div>
+          <div style={{fontSize:9,color:T.textSoft,marginTop:2}}>{r.date}{txUrl ? " · tx ↗" : ""}</div>
+        </div>
+        {canPhoto && photo.status !== "deleted" && (
+          <span onClick={(e) => e.stopPropagation()} style={{display:"flex",gap:4}}>
+            {iconBtn(photo.status === "loading" ? "…" : photo.status === "shown" ? "📷 ▲" : "📷", loadPhoto, photo.status === "loading" || photo.status === "busy")}
+            {photo.status === "shown" && iconBtn("🗑️", deletePhoto, false)}
+          </span>
+        )}
+        <div style={{fontSize:13,fontWeight:800,color:T.green3,fontFamily:MONO,whiteSpace:"nowrap"}}>+{parseFloat(r.b3tr).toFixed(2)}</div>
+      </div>
+      {photo.status === "shown" && photo.dataUrl && (
+        <div style={{padding:"0 12px 12px"}}>
+          <img src={photo.dataUrl} alt="submission" style={{maxWidth:"100%",borderRadius:6,border:`1px solid ${T.border}`,display:"block"}} />
+        </div>
+      )}
+      {photo.status === "deleted" && (
+        <div style={{padding:"0 12px 10px",fontSize:10,color:T.textSoft}}>🗑️ Photo deleted.</div>
+      )}
+    </div>
+  );
+}
+
 function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDisableRewardsPool, onClaimB3TR, onAdminApi, onToast }) {
   const [chain, setChain] = useState({ status: "loading", rows: [], reason: null });
   const [query, setQuery] = useState("");
@@ -3094,16 +3192,40 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
           ))}
 
           <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,margin:"16px 2px 8px"}}>Recent submissions</div>
-          {detail.rows.slice(0, 30).map((r) => (
-            <div key={r.id} className="lb-item">
-              <span style={{fontSize:15,marginRight:8}}>{UTIL_ICONS[r.type]}</span>
-              <div style={{flex:1}}>
-                <div style={{fontSize:11,color:T.text}}>{r.date} · <span style={{fontFamily:"'SF Mono',Menlo,'Courier New',monospace"}}>#{r.meterNo||"—"}</span></div>
-                <div style={{fontSize:9,color:T.textSoft}}>{r.prev} → {r.cur}</div>
+          {detail.status === "loading" && <div style={{textAlign:"center",color:T.textSoft,fontSize:11,padding:14}}>Loading…</div>}
+
+          {/* Example rows when the wallet has no submissions yet — so you can see
+              exactly how a real one will look. */}
+          {detail.status !== "loading" && detail.rows.length === 0 && (() => {
+            const MONO = "'SF Mono',Menlo,'Courier New',monospace";
+            const ghost = (icon, title, sub, amt) => (
+              <div style={{display:"flex",alignItems:"center",gap:10,background:T.bgAlt,border:`1px dashed ${T.border}`,borderRadius:8,padding:"10px 12px",marginBottom:6,opacity:.7}}>
+                <span style={{fontSize:16}}>{icon}</span>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:12,fontWeight:700,color:T.textMid}}>{title}</div>
+                  <div style={{fontSize:10,color:T.textSoft,fontFamily:MONO}}>{sub}</div>
+                  <div style={{fontSize:9,color:T.textSoft,marginTop:2}}>2026-08-02 · tx ↗</div>
+                </div>
+                <div style={{fontSize:13,fontWeight:800,color:T.green3,fontFamily:MONO,whiteSpace:"nowrap"}}>{amt}</div>
               </div>
-              <div className="lb-b3tr">+{parseFloat(r.b3tr).toFixed(2)}</div>
-            </div>
+            );
+            return (
+              <div>
+                <div style={{fontSize:10,color:T.textSoft,marginBottom:8}}>No submissions yet — here's what they'll look like (example):</div>
+                {ghost("⚡", "Meter reading", "3775 → 3776 · 1.0 kWh used", "+4.47")}
+                {ghost("🌿", "Eco bonus", "washer on eco mode", "+8.00")}
+              </div>
+            );
+          })()}
+
+          {detail.rows.slice(0, 30).map((r) => (
+            <SubmissionRow key={r.id} r={r} T={T} onAdminApi={onAdminApi} onToast={onToast} archiveOn={!!(onAdminApi && diag.health?.photoArchive)} />
           ))}
+          {onAdminApi && diag.health && !diag.health.photoArchive && detail.rows.length > 0 && (
+            <div style={{marginTop:2,fontSize:9.5,color:T.textSoft,padding:"0 2px"}}>
+              📷 Photo review is off. Set the R2 keys in the backend to keep a thumbnail of each submission here.
+            </div>
+          )}
 
           {onAdminApi
             ? <WalletAdminActions T={T} address={selected} meters={meters} onAdminApi={onAdminApi} onToast={onToast} />

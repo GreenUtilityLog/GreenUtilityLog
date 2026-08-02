@@ -21,8 +21,16 @@ function sniffImage(buf) {
       (buf[0] === 0x4d && buf[1] === 0x4d && buf[2] === 0x00 && buf[3] === 0x2a)) return "image/tiff";
   if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 &&
       buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50) return "image/webp";
-  // ISO-BMFF (HEIC / HEIF / AVIF): bytes 4..7 spell "ftyp"
-  if (buf[4] === 0x66 && buf[5] === 0x74 && buf[6] === 0x79 && buf[7] === 0x70) return "image/heic";
+  // ISO-BMFF (HEIC / HEIF / AVIF): bytes 4..7 spell "ftyp". Only treat it as an
+  // image when the major brand (bytes 8..11) is a known image brand — a bare "ftyp"
+  // match also accepts MP4/MOV video. Unknown brands fall through to the lenient
+  // client-mime path below, so real photos are never rejected by tightening this.
+  if (buf[4] === 0x66 && buf[5] === 0x74 && buf[6] === 0x79 && buf[7] === 0x70) {
+    const brand = String.fromCharCode(buf[8], buf[9], buf[10], buf[11]).toLowerCase();
+    const IMAGE_BRANDS = new Set(["heic", "heix", "heim", "heis", "hevc", "mif1", "msf1", "avif", "avis"]);
+    if (IMAGE_BRANDS.has(brand)) return "image/heic";
+    return null;
+  }
   return null;
 }
 
@@ -48,12 +56,22 @@ export async function verifyPhoto({ imageBase64, reading, ocr = false, mime: cli
   const hash = createHash("sha256").update(buf).digest("hex");
   if (store.hasHash(hash)) return { ok: false, error: "duplicate photo — each submission needs a fresh photo" };
 
+  // Reserve the hash NOW, synchronously (no await between hasHash and addHash), so
+  // concurrent requests carrying the same photo — even from different wallets or
+  // utilities, which the per-`address:utility` in-flight lock doesn't cover — can't
+  // all pass the dedupe and pay out. The caller rolls this back via unreserve() if
+  // the payout it was reserved for never completes.
+  store.addHash(hash);
+  const unreserve = () => store.delHash(hash);
+
   if (ocr) {
     const r = await runOcrCheck(buf, reading).catch(() => ({ ok: true, soft: true }));
-    if (!r.ok) return { ok: false, error: r.error || "the reading was not found in the photo" };
+    if (!r.ok) { unreserve(); return { ok: false, error: r.error || "the reading was not found in the photo" }; }
   }
 
-  return { ok: true, hash, mime, markUsed: () => store.addHash(hash) };
+  // markUsed is now a no-op (the hash is already reserved) — kept for call-site
+  // compatibility. unreserve() releases the reservation on a failed payout.
+  return { ok: true, hash, mime, markUsed: () => {}, unreserve };
 }
 
 // Best-effort OCR via tesseract.js (lazy-loaded so the service runs without it).
