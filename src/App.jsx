@@ -2849,7 +2849,81 @@ function HistoryScreen({ subs, T }) {
 // Read-only admin overlay: every on-chain participant for this app, aggregated
 // from RewardDistributed events. Monitoring only — payouts/blocking require the
 // reward-distributor role (a backend), never the frontend.
-function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDisableRewardsPool, onClaimB3TR }) {
+// ── Admin: account tools (block farmers · fix a wrong reading) ────────────────
+// Each action is a signed call to an /admin/* endpoint (onAdminApi handles the
+// certificate). All are guarded server-side by the admin allowlist too.
+function AdminAccountTools({ T, onAdminApi, onToast }) {
+  const [banW, setBanW]   = useState("");
+  const [meterNo, setMeterNo] = useState("");
+  const [reading, setReading] = useState("");
+  const [owner, setOwner] = useState("");
+  const [cdW, setCdW]     = useState("");
+  const [lookW, setLookW] = useState("");
+  const [busy, setBusy]   = useState("");
+  const [result, setResult] = useState(null);
+
+  const isAddr = (a) => /^0x[0-9a-fA-F]{40}$/.test(String(a || "").trim());
+  const run = async (key, fn, okMsg) => {
+    setBusy(key); setResult(null);
+    try { const d = await fn(); if (d) setResult(d); onToast?.(okMsg(d)); }
+    catch (e) { onToast?.(`❌ ${e?.message || "action failed"}`); }
+    finally { setBusy(""); }
+  };
+
+  const inp = { width: "100%", boxSizing: "border-box", background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, padding: "9px 11px", fontSize: 12, color: T.text, fontFamily: "'SF Mono',Menlo,'Courier New',monospace", outline: "none" };
+  const btn = (bg, fg, disabled) => ({ background: bg, color: fg, border: bg === "transparent" ? `1px solid ${T.border}` : "none", borderRadius: 6, padding: "9px 12px", fontWeight: 700, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap", opacity: disabled ? 0.6 : 1 });
+  const lbl = { fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft, margin: "0 0 5px" };
+  const card = { background: T.bgAlt, border: `1px solid ${T.border}`, borderRadius: 8, padding: 12, marginBottom: 10 };
+
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ fontSize: 12, fontWeight: 800, color: T.text, marginBottom: 8 }}>🛠️ Account tools</div>
+
+      {/* Block / unblock a farming wallet */}
+      <div style={card}>
+        <div style={lbl}>Block a wallet (farmer)</div>
+        <input value={banW} onChange={e => setBanW(e.target.value)} placeholder="0x… wallet to block" spellCheck={false} style={inp} />
+        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+          <button disabled={busy === "ban" || !isAddr(banW)} onClick={() => run("ban", () => onAdminApi("/admin/ban", { targetWallet: banW.trim(), ban: true }), () => `🚫 Blocked ${banW.trim().slice(0, 8)}…`)} style={btn("#c0392b", "#fff", busy === "ban" || !isAddr(banW))}>{busy === "ban" ? "…" : "Block"}</button>
+          <button disabled={busy === "unban" || !isAddr(banW)} onClick={() => run("unban", () => onAdminApi("/admin/ban", { targetWallet: banW.trim(), ban: false }), () => `✅ Unblocked ${banW.trim().slice(0, 8)}…`)} style={btn("transparent", T.textMid, busy === "unban" || !isAddr(banW))}>{busy === "unban" ? "…" : "Unblock"}</button>
+        </div>
+      </div>
+
+      {/* Correct a wrong meter reading (baseline) */}
+      <div style={card}>
+        <div style={lbl}>Fix a meter's baseline (wrong reading)</div>
+        <input value={meterNo} onChange={e => setMeterNo(e.target.value)} placeholder="Meter / EAN number" spellCheck={false} style={{ ...inp, marginBottom: 8 }} />
+        <input value={reading} onChange={e => setReading(e.target.value)} type="number" step="0.01" inputMode="decimal" placeholder="Correct current reading" style={{ ...inp, marginBottom: 8 }} />
+        <input value={owner} onChange={e => setOwner(e.target.value)} placeholder="Bind to wallet (optional 0x…)" spellCheck={false} style={inp} />
+        <button disabled={busy === "base" || !meterNo.trim() || !(Number(reading) >= 0)} onClick={() => run("base", () => onAdminApi("/admin/set-baseline", { meterNo: meterNo.trim(), reading: Number(reading), ...(isAddr(owner) ? { targetWallet: owner.trim() } : {}) }), (d) => `✅ Baseline set: ${d.meterNo} → ${d.baseline}`)} style={{ ...btn(T.green3 || "#2e7d5b", "#fff", busy === "base" || !meterNo.trim() || !(Number(reading) >= 0)), marginTop: 8 }}>{busy === "base" ? "Saving…" : "Set baseline"}</button>
+        <div style={{ fontSize: 10, color: T.textSoft, marginTop: 6, lineHeight: 1.5 }}>Sets the value future usage is measured from. Use it to correct a mis-entered reading. To let the user resubmit now, also reset their cooldown below.</div>
+      </div>
+
+      {/* Reset a wallet's cooldown */}
+      <div style={card}>
+        <div style={lbl}>Reset cooldown (electric)</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input value={cdW} onChange={e => setCdW(e.target.value)} placeholder="0x… wallet" spellCheck={false} style={inp} />
+          <button disabled={busy === "cd" || !isAddr(cdW)} onClick={() => run("cd", () => onAdminApi("/admin/reset-cooldown", { targetWallet: cdW.trim(), utility: "electric" }), () => `✅ Cooldown reset`)} style={btn(T.green3 || "#2e7d5b", "#fff", busy === "cd" || !isAddr(cdW))}>{busy === "cd" ? "…" : "Reset"}</button>
+        </div>
+      </div>
+
+      {/* Look up a meter or wallet */}
+      <div style={card}>
+        <div style={lbl}>Look up (meter number or wallet)</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input value={lookW} onChange={e => setLookW(e.target.value)} placeholder="Meter number or 0x…" spellCheck={false} style={inp} />
+          <button disabled={busy === "look" || !lookW.trim()} onClick={() => run("look", () => onAdminApi("/admin/lookup", isAddr(lookW) ? { targetWallet: lookW.trim() } : { meterNo: lookW.trim() }), () => `🔎 Loaded`)} style={btn("transparent", T.textMid, busy === "look" || !lookW.trim())}>{busy === "look" ? "…" : "Look up"}</button>
+        </div>
+        {result && (
+          <pre style={{ margin: "8px 0 0", padding: 10, background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, fontSize: 11, color: T.text, fontFamily: "'SF Mono',Menlo,'Courier New',monospace", overflowX: "auto", lineHeight: 1.5 }}>{JSON.stringify(result, null, 2)}</pre>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDisableRewardsPool, onClaimB3TR, onAdminApi, onToast }) {
   const [chain, setChain] = useState({ status: "loading", rows: [], reason: null });
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(null);
@@ -3142,6 +3216,8 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
             )}
           </div>
         )}
+
+        {onAdminApi && <AdminAccountTools T={T} onAdminApi={onAdminApi} onToast={onToast} />}
 
         <input
           value={query}
@@ -3876,6 +3952,22 @@ export default function App() {
     }
   };
 
+  // Generic signed admin call — cert-proves the admin wallet, then POSTs to an
+  // /admin/* endpoint. Used by the account tools (ban, fix baseline, lookup…).
+  const adminApi = async (path, body) => {
+    if (!wallet) { openConnectModal(); throw new Error("connect your wallet"); }
+    const content = `Green Utility Log — admin action\nWallet: ${wallet}\nAction: ${path}\nTime: ${new Date().toISOString()}`;
+    const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } });
+    const certificate = { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
+    const res = await fetch(`${REWARD_API.replace(/\/$/, "")}${path}`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address: wallet, certificate, ...body }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `server ${res.status}`);
+    return data;
+  };
+
   // Admin: move deposited B3TR from `availableFunds` into `rewardsPoolBalance` —
   // on v10 pools with the rewards-pool feature ON, distributeReward pays ONLY
   // from that second bucket ("not enough funds in the rewards pool" otherwise).
@@ -4213,7 +4305,7 @@ export default function App() {
       {!showIntro && !wallet && <WalletGate onConnect={openConnectModal} online={online} />}
       {needsBaselines && <BaselineOnboarding onDone={(bl, mtrs) => { setBaselines(bl); setMeters(mtrs); closeRegistration(); }} utils={regUtils} editMode={regEdit} existingBaselines={baselines} existingMeters={meters} T={T} />}
       {!onboarded && <Onboarding onDone={() => setOnboarded(true)} />}
-      {showAdmin && isAdmin && <AdminScreen onClose={() => setShowAdmin(false)} T={T} wallet={wallet} onFundPool={handleFundPool} onMoveToRewardsPool={handleMoveToRewardsPool} onDisableRewardsPool={handleDisableRewardsPool} onClaimB3TR={FAUCET_ENABLED ? handleClaimB3TR : null} />}
+      {showAdmin && isAdmin && <AdminScreen onClose={() => setShowAdmin(false)} T={T} wallet={wallet} onFundPool={handleFundPool} onMoveToRewardsPool={handleMoveToRewardsPool} onDisableRewardsPool={handleDisableRewardsPool} onClaimB3TR={FAUCET_ENABLED ? handleClaimB3TR : null} onAdminApi={adminApi} onToast={showToast} />}
       {showHelp && <HelpScreen onClose={() => setShowHelp(false)} onFeedback={() => { setShowHelp(false); setShowFeedback(true); }} T={T} />}
       {showFeedback && <FeedbackScreen onClose={() => setShowFeedback(false)} onToast={showToast} wallet={wallet} tab={tab} T={T} />}
       {toast && (toast.sticky ? (

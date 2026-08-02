@@ -82,6 +82,24 @@ app.get("/health", async (req, res) => {
 const ADMIN_USER_WALLETS = (process.env.ADMIN_WALLETS || "0x3a007383fce8dcccdb92cf9efe0e609a652a1f29")
   .toLowerCase().split(",").map((s) => s.trim()).filter(Boolean);
 
+// A wallet is blocked if it's on the static env list OR the admin's dynamic list.
+const banned = (addr) => isBanned(addr) || store.isBanned(addr);
+
+// Shared gate for every /admin/* action: caller must be on the admin allowlist
+// and (when enabled) prove wallet ownership with a fresh certificate.
+function verifyAdmin(req) {
+  const addr = String(req.body.address || "").toLowerCase();
+  if (!/^0x[0-9a-f]{40}$/.test(addr) || !ADMIN_USER_WALLETS.includes(addr)) {
+    return { ok: false, code: 403, error: "not an admin wallet" };
+  }
+  if (REQUIRE_CERT) {
+    const c = verifyWalletCertificate({ certificate: req.body.certificate, address: req.body.address });
+    if (!c.ok) return { ok: false, code: 401, error: c.error };
+  }
+  return { ok: true, addr };
+}
+const isAddr = (a) => /^0x[0-9a-fA-F]{40}$/.test(String(a || ""));
+
 app.post("/admin/move-rewards-pool", async (req, res) => {
   const addr = String(req.body.address || "").toLowerCase();
   if (!/^0x[0-9a-f]{40}$/.test(addr) || !ADMIN_USER_WALLETS.includes(addr)) {
@@ -100,6 +118,68 @@ app.post("/admin/move-rewards-pool", async (req, res) => {
     console.error("[/admin/move-rewards-pool]", e?.message || e);
     res.status(502).json({ error: e?.message || "move failed" });
   }
+});
+
+// ── Admin: account management ────────────────────────────────────────────────
+// Block/unblock a farming wallet. A blocked wallet can never claim (checked on
+// every reward path). Durable across restarts.
+app.post("/admin/ban", (req, res) => {
+  const a = verifyAdmin(req);
+  if (!a.ok) return res.status(a.code).json({ error: a.error });
+  const target = String(req.body.targetWallet || "");
+  if (!isAddr(target)) return res.status(400).json({ error: "invalid target wallet" });
+  const ban = req.body.ban !== false; // default true
+  if (ADMIN_USER_WALLETS.includes(target.toLowerCase()) && ban) {
+    return res.status(400).json({ error: "refusing to ban an admin wallet" });
+  }
+  store.setBan(target, ban);
+  res.json({ ok: true, targetWallet: target.toLowerCase(), banned: ban, bans: store.listBans() });
+});
+
+// Inspect a meter/wallet's server-side state so the admin knows what to correct.
+app.post("/admin/lookup", (req, res) => {
+  const a = verifyAdmin(req);
+  if (!a.ok) return res.status(a.code).json({ error: a.error });
+  const meterNo = String(req.body.meterNo || "").trim();
+  const target = String(req.body.targetWallet || "");
+  if (!meterNo && !isAddr(target)) return res.status(400).json({ error: "provide a meter number or a wallet" });
+  const meterKey = meterNo.toLowerCase();
+  const snap = store.meterState(meterKey, isAddr(target) ? target : null);
+  res.json({
+    ok: true,
+    ...snap,
+    banned: isAddr(target) ? banned(target) : null,
+  });
+});
+
+// Correct a wrong baseline: overwrite the server-recorded last reading for a
+// meter (the value every future usage delta is measured from). Optionally also
+// (re)bind the meter to a wallet. This is the fix for a mis-entered reading.
+app.post("/admin/set-baseline", (req, res) => {
+  const a = verifyAdmin(req);
+  if (!a.ok) return res.status(a.code).json({ error: a.error });
+  const meterNo = String(req.body.meterNo || "").trim();
+  if (!meterNo) return res.status(400).json({ error: "meter number is required" });
+  const reading = Number(req.body.reading);
+  if (!Number.isFinite(reading) || reading < 0) return res.status(400).json({ error: "invalid reading" });
+  const meterKey = meterNo.toLowerCase();
+  store.setLastReading(meterKey, reading);
+  // Optional: rebind this meter to a given wallet (e.g. fix a wrong owner).
+  const target = String(req.body.targetWallet || "");
+  if (isAddr(target)) store.bindMeter(meterKey, target.toLowerCase());
+  res.json({ ok: true, meterNo: meterKey, baseline: reading, owner: store.meterOwner(meterKey) });
+});
+
+// Clear a wallet+utility cooldown so a user who was wrongly blocked (or whose
+// submission we just corrected) can submit again immediately.
+app.post("/admin/reset-cooldown", (req, res) => {
+  const a = verifyAdmin(req);
+  if (!a.ok) return res.status(a.code).json({ error: a.error });
+  const target = String(req.body.targetWallet || "");
+  if (!isAddr(target)) return res.status(400).json({ error: "invalid target wallet" });
+  const utility = String(req.body.utility || "electric");
+  store.clearCooldown(target, utility);
+  res.json({ ok: true, targetWallet: target.toLowerCase(), utility });
 });
 
 // Meter-photo OCR. The app POSTs an image (base64) — the cropped reading or the
@@ -121,7 +201,7 @@ const inFlight = new Set();
 
 app.post("/reward", async (req, res) => {
   // 0) Ban list — blocked wallets can never claim.
-  if (isBanned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
+  if (banned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
 
   // 0b) Captcha — proves the request came from a real browser, not a bot/script.
   if (captchaEnabled()) {
@@ -184,7 +264,7 @@ app.post("/reward", async (req, res) => {
 // check, the wallet certificate, a hard cap of ECO_MAX_PER_WEEK claims per
 // calendar week (Mon–Sun) and a 24h cooldown between claims.
 app.post("/eco-action", async (req, res) => {
-  if (isBanned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
+  if (banned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
 
   if (captchaEnabled()) {
     const cap = await verifyCaptcha(req.body.captchaToken, req.clientIp);
@@ -412,7 +492,7 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
 }
 
 app.post("/reward-from-meter", async (req, res) => {
-  if (isBanned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
+  if (banned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
   if (captchaEnabled()) {
     const cap = await verifyCaptcha(req.body.captchaToken, req.clientIp);
     if (!cap.ok) return res.status(403).json({ error: cap.error });
@@ -447,7 +527,7 @@ let autoTickBusy = false;
 async function autoSubmitTick() {
   for (const link of store.allMeterLinks()) {
     const meterNo = String(link.meterNo || "").trim();
-    if (!meterNo || isBanned(link.address)) continue;
+    if (!meterNo || banned(link.address)) continue;
     const latest = store.getLinkReading(link.address);
     if (!latest) continue;
     // Skip unless this reading is newer than the last payout for this wallet.
