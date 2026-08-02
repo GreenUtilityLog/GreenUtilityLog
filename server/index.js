@@ -68,6 +68,8 @@ app.get("/health", async (req, res) => {
     // Smart-meter sources: the free push path is always on; enode only when configured.
     meterIngest: true,
     enode: enodeInfo(),
+    // Scheduled hands-off auto-submit (Step 3) — on when AUTO_SUBMIT_MS ≥ 60000.
+    autoSubmit: Number(process.env.AUTO_SUBMIT_MS || 0) >= 60000,
   });
 });
 
@@ -79,6 +81,24 @@ app.get("/health", async (req, res) => {
 // allowlist of admin user wallets (ADMIN_WALLETS env, comma-separated).
 const ADMIN_USER_WALLETS = (process.env.ADMIN_WALLETS || "0x3a007383fce8dcccdb92cf9efe0e609a652a1f29")
   .toLowerCase().split(",").map((s) => s.trim()).filter(Boolean);
+
+// A wallet is blocked if it's on the static env list OR the admin's dynamic list.
+const banned = (addr) => isBanned(addr) || store.isBanned(addr);
+
+// Shared gate for every /admin/* action: caller must be on the admin allowlist
+// and (when enabled) prove wallet ownership with a fresh certificate.
+function verifyAdmin(req) {
+  const addr = String(req.body.address || "").toLowerCase();
+  if (!/^0x[0-9a-f]{40}$/.test(addr) || !ADMIN_USER_WALLETS.includes(addr)) {
+    return { ok: false, code: 403, error: "not an admin wallet" };
+  }
+  if (REQUIRE_CERT) {
+    const c = verifyWalletCertificate({ certificate: req.body.certificate, address: req.body.address });
+    if (!c.ok) return { ok: false, code: 401, error: c.error };
+  }
+  return { ok: true, addr };
+}
+const isAddr = (a) => /^0x[0-9a-fA-F]{40}$/.test(String(a || ""));
 
 app.post("/admin/move-rewards-pool", async (req, res) => {
   const addr = String(req.body.address || "").toLowerCase();
@@ -100,6 +120,68 @@ app.post("/admin/move-rewards-pool", async (req, res) => {
   }
 });
 
+// ── Admin: account management ────────────────────────────────────────────────
+// Block/unblock a farming wallet. A blocked wallet can never claim (checked on
+// every reward path). Durable across restarts.
+app.post("/admin/ban", (req, res) => {
+  const a = verifyAdmin(req);
+  if (!a.ok) return res.status(a.code).json({ error: a.error });
+  const target = String(req.body.targetWallet || "");
+  if (!isAddr(target)) return res.status(400).json({ error: "invalid target wallet" });
+  const ban = req.body.ban !== false; // default true
+  if (ADMIN_USER_WALLETS.includes(target.toLowerCase()) && ban) {
+    return res.status(400).json({ error: "refusing to ban an admin wallet" });
+  }
+  store.setBan(target, ban);
+  res.json({ ok: true, targetWallet: target.toLowerCase(), banned: ban, bans: store.listBans() });
+});
+
+// Inspect a meter/wallet's server-side state so the admin knows what to correct.
+app.post("/admin/lookup", (req, res) => {
+  const a = verifyAdmin(req);
+  if (!a.ok) return res.status(a.code).json({ error: a.error });
+  const meterNo = String(req.body.meterNo || "").trim();
+  const target = String(req.body.targetWallet || "");
+  if (!meterNo && !isAddr(target)) return res.status(400).json({ error: "provide a meter number or a wallet" });
+  const meterKey = meterNo.toLowerCase();
+  const snap = store.meterState(meterKey, isAddr(target) ? target : null);
+  res.json({
+    ok: true,
+    ...snap,
+    banned: isAddr(target) ? banned(target) : null,
+  });
+});
+
+// Correct a wrong baseline: overwrite the server-recorded last reading for a
+// meter (the value every future usage delta is measured from). Optionally also
+// (re)bind the meter to a wallet. This is the fix for a mis-entered reading.
+app.post("/admin/set-baseline", (req, res) => {
+  const a = verifyAdmin(req);
+  if (!a.ok) return res.status(a.code).json({ error: a.error });
+  const meterNo = String(req.body.meterNo || "").trim();
+  if (!meterNo) return res.status(400).json({ error: "meter number is required" });
+  const reading = Number(req.body.reading);
+  if (!Number.isFinite(reading) || reading < 0) return res.status(400).json({ error: "invalid reading" });
+  const meterKey = meterNo.toLowerCase();
+  store.setLastReading(meterKey, reading);
+  // Optional: rebind this meter to a given wallet (e.g. fix a wrong owner).
+  const target = String(req.body.targetWallet || "");
+  if (isAddr(target)) store.bindMeter(meterKey, target.toLowerCase());
+  res.json({ ok: true, meterNo: meterKey, baseline: reading, owner: store.meterOwner(meterKey) });
+});
+
+// Clear a wallet+utility cooldown so a user who was wrongly blocked (or whose
+// submission we just corrected) can submit again immediately.
+app.post("/admin/reset-cooldown", (req, res) => {
+  const a = verifyAdmin(req);
+  if (!a.ok) return res.status(a.code).json({ error: a.error });
+  const target = String(req.body.targetWallet || "");
+  if (!isAddr(target)) return res.status(400).json({ error: "invalid target wallet" });
+  const utility = String(req.body.utility || "electric");
+  store.clearCooldown(target, utility);
+  res.json({ ok: true, targetWallet: target.toLowerCase(), utility });
+});
+
 // Meter-photo OCR. The app POSTs an image (base64) — the cropped reading or the
 // full photo — and gets back the detected text + numbers from the first configured
 // provider that recognises it (Roboflow → custom → Vision). Keys/URLs stay on the
@@ -119,7 +201,7 @@ const inFlight = new Set();
 
 app.post("/reward", async (req, res) => {
   // 0) Ban list — blocked wallets can never claim.
-  if (isBanned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
+  if (banned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
 
   // 0b) Captcha — proves the request came from a real browser, not a bot/script.
   if (captchaEnabled()) {
@@ -182,7 +264,7 @@ app.post("/reward", async (req, res) => {
 // check, the wallet certificate, a hard cap of ECO_MAX_PER_WEEK claims per
 // calendar week (Mon–Sun) and a 24h cooldown between claims.
 app.post("/eco-action", async (req, res) => {
-  if (isBanned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
+  if (banned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
 
   if (captchaEnabled()) {
     const cap = await verifyCaptcha(req.body.captchaToken, req.clientIp);
@@ -365,8 +447,52 @@ app.post("/meter/enode/sync", async (req, res) => {
 // monotonicity, plausibility bounds and per-payout cap all still apply.
 const METER_MAX_AGE_MS = Number(process.env.METER_MAX_AGE_MS || 48 * 60 * 60 * 1000);
 
+// Core settle logic shared by the manual endpoint (Step 2) and the scheduled
+// auto-submit (Step 3). Returns { ok, ... } or { ok:false, code, error }; it does
+// NOT do ban/captcha/cert — the caller owns request-level auth. All the reward
+// rules still come from validateSubmission (cooldown, monotonicity, bounds, cap).
+async function settleMeterReading({ address, utility = "electric", meterNo }) {
+  const addr = String(address);
+  meterNo = String(meterNo || "").trim();
+  if (!meterNo) return { ok: false, code: 400, error: "register your meter number first" };
+
+  const latest = store.getLinkReading(addr);
+  if (!latest || !Number.isFinite(Number(latest.reading))) {
+    return { ok: false, code: 400, error: "no automatic reading yet — pair a device or connect a source first" };
+  }
+  if (Date.now() - (latest.at || 0) > METER_MAX_AGE_MS) {
+    return { ok: false, code: 400, error: "the automatic reading is stale — refresh your reader/source, then try again" };
+  }
+  // The auto path never sets the FIRST reading, so a device can't invent a meter
+  // or its starting value — a photo submission must have set the baseline first.
+  if (store.lastReading(meterNo.toLowerCase()) == null) {
+    return { ok: false, code: 400, error: "submit one photo reading first to set this meter's baseline — then automatic readings pay out" };
+  }
+
+  const v = validateSubmission({ utility, reading: Number(latest.reading), meterNo, address: addr });
+  if (!v.ok) return { ok: false, code: 400, error: v.error };
+
+  const lockKey = `${addr.toLowerCase()}:${utility}`;
+  if (inFlight.has(lockKey)) return { ok: false, code: 429, error: "a submission for this meter is already processing" };
+  inFlight.add(lockKey);
+  try {
+    const txid = await distributeReward({
+      utility, meterNo,
+      reading:  Number(latest.reading),
+      prevRead: v.prev,
+      usage:    v.usage,
+      amount:   v.amount,
+      receiver: addr,
+    });
+    v.markPaid();
+    return { ok: true, txid, amount: v.amount, usage: v.usage, reading: Number(latest.reading), source: latest.source || "meter" };
+  } finally {
+    inFlight.delete(lockKey);
+  }
+}
+
 app.post("/reward-from-meter", async (req, res) => {
-  if (isBanned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
+  if (banned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
   if (captchaEnabled()) {
     const cap = await verifyCaptcha(req.body.captchaToken, req.clientIp);
     if (!cap.ok) return res.status(403).json({ error: cap.error });
@@ -377,52 +503,53 @@ app.post("/reward-from-meter", async (req, res) => {
     const c = verifyWalletCertificate({ certificate: req.body.certificate, address });
     if (!c.ok) return res.status(401).json({ error: c.error });
   }
-
-  const utility = String(req.body.utility || "electric");
-  const meterNo = String(req.body.meterNo || "").trim();
-  if (!meterNo) return res.status(400).json({ error: "register your meter number first" });
-
-  // A fresh automatic reading must exist for this wallet.
-  const latest = store.getLinkReading(address);
-  if (!latest || !Number.isFinite(Number(latest.reading))) {
-    return res.status(400).json({ error: "no automatic reading yet — pair a device or connect a source first" });
-  }
-  if (Date.now() - (latest.at || 0) > METER_MAX_AGE_MS) {
-    return res.status(400).json({ error: "the automatic reading is stale — refresh your reader/source, then try again" });
-  }
-
-  // Require an established baseline: the auto path never sets the FIRST reading,
-  // so a device can't invent a meter or its starting value out of thin air.
-  if (store.lastReading(meterNo.trim().toLowerCase()) == null) {
-    return res.status(400).json({ error: "submit one photo reading first to set this meter's baseline — then automatic readings pay out" });
-  }
-
-  // Server recomputes everything from its own recorded baseline (client prev is
-  // ignored inside validateSubmission when a baseline exists).
-  const v = validateSubmission({ utility, reading: Number(latest.reading), meterNo, address });
-  if (!v.ok) return res.status(400).json({ error: v.error });
-
-  const lockKey = `${address.toLowerCase()}:${utility}`;
-  if (inFlight.has(lockKey)) return res.status(429).json({ error: "a submission for this meter is already processing" });
-  inFlight.add(lockKey);
   try {
-    const txid = await distributeReward({
-      utility, meterNo,
-      reading:  Number(latest.reading),
-      prevRead: v.prev,
-      usage:    v.usage,
-      amount:   v.amount,
-      receiver: address,
-    });
-    v.markPaid();
-    res.json({ txid, amount: v.amount, usage: v.usage, reading: Number(latest.reading), source: latest.source || "meter" });
+    const r = await settleMeterReading({ address, utility: String(req.body.utility || "electric"), meterNo: req.body.meterNo });
+    if (!r.ok) return res.status(r.code || 400).json({ error: r.error });
+    res.json({ txid: r.txid, amount: r.amount, usage: r.usage, reading: r.reading, source: r.source });
   } catch (e) {
     console.error("[/reward-from-meter]", e?.message || e);
     res.status(502).json({ error: e?.message || "distribution failed" });
-  } finally {
-    inFlight.delete(lockKey);
   }
 });
+
+// ── Scheduled auto-submit (Step 3, opt-in) ───────────────────────────────────
+// Fully hands-off: on a timer, walk every paired meter and submit its latest
+// pushed reading automatically — no app, no per-submit signature (the device
+// token, bound to the wallet at pairing time, is the authorisation). Opt-in via
+// AUTO_SUBMIT_MS (ms between sweeps; min 60000). Off when unset.
+//   • Only pays a reading that arrived AFTER the wallet's last payout, so the same
+//     reading is never paid twice even if COOLDOWN_MS is 0 during testing.
+//   • Everything else (baseline required, freshness, cooldown, bounds, cap) is
+//     enforced by settleMeterReading, exactly like the manual path.
+const AUTO_SUBMIT_MS = Number(process.env.AUTO_SUBMIT_MS || 0);
+let autoTickBusy = false;
+async function autoSubmitTick() {
+  for (const link of store.allMeterLinks()) {
+    const meterNo = String(link.meterNo || "").trim();
+    if (!meterNo || banned(link.address)) continue;
+    const latest = store.getLinkReading(link.address);
+    if (!latest) continue;
+    // Skip unless this reading is newer than the last payout for this wallet.
+    const lastPaid = store.getCooldown(`${String(link.address).toLowerCase()}:electric`);
+    if ((latest.at || 0) <= lastPaid) continue;
+    try {
+      const r = await settleMeterReading({ address: link.address, utility: "electric", meterNo });
+      if (r.ok) console.log(`[auto-submit] ${link.address} +${r.amount} B3TR (${r.txid})`);
+      // Non-ok results (stale / cooldown / no baseline) are normal skips, not errors.
+    } catch (e) {
+      console.error("[auto-submit]", link.address, e?.message || e);
+    }
+  }
+}
+if (AUTO_SUBMIT_MS >= 60000) {
+  setInterval(() => {
+    if (autoTickBusy) return;
+    autoTickBusy = true;
+    autoSubmitTick().catch(() => {}).finally(() => { autoTickBusy = false; });
+  }, AUTO_SUBMIT_MS);
+  console.log(`[auto-submit] enabled — sweeping every ${Math.round(AUTO_SUBMIT_MS / 1000)}s`);
+}
 
 app.listen(PORT, () => {
   console.log(`Reward distributor listening on :${PORT} (${NETWORK})`);

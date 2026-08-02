@@ -17,7 +17,7 @@ const R_TOK = (process.env.UPSTASH_REDIS_REST_TOKEN || "").trim();
 const USE_REDIS = !!(R_URL && R_TOK);
 const REDIS_KEY = process.env.STATE_KEY || "greenutilitylog:state";
 
-const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {} };
+const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {} };
 
 async function redisCmd(cmd) {
   const res = await fetch(R_URL, {
@@ -127,6 +127,32 @@ export const store = {
   },
   setLinkReading: (addr, obj) => { state.linkReadings[String(addr).toLowerCase()] = obj; persist(); },
   getLinkReading: (addr) => state.linkReadings[String(addr).toLowerCase()] || null,
+  // All paired links — used by the scheduled auto-submit (Step 3) to walk every
+  // wallet that has a device pushing readings.
+  allMeterLinks: () => Object.entries(state.meterLinks).map(([token, v]) => ({ token, ...v })),
+
+  // ── Admin: dynamic ban list ─────────────────────────────────────────────────
+  // Wallets an admin has blocked at runtime (durable). Complements the static
+  // BANNED_ADDRESSES env list; either one blocks a wallet from claiming.
+  isBanned: (addr) => Object.prototype.hasOwnProperty.call(state.bans, String(addr).toLowerCase()),
+  setBan: (addr, on) => {
+    const a = String(addr).toLowerCase();
+    if (on) state.bans[a] = Date.now(); else delete state.bans[a];
+    persist();
+  },
+  listBans: () => Object.keys(state.bans),
+
+  // ── Admin: read/repair a meter's server-side state ──────────────────────────
+  // Full snapshot for one meter/wallet so an admin can see what to fix.
+  meterState: (meterKey, addr) => ({
+    meterNo: meterKey,
+    owner: state.meterOwners[meterKey] || null,
+    lastReading: Object.prototype.hasOwnProperty.call(state.readings, meterKey) ? state.readings[meterKey] : null,
+    cooldownElectric: addr ? (state.cooldowns[`${String(addr).toLowerCase()}:electric`] || 0) : 0,
+    linkReading: addr ? (state.linkReadings[String(addr).toLowerCase()] || null) : null,
+  }),
+  // Clear the cooldown for a wallet+utility so the user can resubmit right away.
+  clearCooldown: (addr, utility) => { delete state.cooldowns[`${String(addr).toLowerCase()}:${utility}`]; persist(); },
 
   // True when state is backed by a durable store (not the ephemeral file).
   isDurable: () => USE_REDIS,
