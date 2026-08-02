@@ -2923,6 +2923,45 @@ function AdminAccountTools({ T, onAdminApi, onToast }) {
   );
 }
 
+// Admin actions on the wallet you've drilled into — block/unblock, reset its
+// cooldown, and correct a meter's baseline right where you see the problem.
+function WalletAdminActions({ T, address, meters, onAdminApi, onToast }) {
+  const [busy, setBusy] = useState("");
+  const [vals, setVals] = useState({});
+  const run = async (key, fn, okMsg) => {
+    setBusy(key);
+    try { const d = await fn(); onToast?.(okMsg(d)); }
+    catch (e) { onToast?.(`❌ ${e?.message || "action failed"}`); }
+    finally { setBusy(""); }
+  };
+  const mono = "'SF Mono',Menlo,'Courier New',monospace";
+  const btn = (bg, fg, dis) => ({ background: bg, color: fg, border: bg === "transparent" ? `1px solid ${T.border}` : "none", borderRadius: 6, padding: "9px 12px", fontWeight: 700, fontSize: 11, cursor: "pointer", opacity: dis ? 0.6 : 1, whiteSpace: "nowrap" });
+  const inp = { flex: 1, minWidth: 0, boxSizing: "border-box", background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, padding: "8px 10px", fontSize: 12, color: T.text, fontFamily: mono, outline: "none" };
+
+  return (
+    <div style={{ marginTop: 16, padding: 12, background: T.bgAlt, border: `1px solid ${T.border}`, borderRadius: 8 }}>
+      <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".8px", color: T.textSoft, marginBottom: 10 }}>🛠️ Admin actions</div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <button disabled={busy === "ban"} onClick={() => run("ban", () => onAdminApi("/admin/ban", { targetWallet: address, ban: true }), () => "🚫 Wallet blocked — it can no longer claim")} style={btn("#c0392b", "#fff", busy === "ban")}>{busy === "ban" ? "…" : "🚫 Block wallet"}</button>
+        <button disabled={busy === "unban"} onClick={() => run("unban", () => onAdminApi("/admin/ban", { targetWallet: address, ban: false }), () => "✅ Wallet unblocked")} style={btn("transparent", T.textMid, busy === "unban")}>{busy === "unban" ? "…" : "Unblock"}</button>
+        <button disabled={busy === "cd"} onClick={() => run("cd", () => onAdminApi("/admin/reset-cooldown", { targetWallet: address, utility: "electric" }), () => "✅ Cooldown reset")} style={btn("transparent", T.textMid, busy === "cd")}>{busy === "cd" ? "…" : "⏱️ Reset cooldown"}</button>
+      </div>
+
+      {meters.map((m, i) => (
+        <div key={i} style={{ marginTop: 10 }}>
+          <div style={{ fontSize: 10, color: T.textSoft, marginBottom: 5 }}>Fix baseline · <span style={{ fontFamily: mono }}>{m.meterNo}</span> {m.last != null ? `(last ${m.last})` : ""}</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input value={vals[m.meterNo] ?? ""} onChange={e => setVals(v => ({ ...v, [m.meterNo]: e.target.value }))} type="number" step="0.01" inputMode="decimal" placeholder={`Correct reading${m.last != null ? ` (e.g. ${m.last})` : ""}`} style={inp} />
+            <button disabled={busy === "base" + i || !(Number(vals[m.meterNo]) >= 0)} onClick={() => run("base" + i, () => onAdminApi("/admin/set-baseline", { meterNo: m.meterNo, reading: Number(vals[m.meterNo]), targetWallet: address }), (d) => `✅ Baseline set: ${d.meterNo} → ${d.baseline}`)} style={btn(T.green3 || "#2e7d5b", "#fff", busy === "base" + i || !(Number(vals[m.meterNo]) >= 0))}>{busy === "base" + i ? "…" : "Set"}</button>
+          </div>
+        </div>
+      ))}
+
+      <div style={{ fontSize: 10, color: T.textSoft, marginTop: 10, lineHeight: 1.5 }}>Each action asks for one wallet signature (admin proof). Blocking stops this wallet claiming on every route; fixing the baseline corrects a mis-entered reading. Meters/baselines live on the backend, not the chain.</div>
+    </div>
+  );
+}
+
 function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDisableRewardsPool, onClaimB3TR, onAdminApi, onToast }) {
   const [chain, setChain] = useState({ status: "loading", rows: [], reason: null });
   const [query, setQuery] = useState("");
@@ -3063,9 +3102,13 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
             </div>
           ))}
 
-          <div style={{marginTop:16,padding:"10px 12px",background:T.gasBg,border:`1px solid ${T.gasBorder}`,borderRadius:6,fontSize:10.5,color:T.textMid,lineHeight:1.6}}>
-            ℹ️ This view is read-only (the blockchain is the source of truth). <strong>Editing</strong> a wallet's meters requires the reward backend (meters are otherwise stored on each user's own device). Ask me to wire the admin edit-API once the backend is live.
-          </div>
+          {onAdminApi
+            ? <WalletAdminActions T={T} address={selected} meters={meters} onAdminApi={onAdminApi} onToast={onToast} />
+            : (
+              <div style={{marginTop:16,padding:"10px 12px",background:T.gasBg,border:`1px solid ${T.gasBorder}`,borderRadius:6,fontSize:10.5,color:T.textMid,lineHeight:1.6}}>
+                ℹ️ This view is read-only (the blockchain is the source of truth). <strong>Editing</strong> a wallet's meters requires the reward backend (meters are otherwise stored on each user's own device).
+              </div>
+            )}
         </div>
       </div>
     );
