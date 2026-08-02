@@ -2976,6 +2976,9 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
   // browser so it works even when the server can't see the chain. Pinpoints the
   // exact reason payouts fail instead of leaving the admin guessing.
   const [diag, setDiag] = useState({ status: "loading" });
+  // Setup/diagnostics (System check + Fund pool) are collapsed by default so the
+  // day-to-day view (participants + search) stays uncluttered.
+  const [opsOpen, setOpsOpen] = useState(false);
 
   async function runDiagnostics(signal) {
     const d = { status: "done", backend: null, health: null, chain: null };
@@ -3132,6 +3135,11 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
           ))}
         </div>
 
+        <button onClick={() => setOpsOpen(o => !o)} style={{display:"flex",width:"100%",alignItems:"center",justifyContent:"space-between",background:T.card,border:`1px solid ${T.border}`,borderRadius:6,padding:"11px 14px",marginBottom:12,cursor:"pointer",color:T.text}}>
+          <span style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".6px"}}>⚙️ Setup &amp; diagnostics</span>
+          <span style={{color:T.textSoft,fontSize:13}}>{opsOpen ? "▲ hide" : "▼ show"}</span>
+        </button>
+        {opsOpen && (<>
         {(() => {
           const h = diag.health, c = diag.chain;
           const authorized = c?.distributorAuthorized ?? h?.distributorAuthorized ?? null;
@@ -3259,8 +3267,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
             )}
           </div>
         )}
-
-        {onAdminApi && <AdminAccountTools T={T} onAdminApi={onAdminApi} onToast={onToast} />}
+        </>)}
 
         <input
           value={query}
