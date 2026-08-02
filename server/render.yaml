@@ -63,11 +63,14 @@ services:
       # Per-payout sanity cap in B3TR (optional; defaults to 50).
       - key: MAX_REWARD
         sync: false
-      # Photo archive (OPTIONAL — admin fraud review). Off unless all four R2 values
-      # are set: then a downscaled thumbnail of each rewarded photo is kept in
-      # Cloudflare R2 (free ≤10 GB) and shown per submission in admin. Create an R2
-      # bucket + API token at dash.cloudflare.com → R2. Auto-deletes after
-      # PHOTO_RETENTION_DAYS (default 30).
+      # Photo archive (OPTIONAL — admin fraud review). Keeps a downscaled thumbnail
+      # of each rewarded photo, shown per submission in admin. Two backends, first
+      # configured wins:
+      #   • Cloudflare R2 (below) — big, free ≤10 GB, activating R2 needs a card.
+      #   • Upstash Redis — NO card, smaller; reuses the UPSTASH_REDIS_REST_* vars
+      #     already set for durable state, so if those are set photos archive there
+      #     automatically with a self-expiring TTL (no R2 vars needed).
+      # Auto-deletes after PHOTO_RETENTION_DAYS (default 30).
       - key: R2_ACCOUNT_ID
         sync: false
       - key: R2_ACCESS_KEY_ID
