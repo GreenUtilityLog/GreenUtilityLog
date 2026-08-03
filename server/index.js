@@ -156,8 +156,9 @@ app.post("/admin/lookup", (req, res) => {
   const meterNo = String(req.body.meterNo || "").trim();
   const target = String(req.body.targetWallet || "");
   if (!meterNo && !isAddr(target)) return res.status(400).json({ error: "provide a meter number or a wallet" });
+  const utility = RATES[String(req.body.utility || "").toLowerCase()] ? String(req.body.utility).toLowerCase() : "electric";
   const meterKey = meterNo.toLowerCase();
-  const snap = store.meterState(meterKey, isAddr(target) ? target : null);
+  const snap = store.meterState(utility, meterKey, isAddr(target) ? target : null);
   res.json({
     ok: true,
     ...snap,
@@ -175,12 +176,13 @@ app.post("/admin/set-baseline", (req, res) => {
   if (!meterNo) return res.status(400).json({ error: "meter number is required" });
   const reading = Number(req.body.reading);
   if (!Number.isFinite(reading) || reading < 0) return res.status(400).json({ error: "invalid reading" });
+  const utility = RATES[String(req.body.utility || "").toLowerCase()] ? String(req.body.utility).toLowerCase() : "electric";
   const meterKey = meterNo.toLowerCase();
-  store.setLastReading(meterKey, reading);
+  store.setLastReading(utility, meterKey, reading);
   // Optional: rebind this meter to a given wallet (e.g. fix a wrong owner).
   const target = String(req.body.targetWallet || "");
-  if (isAddr(target)) store.bindMeter(meterKey, target.toLowerCase());
-  res.json({ ok: true, meterNo: meterKey, baseline: reading, owner: store.meterOwner(meterKey) });
+  if (isAddr(target)) store.bindMeter(utility, meterKey, target.toLowerCase());
+  res.json({ ok: true, meterNo: meterKey, utility, baseline: reading, owner: store.meterOwner(utility, meterKey) });
 });
 
 // Clear a wallet+utility cooldown so a user who was wrongly blocked (or whose
@@ -518,7 +520,7 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
   }
   // The auto path never sets the FIRST reading, so a device can't invent a meter
   // or its starting value — a photo submission must have set the baseline first.
-  if (store.lastReading(meterNo.toLowerCase()) == null) {
+  if (store.lastReading(utility, meterNo.toLowerCase()) == null) {
     return { ok: false, code: 400, error: "submit one photo reading first to set this meter's baseline — then automatic readings pay out" };
   }
 

@@ -20,7 +20,7 @@ export function validateSubmission(body) {
 
   // A meter number belongs to one wallet (first to use it). This stops the same
   // physical meter being farmed from several accounts.
-  const owner = store.meterOwner(meterKey);
+  const owner = store.meterOwner(utility, meterKey);
   if (owner && owner !== addr) return { ok: false, error: "this meter is registered to another wallet" };
 
   const r = parseFloat(reading);
@@ -29,7 +29,7 @@ export function validateSubmission(body) {
   // Compute usage from the LAST reading the server recorded for this meter, not
   // the client-sent prevRead — that way a baseline can't be lowered to inflate
   // the delta. The first ever submission falls back to the supplied baseline.
-  const last = store.lastReading(meterKey);
+  const last = store.lastReading(utility, meterKey);
   let prev;
   if (last != null) {
     prev = last;
@@ -75,8 +75,8 @@ export function validateSubmission(body) {
     // to this wallet, and record this reading as the new baseline for next time.
     markPaid: () => {
       store.setCooldown(key, Date.now());
-      store.bindMeter(meterKey, addr);
-      store.setLastReading(meterKey, r);
+      store.bindMeter(utility, meterKey, addr);
+      store.setLastReading(utility, meterKey, r);
     },
   };
 }
