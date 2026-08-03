@@ -95,6 +95,11 @@ async function flush() {
   await writeNow();
 }
 
+// Meter owner/baseline key, namespaced by utility. Legacy keys were the bare meter
+// number (electric-only in practice), so only electric reads fall back to them.
+const mKey = (utility, meterNo) => `${utility}:${meterNo}`;
+const mFallback = (utility) => utility === "electric";
+
 export const store = {
   // cooldown per `${address}:${utility}` -> last-paid epoch ms
   getCooldown: (key) => state.cooldowns[key] || 0,
@@ -107,14 +112,37 @@ export const store = {
   addHash: (h) => { state.hashes[h] = Date.now(); persist(); },
   delHash: (h) => { if (Object.prototype.hasOwnProperty.call(state.hashes, h)) { delete state.hashes[h]; persist(); } },
 
-  // meter number -> the address that first claimed it (anti meter-sharing)
-  meterOwner: (meterKey) => state.meterOwners[meterKey] || null,
-  bindMeter: (meterKey, addr) => { state.meterOwners[meterKey] = addr; persist(); },
+  // Meter owner + baseline are keyed by `${utility}:${meterNo}` so the SAME meter
+  // number used for two utilities (e.g. electric "5" and water "5") keeps separate
+  // ownership/baselines instead of one clobbering the other. Legacy rows were keyed
+  // by the bare meter number and were always electric in practice, so they're read
+  // back only for electric (mFallback) and migrated to the namespaced key on the
+  // next electric write — existing baselines are never lost.
+  meterOwner: (utility, meterNo) => {
+    const k = mKey(utility, meterNo);
+    if (Object.prototype.hasOwnProperty.call(state.meterOwners, k)) return state.meterOwners[k];
+    if (mFallback(utility) && Object.prototype.hasOwnProperty.call(state.meterOwners, meterNo)) return state.meterOwners[meterNo];
+    return null;
+  },
+  bindMeter: (utility, meterNo, addr) => {
+    state.meterOwners[mKey(utility, meterNo)] = addr;
+    if (mFallback(utility)) delete state.meterOwners[meterNo]; // migrate legacy electric
+    persist();
+  },
 
   // last paid reading per meter -> the server computes usage from THIS, not the
   // client-sent prevRead, so a baseline can't be lowered to inflate a delta.
-  lastReading: (meterKey) => (Object.prototype.hasOwnProperty.call(state.readings, meterKey) ? state.readings[meterKey] : null),
-  setLastReading: (meterKey, val) => { state.readings[meterKey] = val; persist(); },
+  lastReading: (utility, meterNo) => {
+    const k = mKey(utility, meterNo);
+    if (Object.prototype.hasOwnProperty.call(state.readings, k)) return state.readings[k];
+    if (mFallback(utility) && Object.prototype.hasOwnProperty.call(state.readings, meterNo)) return state.readings[meterNo];
+    return null;
+  },
+  setLastReading: (utility, meterNo, val) => {
+    state.readings[mKey(utility, meterNo)] = val;
+    if (mFallback(utility)) delete state.readings[meterNo]; // migrate legacy electric
+    persist();
+  },
 
   // Eco-bonus claims per wallet: timestamps of paid eco photos. Pruned to the
   // last 14 days on read — enough to evaluate both the current calendar week
@@ -165,14 +193,24 @@ export const store = {
   listBans: () => Object.keys(state.bans),
 
   // ── Admin: read/repair a meter's server-side state ──────────────────────────
-  // Full snapshot for one meter/wallet so an admin can see what to fix.
-  meterState: (meterKey, addr) => ({
-    meterNo: meterKey,
-    owner: state.meterOwners[meterKey] || null,
-    lastReading: Object.prototype.hasOwnProperty.call(state.readings, meterKey) ? state.readings[meterKey] : null,
-    cooldownElectric: addr ? (state.cooldowns[`${String(addr).toLowerCase()}:electric`] || 0) : 0,
-    linkReading: addr ? (state.linkReadings[String(addr).toLowerCase()] || null) : null,
-  }),
+  // Full snapshot for one meter/wallet so an admin can see what to fix. Utility-aware
+  // (defaults electric), with the same legacy fallback as the read methods above.
+  meterState: (utility, meterNo, addr) => {
+    const u = utility || "electric";
+    const k = mKey(u, meterNo);
+    const owner = Object.prototype.hasOwnProperty.call(state.meterOwners, k) ? state.meterOwners[k]
+      : (mFallback(u) ? (state.meterOwners[meterNo] || null) : null);
+    const last = Object.prototype.hasOwnProperty.call(state.readings, k) ? state.readings[k]
+      : (mFallback(u) && Object.prototype.hasOwnProperty.call(state.readings, meterNo) ? state.readings[meterNo] : null);
+    return {
+      meterNo,
+      utility: u,
+      owner: owner || null,
+      lastReading: last,
+      cooldownElectric: addr ? (state.cooldowns[`${String(addr).toLowerCase()}:${u}`] || 0) : 0,
+      linkReading: addr ? (state.linkReadings[String(addr).toLowerCase()] || null) : null,
+    };
+  },
   // Clear the cooldown for a wallet+utility so the user can resubmit right away.
   clearCooldown: (addr, utility) => { delete state.cooldowns[`${String(addr).toLowerCase()}:${utility}`]; persist(); },
 
