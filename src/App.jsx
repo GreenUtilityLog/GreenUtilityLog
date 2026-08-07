@@ -2339,6 +2339,16 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
   // own screen instead of being stacked below each other.
   const [subTab, setSubTab] = useState("meter");
 
+  // Returning users already have a known previous reading (auto-filled from their
+  // last submission). Show it as a compact chip and ask for only the CURRENT value,
+  // instead of two number fields — fewer inputs, fewer typos. First-timers (no
+  // history for this meter) still get the editable "Previous" field.
+  const [editPrev, setEditPrev] = useState(false);
+  useEffect(() => { setEditPrev(false); }, [selUtil]); // switching meters resets the chip
+  const lastSub = (subs || []).find(s => s.type === selUtil && s.status !== "pending" && Number.isFinite(parseFloat(s.cur)));
+  const lastKnown = lastSub ? String(lastSub.cur) : "";
+  const knowPrev = !!lastKnown && !editPrev;
+
   const segBtn = (active) => ({
     flex: 1, padding: "10px 8px", minHeight: 44, borderRadius: 6, fontSize: 12, fontWeight: 800,
     cursor: "pointer", letterSpacing: ".3px",
@@ -2403,16 +2413,32 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
       </div>
 
       <div className="form-card" style={{"--uc":T[u.id]||T.electric,"--ubg":getColorBg(u.id, T),"--uborder":T[u.id+"Border"]||T.electricBorder,marginTop:14}}>
-        <div className="irow">
-          <div className="igroup">
-            <div className="ilabel">Previous <span className="utag">{u.unit}</span></div>
-            <input className="ifield" type="number" step="0.01" inputMode="decimal" placeholder={u.ph[0]} value={prevRead} onChange={e=>setPrevRead(e.target.value)}/>
+        {knowPrev ? (
+          <>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:12,padding:"8px 12px",background:T.bgAlt,border:`1px solid ${T.border}`,borderRadius:6}}>
+              <div style={{fontSize:11,color:T.textSoft}}>Previous&nbsp;
+                <span style={{fontFamily:"'SF Mono',Menlo,'Courier New',monospace",fontWeight:700,color:T.text}}>{prevRead || lastKnown} {u.unit}</span>
+                <span style={{color:T.textSoft}}> · from your last reading</span>
+              </div>
+              <button onClick={()=>setEditPrev(true)} style={{background:"none",border:"none",color:T.green3||T[u.id]||T.electric,fontSize:11,fontWeight:700,cursor:"pointer",padding:0}}>Edit</button>
+            </div>
+            <div className="igroup">
+              <div className="ilabel">Current reading <span className="utag">{u.unit}</span></div>
+              <input className="ifield" type="number" step="0.01" inputMode="decimal" placeholder={u.ph[1]} value={reading} onChange={e=>setReading(e.target.value)} style={{width:"100%",boxSizing:"border-box"}}/>
+            </div>
+          </>
+        ) : (
+          <div className="irow">
+            <div className="igroup">
+              <div className="ilabel">Previous <span className="utag">{u.unit}</span></div>
+              <input className="ifield" type="number" step="0.01" inputMode="decimal" placeholder={u.ph[0]} value={prevRead} onChange={e=>setPrevRead(e.target.value)}/>
+            </div>
+            <div className="igroup">
+              <div className="ilabel">Current <span className="utag">{u.unit}</span></div>
+              <input className="ifield" type="number" step="0.01" inputMode="decimal" placeholder={u.ph[1]} value={reading} onChange={e=>setReading(e.target.value)}/>
+            </div>
           </div>
-          <div className="igroup">
-            <div className="ilabel">Current <span className="utag">{u.unit}</span></div>
-            <input className="ifield" type="number" step="0.01" inputMode="decimal" placeholder={u.ph[1]} value={reading} onChange={e=>setReading(e.target.value)}/>
-          </div>
-        </div>
+        )}
 
         {readingReady && (() => {
           const bench = USAGE_BENCHMARK[u.id] ?? 0;
