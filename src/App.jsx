@@ -2059,6 +2059,7 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
   const [copied, setCopied]   = useState("");
   const [open, setOpen]       = useState(false);
   const [advOpen, setAdvOpen] = useState(false);
+  const [device, setDevice]   = useState("homewizard"); // which setup snippet to show
 
   const signCert = async () => {
     const content = `Green Utility Log — link smart meter\nWallet: ${wallet}\nTime: ${new Date().toISOString()}`;
@@ -2225,29 +2226,84 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
               {advOpen && (
                 <div style={{ marginTop: 10 }}>
                   <div style={{ fontSize: 10, color: T.textSoft, lineHeight: 1.6, marginBottom: 8 }}>
-                    Have a P1/HAN reader or Home Assistant? Point it at the URL below with your token and it keeps sending your meter total — then you never type anything.
+                    Pick your device and copy the ready-made setup — your token is already filled in. Point your reader at it once and it keeps sending your meter total automatically.
                   </div>
 
                   {!token ? (
                     <button onClick={showToken} style={btn(T.electric)}>Get my device token</button>
-                  ) : (
-                    <div style={{ padding: 10, background: T.bg, border: `1px dashed ${T.border || T.waterBorder}`, borderRadius: 6 }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft }}>Device token</div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "3px 0 8px" }}>
-                        <code style={{ ...mono, fontSize: 11, color: T.text, wordBreak: "break-all", flex: 1 }}>{token}</code>
-                        <button onClick={() => copy(token, "tok")} style={{ ...btn(T.textSoft), padding: "5px 9px", fontSize: 11 }}>{copied === "tok" ? "✓" : "Copy"}</button>
-                      </div>
-                      <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft }}>Reader posts to</div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "3px 0 8px" }}>
-                        <code style={{ ...mono, fontSize: 11, color: T.text, wordBreak: "break-all", flex: 1 }}>{ingestUrl}</code>
-                        <button onClick={() => copy(ingestUrl, "url")} style={{ ...btn(T.textSoft), padding: "5px 9px", fontSize: 11 }}>{copied === "url" ? "✓" : "Copy"}</button>
-                      </div>
-                      <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft }}>Example</div>
-                      <pre style={{ ...mono, fontSize: 10, color: T.text, background: T.ecoBg || T.waterBg, padding: 8, borderRadius: 5, overflowX: "auto", margin: "3px 0 0" }}>{`curl -X POST ${ingestUrl} \\
+                  ) : (() => {
+                    // Live connection status — the card already polls /meter/latest.
+                    const connected = rd != null;
+                    const statusBg = connected ? (T.ecoBg || T.waterBg) : T.bg;
+                    const statusColor = connected ? (T.eco || T.green3 || T.text) : T.textSoft;
+                    const DEVS = [
+                      { id: "homewizard", label: "HomeWizard P1" },
+                      { id: "ha",         label: "Home Assistant" },
+                      { id: "curl",       label: "Other / script" },
+                    ];
+                    const hwScript = `#!/usr/bin/env bash
+# HomeWizard P1 -> GreenUtilityLog  (enable "Local API" in the HomeWizard app first)
+IP=192.168.1.50                      # <- your HomeWizard P1's IP
+R=$(curl -s http://$IP/api/v1/data | jq '(.total_power_import_kwh)//((.total_power_import_t1_kwh//0)+(.total_power_import_t2_kwh//0))')
+curl -s -X POST ${ingestUrl} -H "Content-Type: application/json" -d "{\\"token\\":\\"${token}\\",\\"reading\\":$R}"
+# run hourly:  crontab -e  ->  0 * * * * /home/pi/gul-push.sh`;
+                    const haYaml = `# configuration.yaml  (needs the HomeWizard integration)
+rest_command:
+  gul_push:
+    url: "${ingestUrl}"
+    method: POST
+    content_type: "application/json"
+    payload: '{"token":"${token}","reading":{{ states("sensor.p1_meter_total_power_import_kwh") | float }}}'
+
+# automations.yaml  - send hourly
+- alias: Push P1 to GreenUtilityLog
+  trigger: { platform: time_pattern, hours: "/1" }
+  action: { service: rest_command.gul_push }`;
+                    const curlSnippet = `curl -X POST ${ingestUrl} \\
   -H "Content-Type: application/json" \\
-  -d '{"token":"${token}","reading":12345.6}'`}</pre>
-                    </div>
-                  )}
+  -d '{"token":"${token}","reading":12345.6}'`;
+                    const snip = device === "ha" ? haYaml : device === "curl" ? curlSnippet : hwScript;
+                    const hint = device === "homewizard"
+                      ? 'Turn on "Local API" in the HomeWizard app, put your P1’s IP in the script, save it as gul-push.sh and run it hourly with cron. Needs curl + jq on an always-on device (e.g. a Raspberry Pi).'
+                      : device === "ha"
+                      ? "Add the built-in HomeWizard integration in Home Assistant, paste this, and adjust the sensor name to your cumulative import-kWh sensor."
+                      : "Any device or script that can POST JSON works — just send your cumulative kWh total.";
+                    return (
+                      <div>
+                        {/* Live connection status */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 11px", background: statusBg, border: `1px solid ${connected ? (T.ecoBorder || T.waterBorder) : (T.border || T.waterBorder)}`, borderRadius: 6, marginBottom: 10, fontSize: 11, fontWeight: 700, color: statusColor }}>
+                          {connected
+                            ? `✅ Connected — ${rd.reading} kWh received${rd.at ? ` at ${new Date(rd.at).toLocaleTimeString()}` : ""}`
+                            : "⏳ Waiting for your first reading… (leave this open after you set it up)"}
+                        </div>
+
+                        {/* Device picker */}
+                        <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
+                          {DEVS.map((d) => (
+                            <button key={d.id} onClick={() => setDevice(d.id)}
+                              style={{ padding: "6px 10px", fontSize: 11, fontWeight: 700, borderRadius: 6, cursor: "pointer", border: `1px solid ${device === d.id ? (T.eco || T.electric) : (T.border || T.waterBorder)}`, background: device === d.id ? (T.eco || T.electric) : "transparent", color: device === d.id ? "#fff" : T.textMid }}>
+                              {d.label}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Pre-filled, one-tap-copy setup */}
+                        <div style={{ position: "relative" }}>
+                          <button onClick={() => copy(snip, "snip")} style={{ position: "absolute", top: 6, right: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, border: "none", borderRadius: 5, cursor: "pointer", background: copied === "snip" ? (T.eco || T.green3 || T.electric) : T.textSoft, color: "#fff" }}>
+                            {copied === "snip" ? "✓ Copied" : "Copy setup"}
+                          </button>
+                          <pre style={{ ...mono, fontSize: 10, lineHeight: 1.5, color: T.text, background: T.bg, border: `1px dashed ${T.border || T.waterBorder}`, padding: "10px 10px 10px", borderRadius: 6, overflowX: "auto", margin: 0, whiteSpace: "pre" }}>{snip}</pre>
+                        </div>
+                        <div style={{ fontSize: 10, color: T.textSoft, lineHeight: 1.5, margin: "6px 2px 0" }}>{hint}</div>
+
+                        {/* Raw token / URL for reference */}
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                          <button onClick={() => copy(token, "tok")} style={{ ...btn(T.textSoft), padding: "5px 9px", fontSize: 10 }}>{copied === "tok" ? "✓ Token copied" : "Copy token only"}</button>
+                          <button onClick={() => copy(ingestUrl, "url")} style={{ ...btn(T.textSoft), padding: "5px 9px", fontSize: 10 }}>{copied === "url" ? "✓ URL copied" : "Copy URL only"}</button>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {enodeOn && (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
