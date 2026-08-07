@@ -19,8 +19,11 @@ export async function verifyCaptcha(token, ip) {
     const data = await res.json().catch(() => ({}));
     return data.success ? { ok: true } : { ok: false, error: "captcha verification failed" };
   } catch (e) {
-    // Fail open on a network hiccup so a Cloudflare outage can't block real users.
-    console.warn(`[captcha] verify error, allowing: ${e?.message || e}`);
-    return { ok: true, error: String(e?.message || e) };
+    // Fail CLOSED on a verify error. Failing open turned the anti-bot gate off
+    // fleet-wide for anyone who could disrupt egress to Cloudflare; for a payout
+    // path that's the wrong trade-off. A brief Cloudflare hiccup asks the user to
+    // retry rather than silently waving bots through.
+    console.warn(`[captcha] verify error, rejecting: ${e?.message || e}`);
+    return { ok: false, error: "captcha check unavailable — please try again" };
   }
 }

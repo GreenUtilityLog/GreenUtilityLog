@@ -34,9 +34,13 @@ export function verifyWalletCertificate({ certificate, address }) {
     return { ok: false, error: "certificate signer does not match the wallet address" };
   }
 
-  // 3) Freshness (lenient: tolerate seconds-vs-ms and clock skew).
+  // 3) Freshness (lenient: tolerate seconds-vs-ms and clock skew). A missing or
+  // non-numeric timestamp must FAIL — otherwise Number(timestamp)=NaN skips the
+  // expiry check entirely and a captured certificate replays forever (worst for
+  // admin certs). Fail closed instead.
   const tsMs = Number(timestamp) < 1e12 ? Number(timestamp) * 1000 : Number(timestamp);
-  if (Number.isFinite(tsMs) && Math.abs(Date.now() - tsMs) > MAX_AGE_MS) {
+  if (!Number.isFinite(tsMs)) return { ok: false, error: "certificate timestamp is missing or invalid" };
+  if (Math.abs(Date.now() - tsMs) > MAX_AGE_MS) {
     return { ok: false, error: "certificate has expired — please submit again" };
   }
 

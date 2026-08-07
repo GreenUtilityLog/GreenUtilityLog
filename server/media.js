@@ -44,14 +44,13 @@ export async function verifyPhoto({ imageBase64, reading, ocr = false, mime: cli
   if (buf.length < MIN_BYTES) return { ok: false, error: "photo is too small" };
   if (buf.length > MAX_BYTES) return { ok: false, error: "photo is too large" };
 
-  let mime = sniffImage(buf);
-  if (!mime) {
-    // Magic-byte sniff missed it. Accept when the client says it's an image and
-    // the size is sane — the hash dedupe (and optional AI check) are the real
-    // anti-farm guards. Only reject when it's clearly not an image at all.
-    if (typeof clientMime === "string" && clientMime.startsWith("image/")) mime = clientMime;
-    else return { ok: false, error: "file is not a supported image" };
-  }
+  // Require a genuinely decodable image by its magic bytes. We do NOT trust the
+  // client-declared mime as a fallback: when the AI/OCR checks are off, that fallback
+  // let 5 KB of random bytes labelled "image/png" pass and (since every random blob
+  // hashes uniquely) sail through the dedupe. Magic-byte sniff covers every real
+  // phone-photo format (JPEG/PNG/GIF/BMP/TIFF/WebP/HEIC), so a miss means "not a photo".
+  const mime = sniffImage(buf);
+  if (!mime) return { ok: false, error: "file is not a recognised image — please take a real photo" };
 
   const hash = createHash("sha256").update(buf).digest("hex");
   if (store.hasHash(hash)) return { ok: false, error: "duplicate photo — each submission needs a fresh photo" };

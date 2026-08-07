@@ -17,7 +17,7 @@ const R_TOK = (process.env.UPSTASH_REDIS_REST_TOKEN || "").trim();
 const USE_REDIS = !!(R_URL && R_TOK);
 const REDIS_KEY = process.env.STATE_KEY || "greenutilitylog:state";
 
-const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {} };
+const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {} };
 
 async function redisCmd(cmd) {
   const res = await fetch(R_URL, {
@@ -30,17 +30,24 @@ async function redisCmd(cmd) {
   return j.result;
 }
 
+// True when the durable (Redis) state could not be read at boot. While set, the
+// store is NOT ready: payouts must be refused and we must NEVER write, or the first
+// SET would overwrite the real (unread) key and wipe all cooldowns/hashes/baselines.
+let loadError = false;
+
 async function loadState() {
   if (USE_REDIS) {
     try {
       const blob = await redisCmd(["GET", REDIS_KEY]);
+      loadError = false;
       if (blob) return { ...EMPTY, ...JSON.parse(blob) };
       console.log("[store] Redis backend ready (empty — fresh state).");
       return { ...EMPTY };
     } catch (e) {
-      // Fail safe: an unreachable store must NOT silently disable anti-farming with
-      // an empty slate, so we surface it loudly and start empty for this boot.
-      console.error("[store] Redis load failed — starting empty this boot:", e?.message || e);
+      // Fail CLOSED: mark not-ready. Do not disable anti-farming with an empty slate,
+      // and do not let a later write clobber the unread key.
+      loadError = true;
+      console.error("[store] Redis load FAILED — store NOT ready; payouts refused and no writes until it loads:", e?.message || e);
       return { ...EMPTY };
     }
   }
@@ -55,8 +62,22 @@ async function loadState() {
 let state = await loadState();
 console.log(`[store] backend: ${USE_REDIS ? "Upstash Redis (durable)" : `file ${FILE} (ephemeral on free hosts)`}`);
 
+// If the durable store couldn't be read at boot, keep retrying so the service
+// self-heals when Redis returns — without ever overwriting the unread key meanwhile.
+if (USE_REDIS && loadError) {
+  const retry = setInterval(async () => {
+    const fresh = await loadState();
+    if (!loadError) { state = fresh; clearInterval(retry); console.log("[store] Redis recovered — state loaded, payouts enabled."); }
+  }, 10000);
+}
+
 // Write the current state out now. Async so a graceful shutdown can await it.
 async function writeNow() {
+  // Never overwrite a key we couldn't read at boot — that would wipe it durably.
+  if (USE_REDIS && loadError) {
+    console.warn("[store] skip save — store not ready (won't overwrite unread key).");
+    return;
+  }
   const blob = JSON.stringify(state);
   if (USE_REDIS) {
     try { await redisCmd(["SET", REDIS_KEY, blob]); }
@@ -177,6 +198,10 @@ export const store = {
   },
   setLinkReading: (addr, obj) => { state.linkReadings[String(addr).toLowerCase()] = obj; persist(); },
   getLinkReading: (addr) => state.linkReadings[String(addr).toLowerCase()] || null,
+  // Revoke a device token / erase a wallet's ingested reading (token rotation + the
+  // GDPR "unpair and forget my reader" flow).
+  delMeterLink: (token) => { if (token && Object.prototype.hasOwnProperty.call(state.meterLinks, token)) { delete state.meterLinks[token]; persist(); return true; } return false; },
+  delLinkReading: (addr) => { const a = String(addr).toLowerCase(); if (Object.prototype.hasOwnProperty.call(state.linkReadings, a)) { delete state.linkReadings[a]; persist(); } },
   // All paired links — used by the scheduled auto-submit (Step 3) to walk every
   // wallet that has a device pushing readings.
   allMeterLinks: () => Object.entries(state.meterLinks).map(([token, v]) => ({ token, ...v })),
@@ -239,6 +264,21 @@ export const store = {
 
   // True when state is backed by a durable store (not the ephemeral file).
   isDurable: () => USE_REDIS,
+
+  // False while a durable store failed to load at boot — callers must refuse payouts
+  // until it recovers, so anti-farming state is never bypassed or overwritten.
+  ready: () => !loadError,
+
+  // Single-use admin certificates: returns true the FIRST time a signature is seen,
+  // false on any replay within the TTL. Prunes expired entries on each call so it
+  // can't grow unbounded. Makes a captured admin cert non-replayable.
+  consumeCert: (sig, ttlMs = 15 * 60 * 1000) => {
+    if (!sig) return false;
+    const now = Date.now();
+    for (const [k, t] of Object.entries(state.usedCerts)) if (now - t > ttlMs) delete state.usedCerts[k];
+    if (Object.prototype.hasOwnProperty.call(state.usedCerts, sig)) return false;
+    state.usedCerts[sig] = now; persist(); return true;
+  },
 
   // Flush any debounced write immediately (awaitable) — for graceful shutdown.
   flush,

@@ -2133,8 +2133,9 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
       const r = await fetch(`${API}/meter/enode/link`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: wallet, certificate }) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || `link failed (${r.status})`);
-      if (d.linkUrl) window.open(d.linkUrl, "_blank", "noopener");
-      else setErr("Enode returned no link URL");
+      // Only open an https URL — never navigate to an arbitrary backend-supplied scheme.
+      if (d.linkUrl && /^https:\/\//i.test(String(d.linkUrl))) window.open(d.linkUrl, "_blank", "noopener");
+      else setErr("Enode returned no valid link URL");
     } catch (e) { setErr(e?.message || "Enode link failed"); }
     finally { setBusy(""); }
   };
@@ -3912,7 +3913,9 @@ export default function App() {
   const resetApp = async () => {
     try {
       for (const k of Object.keys(localStorage)) {
-        if (k.startsWith("greenlog_")) localStorage.removeItem(k);
+        // Also drop the meter-ingest device token(s) — a bearer credential that must
+        // not linger on a shared/kiosk browser after disconnect.
+        if (k.startsWith("greenlog_") || k.startsWith("gul_mtoken_")) localStorage.removeItem(k);
       }
     } catch {}
     try { indexedDB.deleteDatabase("GreenUtilityLog"); } catch {}
@@ -4230,7 +4233,9 @@ export default function App() {
   // user's wallet lacks the on-chain app-admin role but the distributor has it.
   const serverMoveRewardsPool = async (amt) => {
     try {
-      const content = `Green Utility Log — admin action\nWallet: ${wallet}\nAction: move ${amt} B3TR to rewards pool\nTime: ${new Date().toISOString()}`;
+      // Bind the signature to this exact action+params (server re-derives + checks).
+      const canonical = `/admin/move-rewards-pool|${JSON.stringify({ amount: amt }, ["amount"])}`;
+      const content = `Green Utility Log — admin action\n${canonical}\nWallet: ${wallet}\nTime: ${new Date().toISOString()}`;
       const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } });
       const certificate = { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
       const res = await fetch(`${REWARD_API.replace(/\/$/, "")}/admin/move-rewards-pool`, {
@@ -4250,12 +4255,16 @@ export default function App() {
   // /admin/* endpoint. Used by the account tools (ban, fix baseline, lookup…).
   const adminApi = async (path, body) => {
     if (!wallet) { openConnectModal(); throw new Error("connect your wallet"); }
-    const content = `Green Utility Log — admin action\nWallet: ${wallet}\nAction: ${path}\nTime: ${new Date().toISOString()}`;
+    const b = body || {};
+    // Bind the signature to THIS action + its exact parameters (server re-derives the
+    // same string and rejects a cert that doesn't authorise it, or that's re-used).
+    const canonical = `${path}|${JSON.stringify(b, Object.keys(b).sort())}`;
+    const content = `Green Utility Log — admin action\n${canonical}\nWallet: ${wallet}\nTime: ${new Date().toISOString()}`;
     const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } });
     const certificate = { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
     const res = await fetch(`${REWARD_API.replace(/\/$/, "")}${path}`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ address: wallet, certificate, ...body }),
+      body: JSON.stringify({ address: wallet, certificate, ...b }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || `server ${res.status}`);

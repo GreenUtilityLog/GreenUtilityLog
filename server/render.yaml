@@ -40,11 +40,11 @@ services:
         sync: false
       - key: AI_PHOTO_MIN_CONFIDENCE
         sync: false
-      # Lock this to your exact frontend origin once you know it, e.g.
-      # https://greenutilitylog.github.io  — "*" is fine for a quick test.
-      # Comma-separate to allow several origins.
+      # Locked to the frontend origin (not "*") so only the app can drive the
+      # browser-facing endpoints. Comma-separate to allow several origins; add your
+      # custom domain here if you use one.
       - key: ALLOWED_ORIGIN
-        value: "*"
+        value: "https://greenutilitylog.github.io"
       # Anti-bot captcha (optional): Cloudflare Turnstile secret. Set it (and the
       # site key in the app) to require a captcha on each submission.
       - key: TURNSTILE_SECRET

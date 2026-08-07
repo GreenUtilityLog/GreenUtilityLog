@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Clickjacking protection: this page signs wallet certificates/transactions, so
+       it must never be embedded in a frame by a phishing site. (X-Frame-Options can
+       only be sent as a header; frame-ancestors is the meta-tag equivalent.) -->
+  <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'none'">
   <meta name="theme-color" content="#1a3326">
   <meta name="description" content="Snap your electricity meter, log usage, earn B3TR for saving energy. A VeBetterDAO x2earn app on VeChain. Testnet beta.">
   <title>Green Utility Log</title>

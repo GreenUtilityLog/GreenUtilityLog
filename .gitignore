@@ -2,3 +2,10 @@ node_modules/
 dist/
 .env
 .DS_Store
+
+# Durable server state — contains device tokens (reader→wallet secrets) and
+# wallet↔meter PII. Must NEVER be committed.
+state.json
+state.json.tmp
+server/state.json
+server/state.json.tmp

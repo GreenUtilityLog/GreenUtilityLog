@@ -97,7 +97,8 @@ function discover(timeoutMs = 5000) {
 // ── HomeWizard read + push ───────────────────────────────────────────────────
 function getJson(url, timeoutMs = 8000) {
   return new Promise((resolve, reject) => {
-    const req = http.get(url, { timeout: timeoutMs }, (res) => {
+    const mod = String(url).toLowerCase().startsWith("https:") ? https : http; // honour https READ_URLs
+    const req = mod.get(url, { timeout: timeoutMs }, (res) => {
       let body = "";
       res.on("data", (c) => (body += c));
       res.on("end", () => { try { resolve(JSON.parse(body)); } catch (e) { reject(e); } });
@@ -173,6 +174,7 @@ async function main() {
     process.exit(1);
   }
   const src = READ_URL ? `reader ${READ_URL}` : (FIXED_IP ? `HomeWizard ${FIXED_IP}` : "HomeWizard (auto-discover)");
+  if (!/^https:/i.test(INGEST)) log("WARNING: GUL_INGEST_URL is not https — your token would be sent in cleartext. Use the default https endpoint.");
   log(`GreenUtilityLog bridge starting — ${src}, pushing every ${INTERVAL_MS / 1000}s to ${INGEST}`);
   await cycle();
   if (ONCE) return;
