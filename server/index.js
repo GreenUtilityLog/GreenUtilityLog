@@ -19,19 +19,22 @@ import { verifyCaptcha, captchaEnabled } from "./captcha.js";
 import { enodeEnabled, enodeInfo, createMeterLink, fetchLatestReading } from "./enode.js";
 
 const app = express();
-// Limit allows for a meter photo (base64) in the body.
-app.use(express.json({ limit: "20mb" }));
+// Trust exactly the platform's proxy hop(s) so req.ip is the REAL client IP and not
+// a client-injected X-Forwarded-For (which would let anyone forge the throttle key).
+// Render/most PaaS = 1 hop; override with TRUST_PROXY_HOPS if you add a CDN in front.
+app.set("trust proxy", Number(process.env.TRUST_PROXY_HOPS || 1));
+
 // Lock the API to the configured frontend origin(s). "*" stays fully open.
 app.use(cors({
   origin: ALLOWED_ORIGINS.includes("*") ? "*" : ALLOWED_ORIGINS,
 }));
 
-// Very small in-memory IP throttle — a coarse abuse guard on top of the
-// per-wallet cooldown. Replace with a real rate limiter (e.g. express-rate-limit
-// backed by Redis) in production.
+// Coarse in-memory IP throttle — runs BEFORE body parsing so an oversized payload
+// from a flooding client is rejected before it's buffered. Keyed on the trusted
+// req.ip. (Replace with a Redis-backed limiter before horizontal scaling.)
 const hits = new Map();
 app.use((req, res, next) => {
-  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket.remoteAddress || "unknown";
+  const ip = req.ip || req.socket.remoteAddress || "unknown";
   req.clientIp = ip;
   const now = Date.now();
   const win = hits.get(ip)?.filter((t) => now - t < 60_000) || [];
@@ -40,6 +43,21 @@ app.use((req, res, next) => {
   hits.set(ip, win);
   next();
 });
+// Bound the throttle map so rotating IPs can't grow it without limit (memory DoS):
+// every 5 min drop entries with no hits in the last minute.
+setInterval(() => {
+  const cutoff = Date.now() - 60_000;
+  for (const [ip, win] of hits) { const live = win.filter((t) => t > cutoff); if (live.length) hits.set(ip, live); else hits.delete(ip); }
+}, 5 * 60_000).unref?.();
+
+// Body parsing: a small default for every route, with the 20 MB photo allowance
+// applied ONLY to the two image-carrying endpoints (and /ocr). This keeps every
+// admin/meter/health route from buffering multi-MB bodies.
+const photoJson = express.json({ limit: "20mb" });
+app.use("/reward", photoJson);
+app.use("/eco-action", photoJson);
+app.use("/ocr", photoJson);
+app.use(express.json({ limit: "64kb" }));
 
 app.get("/health", async (req, res) => {
   // On-chain self-diagnosis: poolB3TR is the app's available reward funds;
@@ -87,20 +105,40 @@ const ADMIN_USER_WALLETS = (process.env.ADMIN_WALLETS || "0x3a007383fce8dcccdb92
 // A wallet is blocked if it's on the static env list OR the admin's dynamic list.
 const banned = (addr) => isBanned(addr) || store.isBanned(addr);
 
-// Shared gate for every /admin/* action: caller must be on the admin allowlist
-// and (when enabled) prove wallet ownership with a fresh certificate.
-function verifyAdmin(req) {
+// Canonical string an admin certificate must sign, binding it to the EXACT action
+// and its parameters. Both the frontend and this server compute it identically from
+// (path, body-minus-auth-fields), so a captured cert can't be replayed against a
+// different endpoint or with swapped parameters.
+function canonicalAdminAction(path, body) {
+  const extra = { ...body };
+  delete extra.address; delete extra.certificate;
+  return `${path}|${JSON.stringify(extra, Object.keys(extra).sort())}`;
+}
+
+// Shared gate for every /admin/* action. Unlike /reward, admin ALWAYS requires a
+// valid, fresh, action-bound, single-use certificate — never gated by REQUIRE_CERT
+// (that dev flag must not be able to disable privileged auth).
+function verifyAdmin(req, path) {
   const addr = String(req.body.address || "").toLowerCase();
   if (!/^0x[0-9a-f]{40}$/.test(addr) || !ADMIN_USER_WALLETS.includes(addr)) {
     return { ok: false, code: 403, error: "not an admin wallet" };
   }
-  if (REQUIRE_CERT) {
-    const c = verifyWalletCertificate({ certificate: req.body.certificate, address: req.body.address });
-    if (!c.ok) return { ok: false, code: 401, error: c.error };
+  const cert = req.body.certificate;
+  const c = verifyWalletCertificate({ certificate: cert, address: req.body.address });
+  if (!c.ok) return { ok: false, code: 401, error: c.error };
+  // The signed content must authorise THIS action+params...
+  if (path && !String(cert?.payload?.content || "").includes(canonicalAdminAction(path, req.body))) {
+    return { ok: false, code: 401, error: "certificate does not authorise this action" };
+  }
+  // ...and be single-use (defence against replay within the freshness window).
+  if (!store.consumeCert(cert?.signature)) {
+    return { ok: false, code: 401, error: "certificate already used — please sign again" };
   }
   return { ok: true, addr };
 }
 const isAddr = (a) => /^0x[0-9a-fA-F]{40}$/.test(String(a || ""));
+// Truncate a wallet address for logs — pseudonymous PII shouldn't sit in plaintext logs.
+const shortAddr = (a) => { const s = String(a || ""); return s.length > 12 ? `${s.slice(0, 6)}…${s.slice(-4)}` : s; };
 
 // Archive a submission photo for later admin review. Best-effort and non-blocking:
 // uploads a downscaled thumbnail to R2 and records it in the retention index. Any
@@ -114,14 +152,8 @@ function archivePhoto(txid, photoBase64, mime, addr) {
 }
 
 app.post("/admin/move-rewards-pool", async (req, res) => {
-  const addr = String(req.body.address || "").toLowerCase();
-  if (!/^0x[0-9a-f]{40}$/.test(addr) || !ADMIN_USER_WALLETS.includes(addr)) {
-    return res.status(403).json({ error: "not an admin wallet" });
-  }
-  if (REQUIRE_CERT) {
-    const c = verifyWalletCertificate({ certificate: req.body.certificate, address: req.body.address });
-    if (!c.ok) return res.status(401).json({ error: c.error });
-  }
+  const a = verifyAdmin(req, "/admin/move-rewards-pool");
+  if (!a.ok) return res.status(a.code).json({ error: a.error });
   const amount = Number(req.body.amount);
   if (!(amount > 0 && amount <= 1_000_000)) return res.status(400).json({ error: "invalid amount" });
   try {
@@ -129,7 +161,7 @@ app.post("/admin/move-rewards-pool", async (req, res) => {
     res.json({ txid, amount });
   } catch (e) {
     console.error("[/admin/move-rewards-pool]", e?.message || e);
-    res.status(502).json({ error: e?.message || "move failed" });
+    res.status(502).json({ error: "move failed" });
   }
 });
 
@@ -137,7 +169,7 @@ app.post("/admin/move-rewards-pool", async (req, res) => {
 // Block/unblock a farming wallet. A blocked wallet can never claim (checked on
 // every reward path). Durable across restarts.
 app.post("/admin/ban", (req, res) => {
-  const a = verifyAdmin(req);
+  const a = verifyAdmin(req, "/admin/ban");
   if (!a.ok) return res.status(a.code).json({ error: a.error });
   const target = String(req.body.targetWallet || "");
   if (!isAddr(target)) return res.status(400).json({ error: "invalid target wallet" });
@@ -151,7 +183,7 @@ app.post("/admin/ban", (req, res) => {
 
 // Inspect a meter/wallet's server-side state so the admin knows what to correct.
 app.post("/admin/lookup", (req, res) => {
-  const a = verifyAdmin(req);
+  const a = verifyAdmin(req, "/admin/lookup");
   if (!a.ok) return res.status(a.code).json({ error: a.error });
   const meterNo = String(req.body.meterNo || "").trim();
   const target = String(req.body.targetWallet || "");
@@ -170,7 +202,7 @@ app.post("/admin/lookup", (req, res) => {
 // meter (the value every future usage delta is measured from). Optionally also
 // (re)bind the meter to a wallet. This is the fix for a mis-entered reading.
 app.post("/admin/set-baseline", (req, res) => {
-  const a = verifyAdmin(req);
+  const a = verifyAdmin(req, "/admin/set-baseline");
   if (!a.ok) return res.status(a.code).json({ error: a.error });
   const meterNo = String(req.body.meterNo || "").trim();
   if (!meterNo) return res.status(400).json({ error: "meter number is required" });
@@ -188,7 +220,7 @@ app.post("/admin/set-baseline", (req, res) => {
 // Clear a wallet+utility cooldown so a user who was wrongly blocked (or whose
 // submission we just corrected) can submit again immediately.
 app.post("/admin/reset-cooldown", (req, res) => {
-  const a = verifyAdmin(req);
+  const a = verifyAdmin(req, "/admin/reset-cooldown");
   if (!a.ok) return res.status(a.code).json({ error: a.error });
   const target = String(req.body.targetWallet || "");
   if (!isAddr(target)) return res.status(400).json({ error: "invalid target wallet" });
@@ -200,7 +232,7 @@ app.post("/admin/reset-cooldown", (req, res) => {
 // Fetch the archived photo behind a payout (keyed by its txID) so an admin can eyeball
 // it for fraud. Returns { found, dataUrl } — dataUrl is a downscaled thumbnail.
 app.post("/admin/photo", async (req, res) => {
-  const a = verifyAdmin(req);
+  const a = verifyAdmin(req, "/admin/photo");
   if (!a.ok) return res.status(a.code).json({ error: a.error });
   if (!photoStoreEnabled()) return res.json({ ok: true, enabled: false, found: false });
   const txid = String(req.body.txid || "").trim();
@@ -211,7 +243,7 @@ app.post("/admin/photo", async (req, res) => {
 
 // Delete one archived photo (per-submission 🗑️ in admin, or a GDPR erase request).
 app.post("/admin/photo-delete", async (req, res) => {
-  const a = verifyAdmin(req);
+  const a = verifyAdmin(req, "/admin/photo-delete");
   if (!a.ok) return res.status(a.code).json({ error: a.error });
   const txid = String(req.body.txid || "").trim();
   if (!txid) return res.status(400).json({ error: "txid is required" });
@@ -227,8 +259,17 @@ app.post("/admin/photo-delete", async (req, res) => {
 // in-browser OCR.
 app.post("/ocr", async (req, res) => {
   if (!ocrEnabled()) return res.status(503).json({ ok: false, error: "ocr not configured" });
+  // This forwards to PAID providers (Vision/Roboflow/Claude), so guard the cost:
+  // ban list, a hard image-size cap, and an optional wallet-cert requirement
+  // (OCR_REQUIRE_CERT=true) for when the app is wired to send one.
+  if (banned(req.body?.address)) return res.status(403).json({ ok: false, error: "not allowed" });
   const image = req.body?.image;
   if (!image || typeof image !== "string") return res.status(400).json({ ok: false, error: "image is required" });
+  if (image.length > 6_000_000) return res.status(413).json({ ok: false, error: "image too large" }); // ~4.4 MB decoded
+  if (String(process.env.OCR_REQUIRE_CERT || "").toLowerCase() === "true") {
+    const c = verifyWalletCertificate({ certificate: req.body?.certificate, address: req.body?.address });
+    if (!c.ok) return res.status(401).json({ ok: false, error: c.error });
+  }
   const { text, numbers, provider } = await ocrImage(image);
   res.json({ ok: true, text, numbers, provider });
 });
@@ -240,6 +281,10 @@ const inFlight = new Set();
 app.post("/reward", async (req, res) => {
   // 0) Ban list — blocked wallets can never claim.
   if (banned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
+
+  // 0a) Durable store must be loaded — otherwise cooldowns/hashes/baselines are blank
+  // and a payout can't be recorded. Refuse rather than farm on an empty slate.
+  if (!store.ready()) return res.status(503).json({ error: "service is warming up — please try again in a moment" });
 
   // 0b) Captcha — proves the request came from a real browser, not a bot/script.
   if (captchaEnabled()) {
@@ -290,6 +335,9 @@ app.post("/reward", async (req, res) => {
     });
     v.markPaid();
     committed = true; // payout landed — keep the reserved photo hash + committed cooldown
+    // Make the anti-farming state (cooldown, burnt hash, baseline) durable BEFORE
+    // responding, so a hard crash in the debounce window can't replay this payout.
+    await store.flush();
     // Archive the photo for admin review (opt-in via R2 creds). Fire-and-forget —
     // must never delay or fail the payout. Keyed by txid so it lines up with the
     // on-chain history row shown in admin.
@@ -314,6 +362,7 @@ app.post("/reward", async (req, res) => {
 // calendar week (Mon–Sun) and a 24h cooldown between claims.
 app.post("/eco-action", async (req, res) => {
   if (banned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
+  if (!store.ready()) return res.status(503).json({ error: "service is warming up — please try again in a moment" });
 
   if (captchaEnabled()) {
     const cap = await verifyCaptcha(req.body.captchaToken, req.clientIp);
@@ -361,6 +410,7 @@ app.post("/eco-action", async (req, res) => {
     const txid = await distributeEcoReward({ appliance, amount: ECO_REWARD, receiver: req.body.address });
     store.addEcoClaim(addr, Date.now());
     committed = true; // payout landed — keep the reserved photo hash + recorded claim
+    await store.flush(); // make the claim + burnt hash durable before responding
     archivePhoto(txid, req.body.photo, req.body.photoMime, req.body.address);
     res.json({ txid, amount: ECO_REWARD, remaining: ECO_MAX_PER_WEEK - thisWeek.length - 1 });
   } catch (e) {
@@ -402,7 +452,10 @@ app.post("/meter/pair", (req, res) => {
   // the right rate/bounds/cooldown instead of always assuming electric.
   const utility = RATES[String(req.body.utility || "").toLowerCase()] ? String(req.body.utility).toLowerCase() : "electric";
   const existing = store.getLinkByAddress(address);
-  const token = existing?.token || randomBytes(24).toString("hex");
+  // Re-pairing reuses the token; `rotate:true` forces a fresh one and invalidates the
+  // old (use it if a token may have leaked from a Pi/NAS/shell history).
+  if (existing && req.body.rotate === true) store.delMeterLink(existing.token);
+  const token = (existing && req.body.rotate !== true) ? existing.token : randomBytes(24).toString("hex");
   store.setMeterLink(token, { address: address.toLowerCase(), meterNo, utility, createdAt: Date.now() });
   res.json({
     token,
@@ -415,6 +468,21 @@ app.post("/meter/pair", (req, res) => {
       body: { token, reading: 12345.6 },
     },
   });
+});
+
+// Unpair: revoke this wallet's device token and erase its ingested reading. Cert-authed
+// (proves ownership) — the "revoke my reader / delete my meter data" control.
+app.post("/meter/unpair", (req, res) => {
+  const address = String(req.body.address || "");
+  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
+  if (REQUIRE_CERT) {
+    const c = verifyWalletCertificate({ certificate: req.body.certificate, address });
+    if (!c.ok) return res.status(401).json({ error: c.error });
+  }
+  const existing = store.getLinkByAddress(address);
+  if (existing) store.delMeterLink(existing.token);
+  store.delLinkReading(address);
+  res.json({ ok: true, unpaired: !!existing });
 });
 
 // The endpoint a reader posts to. Token-authed (the token IS the secret binding to
@@ -508,6 +576,12 @@ const METER_MAX_AGE_MS = Number(process.env.METER_MAX_AGE_MS || 48 * 60 * 60 * 1
 // rules still come from validateSubmission (cooldown, monotonicity, bounds, cap).
 async function settleMeterReading({ address, utility = "electric", meterNo }) {
   const addr = String(address);
+  // Bind to the PAIRED device: the reading came from this device, so it must settle
+  // against the meter/utility the device was paired for — not arbitrary body values.
+  // Otherwise one pushed number could be settled against several utilities/meters.
+  const link = store.getLinkByAddress(addr);
+  if (link?.meterNo) meterNo = link.meterNo;
+  if (link?.utility && RATES[link.utility]) utility = link.utility;
   meterNo = String(meterNo || "").trim();
   if (!meterNo) return { ok: false, code: 400, error: "register your meter number first" };
 
@@ -540,6 +614,7 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
       receiver: addr,
     });
     v.markPaid();
+    await store.flush(); // durable before returning, so a crash can't replay this reading
     return { ok: true, txid, amount: v.amount, usage: v.usage, reading: Number(latest.reading), source: latest.source || "meter" };
   } finally {
     inFlight.delete(lockKey);
@@ -548,6 +623,7 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
 
 app.post("/reward-from-meter", async (req, res) => {
   if (banned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
+  if (!store.ready()) return res.status(503).json({ error: "service is warming up — please try again in a moment" });
   if (captchaEnabled()) {
     const cap = await verifyCaptcha(req.body.captchaToken, req.clientIp);
     if (!cap.ok) return res.status(403).json({ error: cap.error });
@@ -580,6 +656,7 @@ app.post("/reward-from-meter", async (req, res) => {
 const AUTO_SUBMIT_MS = Number(process.env.AUTO_SUBMIT_MS || 0);
 let autoTickBusy = false;
 async function autoSubmitTick() {
+  if (!store.ready()) return; // don't pay from a blank/half-loaded state
   for (const link of store.allMeterLinks()) {
     const meterNo = String(link.meterNo || "").trim();
     if (!meterNo || banned(link.address)) continue;
@@ -591,10 +668,10 @@ async function autoSubmitTick() {
     if ((latest.at || 0) <= lastPaid) continue;
     try {
       const r = await settleMeterReading({ address: link.address, utility, meterNo });
-      if (r.ok) console.log(`[auto-submit] ${link.address} +${r.amount} B3TR (${r.txid})`);
+      if (r.ok) console.log(`[auto-submit] ${shortAddr(link.address)} +${r.amount} B3TR (${r.txid})`);
       // Non-ok results (stale / cooldown / no baseline) are normal skips, not errors.
     } catch (e) {
-      console.error("[auto-submit]", link.address, e?.message || e);
+      console.error("[auto-submit]", shortAddr(link.address), e?.message || e);
     }
   }
 }
@@ -630,6 +707,20 @@ if (PHOTO_RETENTION_MS > 0) {
     sweepBusy = true;
     photoRetentionSweep().catch(() => {}).finally(() => { sweepBusy = false; });
   }, 60 * 60 * 1000);
+}
+
+// Mainnet safety guards — fail closed on the config foot-guns the audit flagged.
+if (NETWORK === "mainnet") {
+  if (!REQUIRE_CERT) {
+    console.error("[boot] FATAL: NETWORK=mainnet requires REQUIRE_CERT=true (wallet-ownership proof). Refusing to start.");
+    process.exit(1);
+  }
+  if (!aiPhotoCheckEnabled() && !ocrEnabled()) {
+    console.warn("[boot] WARNING: mainnet with neither AI photo-authenticity nor OCR enabled — the photo layer adds little anti-fraud. Set ANTHROPIC_API_KEY or an OCR provider before real value flows.");
+  }
+  if (ALLOWED_ORIGINS.includes("*")) {
+    console.warn("[boot] WARNING: mainnet with ALLOWED_ORIGIN='*' — lock it to your exact frontend origin.");
+  }
 }
 
 const server = app.listen(PORT, () => {
