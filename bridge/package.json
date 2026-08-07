@@ -1,0 +1,10 @@
+{
+  "name": "gul-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Auto-submit a HomeWizard P1 meter to GreenUtilityLog (finds the meter on your network, no scripting).",
+  "bin": { "gul-bridge": "index.js" },
+  "scripts": { "start": "node index.js" },
+  "engines": { "node": ">=18" }
+}
