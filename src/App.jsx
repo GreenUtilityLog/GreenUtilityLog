@@ -2043,7 +2043,7 @@ function HomeScreen({ b3tr, streak, subs, setTab, T }) {
 // pairing), then the photoless payout endpoint issues B3TR. All the technical bits
 // (device token, ingest URL, P1/Home-Assistant setup, Enode) live in a collapsed
 // "Automatic setup" section so they never clutter the simple flow.
-function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo }) {
+function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo, embedded = false }) {
   const { requestCertificate } = useWallet();
   const API = (REWARD_API || "").replace(/\/$/, "");
   const ingestUrl = `${API}/meter-ingest`;
@@ -2057,7 +2057,7 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
   const [busy, setBusy]       = useState("");     // "enode" | "sync"
   const [err, setErr]         = useState("");
   const [copied, setCopied]   = useState("");
-  const [open, setOpen]       = useState(false);
+  const [open, setOpen]       = useState(!!embedded); // embedded → always expanded (no toggle)
   const [advOpen, setAdvOpen] = useState(false);
   const [device, setDevice]   = useState("homewizard"); // which setup snippet to show
 
@@ -2173,9 +2173,9 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
 
   return (
     <div style={box}>
-      <button onClick={() => setOpen(o => !o)} style={{ display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between", gap: 10, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-        <span style={{ fontSize: 12, fontWeight: 800, color: T.eco || T.water }}>⚡ Submit without a photo <span style={{ fontWeight: 600, color: T.textSoft }}>· type or auto-read (beta)</span></span>
-        <span style={{ color: T.textSoft, fontSize: 13 }}>{open ? "▲" : "▼"}</span>
+      <button onClick={embedded ? undefined : () => setOpen(o => !o)} style={{ display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between", gap: 10, background: "none", border: "none", cursor: embedded ? "default" : "pointer", padding: 0 }}>
+        <span style={{ fontSize: 12, fontWeight: 800, color: T.eco || T.water }}>⚡ Type your reading <span style={{ fontWeight: 600, color: T.textSoft }}>· or connect a P1 reader (beta)</span></span>
+        {!embedded && <span style={{ color: T.textSoft, fontSize: 13 }}>{open ? "▲" : "▼"}</span>}
       </button>
 
       {open && (
@@ -2197,7 +2197,7 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
               </button>
             </div>
             <div style={{ fontSize: 10, color: T.textSoft, marginTop: 6, lineHeight: 1.5 }}>
-              First time on this meter? Do <b>one photo submission</b> above to set the baseline — after that, typing (or a reader) is enough to earn.
+              First time on this meter? Switch to <b>📸 Photo</b> and submit once to set the baseline — after that, typing (or a reader) is enough to earn.
             </div>
 
             {/* Latest auto-received reading (from a real reader / Enode) */}
@@ -2349,6 +2349,18 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
   const lastKnown = lastSub ? String(lastSub.cur) : "";
   const knowPrev = !!lastKnown && !editPrev;
   const [tipsOpen, setTipsOpen] = useState(false); // photo tips collapsed by default
+  // Two clearly-offered ways to submit a meter reading: a photo, or type it / connect
+  // a reader. The type/reader path (auto meter ingestion) is electricity-only, so for
+  // other utilities we show only the photo path.
+  const autoAvailable = selUtil === "electric";
+  const [method, setMethod] = useState("photo"); // "photo" | "type"
+  useEffect(() => { if (!autoAvailable) setMethod("photo"); }, [autoAvailable]);
+  const methodBtn = (active) => ({
+    flex: 1, padding: "10px 8px", minHeight: 44, borderRadius: 6, fontSize: 12.5, fontWeight: 800, cursor: "pointer",
+    border: `1px solid ${active ? (T[selUtil] || T.electric) : T.border}`,
+    background: active ? getColorBg(selUtil, T) : T.bgAlt,
+    color: active ? (T[selUtil] || T.text) : T.textMid,
+  });
 
   const segBtn = (active) => ({
     flex: 1, padding: "10px 8px", minHeight: 44, borderRadius: 6, fontSize: 12, fontWeight: 800,
@@ -2394,6 +2406,20 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
         <div style={{fontSize:12,fontWeight:700,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:meterNo?(T[selUtil]||T.text):T.gas}}>{meterNo || "Not registered"}</div>
       </div>
 
+      {/* Choose how to submit — both options shown side by side so people can pick. */}
+      {autoAvailable && (
+        <>
+          <div style={{display:"flex",gap:8,margin:"0 14px 6px"}}>
+            <button onClick={() => setMethod("photo")} style={methodBtn(method === "photo")}>📸 Photo</button>
+            <button onClick={() => setMethod("type")} style={methodBtn(method === "type")}>⌨️ Type / reader</button>
+          </div>
+          <div style={{margin:"0 14px 12px",fontSize:10.5,color:T.textSoft,lineHeight:1.5}}>
+            {method === "photo" ? "Photograph your meter — verified automatically." : "Type your reading, or let a P1 reader send it for you."}
+          </div>
+        </>
+      )}
+
+      {method === "photo" ? (<>
       <VerifyZone key={verifyKey} utilId={selUtil} reading={reading} prevRead={prevRead} subs={subs} meterNo={meterNo} T={T}
         onOcrReading={(v) => { if (!String(reading).trim()) setReading(String(v)); }}
         onVerified={(res, img, mime) => { setAiOk(true); setPhoto?.(img ? { base64: img, mime, ocrNums: res?.ocrNums || [], ocrFailed: !!res?.ocrFailed, meterNoConfirmed: res?.meterNoConfirmed ?? null } : null); }}
@@ -2469,8 +2495,7 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
         }
       </div>
 
-      {/* Secondary — tips + other ways to submit, tucked below the main flow so the
-          photo → reading → submit path stays clean and uncluttered. */}
+      {/* Photo tips — collapsed by default so the photo flow stays clean. */}
       <div style={{margin:"14px 14px 0"}}>
         <button onClick={() => setTipsOpen(o => !o)} style={{display:"flex",width:"100%",alignItems:"center",justifyContent:"space-between",background:T.bgAlt,border:`1px solid ${T.border}`,borderRadius:6,padding:"9px 12px",cursor:"pointer",color:T.textMid,fontSize:11,fontWeight:700}}>
           <span>💡 Photo tips</span><span style={{color:T.textSoft}}>{tipsOpen ? "▲" : "▼"}</span>
@@ -2485,8 +2510,9 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
           </ul>
         )}
       </div>
-
-      {selUtil === "electric" && <SmartMeterCard wallet={wallet} setReading={setReading} T={T} onAutoSubmit={onMeterAutoSubmit} autoBusy={meterAutoBusy} meterNo={meterNo} />}
+      </>) : (
+        <SmartMeterCard embedded wallet={wallet} setReading={setReading} T={T} onAutoSubmit={onMeterAutoSubmit} autoBusy={meterAutoBusy} meterNo={meterNo} />
+      )}
       </>)}
 
       {subTab === "eco" && onEcoSubmit && (
