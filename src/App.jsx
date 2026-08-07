@@ -2348,6 +2348,7 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
   const lastSub = (subs || []).find(s => s.type === selUtil && s.status !== "pending" && Number.isFinite(parseFloat(s.cur)));
   const lastKnown = lastSub ? String(lastSub.cur) : "";
   const knowPrev = !!lastKnown && !editPrev;
+  const [tipsOpen, setTipsOpen] = useState(false); // photo tips collapsed by default
 
   const segBtn = (active) => ({
     flex: 1, padding: "10px 8px", minHeight: 44, borderRadius: 6, fontSize: 12, fontWeight: 800,
@@ -2393,24 +2394,10 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
         <div style={{fontSize:12,fontWeight:700,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:meterNo?(T[selUtil]||T.text):T.gas}}>{meterNo || "Not registered"}</div>
       </div>
 
-      {selUtil === "electric" && <SmartMeterCard wallet={wallet} setReading={setReading} T={T} onAutoSubmit={onMeterAutoSubmit} autoBusy={meterAutoBusy} meterNo={meterNo} />}
-
       <VerifyZone key={verifyKey} utilId={selUtil} reading={reading} prevRead={prevRead} subs={subs} meterNo={meterNo} T={T}
         onOcrReading={(v) => { if (!String(reading).trim()) setReading(String(v)); }}
         onVerified={(res, img, mime) => { setAiOk(true); setPhoto?.(img ? { base64: img, mime, ocrNums: res?.ocrNums || [], ocrFailed: !!res?.ocrFailed, meterNoConfirmed: res?.meterNoConfirmed ?? null } : null); }}
         onReset={() => { setAiOk(false); setPhoto?.(null); }} />
-
-      <div style={{margin:"14px 14px 0",padding:12,background:T.waterBg,border:`1px solid ${T.waterBorder}`,borderRadius:6}}>
-        <div style={{fontSize:12,fontWeight:700,color:T.water,marginBottom:8}}>💡 Tips for Successful Verification</div>
-        <ul style={{margin:0,paddingLeft:18,fontSize:11,color:T.textSoft,lineHeight:1.6}}>
-          <li>📸 Take a clear, well-lit photo of the meter face</li>
-          <li>🔢 Ensure all numbers are visible and readable</li>
-          <li>⚡ Avoid shadows or glare on the display</li>
-          <li>📱 Hold your phone steady for sharp image</li>
-          <li>🔄 Fresh photo needed — a photo can only ever earn once</li>
-          <li>✓ AI must verify before submitting to blockchain</li>
-        </ul>
-      </div>
 
       <div className="form-card" style={{"--uc":T[u.id]||T.electric,"--ubg":getColorBg(u.id, T),"--uborder":T[u.id+"Border"]||T.electricBorder,marginTop:14}}>
         {knowPrev ? (
@@ -2481,6 +2468,25 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
                   </button>
         }
       </div>
+
+      {/* Secondary — tips + other ways to submit, tucked below the main flow so the
+          photo → reading → submit path stays clean and uncluttered. */}
+      <div style={{margin:"14px 14px 0"}}>
+        <button onClick={() => setTipsOpen(o => !o)} style={{display:"flex",width:"100%",alignItems:"center",justifyContent:"space-between",background:T.bgAlt,border:`1px solid ${T.border}`,borderRadius:6,padding:"9px 12px",cursor:"pointer",color:T.textMid,fontSize:11,fontWeight:700}}>
+          <span>💡 Photo tips</span><span style={{color:T.textSoft}}>{tipsOpen ? "▲" : "▼"}</span>
+        </button>
+        {tipsOpen && (
+          <ul style={{margin:"8px 2px 0",paddingLeft:20,fontSize:11,color:T.textSoft,lineHeight:1.7}}>
+            <li>Clear, well-lit photo of the meter face</li>
+            <li>All the numbers visible and readable</li>
+            <li>Avoid shadows or glare on the display</li>
+            <li>Hold steady for a sharp image</li>
+            <li>Fresh photo each time — a photo can only ever earn once</li>
+          </ul>
+        )}
+      </div>
+
+      {selUtil === "electric" && <SmartMeterCard wallet={wallet} setReading={setReading} T={T} onAutoSubmit={onMeterAutoSubmit} autoBusy={meterAutoBusy} meterNo={meterNo} />}
       </>)}
 
       {subTab === "eco" && onEcoSubmit && (
