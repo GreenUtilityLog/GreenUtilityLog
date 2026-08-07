@@ -2239,35 +2239,43 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
                     const DEVS = [
                       { id: "homewizard", label: "HomeWizard P1" },
                       { id: "ha",         label: "Home Assistant" },
-                      { id: "curl",       label: "Other / script" },
+                      { id: "curl",       label: "Any other reader" },
                     ];
-                    const hwScript = `#!/usr/bin/env bash
-# HomeWizard P1 -> GreenUtilityLog  (enable "Local API" in the HomeWizard app first)
-IP=192.168.1.50                      # <- your HomeWizard P1's IP
-R=$(curl -s http://$IP/api/v1/data | jq '(.total_power_import_kwh)//((.total_power_import_t1_kwh//0)+(.total_power_import_t2_kwh//0))')
-curl -s -X POST ${ingestUrl} -H "Content-Type: application/json" -d "{\\"token\\":\\"${token}\\",\\"reading\\":$R}"
-# run hourly:  crontab -e  ->  0 * * * * /home/pi/gul-push.sh`;
-                    const haYaml = `# configuration.yaml  (needs the HomeWizard integration)
+                    const bridgeCmd = `# Easiest: the bridge finds your HomeWizard on the network and pushes
+# automatically. Run it once on an always-on machine (Pi / NAS / PC), Node 18+:
+
+git clone https://github.com/GreenUtilityLog/GreenUtilityLog
+cd GreenUtilityLog/bridge
+GUL_TOKEN=${token} node index.js
+
+# Prefer Docker?
+# docker build -t gul-bridge ./bridge
+# docker run -d --network host -e GUL_TOKEN=${token} gul-bridge`;
+                    const haYaml = `# configuration.yaml — works with (almost) any meter Home Assistant supports
 rest_command:
   gul_push:
     url: "${ingestUrl}"
     method: POST
     content_type: "application/json"
-    payload: '{"token":"${token}","reading":{{ states("sensor.p1_meter_total_power_import_kwh") | float }}}'
+    payload: '{"token":"${token}","reading":{{ states("sensor.electricity_meter_total") | float }}}'
 
-# automations.yaml  - send hourly
-- alias: Push P1 to GreenUtilityLog
+# automations.yaml — send hourly (set the sensor above to your import-kWh entity)
+- alias: Push meter to GreenUtilityLog
   trigger: { platform: time_pattern, hours: "/1" }
   action: { service: rest_command.gul_push }`;
-                    const curlSnippet = `curl -X POST ${ingestUrl} \\
+                    const curlSnippet = `# Any reader/script that can POST JSON works — send your cumulative kWh total:
+curl -X POST ${ingestUrl} \\
   -H "Content-Type: application/json" \\
-  -d '{"token":"${token}","reading":12345.6}'`;
-                    const snip = device === "ha" ? haYaml : device === "curl" ? curlSnippet : hwScript;
+  -d '{"token":"${token}","reading":12345.6}'
+
+# Or let the bridge read any HTTP/JSON reader for you:
+# READ_URL=http://<reader-ip>/... GUL_TOKEN=${token} node GreenUtilityLog/bridge/index.js`;
+                    const snip = device === "ha" ? haYaml : device === "curl" ? curlSnippet : bridgeCmd;
                     const hint = device === "homewizard"
-                      ? 'Turn on "Local API" in the HomeWizard app, put your P1’s IP in the script, save it as gul-push.sh and run it hourly with cron. Needs curl + jq on an always-on device (e.g. a Raspberry Pi).'
+                      ? 'Turn on "Local API" in the HomeWizard app first. The bridge auto-discovers your P1 — if your network blocks mDNS, add HW_IP=<your P1 IP>. Needs Node 18+ or Docker.'
                       : device === "ha"
-                      ? "Add the built-in HomeWizard integration in Home Assistant, paste this, and adjust the sensor name to your cumulative import-kWh sensor."
-                      : "Any device or script that can POST JSON works — just send your cumulative kWh total.";
+                      ? "The universal route — Home Assistant supports almost every meter/reader. Paste this and set the sensor to your cumulative import-kWh entity."
+                      : "For any other setup. POST your cumulative kWh total from any device, or use the bridge’s generic mode (READ_URL) to read any HTTP/JSON reader.";
                     return (
                       <div>
                         {/* Live connection status */}
