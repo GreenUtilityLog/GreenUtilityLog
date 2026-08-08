@@ -76,6 +76,9 @@ app.get("/health", async (req, res) => {
     photoArchive: photoStoreEnabled(),
     captcha: captchaEnabled(),
     corsLocked: !ALLOWED_ORIGINS.includes("*"),
+    // Which wallets the backend authorises for /admin/* (already public in the client
+    // bundle) — surfaced so admin access is easy to verify.
+    adminWallets: ADMIN_USER_WALLETS,
     durableState: store.isDurable(),
     distributor: await distributorAddress().catch(() => null),
     poolB3TR: chain.poolB3TR,
@@ -99,7 +102,10 @@ app.get("/health", async (req, res) => {
 // server-side for a verified admin user (the app calls it automatically when the
 // user's own wallet lacks the role). Guarded by the wallet certificate plus an
 // allowlist of admin user wallets (ADMIN_WALLETS env, comma-separated).
-const ADMIN_USER_WALLETS = (process.env.ADMIN_WALLETS || "0x3a007383fce8dcccdb92cf9efe0e609a652a1f29")
+// Admin wallets authorised for /admin/* actions. Kept in sync with the frontend's
+// ADMIN_WALLETS list so every wallet that SEES the admin panel can also perform its
+// actions. Override with the ADMIN_WALLETS env (comma-separated) in production.
+const ADMIN_USER_WALLETS = (process.env.ADMIN_WALLETS || "0x3a007383fce8dcccdb92cf9efe0e609a652a1f29,0xedd7e5e1be4066cdc892a059f586b9d7e8e4b0c7")
   .toLowerCase().split(",").map((s) => s.trim()).filter(Boolean);
 
 // A wallet is blocked if it's on the static env list OR the admin's dynamic list.
