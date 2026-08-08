@@ -217,6 +217,26 @@ app.post("/admin/set-baseline", (req, res) => {
   res.json({ ok: true, meterNo: meterKey, utility, baseline: reading, owner: store.meterOwner(utility, meterKey) });
 });
 
+// Change a meter's NUMBER for a wallet (fix a typo / re-register under the correct
+// number). Moves the server-side owner + baseline from the old number to the new one
+// for the given utility. (Registering a brand-new meter is done via /admin/set-baseline.)
+app.post("/admin/rename-meter", (req, res) => {
+  const a = verifyAdmin(req, "/admin/rename-meter");
+  if (!a.ok) return res.status(a.code).json({ error: a.error });
+  const oldMeterNo = String(req.body.oldMeterNo || "").trim().toLowerCase();
+  const newMeterNo = String(req.body.newMeterNo || "").trim().toLowerCase();
+  if (!oldMeterNo || !newMeterNo) return res.status(400).json({ error: "old and new meter numbers are required" });
+  if (oldMeterNo === newMeterNo) return res.status(400).json({ error: "the new meter number is the same as the old one" });
+  const target = String(req.body.targetWallet || "");
+  if (!isAddr(target)) return res.status(400).json({ error: "target wallet is required" });
+  const utility = RATES[String(req.body.utility || "").toLowerCase()] ? String(req.body.utility).toLowerCase() : "electric";
+  // Don't clobber a meter number already owned by a DIFFERENT wallet.
+  const newOwner = store.meterOwner(utility, newMeterNo);
+  if (newOwner && newOwner !== target.toLowerCase()) return res.status(409).json({ error: "the new meter number is registered to another wallet" });
+  const r = store.renameMeter(utility, oldMeterNo, newMeterNo, target.toLowerCase());
+  res.json({ ok: true, utility, ...r });
+});
+
 // Clear a wallet+utility cooldown so a user who was wrongly blocked (or whose
 // submission we just corrected) can submit again immediately.
 app.post("/admin/reset-cooldown", (req, res) => {
