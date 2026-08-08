@@ -164,6 +164,23 @@ export const store = {
     if (mFallback(utility)) delete state.readings[meterNo]; // migrate legacy electric
     persist();
   },
+  // Admin: change a meter's NUMBER — carry its owner + baseline from the old number
+  // to the new one (same utility), then remove the old keys. Fixes a mis-entered
+  // meter number so the user's future submissions match a valid baseline.
+  renameMeter: (utility, oldMeterNo, newMeterNo, addr) => {
+    const oldK = mKey(utility, oldMeterNo), newK = mKey(utility, newMeterNo);
+    const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+    const owner = (has(state.meterOwners, oldK) ? state.meterOwners[oldK]
+      : (mFallback(utility) && has(state.meterOwners, oldMeterNo) ? state.meterOwners[oldMeterNo] : null));
+    const last = (has(state.readings, oldK) ? state.readings[oldK]
+      : (mFallback(utility) && has(state.readings, oldMeterNo) ? state.readings[oldMeterNo] : null));
+    state.meterOwners[newK] = String(addr || owner || "").toLowerCase();
+    if (last != null) state.readings[newK] = last;
+    delete state.meterOwners[oldK]; delete state.readings[oldK];
+    if (mFallback(utility)) { delete state.meterOwners[oldMeterNo]; delete state.readings[oldMeterNo]; }
+    persist();
+    return { meterNo: newMeterNo, owner: state.meterOwners[newK] || null, lastReading: (last != null ? last : null) };
+  },
 
   // Eco-bonus claims per wallet: timestamps of paid eco photos. Pruned to the
   // last 14 days on read — enough to evaluate both the current calendar week

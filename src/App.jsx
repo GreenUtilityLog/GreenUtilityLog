@@ -3071,7 +3071,9 @@ function AdminAccountTools({ T, onAdminApi, onToast }) {
 // cooldown, and correct a meter's baseline right where you see the problem.
 function WalletAdminActions({ T, address, meters, onAdminApi, onToast }) {
   const [busy, setBusy] = useState("");
-  const [vals, setVals] = useState({});
+  const [vals, setVals] = useState({});         // baseline inputs per meter
+  const [renameVals, setRenameVals] = useState({}); // new-number inputs per meter
+  const [add, setAdd] = useState({ meterNo: "", utility: "electric", reading: "" }); // register-a-meter form
   const run = async (key, fn, okMsg) => {
     setBusy(key);
     try { const d = await fn(); onToast?.(okMsg(d)); }
@@ -3092,16 +3094,34 @@ function WalletAdminActions({ T, address, meters, onAdminApi, onToast }) {
       </div>
 
       {meters.map((m, i) => (
-        <div key={i} style={{ marginTop: 10 }}>
-          <div style={{ fontSize: 10, color: T.textSoft, marginBottom: 5 }}>Fix baseline · <span style={{ fontFamily: mono }}>{m.meterNo}</span> {m.last != null ? `(last ${m.last})` : ""}</div>
+        <div key={i} style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${T.border}` }}>
+          <div style={{ fontSize: 10, color: T.textSoft, marginBottom: 5 }}><span style={{ fontFamily: mono, color: T.text }}>{m.meterNo}</span> · {m.utility}{m.last != null ? ` · last ${m.last}` : ""}</div>
           <div style={{ display: "flex", gap: 8 }}>
-            <input value={vals[m.meterNo] ?? ""} onChange={e => setVals(v => ({ ...v, [m.meterNo]: e.target.value }))} type="number" step="0.01" inputMode="decimal" placeholder={`Correct reading${m.last != null ? ` (e.g. ${m.last})` : ""}`} style={inp} />
+            <input value={vals[m.meterNo] ?? ""} onChange={e => setVals(v => ({ ...v, [m.meterNo]: e.target.value }))} type="number" step="0.01" inputMode="decimal" placeholder={`Fix reading${m.last != null ? ` (e.g. ${m.last})` : ""}`} style={inp} />
             <button disabled={busy === "base" + i || !(Number(vals[m.meterNo]) >= 0)} onClick={() => run("base" + i, () => onAdminApi("/admin/set-baseline", { meterNo: m.meterNo, utility: m.utility, reading: Number(vals[m.meterNo]), targetWallet: address }), (d) => `✅ Baseline set: ${d.meterNo} → ${d.baseline}`)} style={btn(T.green3 || "#2e7d5b", "#fff", busy === "base" + i || !(Number(vals[m.meterNo]) >= 0))}>{busy === "base" + i ? "…" : "Set"}</button>
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+            <input value={renameVals[m.meterNo] ?? ""} onChange={e => setRenameVals(v => ({ ...v, [m.meterNo]: e.target.value }))} placeholder="Change meter number →" spellCheck={false} style={inp} />
+            <button disabled={busy === "ren" + i || !(renameVals[m.meterNo] || "").trim()} onClick={() => run("ren" + i, () => onAdminApi("/admin/rename-meter", { oldMeterNo: m.meterNo, newMeterNo: (renameVals[m.meterNo] || "").trim(), utility: m.utility, targetWallet: address }), (d) => `✅ Meter renamed → ${d.meterNo}`)} style={btn("transparent", T.textMid, busy === "ren" + i || !(renameVals[m.meterNo] || "").trim())}>{busy === "ren" + i ? "…" : "Rename"}</button>
           </div>
         </div>
       ))}
 
-      <div style={{ fontSize: 10, color: T.textSoft, marginTop: 10, lineHeight: 1.5 }}>Each action asks for one wallet signature (admin proof). Blocking stops this wallet claiming on every route; fixing the baseline corrects a mis-entered reading. Meters/baselines live on the backend, not the chain.</div>
+      {/* Register / add a meter to this wallet (e.g. before their first submission,
+          or to add a second utility). Sets its server-side baseline + ownership. */}
+      <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${T.border}` }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: T.textSoft, marginBottom: 5 }}>➕ Add a meter to this wallet</div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <input value={add.meterNo} onChange={e => setAdd(a => ({ ...a, meterNo: e.target.value }))} placeholder="Meter number" spellCheck={false} style={{ ...inp, flex: "2 1 120px" }} />
+          <select value={add.utility} onChange={e => setAdd(a => ({ ...a, utility: e.target.value }))} style={{ ...inp, flex: "1 1 90px", fontFamily: "inherit", cursor: "pointer" }}>
+            {UTILS.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
+          </select>
+          <input value={add.reading} onChange={e => setAdd(a => ({ ...a, reading: e.target.value }))} type="number" step="0.01" inputMode="decimal" placeholder="Current reading" style={{ ...inp, flex: "1 1 100px" }} />
+          <button disabled={busy === "add" || !add.meterNo.trim() || !(Number(add.reading) >= 0)} onClick={() => run("add", () => onAdminApi("/admin/set-baseline", { meterNo: add.meterNo.trim(), utility: add.utility, reading: Number(add.reading), targetWallet: address }), (d) => { setAdd({ meterNo: "", utility: "electric", reading: "" }); return `✅ Meter added: ${d.meterNo} (${d.utility})`; })} style={btn(T.green3 || "#2e7d5b", "#fff", busy === "add" || !add.meterNo.trim() || !(Number(add.reading) >= 0))}>{busy === "add" ? "…" : "Add"}</button>
+        </div>
+      </div>
+
+      <div style={{ fontSize: 10, color: T.textSoft, marginTop: 10, lineHeight: 1.5 }}>Each action asks for one wallet signature (admin proof). Fix baseline corrects a mis-entered reading; Rename changes a wrong meter number (moves its baseline); Add registers a meter + baseline for this wallet. Meters/baselines live on the backend, not the chain.</div>
     </div>
   );
 }
