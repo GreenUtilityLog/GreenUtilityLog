@@ -3074,6 +3074,16 @@ function WalletAdminActions({ T, address, meters, onAdminApi, onToast }) {
   const [vals, setVals] = useState({});         // baseline inputs per meter
   const [renameVals, setRenameVals] = useState({}); // new-number inputs per meter
   const [add, setAdd] = useState({ meterNo: "", utility: "electric", reading: "" }); // register-a-meter form
+  const [backendMeters, setBackendMeters] = useState(null); // meters registered on the backend (incl. just-added)
+  // Show the on-chain-derived meters PLUS any backend-registered ones, deduped — so a
+  // meter added via admin (no submission yet) is visible here too.
+  const norm = (m) => `${m.utility}:${String(m.meterNo).toLowerCase()}`;
+  const shown = (() => {
+    const map = new Map();
+    for (const m of (meters || [])) map.set(norm(m), m);
+    for (const m of (backendMeters || [])) if (!map.has(norm(m))) map.set(norm(m), m);
+    return [...map.values()];
+  })();
   const run = async (key, fn, okMsg) => {
     setBusy(key);
     try { const d = await fn(); onToast?.(okMsg(d)); }
@@ -3091,9 +3101,14 @@ function WalletAdminActions({ T, address, meters, onAdminApi, onToast }) {
         <button disabled={busy === "ban"} onClick={() => run("ban", () => onAdminApi("/admin/ban", { targetWallet: address, ban: true }), () => "🚫 Wallet blocked — it can no longer claim")} style={btn("#c0392b", "#fff", busy === "ban")}>{busy === "ban" ? "…" : "🚫 Block wallet"}</button>
         <button disabled={busy === "unban"} onClick={() => run("unban", () => onAdminApi("/admin/ban", { targetWallet: address, ban: false }), () => "✅ Wallet unblocked")} style={btn("transparent", T.textMid, busy === "unban")}>{busy === "unban" ? "…" : "Unblock"}</button>
         <button disabled={busy === "cd"} onClick={() => run("cd", () => onAdminApi("/admin/reset-cooldown", { targetWallet: address, utility: "electric" }), () => "✅ Cooldown reset")} style={btn("transparent", T.textMid, busy === "cd")}>{busy === "cd" ? "…" : "⏱️ Reset cooldown"}</button>
+        <button disabled={busy === "load"} onClick={() => run("load", () => onAdminApi("/admin/lookup", { targetWallet: address }), (d) => { setBackendMeters(d.meters || []); return `✅ ${(d.meters || []).length} meter(s) registered on backend`; })} style={btn("transparent", T.textMid, busy === "load")}>{busy === "load" ? "…" : "🔍 Load meters"}</button>
       </div>
 
-      {meters.map((m, i) => (
+      {shown.length === 0 && (
+        <div style={{ fontSize: 10.5, color: T.textSoft, marginTop: 10, lineHeight: 1.5 }}>No meters yet from on-chain submissions. Tap <b>🔍 Load meters</b> to show ones registered on the backend, or add one below.</div>
+      )}
+
+      {shown.map((m, i) => (
         <div key={i} style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${T.border}` }}>
           <div style={{ fontSize: 10, color: T.textSoft, marginBottom: 5 }}><span style={{ fontFamily: mono, color: T.text }}>{m.meterNo}</span> · {m.utility}{m.last != null ? ` · last ${m.last}` : ""}</div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -3117,7 +3132,7 @@ function WalletAdminActions({ T, address, meters, onAdminApi, onToast }) {
             {UTILS.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
           </select>
           <input value={add.reading} onChange={e => setAdd(a => ({ ...a, reading: e.target.value }))} type="number" step="0.01" inputMode="decimal" placeholder="Current reading" style={{ ...inp, flex: "1 1 100px" }} />
-          <button disabled={busy === "add" || !add.meterNo.trim() || !(Number(add.reading) >= 0)} onClick={() => run("add", () => onAdminApi("/admin/set-baseline", { meterNo: add.meterNo.trim(), utility: add.utility, reading: Number(add.reading), targetWallet: address }), (d) => { setAdd({ meterNo: "", utility: "electric", reading: "" }); return `✅ Meter added: ${d.meterNo} (${d.utility})`; })} style={btn(T.green3 || "#2e7d5b", "#fff", busy === "add" || !add.meterNo.trim() || !(Number(add.reading) >= 0))}>{busy === "add" ? "…" : "Add"}</button>
+          <button disabled={busy === "add" || !add.meterNo.trim() || !(Number(add.reading) >= 0)} onClick={() => run("add", () => onAdminApi("/admin/set-baseline", { meterNo: add.meterNo.trim(), utility: add.utility, reading: Number(add.reading), targetWallet: address }), (d) => { const nm = { utility: add.utility, meterNo: add.meterNo.trim().toLowerCase(), last: Number(add.reading) }; setBackendMeters(prev => { const cur = prev || []; return cur.some(x => norm(x) === norm(nm)) ? cur : [...cur, nm]; }); setAdd({ meterNo: "", utility: "electric", reading: "" }); return `✅ Meter added: ${d.meterNo} (${d.utility})`; })} style={btn(T.green3 || "#2e7d5b", "#fff", busy === "add" || !add.meterNo.trim() || !(Number(add.reading) >= 0))}>{busy === "add" ? "…" : "Add"}</button>
         </div>
       </div>
 

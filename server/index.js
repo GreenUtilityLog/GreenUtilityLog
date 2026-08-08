@@ -201,6 +201,8 @@ app.post("/admin/lookup", (req, res) => {
     ok: true,
     ...snap,
     banned: isAddr(target) ? banned(target) : null,
+    // Every meter registered to this wallet (incl. ones added but not yet submitted).
+    meters: isAddr(target) ? store.metersForWallet(target) : [],
   });
 });
 
