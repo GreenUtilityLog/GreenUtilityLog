@@ -530,6 +530,17 @@ app.post("/meter-ingest", (req, res) => {
   res.json({ ok: true });
 });
 
+// The app fetches this on connect to PRE-FILL a meter number an admin registered for
+// this wallet (via /admin/set-baseline) — so a user who can't find their meter number
+// doesn't have to: the admin assigns it and it shows up ready to submit. Returns the
+// wallet's registered meters (number + utility + baseline). Low-sensitivity (meter
+// numbers), behind the IP throttle; gate with a cert before mainnet if desired.
+app.get("/meter/registered", (req, res) => {
+  const address = String(req.query.address || "");
+  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
+  res.json({ ok: true, meters: store.metersForWallet(address) });
+});
+
 // The app polls this to show / prefill the latest automatically-received reading.
 app.get("/meter/latest", (req, res) => {
   const address = String(req.query.address || "");

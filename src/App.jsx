@@ -3939,6 +3939,34 @@ export default function App() {
   // requestTransaction() signer; useWalletModal() opens the connect dialog.
   const { account, requestTransaction, requestCertificate, disconnect } = useWallet();
   const wallet = account || null;
+
+  // Pre-fill meter numbers an admin assigned to this wallet on the server, so a user
+  // who can't find their meter number doesn't have to enter it. Only fills EMPTY slots
+  // — never overwrites a number the user typed themselves.
+  useEffect(() => {
+    if (!wallet || !REWARD_API) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(`${REWARD_API.replace(/\/$/, "")}/meter/registered?address=${wallet}`);
+        if (!r.ok) return;
+        const d = await r.json().catch(() => ({}));
+        const list = Array.isArray(d.meters) ? d.meters : [];
+        if (cancelled || !list.length) return;
+        setMeters(prev => {
+          const next = { ...prev };
+          let changed = false;
+          for (const m of list) {
+            const u = m.utility, no = String(m.meterNo || "").trim();
+            if (u && no && !(next[u] || "").trim()) { next[u] = no; changed = true; }
+          }
+          if (changed) { try { saveMeters(next); } catch { /* no storage */ } }
+          return changed ? next : prev;
+        });
+      } catch { /* offline — ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [wallet]);
   const { open: openWalletModal } = useWalletModal();
   const openConnectModal = () => openWalletModal();
 
