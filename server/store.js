@@ -164,6 +164,21 @@ export const store = {
     if (mFallback(utility)) delete state.readings[meterNo]; // migrate legacy electric
     persist();
   },
+  // Admin: every meter registered to a wallet on the backend (owner == addr), with its
+  // baseline — including meters added via /admin/set-baseline that haven't submitted
+  // on-chain yet, so the admin panel can show them.
+  metersForWallet: (addr) => {
+    const a = String(addr).toLowerCase();
+    const out = [];
+    for (const [k, owner] of Object.entries(state.meterOwners)) {
+      if (String(owner).toLowerCase() !== a) continue;
+      const i = k.indexOf(":");
+      const utility = i > 0 ? k.slice(0, i) : "electric";   // legacy bare keys were electric
+      const meterNo = i > 0 ? k.slice(i + 1) : k;
+      out.push({ utility, meterNo, last: Object.prototype.hasOwnProperty.call(state.readings, k) ? state.readings[k] : null });
+    }
+    return out;
+  },
   // Admin: change a meter's NUMBER — carry its owner + baseline from the old number
   // to the new one (same utility), then remove the old keys. Fixes a mis-entered
   // meter number so the user's future submissions match a valid baseline.
