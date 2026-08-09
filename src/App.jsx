@@ -3753,14 +3753,18 @@ function HelpScreen({ onClose, onFeedback, T }) {
     { n: 5, t: "Earn B3TR", d: "A valid reading rewards you with B3TR on testnet. Track your total on Home and your position on the Leaderboard." },
   ];
   const faqs = [
+    { q: "Where do I find my meter number?", a: "Two spots on the meter:\n1) On the little screen — press the meter's buttons until the number appears.\n2) Under the barcode, on a sticker on the front or side.\nEnter the whole number including the letter — electricity usually starts with E, gas with G. It's also on your energy bill or your energy supplier's online account." },
+    { q: "Can my meter be read automatically? (P1 reader / HomeWizard)", a: "Yes — with a P1 reader like a HomeWizard, your meter is read for you and sent in on its own.\n1. In the HomeWizard app, turn on \"Local API\".\n2. Do one photo submission first (it sets your baseline).\n3. In Submit → Electricity → \"Type / reader\" → \"Automatic setup\", tap \"Get my device token\" and copy it.\n4. On a device that stays on (Raspberry Pi / NAS / PC), run the copied setup once — it finds your meter and sends the reading every hour.\n5. Your reading shows as \"Auto-received\" → tap \"Submit — no photo\".\nNo always-on device? Just type your reading or take a photo — that's easiest for most people." },
+    { q: "Which meters work?", a: "Almost any Dutch or Belgian smart meter with a P1 port. Dutch meters send plain data and work out of the box. Belgian (Fluvius) meters are encrypted — enter the free Fluvius key in the HomeWizard app once, then it works the same." },
     { q: "Is this real money?", a: "No. Everything runs on VeChain testnet, so the B3TR you earn are test tokens with no real value — perfect for trying things out safely." },
     { q: "I submitted but got no B3TR — why?", a: "Most common reasons: the new reading isn't higher than your last one, the photo was reused, or a cooldown is active for that utility. Try a fresh photo of an actual meter." },
-    { q: "What's the cooldown?", a: "During the testnet beta the cooldown is disabled so you can test freely. At launch you'll earn once per utility roughly every 20 hours to keep things fair." },
     { q: "My photo was rejected.", a: "Use a real, clear photo of your own meter — good lighting, numbers in focus, no screenshots or photos of a screen." },
+    { q: "What's the cooldown?", a: "During the testnet beta the cooldown is disabled so you can test freely. At launch you'll earn once per utility roughly every 20 hours to keep things fair." },
     { q: "I cleared my browser / reconnected and lost my meters?", a: "Reconnecting the SAME wallet keeps your meters and baselines. Only connecting a different wallet starts a fresh setup." },
     { q: "My wallet won't connect.", a: "Make sure VeWorld is switched to Testnet. On mobile, use the in-app browser or WalletConnect QR." },
     { q: "Found a bug or have an idea?", a: "Use Send Feedback below — it pre-fills an email with your message and some helpful diagnostics." },
   ];
+  const [openFaq, setOpenFaq] = useState(0); // accordion — first item open by default
   const row = { background:T.card, border:`1px solid ${T.border}`, borderRadius:6, padding:"12px 14px", marginBottom:8 };
   return (
     <div style={{position:"fixed",inset:0,background:T.bg,zIndex:330,display:"flex",flexDirection:"column"}}>
@@ -3789,9 +3793,14 @@ function HelpScreen({ onClose, onFeedback, T }) {
 
         <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,margin:"18px 2px 10px"}}>Frequently asked</div>
         {faqs.map((f, i) => (
-          <div key={i} style={row}>
-            <div style={{fontSize:13,fontWeight:700,color:T.text,marginBottom:4}}>{f.q}</div>
-            <div style={{fontSize:12,color:T.textMid,lineHeight:1.55}}>{f.a}</div>
+          <div key={i} style={{...row, padding:0, overflow:"hidden"}}>
+            <button onClick={() => setOpenFaq(openFaq === i ? -1 : i)} style={{display:"flex",width:"100%",alignItems:"center",justifyContent:"space-between",gap:10,background:"transparent",border:"none",cursor:"pointer",padding:"12px 14px",textAlign:"left"}}>
+              <span style={{fontSize:13,fontWeight:700,color:T.text}}>{f.q}</span>
+              <span style={{color:T.textSoft,fontSize:11,flexShrink:0}}>{openFaq === i ? "▲" : "▼"}</span>
+            </button>
+            {openFaq === i && (
+              <div style={{fontSize:12,color:T.textMid,lineHeight:1.6,padding:"0 14px 13px",whiteSpace:"pre-line"}}>{f.a}</div>
+            )}
           </div>
         ))}
 
