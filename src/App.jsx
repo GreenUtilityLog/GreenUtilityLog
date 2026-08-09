@@ -2226,6 +2226,19 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
 
               {advOpen && (
                 <div style={{ marginTop: 10 }}>
+                  {/* Plain-language step-by-step so a first-timer knows the whole flow. */}
+                  <div style={{ background: T.bg, border: `1px solid ${T.border || T.waterBorder}`, borderRadius: 8, padding: "12px 14px", marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: T.text, marginBottom: 6 }}>📖 How it works — 5 steps</div>
+                    <ol style={{ margin: 0, paddingLeft: 18, fontSize: 11, lineHeight: 1.7, color: T.textMid }}>
+                      <li>In the <b>HomeWizard app</b>, turn on <b>Local API</b> (Settings → Meters → your P1).</li>
+                      <li>Do <b>one photo submission</b> first (📸 Photo tab) — it sets your baseline.</li>
+                      <li>Tap <b>“Get my device token”</b> below and copy it.</li>
+                      <li>On a device that stays on (Raspberry Pi / NAS / PC), run the <b>copied setup</b> once — it finds your meter and sends the reading every hour.</li>
+                      <li>Your reading shows as <b>“Auto-received”</b> → tap <b>Submit — no photo</b>. Done!</li>
+                    </ol>
+                    <div style={{ fontSize: 10, color: T.textSoft, marginTop: 7, lineHeight: 1.5 }}>No device that stays on? Just type your reading or take a photo — that works too, and is easiest for most people.</div>
+                  </div>
+
                   <div style={{ fontSize: 10, color: T.textSoft, lineHeight: 1.6, marginBottom: 8 }}>
                     Pick your device and copy the ready-made setup — your token is already filled in. Point your reader at it once and it keeps sending your meter total automatically.
                   </div>
