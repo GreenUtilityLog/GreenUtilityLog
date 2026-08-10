@@ -3736,26 +3736,115 @@ function Toggle({ on, onToggle }) {
 // ════════════════════════════════════════════════════════════════════════════
 // HELP & FAQ  — full-screen guide for new testers (no backend needed)
 // ════════════════════════════════════════════════════════════════════════════
+// Help content in several languages. The P1/meter answers keep \n line breaks
+// (rendered with white-space: pre-line). Add a language by adding a key here.
+const HELP_I18N = {
+  en: { name:"English", subtitle:"Getting started", quick:"Quick start", faqLabel:"Frequently asked", close:"Close", feedback:"✉️ Send Feedback",
+    steps:[
+      { t:"Connect your wallet", d:"Tap Connect and open VeWorld (set to Testnet) or WalletConnect. This is a test app — no real funds are used." },
+      { t:"Get free test gas (VTHO)", d:"Transactions cost a tiny bit of VTHO. Grab some free testnet VTHO from the faucet, then come back." },
+      { t:"Register your meters", d:"Enter the meter number and the current reading (baseline) for electricity, gas and water. Solar is optional." },
+      { t:"Submit a reading", d:"Go to Submit, pick a utility, photograph the meter (the app reads the number for you), check it, and send." },
+      { t:"Earn B3TR", d:"A valid reading rewards you with B3TR on testnet. Track your total on Home and your position on the Leaderboard." },
+    ], faqs:[
+      { q:"Where do I find my meter number?", a:"Two spots on the meter:\n1) On the little screen — press the meter's buttons until the number appears.\n2) Under the barcode, on a sticker on the front or side.\nEnter the whole number including the letter — electricity usually starts with E, gas with G. It's also on your energy bill or your supplier's online account." },
+      { q:"Automatic reading (P1 reader / HomeWizard)", a:"With a P1 reader like a HomeWizard, your meter is read for you and sent in on its own.\n1. In the HomeWizard app, turn on \"Local API\".\n2. Do one photo submission first (it sets your baseline).\n3. In Submit → Electricity → \"Auto (reader)\" → \"Automatic setup\", tap \"Get my device token\" and copy it.\n4. On a device that stays on (Raspberry Pi / NAS / PC), run the copied setup once — it finds your meter and sends the reading every hour.\n5. Your reading shows as \"Auto-received\" → tap \"Submit — no photo\".\nNo always-on device? Just take a photo — that's easiest for most people." },
+      { q:"Which meters work?", a:"Almost any Dutch or Belgian smart meter with a P1 port. Dutch meters send plain data and work out of the box. Belgian (Fluvius) meters are encrypted — enter the free Fluvius key in the HomeWizard app once, then it works the same." },
+      { q:"Do I always need a photo?", a:"A photo is required for a hand-entered reading. A connected P1 reader can submit without a photo, because its device token binds the reading to your wallet." },
+      { q:"Is this real money?", a:"No. Everything runs on VeChain testnet, so the B3TR you earn are test tokens with no real value — perfect for trying things out safely." },
+      { q:"I submitted but got no B3TR — why?", a:"Most common reasons: the new reading isn't higher than your last one, the photo was reused, or a cooldown is active for that utility. Try a fresh photo of an actual meter." },
+      { q:"My photo was rejected.", a:"Use a real, clear photo of your own meter — good lighting, numbers in focus, no screenshots or photos of a screen." },
+      { q:"I reconnected and lost my meters?", a:"Reconnecting the SAME wallet keeps your meters and baselines. Only connecting a different wallet starts a fresh setup." },
+      { q:"My wallet won't connect.", a:"Make sure VeWorld is switched to Testnet. On mobile, use the in-app browser or WalletConnect QR." },
+      { q:"Found a bug or have an idea?", a:"Use Send Feedback below — it pre-fills an email with your message and some helpful diagnostics." },
+    ] },
+  nl: { name:"Nederlands", subtitle:"Aan de slag", quick:"Snel starten", faqLabel:"Veelgestelde vragen", close:"Sluiten", feedback:"✉️ Feedback sturen",
+    steps:[
+      { t:"Verbind je wallet", d:"Tik op Connect en open VeWorld (op Testnet) of WalletConnect. Dit is een test-app — er wordt geen echt geld gebruikt." },
+      { t:"Haal gratis test-gas (VTHO)", d:"Transacties kosten een beetje VTHO. Haal gratis testnet-VTHO bij de faucet en kom terug." },
+      { t:"Registreer je meters", d:"Voer het meternummer en de huidige stand (baseline) in voor stroom, gas en water. Zon is optioneel." },
+      { t:"Doe een inzending", d:"Ga naar Submit, kies een meter, fotografeer 'm (de app leest het nummer), controleer en verstuur." },
+      { t:"Verdien B3TR", d:"Een geldige stand levert B3TR op testnet op. Zie je totaal op Home en je positie in het klassement." },
+    ], faqs:[
+      { q:"Waar vind ik mijn meternummer?", a:"Twee plekken op de meter:\n1) Op het schermpje — druk op de knopjes tot het nummer verschijnt.\n2) Onder de streepjescode, op een sticker aan de voor- of zijkant.\nNeem het hele nummer over, mét de letter — stroom begint meestal met E, gas met G. Het staat ook op je energierekening of in je online account bij je leverancier." },
+      { q:"Automatisch uitlezen (P1-reader / HomeWizard)", a:"Met een P1-reader zoals een HomeWizard wordt je meter voor je uitgelezen en vanzelf ingestuurd.\n1. Zet in de HomeWizard-app \"Local API\" aan.\n2. Doe eerst één foto-inzending (dat zet je baseline).\n3. In Submit → Electricity → \"Auto (reader)\" → \"Automatic setup\": tik \"Get my device token\" en kopieer 'm.\n4. Draai op een altijd-aan-apparaat (Raspberry Pi / NAS / pc) de gekopieerde setup één keer — het vindt je meter en stuurt elk uur je stand.\n5. Je stand verschijnt als \"Auto-received\" → tik \"Submit — no photo\".\nGeen altijd-aan-apparaat? Maak gewoon een foto — voor de meeste mensen het makkelijkst." },
+      { q:"Welke meters werken?", a:"Bijna elke Nederlandse of Belgische slimme meter met een P1-poort. Nederlandse meters sturen open data en werken direct. Belgische (Fluvius) meters zijn versleuteld — voer de gratis Fluvius-sleutel één keer in de HomeWizard-app in, daarna werkt alles hetzelfde." },
+      { q:"Heb ik altijd een foto nodig?", a:"Voor een handmatig ingevoerde stand is een foto verplicht. Een gekoppelde P1-reader mag zonder foto insturen, omdat zijn device-token de stand aan jouw wallet koppelt." },
+      { q:"Is dit echt geld?", a:"Nee. Alles draait op VeChain testnet, dus de B3TR die je verdient zijn test-tokens zonder echte waarde — perfect om veilig te testen." },
+      { q:"Ik heb ingezonden maar geen B3TR — waarom?", a:"Meest voorkomend: de nieuwe stand is niet hoger dan je vorige, de foto is hergebruikt, of er is een cooldown actief. Probeer een verse foto van een echte meter." },
+      { q:"Mijn foto werd geweigerd.", a:"Gebruik een echte, scherpe foto van je eigen meter — goed licht, cijfers in beeld, geen screenshots of foto's van een scherm." },
+      { q:"Ik verbond opnieuw en mijn meters zijn weg?", a:"Opnieuw verbinden met DEZELFDE wallet behoudt je meters en baselines. Alleen een ándere wallet start opnieuw." },
+      { q:"Mijn wallet verbindt niet.", a:"Zorg dat VeWorld op Testnet staat. Op mobiel: gebruik de in-app browser of WalletConnect-QR." },
+      { q:"Bug gevonden of een idee?", a:"Gebruik Feedback sturen hieronder — het vult een e-mail voor met je bericht en handige diagnostiek." },
+    ] },
+  de: { name:"Deutsch", subtitle:"Erste Schritte", quick:"Schnellstart", faqLabel:"Häufige Fragen", close:"Schließen", feedback:"✉️ Feedback senden",
+    steps:[
+      { t:"Wallet verbinden", d:"Tippe auf Connect und öffne VeWorld (auf Testnet) oder WalletConnect. Dies ist eine Test-App — es wird kein echtes Geld verwendet." },
+      { t:"Kostenloses Test-Gas (VTHO)", d:"Transaktionen kosten etwas VTHO. Hol dir kostenloses Testnet-VTHO vom Faucet und komm zurück." },
+      { t:"Zähler registrieren", d:"Gib die Zählernummer und den aktuellen Stand (Basiswert) für Strom, Gas und Wasser ein. Solar ist optional." },
+      { t:"Stand einreichen", d:"Geh zu Submit, wähle einen Zähler, fotografiere ihn (die App liest die Nummer), prüfe und sende." },
+      { t:"B3TR verdienen", d:"Ein gültiger Stand belohnt dich mit B3TR im Testnet. Sieh dein Gesamt auf Home und deine Position in der Rangliste." },
+    ], faqs:[
+      { q:"Wo finde ich meine Zählernummer?", a:"Zwei Stellen am Zähler:\n1) Auf dem kleinen Display — drücke die Tasten, bis die Nummer erscheint.\n2) Unter dem Barcode, auf einem Aufkleber vorne oder seitlich.\nGib die ganze Nummer inklusive Buchstabe ein — Strom beginnt meist mit E, Gas mit G. Sie steht auch auf deiner Energierechnung oder im Online-Konto deines Anbieters." },
+      { q:"Automatisches Auslesen (P1-Reader / HomeWizard)", a:"Mit einem P1-Reader wie einem HomeWizard wird dein Zähler für dich ausgelesen und von selbst gesendet.\n1. Aktiviere in der HomeWizard-App die \"Local API\".\n2. Mach zuerst eine Foto-Einreichung (setzt deinen Basiswert).\n3. In Submit → Electricity → \"Auto (reader)\" → \"Automatic setup\": tippe \"Get my device token\" und kopiere ihn.\n4. Führe auf einem Dauergerät (Raspberry Pi / NAS / PC) das kopierte Setup einmal aus — es findet deinen Zähler und sendet stündlich den Stand.\n5. Dein Stand erscheint als \"Auto-received\" → tippe \"Submit — no photo\".\nKein Dauergerät? Mach einfach ein Foto — für die meisten am einfachsten." },
+      { q:"Welche Zähler funktionieren?", a:"Fast jeder niederländische oder belgische Smart-Zähler mit P1-Anschluss. Niederländische Zähler senden offene Daten und laufen sofort. Belgische (Fluvius) Zähler sind verschlüsselt — gib den kostenlosen Fluvius-Schlüssel einmal in der HomeWizard-App ein, danach läuft alles gleich." },
+      { q:"Brauche ich immer ein Foto?", a:"Für einen manuell eingegebenen Stand ist ein Foto nötig. Ein verbundener P1-Reader darf ohne Foto senden, weil sein Geräte-Token den Stand an dein Wallet bindet." },
+      { q:"Ist das echtes Geld?", a:"Nein. Alles läuft im VeChain-Testnet, die B3TR sind Test-Token ohne realen Wert — ideal zum sicheren Ausprobieren." },
+      { q:"Ich habe eingereicht, aber kein B3TR — warum?", a:"Häufigste Gründe: der neue Stand ist nicht höher als der letzte, das Foto wurde wiederverwendet, oder eine Sperrzeit ist aktiv. Versuch ein frisches Foto eines echten Zählers." },
+      { q:"Mein Foto wurde abgelehnt.", a:"Nutze ein echtes, scharfes Foto deines eigenen Zählers — gutes Licht, Ziffern im Fokus, keine Screenshots oder Bildschirmfotos." },
+      { q:"Neu verbunden und meine Zähler sind weg?", a:"Erneutes Verbinden mit DEMSELBEN Wallet behält deine Zähler und Basiswerte. Nur ein anderes Wallet startet neu." },
+      { q:"Mein Wallet verbindet nicht.", a:"Stelle sicher, dass VeWorld auf Testnet steht. Mobil: nutze den In-App-Browser oder WalletConnect-QR." },
+      { q:"Bug gefunden oder eine Idee?", a:"Nutze Feedback senden unten — es füllt eine E-Mail mit deiner Nachricht und hilfreicher Diagnose vor." },
+    ] },
+  fr: { name:"Français", subtitle:"Démarrer", quick:"Démarrage rapide", faqLabel:"Questions fréquentes", close:"Fermer", feedback:"✉️ Envoyer un retour",
+    steps:[
+      { t:"Connectez votre wallet", d:"Touchez Connect et ouvrez VeWorld (sur Testnet) ou WalletConnect. C'est une app de test — aucun fonds réel n'est utilisé." },
+      { t:"Obtenez du gaz de test (VTHO)", d:"Les transactions coûtent un peu de VTHO. Récupérez du VTHO testnet gratuit au faucet, puis revenez." },
+      { t:"Enregistrez vos compteurs", d:"Saisissez le numéro et le relevé actuel (base) pour l'électricité, le gaz et l'eau. Le solaire est optionnel." },
+      { t:"Envoyez un relevé", d:"Allez dans Submit, choisissez un compteur, photographiez-le (l'app lit le numéro), vérifiez et envoyez." },
+      { t:"Gagnez des B3TR", d:"Un relevé valide vous récompense en B3TR sur testnet. Suivez votre total sur Home et votre place au classement." },
+    ], faqs:[
+      { q:"Où trouver le numéro de mon compteur ?", a:"Deux endroits sur le compteur :\n1) Sur le petit écran — appuyez sur les boutons jusqu'à voir le numéro.\n2) Sous le code-barres, sur une étiquette à l'avant ou sur le côté.\nSaisissez tout le numéro avec la lettre — l'électricité commence souvent par E, le gaz par G. Il figure aussi sur votre facture ou votre compte en ligne fournisseur." },
+      { q:"Lecture automatique (lecteur P1 / HomeWizard)", a:"Avec un lecteur P1 comme un HomeWizard, votre compteur est lu pour vous et envoyé tout seul.\n1. Dans l'app HomeWizard, activez « Local API ».\n2. Faites d'abord une soumission photo (fixe votre base).\n3. Dans Submit → Electricity → « Auto (reader) » → « Automatic setup » : touchez « Get my device token » et copiez-le.\n4. Sur un appareil toujours allumé (Raspberry Pi / NAS / PC), lancez la config copiée une fois — il trouve votre compteur et envoie le relevé chaque heure.\n5. Votre relevé apparaît en « Auto-received » → touchez « Submit — no photo ».\nPas d'appareil allumé en permanence ? Prenez simplement une photo — le plus simple pour la plupart." },
+      { q:"Quels compteurs fonctionnent ?", a:"Presque tout compteur intelligent néerlandais ou belge avec un port P1. Les compteurs néerlandais envoient des données ouvertes et marchent directement. Les compteurs belges (Fluvius) sont chiffrés — saisissez une fois la clé Fluvius gratuite dans l'app HomeWizard, puis tout fonctionne pareil." },
+      { q:"Faut-il toujours une photo ?", a:"Une photo est requise pour un relevé saisi à la main. Un lecteur P1 connecté peut envoyer sans photo, car son jeton d'appareil lie le relevé à votre wallet." },
+      { q:"Est-ce de l'argent réel ?", a:"Non. Tout tourne sur le testnet VeChain ; les B3TR gagnés sont des jetons de test sans valeur réelle — parfait pour essayer en toute sécurité." },
+      { q:"J'ai envoyé mais aucun B3TR — pourquoi ?", a:"Raisons fréquentes : le nouveau relevé n'est pas supérieur au précédent, la photo a été réutilisée, ou un délai est actif. Essayez une photo fraîche d'un vrai compteur." },
+      { q:"Ma photo a été refusée.", a:"Utilisez une vraie photo nette de votre compteur — bon éclairage, chiffres nets, pas de captures ni photos d'écran." },
+      { q:"Reconnecté et j'ai perdu mes compteurs ?", a:"Se reconnecter avec le MÊME wallet garde vos compteurs et bases. Seul un autre wallet repart de zéro." },
+      { q:"Mon wallet ne se connecte pas.", a:"Assurez-vous que VeWorld est sur Testnet. Sur mobile : navigateur intégré ou QR WalletConnect." },
+      { q:"Un bug ou une idée ?", a:"Utilisez Envoyer un retour ci-dessous — un e-mail est prérempli avec votre message et quelques infos utiles." },
+    ] },
+  es: { name:"Español", subtitle:"Empezar", quick:"Inicio rápido", faqLabel:"Preguntas frecuentes", close:"Cerrar", feedback:"✉️ Enviar comentarios",
+    steps:[
+      { t:"Conecta tu wallet", d:"Toca Connect y abre VeWorld (en Testnet) o WalletConnect. Es una app de prueba — no se usa dinero real." },
+      { t:"Consigue gas de prueba (VTHO)", d:"Las transacciones cuestan algo de VTHO. Consigue VTHO de testnet gratis en el faucet y vuelve." },
+      { t:"Registra tus contadores", d:"Introduce el número y la lectura actual (base) de luz, gas y agua. La solar es opcional." },
+      { t:"Envía una lectura", d:"Ve a Submit, elige un contador, fotografíalo (la app lee el número), revísalo y envía." },
+      { t:"Gana B3TR", d:"Una lectura válida te premia con B3TR en testnet. Mira tu total en Home y tu puesto en la clasificación." },
+    ], faqs:[
+      { q:"¿Dónde encuentro el número de mi contador?", a:"Dos sitios en el contador:\n1) En la pantallita — pulsa los botones hasta que aparezca el número.\n2) Bajo el código de barras, en una pegatina delante o al lado.\nIntroduce el número completo con la letra — la luz suele empezar por E, el gas por G. También está en tu factura o en la cuenta online de tu comercializadora." },
+      { q:"Lectura automática (lector P1 / HomeWizard)", a:"Con un lector P1 como un HomeWizard, tu contador se lee solo y se envía por su cuenta.\n1. En la app HomeWizard, activa «Local API».\n2. Haz primero un envío con foto (fija tu base).\n3. En Submit → Electricity → «Auto (reader)» → «Automatic setup»: toca «Get my device token» y cópialo.\n4. En un dispositivo siempre encendido (Raspberry Pi / NAS / PC), ejecuta la configuración copiada una vez — encuentra tu contador y envía la lectura cada hora.\n5. Tu lectura aparece como «Auto-received» → toca «Submit — no photo».\n¿Sin dispositivo siempre encendido? Solo haz una foto — lo más fácil para la mayoría." },
+      { q:"¿Qué contadores funcionan?", a:"Casi cualquier contador inteligente neerlandés o belga con puerto P1. Los neerlandeses envían datos abiertos y funcionan directamente. Los belgas (Fluvius) van cifrados — introduce una vez la clave gratuita de Fluvius en la app HomeWizard y luego funciona igual." },
+      { q:"¿Siempre necesito una foto?", a:"Se requiere foto para una lectura escrita a mano. Un lector P1 conectado puede enviar sin foto, porque su token de dispositivo vincula la lectura a tu wallet." },
+      { q:"¿Es dinero real?", a:"No. Todo corre en el testnet de VeChain; los B3TR son tokens de prueba sin valor real — perfecto para probar con seguridad." },
+      { q:"Envié pero no recibí B3TR — ¿por qué?", a:"Motivos comunes: la nueva lectura no es mayor que la anterior, la foto se reutilizó, o hay un tiempo de espera activo. Prueba una foto nueva de un contador real." },
+      { q:"Rechazaron mi foto.", a:"Usa una foto real y nítida de tu propio contador — buena luz, cifras enfocadas, sin capturas ni fotos de pantalla." },
+      { q:"Reconecté y perdí mis contadores.", a:"Reconectar con la MISMA wallet mantiene tus contadores y bases. Solo otra wallet empieza de cero." },
+      { q:"Mi wallet no conecta.", a:"Asegúrate de que VeWorld esté en Testnet. En móvil: navegador interno o QR de WalletConnect." },
+      { q:"¿Un fallo o una idea?", a:"Usa Enviar comentarios abajo — rellena un correo con tu mensaje y algunos datos útiles." },
+    ] },
+};
+
 function HelpScreen({ onClose, onFeedback, T }) {
-  const steps = [
-    { n: 1, t: "Connect your wallet", d: "Tap Connect and open VeWorld (set to Testnet) or WalletConnect. This is a test app — no real funds are used." },
-    { n: 2, t: "Get free test gas (VTHO)", d: `Transactions cost a tiny bit of VTHO. Grab some free testnet VTHO from the faucet, then come back.` },
-    { n: 3, t: "Register your meters", d: "Enter the meter number and the current reading (baseline) for electricity, gas and water. Solar is optional." },
-    { n: 4, t: "Submit a reading", d: "Go to Submit, pick a utility, photograph the meter (the app reads the number for you), check it, and send." },
-    { n: 5, t: "Earn B3TR", d: "A valid reading rewards you with B3TR on testnet. Track your total on Home and your position on the Leaderboard." },
-  ];
-  const faqs = [
-    { q: "Where do I find my meter number?", a: "Two spots on the meter:\n1) On the little screen — press the meter's buttons until the number appears.\n2) Under the barcode, on a sticker on the front or side.\nEnter the whole number including the letter — electricity usually starts with E, gas with G. It's also on your energy bill or your energy supplier's online account." },
-    { q: "Can my meter be read automatically? (P1 reader / HomeWizard)", a: "Yes — with a P1 reader like a HomeWizard, your meter is read for you and sent in on its own.\n1. In the HomeWizard app, turn on \"Local API\".\n2. Do one photo submission first (it sets your baseline).\n3. In Submit → Electricity → \"Type / reader\" → \"Automatic setup\", tap \"Get my device token\" and copy it.\n4. On a device that stays on (Raspberry Pi / NAS / PC), run the copied setup once — it finds your meter and sends the reading every hour.\n5. Your reading shows as \"Auto-received\" → tap \"Submit — no photo\".\nNo always-on device? Just type your reading or take a photo — that's easiest for most people." },
-    { q: "Which meters work?", a: "Almost any Dutch or Belgian smart meter with a P1 port. Dutch meters send plain data and work out of the box. Belgian (Fluvius) meters are encrypted — enter the free Fluvius key in the HomeWizard app once, then it works the same." },
-    { q: "Is this real money?", a: "No. Everything runs on VeChain testnet, so the B3TR you earn are test tokens with no real value — perfect for trying things out safely." },
-    { q: "I submitted but got no B3TR — why?", a: "Most common reasons: the new reading isn't higher than your last one, the photo was reused, or a cooldown is active for that utility. Try a fresh photo of an actual meter." },
-    { q: "My photo was rejected.", a: "Use a real, clear photo of your own meter — good lighting, numbers in focus, no screenshots or photos of a screen." },
-    { q: "What's the cooldown?", a: "During the testnet beta the cooldown is disabled so you can test freely. At launch you'll earn once per utility roughly every 20 hours to keep things fair." },
-    { q: "I cleared my browser / reconnected and lost my meters?", a: "Reconnecting the SAME wallet keeps your meters and baselines. Only connecting a different wallet starts a fresh setup." },
-    { q: "My wallet won't connect.", a: "Make sure VeWorld is switched to Testnet. On mobile, use the in-app browser or WalletConnect QR." },
-    { q: "Found a bug or have an idea?", a: "Use Send Feedback below — it pre-fills an email with your message and some helpful diagnostics." },
-  ];
+  const [lang, setLang] = useState(() => {
+    try { const s = localStorage.getItem("gul_help_lang"); if (HELP_I18N[s]) return s; const n = (navigator.language || "").slice(0,2).toLowerCase(); if (HELP_I18N[n]) return n; } catch {}
+    return "en";
+  });
+  const pickLang = (l) => { setLang(l); try { localStorage.setItem("gul_help_lang", l); } catch {} };
+  const L = HELP_I18N[lang] || HELP_I18N.en;
+  const steps = L.steps.map((s, i) => ({ n: i + 1, t: s.t, d: s.d }));
+  const faqs = L.faqs;
   const [openFaq, setOpenFaq] = useState(0); // accordion — first item open by default
   const row = { background:T.card, border:`1px solid ${T.border}`, borderRadius:6, padding:"12px 14px", marginBottom:8 };
   return (
@@ -3763,13 +3852,21 @@ function HelpScreen({ onClose, onFeedback, T }) {
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 18px",borderBottom:`1px solid ${T.border}`}}>
         <div>
           <div style={{fontSize:14,fontWeight:800,color:T.text}}>❓ Help &amp; FAQ</div>
-          <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginTop:2}}>Getting started · {NETWORK_LABEL}</div>
+          <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginTop:2}}>{L.subtitle} · {NETWORK_LABEL}</div>
         </div>
-        <button onClick={onClose} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:4,padding:"6px 12px",fontSize:11,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Close</button>
+        <button onClick={onClose} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:4,padding:"6px 12px",fontSize:11,fontWeight:700,color:T.textMid,cursor:"pointer"}}>{L.close}</button>
+      </div>
+
+      {/* Language picker */}
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",padding:"9px 14px",borderBottom:`1px solid ${T.border}`}}>
+        <span style={{fontSize:14}}>🌐</span>
+        {Object.keys(HELP_I18N).map(code => (
+          <button key={code} onClick={() => pickLang(code)} style={{font:"inherit",fontSize:11.5,fontWeight:700,cursor:"pointer",padding:"4px 10px",borderRadius:999,border:`1px solid ${lang===code?(T.green3||T.electric):T.border}`,background:lang===code?(T.green3||T.electric):"transparent",color:lang===code?"#fff":T.textMid}}>{HELP_I18N[code].name}</button>
+        ))}
       </div>
 
       <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"16px 14px 28px"}}>
-        <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,margin:"4px 2px 10px"}}>Quick start</div>
+        <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,margin:"4px 2px 10px"}}>{L.quick}</div>
         {steps.map(s => (
           <div key={s.n} style={{...row, display:"flex", gap:12, alignItems:"flex-start"}}>
             <div style={{flexShrink:0,width:24,height:24,borderRadius:"50%",background:T.green5||T.bgAlt,color:T.green3,border:`1px solid ${T.green4||T.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:800}}>{s.n}</div>
@@ -3783,7 +3880,7 @@ function HelpScreen({ onClose, onFeedback, T }) {
           </div>
         ))}
 
-        <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,margin:"18px 2px 10px"}}>Frequently asked</div>
+        <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,margin:"18px 2px 10px"}}>{L.faqLabel}</div>
         {faqs.map((f, i) => (
           <div key={i} style={{...row, padding:0, overflow:"hidden"}}>
             <button onClick={() => setOpenFaq(openFaq === i ? -1 : i)} style={{display:"flex",width:"100%",alignItems:"center",justifyContent:"space-between",gap:10,background:"transparent",border:"none",cursor:"pointer",padding:"12px 14px",textAlign:"left"}}>
@@ -3796,7 +3893,7 @@ function HelpScreen({ onClose, onFeedback, T }) {
           </div>
         ))}
 
-        <button onClick={onFeedback} style={{width:"100%",marginTop:14,background:T.green3,border:"none",borderRadius:6,padding:"13px",color:"#fff",fontSize:12,fontWeight:800,textTransform:"uppercase",letterSpacing:"1px",cursor:"pointer"}}>✉️ Send Feedback</button>
+        <button onClick={onFeedback} style={{width:"100%",marginTop:14,background:T.green3,border:"none",borderRadius:6,padding:"13px",color:"#fff",fontSize:12,fontWeight:800,textTransform:"uppercase",letterSpacing:"1px",cursor:"pointer"}}>{L.feedback}</button>
       </div>
     </div>
   );
