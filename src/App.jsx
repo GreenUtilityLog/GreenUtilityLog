@@ -2175,44 +2175,36 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
   return (
     <div style={box}>
       <button onClick={embedded ? undefined : () => setOpen(o => !o)} style={{ display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between", gap: 10, background: "none", border: "none", cursor: embedded ? "default" : "pointer", padding: 0 }}>
-        <span style={{ fontSize: 12, fontWeight: 800, color: T.eco || T.water }}>⚡ Type your reading <span style={{ fontWeight: 600, color: T.textSoft }}>· or connect a P1 reader (beta)</span></span>
+        <span style={{ fontSize: 12, fontWeight: 800, color: T.eco || T.water }}>⚡ Automatic reading <span style={{ fontWeight: 600, color: T.textSoft }}>· connect a P1 reader (beta)</span></span>
         {!embedded && <span style={{ color: T.textSoft, fontSize: 13 }}>{open ? "▲" : "▼"}</span>}
       </button>
 
       {open && (
         <div style={{ marginTop: 10 }}>
           <div style={{ fontSize: 11, color: T.textSoft, lineHeight: 1.6, marginBottom: 10 }}>
-            Photo won't read well? Just type your current meter reading and tap once — no camera needed. A P1 reader can also send it automatically (see setup below).
+            Connect a P1 reader (e.g. HomeWizard) and your meter total is sent in automatically — no photos, no typing. Once it arrives it shows above, ready to submit with one tap.
           </div>
 
           {!wallet ? (
             <div style={{ fontSize: 11, color: T.textSoft }}>Connect your wallet to submit a reading.</div>
-          ) : (<>
-            {/* Manual reading → one-tap submit */}
-            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft, marginBottom: 5 }}>Current meter reading (kWh)</div>
-            <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
-              <input type="number" step="0.01" inputMode="decimal" placeholder="e.g. 8421.3" value={manual}
-                onChange={(e) => setManual(e.target.value)} style={inputStyle} />
-              <button disabled={busyAny} onClick={sendAndEarn} style={{ ...btn(T.eco || T.electric), whiteSpace: "nowrap", opacity: busyAny ? .6 : 1 }}>
-                {busyAny ? "Submitting…" : "Submit & earn"}
+          ) : rd != null ? (
+            /* A real reader (P1 / Enode) pushed a reading — claim it with one tap, no
+               photo needed (the device token binds it to your wallet). */
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "10px 12px", background: T.bg, border: `1px solid ${T.border || T.waterBorder}`, borderRadius: 8 }}>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft }}>Auto-received</div>
+                <div style={{ ...mono, fontSize: 15, fontWeight: 800, color: T.eco || T.text }}>{rd.reading} kWh</div>
+                {rd.source && <div style={{ fontSize: 10, color: T.textSoft }}>via {rd.source}{rd.at ? ` · ${new Date(rd.at).toLocaleString()}` : ""}</div>}
+              </div>
+              <button disabled={busyAny} onClick={() => onAutoSubmit?.()} style={{ ...btn(T.eco || T.electric), whiteSpace: "nowrap", opacity: busyAny ? .6 : 1 }}>
+                {busyAny ? "Submitting…" : "Submit — no photo"}
               </button>
             </div>
-            <div style={{ fontSize: 10, color: T.textSoft, marginTop: 6, lineHeight: 1.5 }}>
-              First time on this meter? Switch to <b>📸 Photo</b> and submit once to set the baseline — after that, typing (or a reader) is enough to earn.
+          ) : (
+            <div style={{ fontSize: 11, color: T.textSoft, lineHeight: 1.6 }}>
+              No automatic reading yet. Set up your <b>P1 reader</b> below — your meter total then shows up here to submit with one tap. To submit <b>by hand, use the 📸 Photo tab</b> (a photo is required for manual submissions).
             </div>
-
-            {/* Latest auto-received reading (from a real reader / Enode) */}
-            {rd != null && (
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "8px 11px", background: T.bg, border: `1px solid ${T.border || T.waterBorder}`, borderRadius: 6, marginTop: 10 }}>
-                <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft }}>Auto-received</div>
-                  <div style={{ ...mono, fontSize: 14, fontWeight: 800, color: T.eco || T.text }}>{rd.reading} kWh</div>
-                  {rd.source && <div style={{ fontSize: 10, color: T.textSoft }}>via {rd.source}{rd.at ? ` · ${new Date(rd.at).toLocaleString()}` : ""}</div>}
-                </div>
-                <button onClick={() => setManual(String(rd.reading))} style={{ ...btn(T.textSoft), padding: "6px 10px", fontSize: 11 }}>Use</button>
-              </div>
-            )}
-          </>)}
+          )}
 
           {err && <div style={{ marginTop: 10, fontSize: 11, color: "#e74c3c", background: "rgba(231,76,60,.08)", border: "1px solid rgba(231,76,60,.3)", borderRadius: 6, padding: "8px 10px", wordBreak: "break-word" }}>{err}</div>}
 
@@ -2425,10 +2417,10 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
         <>
           <div style={{display:"flex",gap:8,margin:"0 14px 6px"}}>
             <button onClick={() => setMethod("photo")} style={methodBtn(method === "photo")}>📸 Photo</button>
-            <button onClick={() => setMethod("type")} style={methodBtn(method === "type")}>⌨️ Type / reader</button>
+            <button onClick={() => setMethod("type")} style={methodBtn(method === "type")}>⚡ Auto (reader)</button>
           </div>
           <div style={{margin:"0 14px 12px",fontSize:10.5,color:T.textSoft,lineHeight:1.5}}>
-            {method === "photo" ? "Photograph your meter — verified automatically." : "Type your reading, or let a P1 reader send it for you."}
+            {method === "photo" ? "Photograph your meter — verified automatically." : "Let a P1 reader send your reading automatically (no photo). Type by hand? Use 📸 Photo."}
           </div>
         </>
       )}
