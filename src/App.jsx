@@ -1090,7 +1090,9 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .z1{position:relative;z-index:1;}
 .scr{padding-bottom:85px;}
 
-.intro-screen{position:fixed;inset:0;background:linear-gradient(135deg,#1a3326 0%,#264d3a 100%);z-index:400;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px 28px 44px;min-height:100vh;}
+/* 100dvh (not 100vh) so mobile browser chrome can't push the CTA below the fold;
+   overflow-y:auto keeps it usable on very short screens. */
+.intro-screen{position:fixed;inset:0;background:linear-gradient(135deg,#1a3326 0%,#264d3a 100%);z-index:400;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 28px 32px;height:100vh;height:100dvh;overflow-y:auto;}
 .intro-hero{display:flex;flex-direction:column;align-items:center;gap:0;animation:intro-slideup .6s ease;}
 .intro-icon{font-size:88px;margin-bottom:24px;animation:intro-bounce 1.2s ease-in-out infinite;display:block;}
 .intro-title{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:32px;font-weight:800;color:#fff;text-align:center;line-height:1.2;letter-spacing:-0.6px;max-width:320px;margin-bottom:12px;}
@@ -1310,26 +1312,26 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 // submission only needs a single signature (no separate login step).
 function WalletGate({ onConnect, online }) {
   return (
+    /* One centred block — logo, headline, copy and the CTA travel together, so the
+       button is never pushed below the fold on a short/mobile viewport. */
     <div className="intro-screen" style={{ zIndex: 410 }}>
-      <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", width:"100%" }}>
-        <div style={{ textAlign:"center" }}>
-          <div style={{ marginBottom:24, animation:"intro-bounce 1.2s ease-in-out infinite", display:"flex", justifyContent:"center" }}><LogoTile size={104} /></div>
-          <h1 style={{ fontSize:30, fontWeight:800, color:"#fff", lineHeight:1.2, letterSpacing:"-0.6px", marginBottom:12, maxWidth:300 }}>Connect your wallet</h1>
-          <p style={{ fontSize:14, color:"rgba(255,255,255,0.8)", lineHeight:1.6, maxWidth:320, marginBottom:24 }}>
-            Sign in with VeWorld, WalletConnect or Sync2 to start logging meters and earning B3TR. After this, each submission just needs a single signature.
-          </p>
+      <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", width:"100%", maxWidth:340 }}>
+        <div style={{ marginBottom:18, animation:"intro-bounce 1.2s ease-in-out infinite", display:"flex", justifyContent:"center" }}><LogoTile size={84} /></div>
+        <h1 style={{ fontSize:27, fontWeight:800, color:"#fff", lineHeight:1.2, letterSpacing:"-0.6px", margin:"0 0 10px" }}>Connect your wallet</h1>
+        <p style={{ fontSize:13.5, color:"rgba(255,255,255,0.8)", lineHeight:1.55, margin:"0 0 22px" }}>
+          Sign in with VeWorld, WalletConnect or Sync2 to start logging meters and earning B3TR.
+        </p>
+        <button
+          className="intro-btn"
+          onClick={onConnect}
+          disabled={!online}
+          style={{ marginTop:0, ...(!online ? { opacity:0.5, cursor:"not-allowed" } : null) }}
+        >
+          {online ? "Connect Wallet" : "You're offline"}
+        </button>
+        <div style={{ marginTop:14, fontSize:11, color:"rgba(255,255,255,0.55)", lineHeight:1.5 }}>
+          Your wallet stays in your control — we never see your keys.
         </div>
-      </div>
-      <button
-        className="intro-btn"
-        onClick={onConnect}
-        disabled={!online}
-        style={!online ? { opacity:0.5, cursor:"not-allowed" } : undefined}
-      >
-        {online ? "Connect Wallet" : "You're offline"}
-      </button>
-      <div style={{ marginTop:14, fontSize:11, color:"rgba(255,255,255,0.55)", textAlign:"center", maxWidth:300, lineHeight:1.5 }}>
-        Your wallet stays in your control — we never see your keys.
       </div>
     </div>
   );
@@ -2375,6 +2377,14 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
   const autoAvailable = selUtil === "electric";
   const [method, setMethod] = useState("photo"); // "photo" | "type"
   useEffect(() => { if (!autoAvailable) setMethod("photo"); }, [autoAvailable]);
+  // Most people never connect a reader, so don't make everyone choose between two
+  // methods. The Photo/Auto switch only appears once a reader has actually been
+  // paired (its device token is cached); otherwise the default path is just Photo,
+  // with a quiet link at the bottom for anyone who wants to set a reader up.
+  const hasReader = (() => {
+    try { return !!localStorage.getItem(`gul_mtoken_${String(wallet || "").toLowerCase()}`); } catch { return false; }
+  })();
+  const showMethodSwitch = autoAvailable && hasReader;
   const methodBtn = (active) => ({
     flex: 1, padding: "10px 8px", minHeight: 44, borderRadius: 6, fontSize: 12.5, fontWeight: 800, cursor: "pointer",
     border: `1px solid ${active ? (T[selUtil] || T.electric) : T.border}`,
@@ -2427,17 +2437,13 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
         <div style={{fontSize:12,fontWeight:700,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:meterNo?(T[selUtil]||T.text):T.gas}}>{meterNo || "Tap to register →"}</div>
       </div>
 
-      {/* Choose how to submit — both options shown side by side so people can pick. */}
-      {autoAvailable && (
-        <>
-          <div style={{display:"flex",gap:8,margin:"0 14px 6px"}}>
-            <button onClick={() => setMethod("photo")} style={methodBtn(method === "photo")}>📸 Photo</button>
-            <button onClick={() => setMethod("type")} style={methodBtn(method === "type")}>⚡ Auto (reader)</button>
-          </div>
-          <div style={{margin:"0 14px 12px",fontSize:10.5,color:T.textSoft,lineHeight:1.5}}>
-            {method === "photo" ? "Photograph your meter — verified automatically." : "Let a P1 reader send your reading automatically (no photo). Type by hand? Use 📸 Photo."}
-          </div>
-        </>
+      {/* Method switch only once a reader exists — otherwise there's nothing to choose.
+          It also appears while the reader view is open, so there's always a way back. */}
+      {(showMethodSwitch || method === "type") && (
+        <div style={{display:"flex",gap:8,margin:"0 14px 12px"}}>
+          <button onClick={() => setMethod("photo")} style={methodBtn(method === "photo")}>📸 Photo</button>
+          <button onClick={() => setMethod("type")} style={methodBtn(method === "type")}>⚡ Auto (reader)</button>
+        </div>
       )}
 
       {method === "photo" ? (<>
@@ -2563,6 +2569,16 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
           </ul>
         )}
       </div>
+
+      {/* Quiet entry point for the minority who want automatic readings — a link, not
+          a competing button, so the photo CTA stays the obvious one. */}
+      {autoAvailable && !hasReader && (
+        <div style={{margin:"12px 14px 0",textAlign:"center"}}>
+          <button onClick={() => setMethod("type")} style={{background:"none",border:"none",padding:"6px",cursor:"pointer",fontSize:11,fontWeight:700,color:T.textSoft,textDecoration:"underline"}}>
+            ⚡ Have a P1 reader? Set up automatic readings
+          </button>
+        </div>
+      )}
       </>) : (
         <SmartMeterCard embedded wallet={wallet} setReading={setReading} T={T} onAutoSubmit={onMeterAutoSubmit} autoBusy={meterAutoBusy} meterNo={meterNo} />
       )}
