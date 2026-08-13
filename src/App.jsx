@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Fragment } from "react";
 import { useWallet, useWalletModal } from "@vechain/dapp-kit-react";
 import { Clause, Address, ABIFunction } from "@vechain/sdk-core";
 import { fetchOnChainLeaderboard, fetchWalletHistory, fetchIsAppAdmin, fetchPoolBalance, fetchDiagnostics } from "./leaderboard.js";
@@ -2310,6 +2310,20 @@ curl -X POST ${ingestUrl} \\
                         </div>
                         <div style={{ fontSize: 10, color: T.textSoft, lineHeight: 1.5, margin: "6px 2px 0" }}>{hint}</div>
 
+                        {/* Where does this text actually go? The most-asked question. */}
+                        {device !== "ha" && (
+                          <div style={{ marginTop: 8, padding: "9px 11px", background: T.bg, border: `1px solid ${T.border || T.waterBorder}`, borderRadius: 6 }}>
+                            <div style={{ fontSize: 10, fontWeight: 800, color: T.text, marginBottom: 4 }}>📍 Where do I paste this?</div>
+                            <div style={{ fontSize: 10, color: T.textSoft, lineHeight: 1.7 }}>
+                              In a <b>terminal</b> on the device that stays on:<br />
+                              • <b>Windows</b> — press Start, type <b>PowerShell</b>, open it<br />
+                              • <b>Mac</b> — open <b>Terminal</b> (Applications → Utilities)<br />
+                              • <b>Raspberry Pi / NAS</b> — its Terminal, or connect over <b>SSH</b><br />
+                              Paste, press Enter, and leave it running. Requires <b>Node.js 18+</b> installed on that device.
+                            </div>
+                          </div>
+                        )}
+
                         {/* Raw token / URL for reference */}
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
                           <button onClick={() => copy(token, "tok")} style={{ ...btn(T.textSoft), padding: "5px 9px", fontSize: 10 }}>{copied === "tok" ? "✓ Token copied" : "Copy token only"}</button>
@@ -2335,7 +2349,7 @@ curl -X POST ${ingestUrl} \\
   );
 }
 
-function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading, setReading, prevRead, setPrevRead, busy, usage, reward, handleSubmit, verifyKey, wallet, setShowWallet, subs, meters, T, setTab, onEcoSubmit, ecoBusy, ecoUsedThisWeek, ecoCooldownMs, onMeterAutoSubmit, meterAutoBusy }) {
+function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading, setReading, prevRead, setPrevRead, busy, usage, reward, handleSubmit, verifyKey, wallet, setShowWallet, subs, meters, T, setTab, onEcoSubmit, ecoBusy, ecoUsedThisWeek, ecoCooldownMs, onMeterAutoSubmit, meterAutoBusy, onRegisterMeter }) {
   const meterNo  = (meters?.[selUtil] || "").trim();
   // Submittable when current ≥ previous (equal = zero usage = valid, max reward).
   const _r = parseFloat(reading), _p = parseFloat(prevRead);
@@ -2407,9 +2421,10 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
         ))}
       </div>
 
-      <div style={{margin:"0 14px 12px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"9px 12px",background:meterNo?getColorBg(selUtil,T):T.gasBg,border:`1px solid ${meterNo?(T[selUtil+"Border"]||T.electricBorder):T.gasBorder}`,borderRadius:6}}>
+      <div onClick={() => { if (!meterNo) onRegisterMeter?.([selUtil]); }}
+        style={{margin:"0 14px 12px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"9px 12px",background:meterNo?getColorBg(selUtil,T):T.gasBg,border:`1px solid ${meterNo?(T[selUtil+"Border"]||T.electricBorder):T.gasBorder}`,borderRadius:6,cursor:meterNo?"default":"pointer"}}>
         <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft}}>Registered meter</div>
-        <div style={{fontSize:12,fontWeight:700,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:meterNo?(T[selUtil]||T.text):T.gas}}>{meterNo || "Not registered"}</div>
+        <div style={{fontSize:12,fontWeight:700,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:meterNo?(T[selUtil]||T.text):T.gas}}>{meterNo || "Tap to register →"}</div>
       </div>
 
       {/* Choose how to submit — both options shown side by side so people can pick. */}
@@ -2426,6 +2441,38 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
       )}
 
       {method === "photo" ? (<>
+      {/* Progress strip — at a glance: what's done, what's left, what's next. */}
+      {(() => {
+        const stepDefs = [
+          { n: 1, label: "Photo",   done: aiOk },
+          { n: 2, label: "Reading", done: readingReady },
+          { n: 3, label: "Submit",  done: false },
+        ];
+        const activeIdx = !aiOk ? 0 : !readingReady ? 1 : 2;
+        return (
+          <div style={{display:"flex",alignItems:"center",gap:4,margin:"0 14px 12px"}}>
+            {stepDefs.map((s, i) => {
+              const active = i === activeIdx;
+              const fg = s.done ? (T.green3 || T.electric) : active ? (T[selUtil] || T.electric) : T.textSoft;
+              return (
+                <Fragment key={s.n}>
+                  <div style={{display:"flex",alignItems:"center",gap:6,flex:"0 0 auto"}}>
+                    <div style={{width:22,height:22,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,
+                      background: s.done ? (T.green3 || T.electric) : active ? getColorBg(selUtil, T) : "transparent",
+                      color: s.done ? "#fff" : fg,
+                      border: `1px solid ${s.done ? (T.green3 || T.electric) : active ? (T[selUtil] || T.electric) : T.border}`}}>
+                      {s.done ? "✓" : s.n}
+                    </div>
+                    <span style={{fontSize:11,fontWeight:active||s.done?700:600,color:fg,whiteSpace:"nowrap"}}>{s.label}</span>
+                  </div>
+                  {i < stepDefs.length - 1 && <div style={{flex:1,height:1,background:T.border,minWidth:8}} />}
+                </Fragment>
+              );
+            })}
+          </div>
+        );
+      })()}
+
       <VerifyZone key={verifyKey} utilId={selUtil} reading={reading} prevRead={prevRead} subs={subs} meterNo={meterNo} T={T}
         onOcrReading={(v) => { if (!String(reading).trim()) setReading(String(v)); }}
         onVerified={(res, img, mime) => { setAiOk(true); setPhoto?.(img ? { base64: img, mime, ocrNums: res?.ocrNums || [], ocrFailed: !!res?.ocrFailed, meterNoConfirmed: res?.meterNoConfirmed ?? null } : null); }}
@@ -2488,7 +2535,7 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
         {!wallet
           ? <button className="sbtn" onClick={() => setShowWallet(true)}>Connect Wallet to Submit</button>
           : !meterNo
-            ? <button className="sbtn" disabled style={{opacity:.55}}>Register this meter first</button>
+            ? <button className="sbtn" onClick={() => onRegisterMeter?.([selUtil])}>Register this meter →</button>
             : !aiOk
               ? <button className="sbtn" disabled style={{opacity:.55}}>📸 Verify a meter photo to submit</button>
               : readingLower
@@ -3749,6 +3796,7 @@ const HELP_I18N = {
     ], faqs:[
       { q:"Where do I find my meter number?", a:"Two spots on the meter:\n1) On the little screen — press the meter's buttons until the number appears.\n2) Under the barcode, on a sticker on the front or side.\nEnter the whole number including the letter — electricity usually starts with E, gas with G. It's also on your energy bill or your supplier's online account." },
       { q:"Automatic reading (P1 reader / HomeWizard)", a:"With a P1 reader like a HomeWizard, your meter is read for you and sent in on its own.\n1. In the HomeWizard app, turn on \"Local API\".\n2. Do one photo submission first (it sets your baseline).\n3. In Submit → Electricity → \"Auto (reader)\" → \"Automatic setup\", tap \"Get my device token\" and copy it.\n4. On a device that stays on (Raspberry Pi / NAS / PC), run the copied setup once — it finds your meter and sends the reading every hour.\n5. Your reading shows as \"Auto-received\" → tap \"Submit — no photo\".\nNo always-on device? Just take a photo — that's easiest for most people." },
+      { q:"Where do I paste the setup code?", a:"In a terminal on the device that stays on:\n• Windows — press Start, type PowerShell, open it\n• Mac — open Terminal (Applications → Utilities)\n• Raspberry Pi / NAS — its Terminal, or connect over SSH\nPaste, press Enter, and leave it running. That device needs Node.js 18+ installed.\nUsing Home Assistant? No terminal needed — you paste the YAML into configuration.yaml instead.\nToo technical? Just take a photo — that works just as well." },
       { q:"Which meters work?", a:"Almost any Dutch or Belgian smart meter with a P1 port. Dutch meters send plain data and work out of the box. Belgian (Fluvius) meters are encrypted — enter the free Fluvius key in the HomeWizard app once, then it works the same." },
       { q:"Do I always need a photo?", a:"A photo is required for a hand-entered reading. A connected P1 reader can submit without a photo, because its device token binds the reading to your wallet." },
       { q:"Is this real money?", a:"No. Everything runs on VeChain testnet, so the B3TR you earn are test tokens with no real value — perfect for trying things out safely." },
@@ -3768,6 +3816,7 @@ const HELP_I18N = {
     ], faqs:[
       { q:"Waar vind ik mijn meternummer?", a:"Twee plekken op de meter:\n1) Op het schermpje — druk op de knopjes tot het nummer verschijnt.\n2) Onder de streepjescode, op een sticker aan de voor- of zijkant.\nNeem het hele nummer over, mét de letter — stroom begint meestal met E, gas met G. Het staat ook op je energierekening of in je online account bij je leverancier." },
       { q:"Automatisch uitlezen (P1-reader / HomeWizard)", a:"Met een P1-reader zoals een HomeWizard wordt je meter voor je uitgelezen en vanzelf ingestuurd.\n1. Zet in de HomeWizard-app \"Local API\" aan.\n2. Doe eerst één foto-inzending (dat zet je baseline).\n3. In Submit → Electricity → \"Auto (reader)\" → \"Automatic setup\": tik \"Get my device token\" en kopieer 'm.\n4. Draai op een altijd-aan-apparaat (Raspberry Pi / NAS / pc) de gekopieerde setup één keer — het vindt je meter en stuurt elk uur je stand.\n5. Je stand verschijnt als \"Auto-received\" → tik \"Submit — no photo\".\nGeen altijd-aan-apparaat? Maak gewoon een foto — voor de meeste mensen het makkelijkst." },
+      { q:"Waar plak ik de setup-code?", a:"In een terminal op het apparaat dat altijd aan staat:\n• Windows — druk op Start, typ PowerShell, open 'm\n• Mac — open Terminal (Programma's → Hulpprogramma's)\n• Raspberry Pi / NAS — de Terminal daar, of verbind via SSH\nPlakken, Enter drukken, en laten draaien. Op dat apparaat moet Node.js 18+ staan.\nGebruik je Home Assistant? Dan heb je geen terminal nodig — daar plak je de YAML in configuration.yaml.\nTe technisch? Maak gewoon een foto — dat werkt net zo goed." },
       { q:"Welke meters werken?", a:"Bijna elke Nederlandse of Belgische slimme meter met een P1-poort. Nederlandse meters sturen open data en werken direct. Belgische (Fluvius) meters zijn versleuteld — voer de gratis Fluvius-sleutel één keer in de HomeWizard-app in, daarna werkt alles hetzelfde." },
       { q:"Heb ik altijd een foto nodig?", a:"Voor een handmatig ingevoerde stand is een foto verplicht. Een gekoppelde P1-reader mag zonder foto insturen, omdat zijn device-token de stand aan jouw wallet koppelt." },
       { q:"Is dit echt geld?", a:"Nee. Alles draait op VeChain testnet, dus de B3TR die je verdient zijn test-tokens zonder echte waarde — perfect om veilig te testen." },
@@ -3787,6 +3836,7 @@ const HELP_I18N = {
     ], faqs:[
       { q:"Wo finde ich meine Zählernummer?", a:"Zwei Stellen am Zähler:\n1) Auf dem kleinen Display — drücke die Tasten, bis die Nummer erscheint.\n2) Unter dem Barcode, auf einem Aufkleber vorne oder seitlich.\nGib die ganze Nummer inklusive Buchstabe ein — Strom beginnt meist mit E, Gas mit G. Sie steht auch auf deiner Energierechnung oder im Online-Konto deines Anbieters." },
       { q:"Automatisches Auslesen (P1-Reader / HomeWizard)", a:"Mit einem P1-Reader wie einem HomeWizard wird dein Zähler für dich ausgelesen und von selbst gesendet.\n1. Aktiviere in der HomeWizard-App die \"Local API\".\n2. Mach zuerst eine Foto-Einreichung (setzt deinen Basiswert).\n3. In Submit → Electricity → \"Auto (reader)\" → \"Automatic setup\": tippe \"Get my device token\" und kopiere ihn.\n4. Führe auf einem Dauergerät (Raspberry Pi / NAS / PC) das kopierte Setup einmal aus — es findet deinen Zähler und sendet stündlich den Stand.\n5. Dein Stand erscheint als \"Auto-received\" → tippe \"Submit — no photo\".\nKein Dauergerät? Mach einfach ein Foto — für die meisten am einfachsten." },
+      { q:"Wo füge ich den Setup-Code ein?", a:"In einem Terminal auf dem Dauergerät:\n• Windows — Start drücken, PowerShell tippen, öffnen\n• Mac — Terminal öffnen (Programme → Dienstprogramme)\n• Raspberry Pi / NAS — dessen Terminal, oder per SSH verbinden\nEinfügen, Enter drücken und laufen lassen. Auf dem Gerät muss Node.js 18+ installiert sein.\nDu nutzt Home Assistant? Dann kein Terminal nötig — dort fügst du das YAML in die configuration.yaml ein.\nZu technisch? Mach einfach ein Foto — das funktioniert genauso gut." },
       { q:"Welche Zähler funktionieren?", a:"Fast jeder niederländische oder belgische Smart-Zähler mit P1-Anschluss. Niederländische Zähler senden offene Daten und laufen sofort. Belgische (Fluvius) Zähler sind verschlüsselt — gib den kostenlosen Fluvius-Schlüssel einmal in der HomeWizard-App ein, danach läuft alles gleich." },
       { q:"Brauche ich immer ein Foto?", a:"Für einen manuell eingegebenen Stand ist ein Foto nötig. Ein verbundener P1-Reader darf ohne Foto senden, weil sein Geräte-Token den Stand an dein Wallet bindet." },
       { q:"Ist das echtes Geld?", a:"Nein. Alles läuft im VeChain-Testnet, die B3TR sind Test-Token ohne realen Wert — ideal zum sicheren Ausprobieren." },
@@ -3806,6 +3856,7 @@ const HELP_I18N = {
     ], faqs:[
       { q:"Où trouver le numéro de mon compteur ?", a:"Deux endroits sur le compteur :\n1) Sur le petit écran — appuyez sur les boutons jusqu'à voir le numéro.\n2) Sous le code-barres, sur une étiquette à l'avant ou sur le côté.\nSaisissez tout le numéro avec la lettre — l'électricité commence souvent par E, le gaz par G. Il figure aussi sur votre facture ou votre compte en ligne fournisseur." },
       { q:"Lecture automatique (lecteur P1 / HomeWizard)", a:"Avec un lecteur P1 comme un HomeWizard, votre compteur est lu pour vous et envoyé tout seul.\n1. Dans l'app HomeWizard, activez « Local API ».\n2. Faites d'abord une soumission photo (fixe votre base).\n3. Dans Submit → Electricity → « Auto (reader) » → « Automatic setup » : touchez « Get my device token » et copiez-le.\n4. Sur un appareil toujours allumé (Raspberry Pi / NAS / PC), lancez la config copiée une fois — il trouve votre compteur et envoie le relevé chaque heure.\n5. Votre relevé apparaît en « Auto-received » → touchez « Submit — no photo ».\nPas d'appareil allumé en permanence ? Prenez simplement une photo — le plus simple pour la plupart." },
+      { q:"Où coller le code de configuration ?", a:"Dans un terminal, sur l'appareil qui reste allumé :\n• Windows — appuyez sur Démarrer, tapez PowerShell, ouvrez-le\n• Mac — ouvrez Terminal (Applications → Utilitaires)\n• Raspberry Pi / NAS — son Terminal, ou connectez-vous en SSH\nCollez, appuyez sur Entrée, et laissez tourner. Cet appareil doit avoir Node.js 18+.\nVous utilisez Home Assistant ? Pas de terminal — vous collez le YAML dans configuration.yaml.\nTrop technique ? Prenez simplement une photo — ça marche aussi bien." },
       { q:"Quels compteurs fonctionnent ?", a:"Presque tout compteur intelligent néerlandais ou belge avec un port P1. Les compteurs néerlandais envoient des données ouvertes et marchent directement. Les compteurs belges (Fluvius) sont chiffrés — saisissez une fois la clé Fluvius gratuite dans l'app HomeWizard, puis tout fonctionne pareil." },
       { q:"Faut-il toujours une photo ?", a:"Une photo est requise pour un relevé saisi à la main. Un lecteur P1 connecté peut envoyer sans photo, car son jeton d'appareil lie le relevé à votre wallet." },
       { q:"Est-ce de l'argent réel ?", a:"Non. Tout tourne sur le testnet VeChain ; les B3TR gagnés sont des jetons de test sans valeur réelle — parfait pour essayer en toute sécurité." },
@@ -3825,6 +3876,7 @@ const HELP_I18N = {
     ], faqs:[
       { q:"¿Dónde encuentro el número de mi contador?", a:"Dos sitios en el contador:\n1) En la pantallita — pulsa los botones hasta que aparezca el número.\n2) Bajo el código de barras, en una pegatina delante o al lado.\nIntroduce el número completo con la letra — la luz suele empezar por E, el gas por G. También está en tu factura o en la cuenta online de tu comercializadora." },
       { q:"Lectura automática (lector P1 / HomeWizard)", a:"Con un lector P1 como un HomeWizard, tu contador se lee solo y se envía por su cuenta.\n1. En la app HomeWizard, activa «Local API».\n2. Haz primero un envío con foto (fija tu base).\n3. En Submit → Electricity → «Auto (reader)» → «Automatic setup»: toca «Get my device token» y cópialo.\n4. En un dispositivo siempre encendido (Raspberry Pi / NAS / PC), ejecuta la configuración copiada una vez — encuentra tu contador y envía la lectura cada hora.\n5. Tu lectura aparece como «Auto-received» → toca «Submit — no photo».\n¿Sin dispositivo siempre encendido? Solo haz una foto — lo más fácil para la mayoría." },
+      { q:"¿Dónde pego el código de configuración?", a:"En una terminal, en el dispositivo que queda encendido:\n• Windows — pulsa Inicio, escribe PowerShell, ábrelo\n• Mac — abre Terminal (Aplicaciones → Utilidades)\n• Raspberry Pi / NAS — su Terminal, o conéctate por SSH\nPega, pulsa Enter y déjalo funcionando. Ese dispositivo necesita Node.js 18+.\n¿Usas Home Assistant? No hace falta terminal — pegas el YAML en configuration.yaml.\n¿Demasiado técnico? Solo haz una foto — funciona igual de bien." },
       { q:"¿Qué contadores funcionan?", a:"Casi cualquier contador inteligente neerlandés o belga con puerto P1. Los neerlandeses envían datos abiertos y funcionan directamente. Los belgas (Fluvius) van cifrados — introduce una vez la clave gratuita de Fluvius en la app HomeWizard y luego funciona igual." },
       { q:"¿Siempre necesito una foto?", a:"Se requiere foto para una lectura escrita a mano. Un lector P1 conectado puede enviar sin foto, porque su token de dispositivo vincula la lectura a tu wallet." },
       { q:"¿Es dinero real?", a:"No. Todo corre en el testnet de VeChain; los B3TR son tokens de prueba sin valor real — perfecto para probar con seguridad." },
@@ -4835,7 +4887,7 @@ export default function App() {
           </div>
 
           {tab==="home"      && <HomeScreen b3tr={b3tr} streak={streak} subs={subs} setTab={setTab} T={T}/>}
-          {tab==="submit"    && <SubmitScreen u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} busy={busy} usage={usage} reward={reward} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab} onEcoSubmit={handleEcoSubmit} ecoBusy={ecoBusy} ecoUsedThisWeek={ecoUsedThisWeek} ecoCooldownMs={ecoCooldownMs} onMeterAutoSubmit={handleMeterAutoSubmit} meterAutoBusy={meterAutoBusy}/>}
+          {tab==="submit"    && <SubmitScreen u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} busy={busy} usage={usage} reward={reward} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab} onEcoSubmit={handleEcoSubmit} ecoBusy={ecoBusy} ecoUsedThisWeek={ecoUsedThisWeek} ecoCooldownMs={ecoCooldownMs} onMeterAutoSubmit={handleMeterAutoSubmit} meterAutoBusy={meterAutoBusy} onRegisterMeter={(utils) => openRegistration(utils, true)}/>}
           {tab==="charts"    && <ChartsScreen subs={subs} T={T}/>}
           {tab==="leaderboard" && <LeaderboardScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}
