@@ -1319,7 +1319,7 @@ function WalletGate({ onConnect, online }) {
         <div style={{ marginBottom:18, animation:"intro-bounce 1.2s ease-in-out infinite", display:"flex", justifyContent:"center" }}><LogoTile size={84} /></div>
         <h1 style={{ fontSize:27, fontWeight:800, color:"#fff", lineHeight:1.2, letterSpacing:"-0.6px", margin:"0 0 10px" }}>Connect your wallet</h1>
         <p style={{ fontSize:13.5, color:"rgba(255,255,255,0.8)", lineHeight:1.55, margin:"0 0 22px" }}>
-          Sign in with VeWorld, WalletConnect or Sync2 to start logging meters and earning B3TR.
+          Sign in with VeWorld or WalletConnect to start logging meters and earning B3TR.
         </p>
         <button
           className="intro-btn"
@@ -4114,7 +4114,7 @@ export default function App() {
 
   const [tab, setTab]               = useState("home");
   // Wallet connection is handled by VeChain dapp-kit (VeWorld / WalletConnect
-  // mobile / Sync2). useWallet() exposes the connected address and the
+  // mobile). useWallet() exposes the connected address and the
   // requestTransaction() signer; useWalletModal() opens the connect dialog.
   const { account, requestTransaction, requestCertificate, disconnect } = useWallet();
   const wallet = account || null;
@@ -4888,7 +4888,7 @@ export default function App() {
                 {dark ? '☀️' : '🌙'}
               </button>
               {/* Connect button — opens dapp-kit's wallet modal
-                  (VeWorld, WalletConnect/mobile QR, Sync2) via useWalletModal. */}
+                  (VeWorld, WalletConnect/mobile QR) via useWalletModal. */}
               <button
                 className={`wallet-pill ${wallet ? "connected" : ""}`}
                 onClick={openConnectModal}
