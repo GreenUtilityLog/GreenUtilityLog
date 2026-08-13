@@ -2392,44 +2392,32 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
     color: active ? (T[selUtil] || T.text) : T.textMid,
   });
 
-  const segBtn = (active) => ({
-    flex: 1, padding: "10px 8px", minHeight: 44, borderRadius: 6, fontSize: 12, fontWeight: 800,
-    cursor: "pointer", letterSpacing: ".3px",
-    border: `1px solid ${active ? T.green2 : T.border}`,
-    background: active ? T.green2 : T.bgAlt,
-    // T.bg flips with the theme (near-white on light, near-black on dark), so the
-    // active label keeps contrast on the green fill in BOTH themes — plain #fff
-    // fails on dark mode's light green.
-    color: active ? T.bg : T.textMid,
-  });
-
   return (
     <>
       <div className="sub-header">
-        <div className="sub-title">Daily Submission</div>
-        <div className="sub-sub">{subTab === "eco" ? "Eco-mode bonus · Earn B3TR on VeChain" : "Log your meter reading · Earn B3TR on VeChain"}</div>
+        <div className="sub-title">{subTab === "eco" ? "Eco Bonus" : "Meter Reading"}</div>
+        <div className="sub-sub">{subTab === "eco" ? "Appliance on eco mode · Earn B3TR" : "Photograph your meter · Earn B3TR"}</div>
       </div>
 
-      <div style={{display:"flex",gap:8,margin:"0 14px 14px"}}>
-        <button style={segBtn(subTab === "meter")} onClick={() => setSubTab("meter")}>📸 Meter Reading</button>
-        {onEcoSubmit && <button style={segBtn(subTab === "eco")} onClick={() => setSubTab("eco")}>🌿 Eco Bonus</button>}
-      </div>
-
-      {/* Captcha lives OUTSIDE the sub-tab conditionals: both the meter submission
+      {/* Captcha lives OUTSIDE the sub-view conditionals: both the meter submission
           and the eco claim ride the same token, and the widget must stay mounted
-          when the user switches tabs. */}
+          when the user switches views. */}
       {TURNSTILE_SITE_KEY && <div id="cf-turnstile" style={{display:"flex",justifyContent:"center",margin:"0 0 12px"}} />}
 
       {subTab === "meter" && (<>
-      <div className="util-selector">
-        {UTILS.map(ut => (
-          <button key={ut.id} className={`utab ${selUtil===ut.id?"active":""}`}
-            style={{"--uc":T[ut.id]||T.electric,"--ubg":getColorBg(ut.id, T),"--uborder":T[ut.id+"Border"]||T.electricBorder}}
-            onClick={() => setSelUtil(ut.id)}>
-            <span className="utab-icon">{UTIL_ICONS[ut.id]}</span>{ut.label}
-          </button>
-        ))}
-      </div>
+      {/* Utility picker only when there's an actual choice — with a single active
+          utility a full-width "tab" reads as a button that does nothing. */}
+      {UTILS.length > 1 && (
+        <div className="util-selector">
+          {UTILS.map(ut => (
+            <button key={ut.id} className={`utab ${selUtil===ut.id?"active":""}`}
+              style={{"--uc":T[ut.id]||T.electric,"--ubg":getColorBg(ut.id, T),"--uborder":T[ut.id+"Border"]||T.electricBorder}}
+              onClick={() => setSelUtil(ut.id)}>
+              <span className="utab-icon">{UTIL_ICONS[ut.id]}</span>{ut.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div onClick={() => { if (!meterNo) onRegisterMeter?.([selUtil]); }}
         style={{margin:"0 14px 12px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"9px 12px",background:meterNo?getColorBg(selUtil,T):T.gasBg,border:`1px solid ${meterNo?(T[selUtil+"Border"]||T.electricBorder):T.gasBorder}`,borderRadius:6,cursor:meterNo?"default":"pointer"}}>
@@ -2570,6 +2558,22 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
         )}
       </div>
 
+      {/* Eco bonus lives here as its own card rather than a sub-tab competing with the
+          meter flow: a separate earning action, clearly labelled, one tap away. */}
+      {onEcoSubmit && (
+        <div onClick={() => setSubTab("eco")} style={{margin:"14px 14px 0",display:"flex",alignItems:"center",gap:12,padding:"14px 15px",background:T.ecoBg||T.bgAlt,border:`1px solid ${T.ecoBorder||T.border}`,borderRadius:10,cursor:"pointer"}}>
+          <span style={{fontSize:26,lineHeight:1}}>🌿</span>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:13.5,fontWeight:800,color:T.text}}>Eco Bonus</div>
+            <div style={{fontSize:11,color:T.textSoft,lineHeight:1.45,marginTop:2}}>
+              Washer, dryer or dishwasher on eco mode — extra B3TR
+              {Number.isFinite(ecoUsedThisWeek) ? ` · ${Math.max(0, 4 - ecoUsedThisWeek)} left this week` : ""}
+            </div>
+          </div>
+          <span style={{fontSize:16,color:T.eco||T.green3,fontWeight:800}}>→</span>
+        </div>
+      )}
+
       {/* Quiet entry point for the minority who want automatic readings — a link, not
           a competing button, so the photo CTA stays the obvious one. */}
       {autoAvailable && !hasReader && (
@@ -2584,9 +2588,12 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
       )}
       </>)}
 
-      {subTab === "eco" && onEcoSubmit && (
+      {subTab === "eco" && onEcoSubmit && (<>
+        <div style={{margin:"0 14px 12px"}}>
+          <button onClick={() => setSubTab("meter")} style={{background:"none",border:"none",padding:"6px 0",cursor:"pointer",fontSize:12,fontWeight:700,color:T.textMid}}>← Back to meter reading</button>
+        </div>
         <EcoBonusCard T={T} wallet={wallet} setShowWallet={setShowWallet} onSubmit={onEcoSubmit} busy={ecoBusy} usedThisWeek={ecoUsedThisWeek} cooldownMs={ecoCooldownMs} />
-      )}
+      </>)}
     </>
   );
 }
@@ -4874,7 +4881,6 @@ export default function App() {
               <div className="logo-mark"><SproutIcon size={18} /></div>
               <div>
                 <div className="logo-name">Green Utility Log</div>
-                <div style={{fontSize:7,fontWeight:700,color:T.textSoft,textTransform:"uppercase",letterSpacing:"0.8px",marginTop:2}}>VeBetterDAO Vechain • v{APP_VERSION}</div>
               </div>
             </div>
             <div className="hdr-actions">
