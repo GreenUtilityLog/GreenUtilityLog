@@ -83,7 +83,10 @@ try {
         // VeChain node — testnet or mainnet, driven by NETWORK in App.jsx.
         node={ACTIVE_NODE}
         // Wallets offered in the connect dialog. 'wallet-connect' = mobile QR.
-        allowedWallets={['veworld', 'wallet-connect', 'sync2']}
+        // Sync2 deliberately omitted: it's a legacy desktop wallet that adds a third
+        // option (and its own quirks) for a path almost nobody takes — VeWorld covers
+        // desktop, WalletConnect covers mobile.
+        allowedWallets={['veworld', 'wallet-connect']}
         // Remember the connection between page loads.
         usePersistence
         // Don't force an identity certificate just to connect; the user signs
