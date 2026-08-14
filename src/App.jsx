@@ -2567,7 +2567,7 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
             <div style={{fontSize:13.5,fontWeight:800,color:T.text}}>Eco Bonus</div>
             <div style={{fontSize:11,color:T.textSoft,lineHeight:1.45,marginTop:2}}>
               Washer, dryer or dishwasher on eco mode — extra B3TR
-              {Number.isFinite(ecoUsedThisWeek) ? ` · ${Math.max(0, 4 - ecoUsedThisWeek)} left this week` : ""}
+              {Number.isFinite(ecoUsedThisWeek) ? ` · ${Math.max(0, ECO_MAX_PER_WEEK_UI - ecoUsedThisWeek)} left this week` : ""}
             </div>
           </div>
           <span style={{fontSize:16,color:T.eco||T.green3,fontWeight:800}}>→</span>
