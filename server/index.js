@@ -245,6 +245,14 @@ app.post("/admin/rename-meter", (req, res) => {
   res.json({ ok: true, utility, ...r });
 });
 
+// Every wallet the backend knows about — app-seen, meter owners, paired devices and
+// bans — so the admin list isn't limited to wallets that already earned on-chain.
+app.post("/admin/wallets", (req, res) => {
+  const a = verifyAdmin(req, "/admin/wallets");
+  if (!a.ok) return res.status(a.code).json({ error: a.error });
+  res.json({ ok: true, wallets: store.listKnownWallets() });
+});
+
 // Clear a wallet+utility cooldown so a user who was wrongly blocked (or whose
 // submission we just corrected) can submit again immediately.
 app.post("/admin/reset-cooldown", (req, res) => {
@@ -527,6 +535,17 @@ app.post("/meter-ingest", (req, res) => {
     at: Date.now(),
     source: "push",
   });
+  res.json({ ok: true });
+});
+
+// The app reports its connected wallet here so admin can see testers who haven't
+// earned on-chain yet. Deliberately unauthenticated — requiring a signature would mean
+// a wallet popup on every connect — so it stores only a public address (validated),
+// is covered by the IP throttle, and the roster is hard-capped in the store.
+app.post("/wallet/seen", (req, res) => {
+  const address = String(req.body?.address || "");
+  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
+  store.seenWallet(address, req.body?.meters);
   res.json({ ok: true });
 });
 

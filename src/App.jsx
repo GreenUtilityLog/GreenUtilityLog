@@ -3295,6 +3295,8 @@ function SubmissionRow({ r, T, onAdminApi, onToast, archiveOn }) {
 
 function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDisableRewardsPool, onClaimB3TR, onAdminApi, onToast }) {
   const [chain, setChain] = useState({ status: "loading", rows: [], reason: null });
+  const [knownWallets, setKnownWallets] = useState(null); // backend-known wallets (not yet on-chain)
+  const [loadingWallets, setLoadingWallets] = useState(false);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(null);
   const [detail, setDetail] = useState({ status: "idle", rows: [] });
@@ -3364,9 +3366,21 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
   const totalB3tr = chain.rows.reduce((a, r) => a + (r.b3tr || 0), 0);
   const totalSubs = chain.rows.reduce((a, r) => a + (r.count || 0), 0);
 
+  // The on-chain list only contains wallets that already earned. Merge in everything
+  // the backend knows (app-seen testers, meter owners, paired devices, bans) so new
+  // wallets show up on their own — no manual adding.
+  const allRows = (() => {
+    const seenAddrs = new Set(chain.rows.map(r => String(r.addr).toLowerCase()));
+    const extra = (knownWallets || [])
+      .filter(w => !seenAddrs.has(String(w.address).toLowerCase()))
+      .map(w => ({ addr: w.address, b3tr: 0, count: 0, isNew: true, meters: w.meters || [], banned: !!w.banned }))
+      .sort((a, b) => a.addr.localeCompare(b.addr));
+    return [...chain.rows, ...extra];
+  })();
+
   const q = query.trim().toLowerCase();
   const isFullAddr = /^0x[0-9a-f]{40}$/.test(q);
-  const filtered = q ? chain.rows.filter(r => r.addr.toLowerCase().includes(q)) : chain.rows;
+  const filtered = q ? allRows.filter(r => r.addr.toLowerCase().includes(q)) : allRows;
 
   const headerBar = (title, sub, onBack) => (
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 18px",borderBottom:`1px solid ${T.border}`}}>
@@ -3629,8 +3643,31 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
           onChange={(e) => setQuery(e.target.value)}
           placeholder="🔎 Search wallet address (0x…)"
           spellCheck={false}
-          style={{width:"100%",boxSizing:"border-box",background:T.card,border:`1px solid ${T.border}`,borderRadius:6,padding:"11px 12px",fontSize:12,color:T.text,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",outline:"none",marginBottom:12}}
+          style={{width:"100%",boxSizing:"border-box",background:T.card,border:`1px solid ${T.border}`,borderRadius:6,padding:"11px 12px",fontSize:12,color:T.text,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",outline:"none",marginBottom:10}}
         />
+
+        {/* The on-chain list only has wallets that already earned. One tap pulls in
+            everyone the backend knows — testers who connected or registered a meter
+            but haven't submitted yet — so nothing has to be added by hand. */}
+        {onAdminApi && (
+          <div style={{marginBottom:12}}>
+            <button
+              disabled={loadingWallets}
+              onClick={async () => {
+                setLoadingWallets(true);
+                try {
+                  const d = await onAdminApi("/admin/wallets", {});
+                  setKnownWallets(d.wallets || []);
+                  const extra = (d.wallets || []).filter(w => !chain.rows.some(r => r.addr.toLowerCase() === String(w.address).toLowerCase())).length;
+                  onToast?.(extra ? `✅ ${extra} wallet(s) without rewards added to the list` : "✅ No extra wallets — everyone already shows");
+                } catch (e) { onToast?.(`❌ ${e?.message || "could not load wallets"}`); }
+                finally { setLoadingWallets(false); }
+              }}
+              style={{width:"100%",background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"10px 12px",fontSize:11,fontWeight:700,color:T.textMid,cursor:loadingWallets?"default":"pointer",opacity:loadingWallets?0.6:1}}>
+              {loadingWallets ? "Loading…" : knownWallets ? "🔄 Refresh all wallets" : "👥 Show all wallets (incl. no rewards yet)"}
+            </button>
+          </div>
+        )}
 
         {isFullAddr && !filtered.some(r => r.addr.toLowerCase() === q) && (
           <div onClick={() => setSelected(q)} style={{cursor:"pointer",background:T.green5||T.bgAlt,border:`1px solid ${T.green4||T.border}`,borderRadius:6,padding:"11px 12px",marginBottom:10,fontSize:11,fontWeight:700,color:T.green3}}>
@@ -3653,13 +3690,20 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
         )}
         {filtered.map((r, i) => (
           <div key={r.addr} className="lb-item" style={{cursor:"pointer"}} onClick={() => setSelected(r.addr)}>
-            <div className="lb-rank">{q ? "•" : i + 1}</div>
+            <div className="lb-rank">{q || r.isNew ? "•" : i + 1}</div>
             <div style={{flex:1}}>
-              <div className="lb-name" style={{fontFamily:"'SF Mono',monospace",fontSize:11}}>{shortAddr(r.addr)}</div>
-              <div style={{fontSize:9,color:T.textSoft}}>📸 {r.count} submission{r.count !== 1 ? "s" : ""} · tap to view</div>
+              <div className="lb-name" style={{fontFamily:"'SF Mono',monospace",fontSize:11}}>
+                {shortAddr(r.addr)}
+                {r.banned && <span style={{marginLeft:6,fontSize:8,fontWeight:800,color:"#c0392b"}}>BLOCKED</span>}
+              </div>
+              <div style={{fontSize:9,color:T.textSoft}}>
+                {r.isNew
+                  ? `🆕 No rewards yet${r.meters?.length ? ` · ${r.meters.length} meter${r.meters.length !== 1 ? "s" : ""} registered` : ""} · tap to view`
+                  : `📸 ${r.count} submission${r.count !== 1 ? "s" : ""} · tap to view`}
+              </div>
             </div>
             <div style={{textAlign:"right"}}>
-              <div className="lb-b3tr">+{r.b3tr.toFixed(2)}</div>
+              <div className="lb-b3tr" style={r.isNew ? {color:T.textSoft} : undefined}>+{r.b3tr.toFixed(2)}</div>
               <div style={{fontSize:9,color:T.textSoft}}>B3TR</div>
             </div>
           </div>
@@ -4153,6 +4197,18 @@ export default function App() {
     })();
     return () => { cancelled = true; };
   }, [wallet]);
+
+  // Let the backend know this wallet is active, so the admin panel can see testers
+  // who have connected (and maybe registered meters locally) but not yet earned
+  // on-chain. Fire-and-forget; failure is harmless.
+  useEffect(() => {
+    if (!wallet || !REWARD_API) return;
+    const list = Object.entries(meters || {}).filter(([, v]) => String(v || "").trim()).map(([k, v]) => `${k}:${v}`);
+    fetch(`${REWARD_API.replace(/\/$/, "")}/wallet/seen`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address: wallet, meters: list }),
+    }).catch(() => {});
+  }, [wallet, meters]);
   const { open: openWalletModal } = useWalletModal();
   const openConnectModal = () => openWalletModal();
 
