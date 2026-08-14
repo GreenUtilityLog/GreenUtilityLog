@@ -3300,6 +3300,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(null);
   const [detail, setDetail] = useState({ status: "idle", rows: [] });
+  const [detailReload, setDetailReload] = useState(0); // bump to retry the history fetch
   const [fundAmt, setFundAmt] = useState("100");
   const [funding, setFunding] = useState(false);
   const [claiming, setClaiming] = useState(false);
@@ -3358,10 +3359,10 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
     const ctrl = new AbortController();
     setDetail({ status: "loading", rows: [] });
     fetchWalletHistory({ node: ACTIVE_NODE, contract: CONTRACTS.X2EarnRewardsPool, appId: VEBETTER_APP_ID, address: selected, signal: ctrl.signal })
-      .then(res => { if (!cancelled) setDetail(res.ok ? { status: "live", rows: res.rows } : { status: "empty", rows: [] }); })
-      .catch(() => { if (!cancelled) setDetail({ status: "error", rows: [] }); });
+      .then(res => { if (!cancelled) setDetail(res.ok ? { status: "live", rows: res.rows } : { status: "empty", rows: [], reason: res.reason }); })
+      .catch(e => { if (!cancelled) setDetail({ status: "error", rows: [], error: e?.message || "request failed" }); });
     return () => { cancelled = true; ctrl.abort(); };
-  }, [selected]);
+  }, [selected, detailReload]);
 
   const totalB3tr = chain.rows.reduce((a, r) => a + (r.b3tr || 0), 0);
   const totalSubs = chain.rows.reduce((a, r) => a + (r.count || 0), 0);
@@ -3425,9 +3426,26 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
             </div>
           </div>
 
+          {/* A failed fetch used to look exactly like "this wallet has nothing" —
+              zeros everywhere — which is misleading when a wallet DOES have history.
+              Surface the failure and offer a retry instead. */}
+          {detail.status === "error" && (
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,background:T.gasBg,border:`1px solid ${T.gasBorder}`,borderRadius:6,padding:"11px 12px",marginBottom:12}}>
+              <div style={{fontSize:11,color:T.text,lineHeight:1.5}}>
+                ⚠️ <b>Couldn't load this wallet's on-chain history.</b> The counts below are not reliable — the node didn't respond{detail.error ? ` (${detail.error})` : ""}.
+              </div>
+              <button onClick={() => setDetailReload(n => n + 1)} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"7px 11px",fontSize:11,fontWeight:700,color:T.textMid,cursor:"pointer",whiteSpace:"nowrap"}}>Retry</button>
+            </div>
+          )}
+          {detail.status === "empty" && detail.reason && (
+            <div style={{background:T.gasBg,border:`1px solid ${T.gasBorder}`,borderRadius:6,padding:"11px 12px",marginBottom:12,fontSize:11,color:T.text,lineHeight:1.5}}>
+              ⚠️ History unavailable ({detail.reason}) — check the VeBetterDAO App ID and network.
+            </div>
+          )}
+
           <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,margin:"4px 2px 8px"}}>Meters used</div>
           {detail.status === "loading" && <div style={{textAlign:"center",color:T.textSoft,fontSize:11,padding:18}}>Loading…</div>}
-          {detail.status !== "loading" && meters.length === 0 && <div style={{color:T.textSoft,fontSize:11,padding:"6px 2px"}}>No meters found on-chain for this wallet.</div>}
+          {detail.status === "live" && meters.length === 0 && <div style={{color:T.textSoft,fontSize:11,padding:"6px 2px"}}>No meters found on-chain for this wallet.</div>}
           {meters.map((m, i) => (
             <div key={i} style={{display:"flex",alignItems:"center",gap:10,background:getColorBg(m.utility,T),border:`1px solid ${T[m.utility+"Border"]||T.border}`,borderRadius:6,padding:"9px 12px",marginBottom:6}}>
               <span style={{fontSize:15}}>{UTIL_ICONS[m.utility]}</span>
@@ -3443,7 +3461,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
 
           {/* Example rows when the wallet has no submissions yet — so you can see
               exactly how a real one will look. */}
-          {detail.status !== "loading" && detail.rows.length === 0 && (() => {
+          {detail.status === "live" && detail.rows.length === 0 && (() => {
             const MONO = "'SF Mono',Menlo,'Courier New',monospace";
             const ghost = (icon, title, sub, amt) => (
               <div style={{display:"flex",alignItems:"center",gap:10,background:T.bgAlt,border:`1px dashed ${T.border}`,borderRadius:8,padding:"10px 12px",marginBottom:6,opacity:.7}}>
