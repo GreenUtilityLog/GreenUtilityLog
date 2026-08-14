@@ -603,15 +603,27 @@ app.post("/meter/enode/sync", async (req, res) => {
   try {
     const latest = await fetchLatestReading(address);
     if (!latest) return res.json({ linked: false });
-    if (Number.isFinite(latest.reading)) {
+    // Only store a reading whose field was EXPLICITLY configured (ENODE_READING_FIELD).
+    // A heuristically-guessed field must never become payable: it feeds
+    // /reward-from-meter, so a wrong guess would pay out a wrong amount. The value and
+    // the raw object are still returned so an operator can pin the correct field.
+    const payable = Number.isFinite(latest.reading) && latest.guessed === false;
+    if (payable) {
       store.setLinkReading(address, {
         reading: latest.reading,
         meterNo: latest.meterId || null,
         at: Date.now(),
         source: "enode",
       });
+    } else if (latest.guessed) {
+      console.warn("[enode] reading field not pinned — set ENODE_READING_FIELD; not storing a guessed value.");
     }
-    res.json({ linked: true, reading: latest.reading, unit: latest.unit, field: latest.field, raw: latest.raw });
+    res.json({
+      linked: true, reading: latest.reading, unit: latest.unit, field: latest.field,
+      guessed: !!latest.guessed, stored: payable,
+      hint: latest.guessed ? "Set ENODE_READING_FIELD to this field's dot-path to make it payable." : undefined,
+      raw: latest.raw,
+    });
   } catch (e) {
     console.error("[/meter/enode/sync]", e?.message || e);
     res.status(502).json({ error: e?.message || "enode sync failed" });
