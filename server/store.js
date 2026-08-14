@@ -17,7 +17,11 @@ const R_TOK = (process.env.UPSTASH_REDIS_REST_TOKEN || "").trim();
 const USE_REDIS = !!(R_URL && R_TOK);
 const REDIS_KEY = process.env.STATE_KEY || "greenutilitylog:state";
 
-const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {} };
+const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {} };
+
+// Cap the "seen wallets" roster so an open endpoint can't grow state without bound.
+// When exceeded we drop the least-recently-seen entries.
+const SEEN_MAX = 2000;
 
 async function redisCmd(cmd) {
   const res = await fetch(R_URL, {
@@ -164,6 +168,46 @@ export const store = {
     if (mFallback(utility)) delete state.readings[meterNo]; // migrate legacy electric
     persist();
   },
+  // ── Seen wallets ────────────────────────────────────────────────────────────
+  // The admin participant list is built from on-chain rewards, so a tester who has
+  // connected (and maybe registered a meter locally) but not yet earned is invisible.
+  // The app reports its wallet here on connect so admin can see them without anyone
+  // adding them by hand. Minimal data: address + first/last seen + the meter numbers
+  // the app has registered locally.
+  seenWallet: (addr, meters) => {
+    const a = String(addr).toLowerCase();
+    if (!/^0x[0-9a-f]{40}$/.test(a)) return;
+    const now = Date.now();
+    const prev = state.seen[a];
+    state.seen[a] = {
+      firstSeen: prev?.firstSeen || now,
+      lastSeen: now,
+      meters: Array.isArray(meters) ? meters.slice(0, 8).map((m) => String(m).slice(0, 64)) : (prev?.meters || []),
+    };
+    // Bound the roster: drop the least-recently-seen beyond SEEN_MAX.
+    const keys = Object.keys(state.seen);
+    if (keys.length > SEEN_MAX) {
+      keys.sort((x, y) => (state.seen[x]?.lastSeen || 0) - (state.seen[y]?.lastSeen || 0));
+      for (const k of keys.slice(0, keys.length - SEEN_MAX)) delete state.seen[k];
+    }
+    persist();
+  },
+  // Everything the backend knows about, for the admin list: wallets seen by the app
+  // plus any that own a meter, hold a device link, or are banned.
+  listKnownWallets: () => {
+    const out = new Map();
+    const add = (addr, patch) => {
+      const a = String(addr || "").toLowerCase();
+      if (!/^0x[0-9a-f]{40}$/.test(a)) return;
+      out.set(a, { address: a, ...(out.get(a) || {}), ...patch });
+    };
+    for (const [a, v] of Object.entries(state.seen)) add(a, { firstSeen: v?.firstSeen, lastSeen: v?.lastSeen, meters: v?.meters || [] });
+    for (const owner of Object.values(state.meterOwners)) add(owner, { hasMeter: true });
+    for (const l of Object.values(state.meterLinks)) add(l?.address, { paired: true });
+    for (const a of Object.keys(state.bans)) add(a, { banned: true });
+    return [...out.values()];
+  },
+
   // Admin: every meter registered to a wallet on the backend (owner == addr), with its
   // baseline — including meters added via /admin/set-baseline that haven't submitted
   // on-chain yet, so the admin panel can show them.
