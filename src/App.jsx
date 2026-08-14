@@ -2260,14 +2260,18 @@ GUL_TOKEN=${token} node index.js
 # docker build -t gul-bridge ./bridge
 # docker run -d --network host -e GUL_TOKEN=${token} gul-bridge`;
                     const haYaml = `# configuration.yaml — works with (almost) any meter Home Assistant supports
+#
+# FIRST: find YOUR entity — entity IDs differ per install (they include your device
+# name). Developer tools → States → filter on "import" and pick the cumulative
+# kWh one (its value keeps counting up, e.g. 8421.3). Paste that id below.
 rest_command:
   gul_push:
     url: "${ingestUrl}"
     method: POST
     content_type: "application/json"
-    payload: '{"token":"${token}","reading":{{ states("sensor.electricity_meter_total") | float }}}'
+    payload: '{"token":"${token}","reading":{{ states("sensor.YOUR_IMPORT_KWH_ENTITY") | float }}}'
 
-# automations.yaml — send hourly (set the sensor above to your import-kWh entity)
+# automations.yaml — send hourly
 - alias: Push meter to GreenUtilityLog
   trigger: { platform: time_pattern, hours: "/1" }
   action: { service: rest_command.gul_push }`;
@@ -2282,7 +2286,7 @@ curl -X POST ${ingestUrl} \\
                     const hint = device === "homewizard"
                       ? 'Turn on "Local API" in the HomeWizard app first. The bridge auto-discovers your P1 — if your network blocks mDNS, add HW_IP=<your P1 IP>. Needs Node 18+ or Docker.'
                       : device === "ha"
-                      ? "The universal route — Home Assistant supports almost every meter/reader. Paste this and set the sensor to your cumulative import-kWh entity."
+                      ? "The universal route — Home Assistant supports almost every meter/reader. Entity IDs differ per install, so find yours under Developer tools → States (filter “import”, pick the kWh one that counts up) and paste it into the snippet."
                       : "For any other setup. POST your cumulative kWh total from any device, or use the bridge’s generic mode (READ_URL) to read any HTTP/JSON reader.";
                     return (
                       <div>

@@ -51,15 +51,22 @@ Enable it on the backend (**Render → Environment**):
 | `ENODE_CLIENT_SECRET` | from your Enode dashboard |
 | `ENODE_ENV` | `sandbox` (default) or `production` |
 | `ENODE_REDIRECT_URI` | (optional) where Enode returns the user; defaults to the app URL |
+| `ENODE_READING_FIELD` | **required before Enode readings can pay out** — the exact dot-path to the cumulative-kWh field in your account's meter object (e.g. `data.totalEnergy`) |
 
 Flow: `POST /meter/enode/link` (wallet-signed) → app opens Enode's link UI → user
 authorises their meter → `POST /meter/enode/sync` pulls the latest reading into the
 same store.
 
-> ⚠️ **Schema still to pin down.** Enode's beta *meter* response fields aren't fixed
-> in code yet. `/meter/enode/sync` returns the **raw** meter object so we can read
-> the exact reading field off a live account, then tighten `pickReading()` in
-> `server/enode.js`. Until then it probes the most likely cumulative-kWh field.
+> ⚠️ **Pin the reading field before trusting Enode payouts.** Enode's beta *meter*
+> schema isn't fixed, so `pickReading()` only returns a **payable** value when
+> `ENODE_READING_FIELD` names the exact dot-path. Without it, sync still returns a
+> best-guess value **and the raw meter object** (`guessed: true, stored: false`) so you
+> can identify the right field — but that guess is deliberately **not stored** and
+> cannot pay out. A wrong guess would feed `/reward-from-meter` and pay a wrong amount.
+>
+> To pin it: enable Enode, call `/meter/enode/sync`, find the cumulative-kWh field in
+> the returned `raw`, then set `ENODE_READING_FIELD` to its dot-path and re-sync —
+> the response should show `guessed: false, stored: true`.
 
 ---
 

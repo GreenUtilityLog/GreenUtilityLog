@@ -100,12 +100,29 @@ export async function listMeters(address) {
   return [];
 }
 
-// Best-effort extraction of a cumulative meter reading (kWh) from a meter object.
-// Enode's beta meter schema isn't pinned here, so we deep-scan for the most
-// plausible cumulative-energy field and its unit/timestamp. sync() also returns
-// the raw object so this can be tightened against a live response.
+// Read a cumulative meter reading (kWh) from a meter object.
+//
+// Preferred: set ENODE_READING_FIELD to the exact dot-path of the cumulative-energy
+// field for your account (e.g. "meter.energyRegister.totalImport"). That is read
+// verbatim and marked verified.
+//
+// Fallback: if no field is configured we deep-scan for the most plausible field and
+// take the largest matching number. That is a GUESS, so it is returned with
+// guessed:true and callers must NOT pay out from it — /meter/enode/sync surfaces it
+// (with the raw object) purely so an operator can pin ENODE_READING_FIELD.
+const ENODE_READING_FIELD = (process.env.ENODE_READING_FIELD || "").trim();
+
 export function pickReading(meter) {
   if (!meter || typeof meter !== "object") return null;
+
+  if (ENODE_READING_FIELD) {
+    let v = meter;
+    for (const k of ENODE_READING_FIELD.split(".")) { if (v == null) break; v = v[k]; }
+    const n = typeof v === "number" ? v : (typeof v === "string" && v.trim() !== "" && Number.isFinite(+v) ? +v : null);
+    if (n != null && Number.isFinite(n)) return { reading: n, unit: null, at: null, field: ENODE_READING_FIELD, guessed: false };
+    return null; // configured field missing → fail closed rather than guess
+  }
+
   let best = null;
   const readingKey = /(reading|register|cumulativ|total.*(energy|consum)|energy.*total|meterValue)/i;
   const unitKey = /unit/i;
@@ -122,7 +139,7 @@ export function pickReading(meter) {
     for (const [k, v] of Object.entries(node)) {
       if (typeof v === "number" && Number.isFinite(v) && readingKey.test(k)) {
         // Prefer a plausible cumulative reading (meters read large & monotonic).
-        if (!best || v > best.reading) best = { reading: v, unit: unit || null, at: ts || null, field: k };
+        if (!best || v > best.reading) best = { reading: v, unit: unit || null, at: ts || null, field: k, guessed: true };
       } else if (v && typeof v === "object") {
         walk(v, unit, ts);
       }
