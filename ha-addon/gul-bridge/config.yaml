@@ -1,0 +1,35 @@
+name: GreenUtilityLog Meter Bridge
+version: "1.0.0"
+slug: gul_bridge
+description: Sends your smart-meter reading to GreenUtilityLog automatically — no terminal, no scripts.
+url: https://github.com/GreenUtilityLog/GreenUtilityLog/tree/main/bridge
+arch:
+  - aarch64
+  - amd64
+  - armhf
+  - armv7
+  - i386
+init: false
+# mDNS discovery of a HomeWizard P1 only works on the host network — without this the
+# add-on sits in its own network namespace and multicast never reaches the meter.
+host_network: true
+options:
+  token: ""
+  interval_sec: 3600
+  hw_ip: ""
+  read_url: ""
+  read_field: ""
+  ingest_url: "https://greenutilitylog-rewards.onrender.com/meter-ingest"
+schema:
+  # Device token from the app: Submit → Electricity → Automatic setup.
+  token: str
+  # Seconds between pushes (min 60, max once a minute is plenty for a meter).
+  interval_sec: int(60,86400)
+  # Optional: your HomeWizard's IP, if mDNS discovery is blocked on your network.
+  hw_ip: str?
+  # Optional: read from ANY HTTP/JSON reader instead of a HomeWizard.
+  read_url: str?
+  # Optional: dot-path to the kWh value in that JSON (auto-detected when empty).
+  read_field: str?
+  # Where readings are sent. Leave as-is unless you run your own backend.
+  ingest_url: str
