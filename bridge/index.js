@@ -107,13 +107,19 @@ function getJson(url, timeoutMs = 8000) {
     req.on("error", reject);
   });
 }
+// HomeWizard ships TWO naming conventions for the same numbers depending on
+// firmware/model: the older `total_power_import_*` and the newer `energy_import_*`.
+// Handle both, single-total first, then tariff 1 + tariff 2.
 function readTotal(data) {
   const n = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
-  const total = n(data.total_power_import_kwh);
-  if (total != null) return total;
-  const t1 = n(data.total_power_import_t1_kwh) || 0;
-  const t2 = n(data.total_power_import_t2_kwh) || 0;
-  if (data.total_power_import_t1_kwh != null || data.total_power_import_t2_kwh != null) return +(t1 + t2).toFixed(3);
+  const d = data || {};
+  for (const key of ["total_power_import_kwh", "energy_import_kwh"]) {
+    const v = n(d[key]);
+    if (v != null) return v;
+  }
+  for (const [k1, k2] of [["total_power_import_t1_kwh", "total_power_import_t2_kwh"], ["energy_import_t1_kwh", "energy_import_t2_kwh"]]) {
+    if (d[k1] != null || d[k2] != null) return +((n(d[k1]) || 0) + (n(d[k2]) || 0)).toFixed(3);
+  }
   return null;
 }
 // Generic reader: read a dot-path field, or auto-detect a common cumulative-kWh key.
