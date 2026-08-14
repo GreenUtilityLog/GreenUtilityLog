@@ -68,7 +68,7 @@ export function decodeRewardData(data){
 
 // Fetch and aggregate the on-chain reward field for one app.
 // Returns { ok, reason?, rows:[{ addr, b3tr, count, last }] } sorted desc by B3TR.
-export async function fetchOnChainLeaderboard({ node, contract, appId, max = 2000, signal } = {}) {
+export async function fetchOnChainLeaderboard({ node, contract, appId, max = 10000, signal } = {}) {
   if (!node || !contract) return { ok: false, reason: "misconfigured", rows: [] };
   // An all-zero appId means the app isn't registered on VeBetterDAO yet, so
   // there is no real field to read — let the caller fall back to sample data.
@@ -83,7 +83,10 @@ export async function fetchOnChainLeaderboard({ node, contract, appId, max = 200
     const body = {
       options: { offset, limit: pageSize },
       criteriaSet: [{ address: contract, topic0: REWARD_TOPIC, topic1: appId }],
-      order: "asc",
+      // Newest first: if the event count ever exceeds `max`, the cap must drop the
+      // OLDEST events, not the newest — with "asc" a recent participant would simply
+      // never appear in the list once the app passes the cap.
+      order: "desc",
     };
     const res = await fetch(`${node}/logs/event`, {
       method: "POST",
