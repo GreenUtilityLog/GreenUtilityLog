@@ -127,6 +127,12 @@ const FEEDBACK_EMAIL = "greenutilitylog@gmail.com";
 // the in-app Help so nobody gets stuck on "insufficient energy".
 const TESTNET_FAUCET = "https://faucet.vecha.in";
 
+// Long-form setup documentation (P1 readers, Home Assistant, the bridge) lives
+// outside the app: those are read on a laptop while wiring up hardware, not on a
+// phone mid-submission. The app keeps only help that's useful in the moment and
+// links here for the rest. One constant so the destination is easy to move.
+const GUIDE_URL = "https://claude.ai/code/artifact/aeb6587b-b1df-486f-968a-590a12270704";
+
 // Indicative B3TR→USD rate for display only (not a live price feed).
 const B3TR_USD = 0.014;
 
@@ -2220,21 +2226,13 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
 
               {advOpen && (
                 <div style={{ marginTop: 10 }}>
-                  {/* Plain-language step-by-step so a first-timer knows the whole flow. */}
-                  <div style={{ background: T.bg, border: `1px solid ${T.border || T.waterBorder}`, borderRadius: 8, padding: "12px 14px", marginBottom: 10 }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: T.text, marginBottom: 6 }}>📖 How it works — 5 steps</div>
-                    <ol style={{ margin: 0, paddingLeft: 18, fontSize: 11, lineHeight: 1.7, color: T.textMid }}>
-                      <li>In the <b>HomeWizard app</b>, turn on <b>Local API</b> (Settings → Meters → your P1).</li>
-                      <li>Do <b>one photo submission</b> first (📸 Photo tab) — it sets your baseline.</li>
-                      <li>Tap <b>“Get my device token”</b> below and copy it.</li>
-                      <li>On a device that stays on (Raspberry Pi / NAS / PC), run the <b>copied setup</b> once — it finds your meter and sends the reading every hour.</li>
-                      <li>Your reading shows as <b>“Auto-received”</b> → tap <b>Submit — no photo</b>. Done!</li>
-                    </ol>
-                    <div style={{ fontSize: 10, color: T.textSoft, marginTop: 7, lineHeight: 1.5 }}>No device that stays on? Just type your reading or take a photo — that works too, and is easiest for most people.</div>
-                  </div>
-
-                  <div style={{ fontSize: 10, color: T.textSoft, lineHeight: 1.6, marginBottom: 8 }}>
-                    Pick your device and copy the ready-made setup — your token is already filled in. Point your reader at it once and it keeps sending your meter total automatically.
+                  {/* Setup is long-form and read on a laptop, so it lives in the guide.
+                      Here: just what you need to act — the snippet and where it goes. */}
+                  <div style={{ fontSize: 10.5, color: T.textSoft, lineHeight: 1.6, marginBottom: 8 }}>
+                    Pick your device and copy the ready-made setup — your token is already filled in.{" "}
+                    <a href={GUIDE_URL} target="_blank" rel="noopener noreferrer" style={{ color: T.eco || T.electric, fontWeight: 700 }}>
+                      Full step-by-step guide ↗
+                    </a>
                   </div>
 
                   {!token ? (
@@ -2322,17 +2320,11 @@ curl -X POST ${ingestUrl} \\
                         </div>
                         <div style={{ fontSize: 10, color: T.textSoft, lineHeight: 1.5, margin: "6px 2px 0" }}>{hint}</div>
 
-                        {/* Where does this text actually go? The most-asked question. */}
+                        {/* One line, not a manual: the detail lives in the guide. */}
                         {device !== "ha" && (
-                          <div style={{ marginTop: 8, padding: "9px 11px", background: T.bg, border: `1px solid ${T.border || T.waterBorder}`, borderRadius: 6 }}>
-                            <div style={{ fontSize: 10, fontWeight: 800, color: T.text, marginBottom: 4 }}>📍 Where do I paste this?</div>
-                            <div style={{ fontSize: 10, color: T.textSoft, lineHeight: 1.7 }}>
-                              In a <b>terminal</b> on the device that stays on:<br />
-                              • <b>Windows</b> — press Start, type <b>PowerShell</b>, open it<br />
-                              • <b>Mac</b> — open <b>Terminal</b> (Applications → Utilities)<br />
-                              • <b>Raspberry Pi / NAS</b> — its Terminal, or connect over <b>SSH</b><br />
-                              Paste, press Enter, and leave it running. Requires <b>Node.js 18+</b> installed on that device.
-                            </div>
+                          <div style={{ fontSize: 10, color: T.textSoft, lineHeight: 1.6, marginTop: 8 }}>
+                            📍 Paste this in a <b>terminal</b> on the device that stays on (Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH). Needs Node.js 18+.{" "}
+                            <a href={GUIDE_URL} target="_blank" rel="noopener noreferrer" style={{ color: T.eco || T.electric, fontWeight: 700 }}>Show me ↗</a>
                           </div>
                         )}
 
@@ -3890,8 +3882,8 @@ const HELP_I18N = {
       { t:"Earn B3TR", d:"A valid reading rewards you with B3TR on testnet. Track your total on Home and your position on the Leaderboard." },
     ], faqs:[
       { q:"Where do I find my meter number?", a:"Two spots on the meter:\n1) On the little screen — press the meter's buttons until the number appears.\n2) Under the barcode, on a sticker on the front or side.\nEnter the whole number including the letter — electricity usually starts with E, gas with G. It's also on your energy bill or your supplier's online account." },
-      { q:"Automatic reading (P1 reader / HomeWizard)", a:"With a P1 reader like a HomeWizard, your meter is read for you and sent in on its own.\n1. In the HomeWizard app, turn on \"Local API\".\n2. Do one photo submission first (it sets your baseline).\n3. In Submit → Electricity → \"Auto (reader)\" → \"Automatic setup\", tap \"Get my device token\" and copy it.\n4. On a device that stays on (Raspberry Pi / NAS / PC), run the copied setup once — it finds your meter and sends the reading every hour.\n5. Your reading shows as \"Auto-received\" → tap \"Submit — no photo\".\nNo always-on device? Just take a photo — that's easiest for most people." },
-      { q:"Where do I paste the setup code?", a:"In a terminal on the device that stays on:\n• Windows — press Start, type PowerShell, open it\n• Mac — open Terminal (Applications → Utilities)\n• Raspberry Pi / NAS — its Terminal, or connect over SSH\nPaste, press Enter, and leave it running. That device needs Node.js 18+ installed.\nUsing Home Assistant? No terminal at all — install our add-on: Settings → Add-ons → Add-on Store → ⋮ → Repositories → add https://github.com/GreenUtilityLog/GreenUtilityLog, then install \"GreenUtilityLog Meter Bridge\", paste your token and press Start.\nToo technical? Just take a photo — that works just as well." },
+      { q:"Automatic reading (P1 reader / HomeWizard)", a:"With a P1 reader, Home Assistant, or another reader, your meter can send its own reading — then you never photograph again.\nDo one photo submission first (it sets your baseline), then open Submit → ⚡ Have a P1 reader? → ⚙️ Automatic setup for your token and the ready-made setup.\nFull step-by-step guide for every setup: https://claude.ai/code/artifact/aeb6587b-b1df-486f-968a-590a12270704" },
+      { q:"Where do I paste the setup code?", a:"In a terminal on the device that stays on — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. That device needs Node.js 18+.\nUsing Home Assistant? No terminal at all — install our add-on.\nStep-by-step with screenshots of every route: https://claude.ai/code/artifact/aeb6587b-b1df-486f-968a-590a12270704\nToo technical? Just take a photo — that works just as well." },
       { q:"Which meters work?", a:"Almost any Dutch or Belgian smart meter with a P1 port. Dutch meters send plain data and work out of the box. Belgian (Fluvius) meters are encrypted — enter the free Fluvius key in the HomeWizard app once, then it works the same." },
       { q:"Do I always need a photo?", a:"A photo is required for a hand-entered reading. A connected P1 reader can submit without a photo, because its device token binds the reading to your wallet." },
       { q:"Is this real money?", a:"No. Everything runs on VeChain testnet, so the B3TR you earn are test tokens with no real value — perfect for trying things out safely." },
@@ -3910,8 +3902,8 @@ const HELP_I18N = {
       { t:"Verdien B3TR", d:"Een geldige stand levert B3TR op testnet op. Zie je totaal op Home en je positie in het klassement." },
     ], faqs:[
       { q:"Waar vind ik mijn meternummer?", a:"Twee plekken op de meter:\n1) Op het schermpje — druk op de knopjes tot het nummer verschijnt.\n2) Onder de streepjescode, op een sticker aan de voor- of zijkant.\nNeem het hele nummer over, mét de letter — stroom begint meestal met E, gas met G. Het staat ook op je energierekening of in je online account bij je leverancier." },
-      { q:"Automatisch uitlezen (P1-reader / HomeWizard)", a:"Met een P1-reader zoals een HomeWizard wordt je meter voor je uitgelezen en vanzelf ingestuurd.\n1. Zet in de HomeWizard-app \"Local API\" aan.\n2. Doe eerst één foto-inzending (dat zet je baseline).\n3. In Submit → Electricity → \"Auto (reader)\" → \"Automatic setup\": tik \"Get my device token\" en kopieer 'm.\n4. Draai op een altijd-aan-apparaat (Raspberry Pi / NAS / pc) de gekopieerde setup één keer — het vindt je meter en stuurt elk uur je stand.\n5. Je stand verschijnt als \"Auto-received\" → tik \"Submit — no photo\".\nGeen altijd-aan-apparaat? Maak gewoon een foto — voor de meeste mensen het makkelijkst." },
-      { q:"Waar plak ik de setup-code?", a:"In een terminal op het apparaat dat altijd aan staat:\n• Windows — druk op Start, typ PowerShell, open 'm\n• Mac — open Terminal (Programma's → Hulpprogramma's)\n• Raspberry Pi / NAS — de Terminal daar, of verbind via SSH\nPlakken, Enter drukken, en laten draaien. Op dat apparaat moet Node.js 18+ staan.\nGebruik je Home Assistant? Dan heb je helemaal geen terminal nodig — installeer onze add-on: Instellingen → Add-ons → Add-on Store → ⋮ → Repositories → voeg https://github.com/GreenUtilityLog/GreenUtilityLog toe, installeer \"GreenUtilityLog Meter Bridge\", plak je token en druk op Start.\nTe technisch? Maak gewoon een foto — dat werkt net zo goed." },
+      { q:"Automatisch uitlezen (P1-reader / HomeWizard)", a:"Met een P1-reader, Home Assistant of een andere reader kan je meter z’n eigen stand doorsturen — dan fotografeer je nooit meer.\nDoe eerst één foto-inzending (dat zet je baseline), ga dan naar Submit → ⚡ Have a P1 reader? → ⚙️ Automatic setup voor je token en de kant-en-klare instellingen.\nVolledige stap-voor-stap gids voor elke situatie: https://claude.ai/code/artifact/aeb6587b-b1df-486f-968a-590a12270704" },
+      { q:"Waar plak ik de setup-code?", a:"In een terminal op het apparaat dat altijd aan staat — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. Daar moet Node.js 18+ op staan.\nGebruik je Home Assistant? Dan helemaal geen terminal — installeer onze add-on.\nStap voor stap voor elke route: https://claude.ai/code/artifact/aeb6587b-b1df-486f-968a-590a12270704\nTe technisch? Maak gewoon een foto — dat werkt net zo goed." },
       { q:"Welke meters werken?", a:"Bijna elke Nederlandse of Belgische slimme meter met een P1-poort. Nederlandse meters sturen open data en werken direct. Belgische (Fluvius) meters zijn versleuteld — voer de gratis Fluvius-sleutel één keer in de HomeWizard-app in, daarna werkt alles hetzelfde." },
       { q:"Heb ik altijd een foto nodig?", a:"Voor een handmatig ingevoerde stand is een foto verplicht. Een gekoppelde P1-reader mag zonder foto insturen, omdat zijn device-token de stand aan jouw wallet koppelt." },
       { q:"Is dit echt geld?", a:"Nee. Alles draait op VeChain testnet, dus de B3TR die je verdient zijn test-tokens zonder echte waarde — perfect om veilig te testen." },
@@ -3930,8 +3922,8 @@ const HELP_I18N = {
       { t:"B3TR verdienen", d:"Ein gültiger Stand belohnt dich mit B3TR im Testnet. Sieh dein Gesamt auf Home und deine Position in der Rangliste." },
     ], faqs:[
       { q:"Wo finde ich meine Zählernummer?", a:"Zwei Stellen am Zähler:\n1) Auf dem kleinen Display — drücke die Tasten, bis die Nummer erscheint.\n2) Unter dem Barcode, auf einem Aufkleber vorne oder seitlich.\nGib die ganze Nummer inklusive Buchstabe ein — Strom beginnt meist mit E, Gas mit G. Sie steht auch auf deiner Energierechnung oder im Online-Konto deines Anbieters." },
-      { q:"Automatisches Auslesen (P1-Reader / HomeWizard)", a:"Mit einem P1-Reader wie einem HomeWizard wird dein Zähler für dich ausgelesen und von selbst gesendet.\n1. Aktiviere in der HomeWizard-App die \"Local API\".\n2. Mach zuerst eine Foto-Einreichung (setzt deinen Basiswert).\n3. In Submit → Electricity → \"Auto (reader)\" → \"Automatic setup\": tippe \"Get my device token\" und kopiere ihn.\n4. Führe auf einem Dauergerät (Raspberry Pi / NAS / PC) das kopierte Setup einmal aus — es findet deinen Zähler und sendet stündlich den Stand.\n5. Dein Stand erscheint als \"Auto-received\" → tippe \"Submit — no photo\".\nKein Dauergerät? Mach einfach ein Foto — für die meisten am einfachsten." },
-      { q:"Wo füge ich den Setup-Code ein?", a:"In einem Terminal auf dem Dauergerät:\n• Windows — Start drücken, PowerShell tippen, öffnen\n• Mac — Terminal öffnen (Programme → Dienstprogramme)\n• Raspberry Pi / NAS — dessen Terminal, oder per SSH verbinden\nEinfügen, Enter drücken und laufen lassen. Auf dem Gerät muss Node.js 18+ installiert sein.\nDu nutzt Home Assistant? Dann gar kein Terminal — installiere unser Add-on: Einstellungen → Add-ons → Add-on Store → ⋮ → Repositories → https://github.com/GreenUtilityLog/GreenUtilityLog hinzufügen, dann \"GreenUtilityLog Meter Bridge\" installieren, Token einfügen und Start drücken.\nZu technisch? Mach einfach ein Foto — das funktioniert genauso gut." },
+      { q:"Automatisches Auslesen (P1-Reader / HomeWizard)", a:"Mit einem P1-Reader, Home Assistant oder einem anderen Reader kann dein Zähler seinen Stand selbst senden — dann fotografierst du nie wieder.\nMach zuerst eine Foto-Einreichung (setzt den Basiswert), dann Submit → ⚡ Have a P1 reader? → ⚙️ Automatic setup für Token und fertige Einrichtung.\nVollständige Schritt-für-Schritt-Anleitung: https://claude.ai/code/artifact/aeb6587b-b1df-486f-968a-590a12270704" },
+      { q:"Wo füge ich den Setup-Code ein?", a:"In einem Terminal auf dem Dauergerät — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. Dort muss Node.js 18+ installiert sein.\nDu nutzt Home Assistant? Gar kein Terminal — installiere unser Add-on.\nSchritt für Schritt für jede Route: https://claude.ai/code/artifact/aeb6587b-b1df-486f-968a-590a12270704\nZu technisch? Mach einfach ein Foto — das funktioniert genauso gut." },
       { q:"Welche Zähler funktionieren?", a:"Fast jeder niederländische oder belgische Smart-Zähler mit P1-Anschluss. Niederländische Zähler senden offene Daten und laufen sofort. Belgische (Fluvius) Zähler sind verschlüsselt — gib den kostenlosen Fluvius-Schlüssel einmal in der HomeWizard-App ein, danach läuft alles gleich." },
       { q:"Brauche ich immer ein Foto?", a:"Für einen manuell eingegebenen Stand ist ein Foto nötig. Ein verbundener P1-Reader darf ohne Foto senden, weil sein Geräte-Token den Stand an dein Wallet bindet." },
       { q:"Ist das echtes Geld?", a:"Nein. Alles läuft im VeChain-Testnet, die B3TR sind Test-Token ohne realen Wert — ideal zum sicheren Ausprobieren." },
@@ -3950,8 +3942,8 @@ const HELP_I18N = {
       { t:"Gagnez des B3TR", d:"Un relevé valide vous récompense en B3TR sur testnet. Suivez votre total sur Home et votre place au classement." },
     ], faqs:[
       { q:"Où trouver le numéro de mon compteur ?", a:"Deux endroits sur le compteur :\n1) Sur le petit écran — appuyez sur les boutons jusqu'à voir le numéro.\n2) Sous le code-barres, sur une étiquette à l'avant ou sur le côté.\nSaisissez tout le numéro avec la lettre — l'électricité commence souvent par E, le gaz par G. Il figure aussi sur votre facture ou votre compte en ligne fournisseur." },
-      { q:"Lecture automatique (lecteur P1 / HomeWizard)", a:"Avec un lecteur P1 comme un HomeWizard, votre compteur est lu pour vous et envoyé tout seul.\n1. Dans l'app HomeWizard, activez « Local API ».\n2. Faites d'abord une soumission photo (fixe votre base).\n3. Dans Submit → Electricity → « Auto (reader) » → « Automatic setup » : touchez « Get my device token » et copiez-le.\n4. Sur un appareil toujours allumé (Raspberry Pi / NAS / PC), lancez la config copiée une fois — il trouve votre compteur et envoie le relevé chaque heure.\n5. Votre relevé apparaît en « Auto-received » → touchez « Submit — no photo ».\nPas d'appareil allumé en permanence ? Prenez simplement une photo — le plus simple pour la plupart." },
-      { q:"Où coller le code de configuration ?", a:"Dans un terminal, sur l'appareil qui reste allumé :\n• Windows — appuyez sur Démarrer, tapez PowerShell, ouvrez-le\n• Mac — ouvrez Terminal (Applications → Utilitaires)\n• Raspberry Pi / NAS — son Terminal, ou connectez-vous en SSH\nCollez, appuyez sur Entrée, et laissez tourner. Cet appareil doit avoir Node.js 18+.\nVous utilisez Home Assistant ? Aucun terminal — installez notre add-on : Paramètres → Modules → Boutique → ⋮ → Dépôts → ajoutez https://github.com/GreenUtilityLog/GreenUtilityLog, installez \"GreenUtilityLog Meter Bridge\", collez votre jeton et appuyez sur Démarrer.\nTrop technique ? Prenez simplement une photo — ça marche aussi bien." },
+      { q:"Lecture automatique (lecteur P1 / HomeWizard)", a:"Avec un lecteur P1, Home Assistant ou un autre lecteur, votre compteur envoie son relevé lui-même — vous ne photographiez plus.\nFaites d'abord une soumission photo (fixe votre base), puis Submit → ⚡ Have a P1 reader? → ⚙️ Automatic setup pour le jeton et la configuration prête.\nGuide complet pas à pas : https://claude.ai/code/artifact/aeb6587b-b1df-486f-968a-590a12270704" },
+      { q:"Où coller le code de configuration ?", a:"Dans un terminal sur l\u2019appareil qui reste allumé — Windows : PowerShell · Mac : Terminal · Pi/NAS : SSH. Il faut Node.js 18+.\nVous utilisez Home Assistant ? Aucun terminal — installez notre add-on.\nPas à pas pour chaque route : https://claude.ai/code/artifact/aeb6587b-b1df-486f-968a-590a12270704\nTrop technique ? Prenez simplement une photo." },
       { q:"Quels compteurs fonctionnent ?", a:"Presque tout compteur intelligent néerlandais ou belge avec un port P1. Les compteurs néerlandais envoient des données ouvertes et marchent directement. Les compteurs belges (Fluvius) sont chiffrés — saisissez une fois la clé Fluvius gratuite dans l'app HomeWizard, puis tout fonctionne pareil." },
       { q:"Faut-il toujours une photo ?", a:"Une photo est requise pour un relevé saisi à la main. Un lecteur P1 connecté peut envoyer sans photo, car son jeton d'appareil lie le relevé à votre wallet." },
       { q:"Est-ce de l'argent réel ?", a:"Non. Tout tourne sur le testnet VeChain ; les B3TR gagnés sont des jetons de test sans valeur réelle — parfait pour essayer en toute sécurité." },
@@ -3970,8 +3962,8 @@ const HELP_I18N = {
       { t:"Gana B3TR", d:"Una lectura válida te premia con B3TR en testnet. Mira tu total en Home y tu puesto en la clasificación." },
     ], faqs:[
       { q:"¿Dónde encuentro el número de mi contador?", a:"Dos sitios en el contador:\n1) En la pantallita — pulsa los botones hasta que aparezca el número.\n2) Bajo el código de barras, en una pegatina delante o al lado.\nIntroduce el número completo con la letra — la luz suele empezar por E, el gas por G. También está en tu factura o en la cuenta online de tu comercializadora." },
-      { q:"Lectura automática (lector P1 / HomeWizard)", a:"Con un lector P1 como un HomeWizard, tu contador se lee solo y se envía por su cuenta.\n1. En la app HomeWizard, activa «Local API».\n2. Haz primero un envío con foto (fija tu base).\n3. En Submit → Electricity → «Auto (reader)» → «Automatic setup»: toca «Get my device token» y cópialo.\n4. En un dispositivo siempre encendido (Raspberry Pi / NAS / PC), ejecuta la configuración copiada una vez — encuentra tu contador y envía la lectura cada hora.\n5. Tu lectura aparece como «Auto-received» → toca «Submit — no photo».\n¿Sin dispositivo siempre encendido? Solo haz una foto — lo más fácil para la mayoría." },
-      { q:"¿Dónde pego el código de configuración?", a:"En una terminal, en el dispositivo que queda encendido:\n• Windows — pulsa Inicio, escribe PowerShell, ábrelo\n• Mac — abre Terminal (Aplicaciones → Utilidades)\n• Raspberry Pi / NAS — su Terminal, o conéctate por SSH\nPega, pulsa Enter y déjalo funcionando. Ese dispositivo necesita Node.js 18+.\n¿Usas Home Assistant? Ninguna terminal — instala nuestro add-on: Ajustes → Complementos → Tienda → ⋮ → Repositorios → añade https://github.com/GreenUtilityLog/GreenUtilityLog, instala \"GreenUtilityLog Meter Bridge\", pega tu token y pulsa Iniciar.\n¿Demasiado técnico? Solo haz una foto — funciona igual de bien." },
+      { q:"Lectura automática (lector P1 / HomeWizard)", a:"Con un lector P1, Home Assistant u otro lector, tu contador envía su lectura solo — ya no fotografías más.\nHaz primero un envío con foto (fija tu base), luego Submit → ⚡ Have a P1 reader? → ⚙️ Automatic setup para el token y la configuración lista.\nGuía completa paso a paso: https://claude.ai/code/artifact/aeb6587b-b1df-486f-968a-590a12270704" },
+      { q:"¿Dónde pego el código de configuración?", a:"En una terminal en el dispositivo que queda encendido — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. Necesita Node.js 18+.\n¿Usas Home Assistant? Ninguna terminal — instala nuestro add-on.\nPaso a paso para cada ruta: https://claude.ai/code/artifact/aeb6587b-b1df-486f-968a-590a12270704\n¿Demasiado técnico? Solo haz una foto." },
       { q:"¿Qué contadores funcionan?", a:"Casi cualquier contador inteligente neerlandés o belga con puerto P1. Los neerlandeses envían datos abiertos y funcionan directamente. Los belgas (Fluvius) van cifrados — introduce una vez la clave gratuita de Fluvius en la app HomeWizard y luego funciona igual." },
       { q:"¿Siempre necesito una foto?", a:"Se requiere foto para una lectura escrita a mano. Un lector P1 conectado puede enviar sin foto, porque su token de dispositivo vincula la lectura a tu wallet." },
       { q:"¿Es dinero real?", a:"No. Todo corre en el testnet de VeChain; los B3TR son tokens de prueba sin valor real — perfecto para probar con seguridad." },
@@ -4040,7 +4032,18 @@ function HelpScreen({ onClose, onFeedback, T }) {
           </div>
         ))}
 
-        <button onClick={onFeedback} style={{width:"100%",marginTop:14,background:T.green3,border:"none",borderRadius:6,padding:"13px",color:"#fff",fontSize:12,fontWeight:800,textTransform:"uppercase",letterSpacing:"1px",cursor:"pointer"}}>{L.feedback}</button>
+        {/* Long-form setup lives outside the app — link, don't inline a manual. */}
+        <a href={GUIDE_URL} target="_blank" rel="noopener noreferrer"
+          style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,marginTop:16,
+            background:T.card,border:`1px solid ${T.border}`,borderRadius:6,padding:"13px 14px",textDecoration:"none"}}>
+          <span>
+            <span style={{display:"block",fontSize:12.5,fontWeight:700,color:T.text}}>📖 Automatic meter reading — full guide</span>
+            <span style={{display:"block",fontSize:10.5,color:T.textSoft,marginTop:2}}>P1 reader, Home Assistant & other readers · step by step</span>
+          </span>
+          <span style={{color:T.green3,fontWeight:800}}>↗</span>
+        </a>
+
+        <button onClick={onFeedback} style={{width:"100%",marginTop:10,background:T.green3,border:"none",borderRadius:6,padding:"13px",color:"#fff",fontSize:12,fontWeight:800,textTransform:"uppercase",letterSpacing:"1px",cursor:"pointer"}}>{L.feedback}</button>
       </div>
     </div>
   );
