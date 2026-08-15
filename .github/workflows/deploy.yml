@@ -24,6 +24,10 @@ jobs:
       # of valtio crashing dapp-kit. Requires package-lock.json to be committed.
       - run: npm ci
       - run: npm run build
+      # Publish the setup guide alongside the app so testers get a plain public URL
+      # (…/GreenUtilityLog/guide.html) with no login. Copied here rather than via
+      # Vite's publicDir, which is deliberately disabled — see vite.config.js.
+      - run: cp docs/guide.html dist/guide.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
