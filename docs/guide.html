@@ -181,6 +181,19 @@
     <div class="route"><div><h3>None of these</h3><p>Then keep photographing your meter. It works just as well and earns exactly the same. Nothing to set up.</p></div><div class="meter"><span>No setup</span></div></div>
   </div>
   <div class="note"><b>First, once: set your starting point</b>Whichever route you pick, do <strong>one normal photo submission</strong> in the app first. That tells the app where your meter started — without it, automatic readings can't be paid out.</div>
+  <h2>Does this work where you live?</h2>
+  <p class="lede" style="font-size:15.5px">The socket on your meter differs per country, so not every reader works everywhere. What always works: <strong>if Home Assistant already shows your meter's total, Route A works</strong> — whatever country you're in.</p>
+  <div class="scroll"><table><tr><th>Country</th><th>Your meter has</th><th>What to use</th></tr>
+    <tr><td>🇳🇱 Netherlands</td><td>P1 port (RJ12)</td><td>Any route. HomeWizard works out of the box.</td></tr>
+    <tr><td>🇧🇪 Belgium</td><td>P1 port (RJ12)</td><td>Same — plus the free Fluvius decryption key, once.</td></tr>
+    <tr><td>🇱🇺 Luxembourg</td><td>P1 port (Dutch DSMR)</td><td>Same as the Netherlands.</td></tr>
+    <tr><td>🇸🇪 Sweden · 🇫🇮 Finland</td><td>HAN port (RJ12)</td><td>A P1/HAN reader, or Home Assistant.</td></tr>
+    <tr><td>🇩🇰 Denmark</td><td>HAN (pin header, encrypted)</td><td>A reader with the right connector, or Home Assistant.</td></tr>
+    <tr><td>🇳🇴 Norway</td><td>HAN (RJ45, M-BUS)</td><td>A Norwegian HAN reader + Home Assistant.</td></tr>
+    <tr><td>🇩🇪 Germany</td><td>Smart-Meter-Gateway / optical head</td><td>Home Assistant.</td></tr>
+    <tr><td>Anywhere else</td><td>Varies</td><td>If Home Assistant reads your meter, Route A works.</td></tr>
+  </table></div>
+  <div class="note">Not sure? Open Home Assistant and look for your meter under Developer tools → States. If a kWh value is there and counting up, you're set.</div>
   <h2>All automatic routes: get your token</h2>
   <ol class="steps">
       <li><p class="steptitle">Copy your device token</p>
@@ -290,6 +303,19 @@ GUL_TOKEN=YOUR_TOKEN READ_URL=http://192.168.1.60/api/v1/data node index.js</pre
     <div class="route"><div><h3>Geen van deze</h3><p>Blijf dan je meter fotograferen. Dat werkt net zo goed en levert precies hetzelfde op. Niets in te stellen.</p></div><div class="meter"><span>Niets instellen</span></div></div>
   </div>
   <div class="note"><b>Eerst, eenmalig: zet je startpunt</b>Welke route je ook kiest, doe eerst <strong>één gewone foto-inzending</strong> in de app. Daarmee weet de app waar je meter begon — zonder dat kunnen automatische standen niet uitbetalen.</div>
+  <h2>Werkt dit ook in jouw land?</h2>
+  <p class="lede" style="font-size:15.5px">De aansluiting op je meter verschilt per land, dus niet elke reader werkt overal. Wat altijd werkt: <strong>toont Home Assistant je meterstand al, dan werkt Route A</strong> — in welk land je ook zit.</p>
+  <div class="scroll"><table><tr><th>Land</th><th>Jouw meter heeft</th><th>Wat je gebruikt</th></tr>
+    <tr><td>🇳🇱 Nederland</td><td>P1-poort (RJ12)</td><td>Elke route. HomeWizard werkt direct.</td></tr>
+    <tr><td>🇧🇪 België</td><td>P1-poort (RJ12)</td><td>Hetzelfde — plus eenmalig de gratis Fluvius-sleutel.</td></tr>
+    <tr><td>🇱🇺 Luxemburg</td><td>P1-poort (Nederlandse DSMR)</td><td>Hetzelfde als Nederland.</td></tr>
+    <tr><td>🇸🇪 Zweden · 🇫🇮 Finland</td><td>HAN-poort (RJ12)</td><td>Een P1/HAN-reader, of Home Assistant.</td></tr>
+    <tr><td>🇩🇰 Denemarken</td><td>HAN (pin-header, versleuteld)</td><td>Een reader met de juiste connector, of Home Assistant.</td></tr>
+    <tr><td>🇳🇴 Noorwegen</td><td>HAN (RJ45, M-BUS)</td><td>Een Noorse HAN-reader + Home Assistant.</td></tr>
+    <tr><td>🇩🇪 Duitsland</td><td>Smart-Meter-Gateway / optische kop</td><td>Home Assistant.</td></tr>
+    <tr><td>Elders</td><td>Verschilt</td><td>Leest Home Assistant je meter, dan werkt Route A.</td></tr>
+  </table></div>
+  <div class="note">Niet zeker? Open Home Assistant en zoek je meter onder Ontwikkelhulpmiddelen → Statussen. Staat er een kWh-waarde die oploopt, dan zit je goed.</div>
   <h2>Alle automatische routes: haal je token op</h2>
   <ol class="steps">
       <li><p class="steptitle">Kopieer je device-token</p>
@@ -399,6 +425,19 @@ GUL_TOKEN=JOUW_TOKEN READ_URL=http://192.168.1.60/api/v1/data node index.js</pre
     <div class="route"><div><h3>Nichts davon</h3><p>Dann fotografiere deinen Zähler weiter. Das funktioniert genauso gut und bringt exakt dasselbe. Nichts einzurichten.</p></div><div class="meter"><span>Nichts einrichten</span></div></div>
   </div>
   <div class="note"><b>Zuerst, einmalig: Startpunkt setzen</b>Egal welche Route: mach zuerst <strong>eine normale Foto-Einreichung</strong> in der App. Damit weiß die App, wo dein Zähler startete — sonst können automatische Stände nicht ausgezahlt werden.</div>
+  <h2>Funktioniert das in deinem Land?</h2>
+  <p class="lede" style="font-size:15.5px">Der Anschluss am Zähler unterscheidet sich je Land, nicht jeder Reader passt überall. Was immer geht: <strong>zeigt Home Assistant deinen Zählerstand bereits, funktioniert Route A</strong> — egal in welchem Land.</p>
+  <div class="scroll"><table><tr><th>Land</th><th>Dein Zähler hat</th><th>Was du nutzt</th></tr>
+    <tr><td>🇳🇱 Niederlande</td><td>P1-Port (RJ12)</td><td>Jede Route. HomeWizard läuft direkt.</td></tr>
+    <tr><td>🇧🇪 Belgien</td><td>P1-Port (RJ12)</td><td>Genauso — plus einmalig den kostenlosen Fluvius-Schlüssel.</td></tr>
+    <tr><td>🇱🇺 Luxemburg</td><td>P1-Port (niederländischer DSMR)</td><td>Wie in den Niederlanden.</td></tr>
+    <tr><td>🇸🇪 Schweden · 🇫🇮 Finnland</td><td>HAN-Port (RJ12)</td><td>Ein P1/HAN-Reader, oder Home Assistant.</td></tr>
+    <tr><td>🇩🇰 Dänemark</td><td>HAN (Pin-Header, verschlüsselt)</td><td>Ein Reader mit passendem Stecker, oder Home Assistant.</td></tr>
+    <tr><td>🇳🇴 Norwegen</td><td>HAN (RJ45, M-BUS)</td><td>Ein norwegischer HAN-Reader + Home Assistant.</td></tr>
+    <tr><td>🇩🇪 Deutschland</td><td>Smart-Meter-Gateway / Lesekopf</td><td>Home Assistant.</td></tr>
+    <tr><td>Anderswo</td><td>Unterschiedlich</td><td>Liest Home Assistant deinen Zähler, funktioniert Route A.</td></tr>
+  </table></div>
+  <div class="note">Unsicher? Öffne Home Assistant und such deinen Zähler unter Entwicklerwerkzeuge → Zustände. Steht dort ein kWh-Wert, der hochzählt, passt es.</div>
   <h2>Alle automatischen Routen: Token holen</h2>
   <ol class="steps">
       <li><p class="steptitle">Geräte-Token kopieren</p>
@@ -508,6 +547,19 @@ GUL_TOKEN=DEIN_TOKEN READ_URL=http://192.168.1.60/api/v1/data node index.js</pre
     <div class="route"><div><h3>Aucun des deux</h3><p>Continuez à photographier votre compteur. Ça marche aussi bien et rapporte exactement pareil. Rien à configurer.</p></div><div class="meter"><span>Rien à faire</span></div></div>
   </div>
   <div class="note"><b>D'abord, une fois : fixez votre point de départ</b>Quelle que soit la route, faites d'abord <strong>une soumission photo normale</strong> dans l'app. L'app sait ainsi où votre compteur a démarré — sinon les relevés automatiques ne peuvent pas être payés.</div>
+  <h2>Est-ce que ça marche chez vous ?</h2>
+  <p class="lede" style="font-size:15.5px">La prise de votre compteur diffère selon le pays, donc tous les lecteurs ne fonctionnent pas partout. Ce qui marche toujours : <strong>si Home Assistant affiche déjà votre relevé, la Route A fonctionne</strong> — quel que soit le pays.</p>
+  <div class="scroll"><table><tr><th>Pays</th><th>Votre compteur a</th><th>Quoi utiliser</th></tr>
+    <tr><td>🇳🇱 Pays-Bas</td><td>Port P1 (RJ12)</td><td>Toutes les routes. HomeWizard marche directement.</td></tr>
+    <tr><td>🇧🇪 Belgique</td><td>Port P1 (RJ12)</td><td>Pareil — plus la clé Fluvius gratuite, une fois.</td></tr>
+    <tr><td>🇱🇺 Luxembourg</td><td>Port P1 (DSMR néerlandais)</td><td>Comme aux Pays-Bas.</td></tr>
+    <tr><td>🇸🇪 Suède · 🇫🇮 Finlande</td><td>Port HAN (RJ12)</td><td>Un lecteur P1/HAN, ou Home Assistant.</td></tr>
+    <tr><td>🇩🇰 Danemark</td><td>HAN (connecteur à broches, chiffré)</td><td>Un lecteur au bon connecteur, ou Home Assistant.</td></tr>
+    <tr><td>🇳🇴 Norvège</td><td>HAN (RJ45, M-BUS)</td><td>Un lecteur HAN norvégien + Home Assistant.</td></tr>
+    <tr><td>🇩🇪 Allemagne</td><td>Smart-Meter-Gateway / tête optique</td><td>Home Assistant.</td></tr>
+    <tr><td>Ailleurs</td><td>Variable</td><td>Si Home Assistant lit votre compteur, la Route A marche.</td></tr>
+  </table></div>
+  <div class="note">Pas sûr ? Ouvrez Home Assistant et cherchez votre compteur dans Outils de développement → États. Si une valeur en kWh monte, c'est bon.</div>
   <h2>Toutes les routes automatiques : récupérez votre jeton</h2>
   <ol class="steps">
       <li><p class="steptitle">Copiez votre jeton</p>
@@ -617,6 +669,19 @@ GUL_TOKEN=VOTRE_JETON READ_URL=http://192.168.1.60/api/v1/data node index.js</pr
     <div class="route"><div><h3>Ninguno</h3><p>Sigue fotografiando tu contador. Funciona igual de bien y da exactamente lo mismo. Nada que configurar.</p></div><div class="meter"><span>Sin configurar</span></div></div>
   </div>
   <div class="note"><b>Primero, una vez: fija tu punto de partida</b>Elijas la ruta que elijas, haz primero <strong>un envío con foto normal</strong> en la app. Así la app sabe dónde empezó tu contador — sin eso las lecturas automáticas no pueden pagarse.</div>
+  <h2>¿Funciona en tu país?</h2>
+  <p class="lede" style="font-size:15.5px">La toma de tu contador varía según el país, así que no todos los lectores sirven en todas partes. Lo que siempre funciona: <strong>si Home Assistant ya muestra tu lectura, la Ruta A funciona</strong> — estés donde estés.</p>
+  <div class="scroll"><table><tr><th>País</th><th>Tu contador tiene</th><th>Qué usar</th></tr>
+    <tr><td>🇳🇱 Países Bajos</td><td>Puerto P1 (RJ12)</td><td>Cualquier ruta. HomeWizard funciona directamente.</td></tr>
+    <tr><td>🇧🇪 Bélgica</td><td>Puerto P1 (RJ12)</td><td>Igual — más la clave gratuita de Fluvius, una vez.</td></tr>
+    <tr><td>🇱🇺 Luxemburgo</td><td>Puerto P1 (DSMR neerlandés)</td><td>Igual que Países Bajos.</td></tr>
+    <tr><td>🇸🇪 Suecia · 🇫🇮 Finlandia</td><td>Puerto HAN (RJ12)</td><td>Un lector P1/HAN, o Home Assistant.</td></tr>
+    <tr><td>🇩🇰 Dinamarca</td><td>HAN (conector de pines, cifrado)</td><td>Un lector con el conector correcto, o Home Assistant.</td></tr>
+    <tr><td>🇳🇴 Noruega</td><td>HAN (RJ45, M-BUS)</td><td>Un lector HAN noruego + Home Assistant.</td></tr>
+    <tr><td>🇩🇪 Alemania</td><td>Smart-Meter-Gateway / cabezal óptico</td><td>Home Assistant.</td></tr>
+    <tr><td>En otro lugar</td><td>Varía</td><td>Si Home Assistant lee tu contador, la Ruta A funciona.</td></tr>
+  </table></div>
+  <div class="note">¿No estás seguro? Abre Home Assistant y busca tu contador en Herramientas para desarrolladores → Estados. Si hay un valor en kWh que sube, listo.</div>
   <h2>Todas las rutas automáticas: consigue tu token</h2>
   <ol class="steps">
       <li><p class="steptitle">Copia tu token</p>
