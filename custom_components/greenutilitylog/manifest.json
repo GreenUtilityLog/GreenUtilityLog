@@ -1,0 +1,11 @@
+{
+  "domain": "greenutilitylog",
+  "name": "GreenUtilityLog",
+  "codeowners": ["@GreenUtilityLog"],
+  "config_flow": true,
+  "documentation": "https://greenutilitylog.github.io/GreenUtilityLog/guide.html",
+  "integration_type": "service",
+  "iot_class": "cloud_push",
+  "issue_tracker": "https://github.com/GreenUtilityLog/GreenUtilityLog/issues",
+  "version": "1.0.0"
+}

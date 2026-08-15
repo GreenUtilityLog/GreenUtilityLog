@@ -1,0 +1,55 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "GreenUtilityLog",
+        "description": "Send your meter reading automatically, so you never photograph the meter again.\n\nGet your token in the app: Submit → Have a P1 reader? → Automatic setup → “Get my device token”. Do one photo submission first — that sets your starting point.",
+        "data": {
+          "token": "Device token",
+          "source_entity": "Meter reading (cumulative kWh)",
+          "interval_minutes": "Send every",
+          "ingest_url": "Server address"
+        },
+        "data_description": {
+          "source_entity": "The sensor whose value keeps counting up — your meter total, not current power.",
+          "ingest_url": "Leave as-is unless you run your own backend."
+        }
+      }
+    },
+    "error": {
+      "token_required": "Paste the device token from the app.",
+      "entity_not_found": "That entity doesn't exist (any more). Pick another.",
+      "entity_not_numeric": "That entity has no numeric value. Pick your cumulative meter total.",
+      "entity_not_kwh": "That entity isn't in kWh. Pick the total meter reading, not current power."
+    },
+    "abort": {
+      "already_configured": "This meter is already being sent."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "GreenUtilityLog",
+        "description": "Change which meter is sent, how often, or your token.",
+        "data": {
+          "token": "Device token",
+          "source_entity": "Meter reading (cumulative kWh)",
+          "interval_minutes": "Send every",
+          "ingest_url": "Server address"
+        }
+      }
+    },
+    "error": {
+      "token_required": "Paste the device token from the app.",
+      "entity_not_found": "That entity doesn't exist (any more). Pick another.",
+      "entity_not_numeric": "That entity has no numeric value. Pick your cumulative meter total.",
+      "entity_not_kwh": "That entity isn't in kWh. Pick the total meter reading, not current power."
+    }
+  },
+  "services": {
+    "push_now": {
+      "name": "Send reading now",
+      "description": "Reads the configured meter entity and sends it immediately, without waiting for the next interval."
+    }
+  }
+}

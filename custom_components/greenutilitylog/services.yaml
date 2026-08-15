@@ -1,0 +1,5 @@
+push_now:
+  name: Send reading now
+  description: >-
+    Reads the configured meter entity and sends it to GreenUtilityLog immediately,
+    without waiting for the next interval. Handy right after setup, or to test.

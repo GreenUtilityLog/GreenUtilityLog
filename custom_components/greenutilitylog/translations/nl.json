@@ -1,0 +1,55 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "GreenUtilityLog",
+        "description": "Stuur je meterstand automatisch door, zodat je nooit meer hoeft te fotograferen.\n\nJe token haal je in de app: Submit → Have a P1 reader? → Automatic setup → “Get my device token”. Doe eerst één foto-inzending — dat zet je startpunt.",
+        "data": {
+          "token": "Device-token",
+          "source_entity": "Meterstand (cumulatief kWh)",
+          "interval_minutes": "Verstuur elke",
+          "ingest_url": "Serveradres"
+        },
+        "data_description": {
+          "source_entity": "De sensor waarvan de waarde blijft oplopen — je meterstand, niet het huidige vermogen.",
+          "ingest_url": "Laat staan, tenzij je een eigen backend draait."
+        }
+      }
+    },
+    "error": {
+      "token_required": "Plak het device-token uit de app.",
+      "entity_not_found": "Die entity bestaat niet (meer). Kies een andere.",
+      "entity_not_numeric": "Die entity heeft geen getalswaarde. Kies je cumulatieve meterstand.",
+      "entity_not_kwh": "Die entity staat niet in kWh. Kies de meterstand, niet het huidige vermogen."
+    },
+    "abort": {
+      "already_configured": "Deze meter wordt al doorgestuurd."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "GreenUtilityLog",
+        "description": "Wijzig welke meter wordt doorgestuurd, hoe vaak, of je token.",
+        "data": {
+          "token": "Device-token",
+          "source_entity": "Meterstand (cumulatief kWh)",
+          "interval_minutes": "Verstuur elke",
+          "ingest_url": "Serveradres"
+        }
+      }
+    },
+    "error": {
+      "token_required": "Plak het device-token uit de app.",
+      "entity_not_found": "Die entity bestaat niet (meer). Kies een andere.",
+      "entity_not_numeric": "Die entity heeft geen getalswaarde. Kies je cumulatieve meterstand.",
+      "entity_not_kwh": "Die entity staat niet in kWh. Kies de meterstand, niet het huidige vermogen."
+    }
+  },
+  "services": {
+    "push_now": {
+      "name": "Stuur stand nu",
+      "description": "Leest de ingestelde meter-entity en stuurt die meteen door, zonder te wachten op het volgende interval."
+    }
+  }
+}
