@@ -1,0 +1,747 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#146b47">
+<title>Automatic meter reading — GreenUtilityLog</title>
+<meta name="description" content="Connect a P1 reader, HomeWizard or Home Assistant and let your meter send its own reading to GreenUtilityLog. Step-by-step, in five languages.">
+<meta property="og:title" content="Automatic meter reading — GreenUtilityLog">
+<meta property="og:description" content="P1 reader, HomeWizard or Home Assistant — step by step, no photos needed.">
+<meta property="og:image" content="https://greenutilitylog.github.io/GreenUtilityLog/og-image.png">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔌</text></svg>">
+</head>
+<body>
+<style>
+  /* ── Design notes ────────────────────────────────────────────────────────────
+     Subject: a setup guide for reading a physical electricity meter. So the page
+     borrows from instrument documentation rather than marketing: hairline rules
+     instead of shadowed cards, generous measure, and a strict split between
+     HUMAN text (humanist UI stack) and MACHINE text (mono) — every command, path,
+     option name and log line is mono, so "what you type/see" is never ambiguous.
+     One accent, used sparingly. Difficulty is a meter, not an emoji.
+  ─────────────────────────────────────────────────────────────────────────────*/
+  :root{
+    --paper:#fbfbfa; --raise:#ffffff; --ink:#111614; --soft:#59635d; --faint:#8d958f;
+    --rule:#e3e7e4; --rule-strong:#cfd6d1;
+    --accent:#146b47; --accent-ink:#ffffff; --accent-wash:#eef4f0;
+    --mono-bg:#101614; --mono-ink:#cfded5; --mono-dim:#6f8b7d;
+    --flag:#8a5a13; --flag-wash:#fdf6ea; --flag-rule:#ecdcbd;
+    --measure:68ch;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --paper:#0b0f0d; --raise:#111614; --ink:#e8ede9; --soft:#9aa7a0; --faint:#6d7a73;
+      --rule:#1f2723; --rule-strong:#2c3630;
+      --accent:#54c08c; --accent-ink:#07120c; --accent-wash:#131f19;
+      --mono-bg:#080c0a; --mono-ink:#c6ddd1; --mono-dim:#5f7a6d;
+      --flag:#e0bd80; --flag-wash:#1e1810; --flag-rule:#3a2f1b;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0b0f0d; --raise:#111614; --ink:#e8ede9; --soft:#9aa7a0; --faint:#6d7a73;
+    --rule:#1f2723; --rule-strong:#2c3630;
+    --accent:#54c08c; --accent-ink:#07120c; --accent-wash:#131f19;
+    --mono-bg:#080c0a; --mono-ink:#c6ddd1; --mono-dim:#5f7a6d;
+    --flag:#e0bd80; --flag-wash:#1e1810; --flag-rule:#3a2f1b;
+  }
+
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:16px; line-height:1.62; -webkit-font-smoothing:antialiased;
+    font-variant-numeric:tabular-nums;
+  }
+  .wrap{max-width:780px;margin:0 auto;padding:0 24px 96px}
+  .mono,code,pre,.k{font-family:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace}
+
+  /* ── language bar ─────────────────────────────────────────────────────────*/
+  .langbar{position:sticky;top:0;z-index:10;display:flex;gap:2px;flex-wrap:wrap;align-items:center;
+    padding:9px 24px;margin:0 -24px;background:color-mix(in srgb,var(--paper) 92%,transparent);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--rule)}
+  .langbar .lbl{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--faint);margin-right:10px}
+  .langbtn{font:inherit;font-size:13px;font-weight:500;cursor:pointer;padding:4px 10px;border:none;
+    background:none;color:var(--soft);border-bottom:2px solid transparent;transition:color .15s,border-color .15s}
+  .langbtn:hover{color:var(--ink)}
+  .langbtn[aria-pressed="true"]{color:var(--ink);font-weight:650;border-bottom-color:var(--accent)}
+  .langbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* ── masthead ─────────────────────────────────────────────────────────────*/
+  header.hero{padding:56px 0 34px;border-bottom:1px solid var(--rule-strong)}
+  .kicker{font-size:10.5px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--accent)}
+  h1{font-size:clamp(30px,5.2vw,44px);line-height:1.08;letter-spacing:-.025em;font-weight:800;
+    text-wrap:balance;margin:16px 0 14px;max-width:20ch}
+  .lede{font-size:17px;color:var(--soft);max-width:var(--measure);margin:0}
+
+  /* ── section headers: label + rule ────────────────────────────────────────*/
+  h2{display:flex;align-items:center;gap:14px;margin:52px 0 20px;
+    font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+  h2::after{content:"";flex:1;height:1px;background:var(--rule)}
+
+  /* ── route comparison ─────────────────────────────────────────────────────*/
+  .routes{display:flex;flex-direction:column}
+  .route{display:grid;grid-template-columns:1fr auto;gap:8px 20px;align-items:start;
+    padding:18px 0;border-top:1px solid var(--rule)}
+  .route:last-child{border-bottom:1px solid var(--rule)}
+  .route h3{margin:0 0 4px;font-size:17px;font-weight:650;letter-spacing:-.01em}
+  .route p{margin:0;font-size:14.5px;color:var(--soft);max-width:52ch}
+  .route.pick h3{color:var(--accent)}
+  .meter{display:flex;align-items:center;gap:9px;white-space:nowrap;padding-top:3px}
+  .meter .dots{display:flex;gap:3px}
+  .meter i{width:6px;height:6px;border-radius:50%;background:var(--rule-strong);display:block}
+  .meter i.on{background:var(--accent)}
+  .meter span{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+
+  /* ── steps: mono numerals on a process rule ───────────────────────────────*/
+  ol.steps{list-style:none;counter-reset:s;margin:0;padding:0}
+  ol.steps>li{counter-increment:s;position:relative;padding:0 0 30px 52px}
+  ol.steps>li::before{content:counter(s,decimal-leading-zero);position:absolute;left:0;top:-1px;
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:12px;font-weight:700;
+    color:var(--accent);letter-spacing:.02em}
+  ol.steps>li::after{content:"";position:absolute;left:13px;top:18px;bottom:6px;width:1px;background:var(--rule)}
+  ol.steps>li:last-child{padding-bottom:4px}
+  ol.steps>li:last-child::after{display:none}
+  .steptitle{margin:0 0 6px;font-size:17px;font-weight:650;letter-spacing:-.01em}
+  ol.steps>li p{margin:0;color:var(--soft);font-size:15.5px;max-width:var(--measure)}
+  ol.steps>li p strong{color:var(--ink);font-weight:600}
+  .k{font-size:13.5px;background:var(--accent-wash);color:var(--ink);padding:1.5px 6px;border-radius:3px;
+    white-space:nowrap}
+
+  /* ── expected output: it IS terminal output, so it looks like it ──────────*/
+  .see{margin-top:14px;border-left:2px solid var(--accent);padding:2px 0 2px 16px}
+  .see b{display:block;font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--accent);margin-bottom:5px}
+  .see{font-size:14.5px;color:var(--soft)}
+
+  /* ── code ─────────────────────────────────────────────────────────────────*/
+  .code{position:relative;margin:16px 0 0;background:var(--mono-bg);border-radius:6px;overflow:hidden}
+  .code .cap{display:block;padding:11px 16px 0;color:var(--mono-dim);font-size:10px;font-weight:700;
+    letter-spacing:.14em;text-transform:uppercase}
+  .code pre{margin:0;padding:12px 16px 16px;overflow-x:auto;color:var(--mono-ink);font-size:13px;line-height:1.75}
+  .copy{position:absolute;top:10px;right:10px;font:inherit;font-size:10.5px;font-weight:700;cursor:pointer;
+    border:1px solid rgba(255,255,255,.16);border-radius:4px;padding:4px 9px;background:transparent;
+    color:var(--mono-ink);letter-spacing:.04em}
+  .copy:hover{background:rgba(255,255,255,.08)}
+  .copy:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* ── notes ────────────────────────────────────────────────────────────────*/
+  .note{margin-top:22px;padding:16px 18px;background:var(--raise);border:1px solid var(--rule);
+    border-radius:6px;font-size:14.5px;color:var(--soft);max-width:var(--measure)}
+  .note b{display:block;color:var(--ink);font-weight:650;font-size:14.5px;margin-bottom:4px}
+  .note strong{color:var(--ink);font-weight:600}
+  .note.flag{background:var(--flag-wash);border-color:var(--flag-rule)}
+  .note.flag b{color:var(--flag)}
+
+  /* ── troubleshooting table ────────────────────────────────────────────────*/
+  .scroll{overflow-x:auto;margin-top:4px}
+  table{width:100%;border-collapse:collapse;font-size:14.5px}
+  th{text-align:left;padding:0 16px 8px 0;font-size:10px;font-weight:700;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--faint);border-bottom:1px solid var(--rule-strong)}
+  td{padding:13px 16px 13px 0;border-bottom:1px solid var(--rule);vertical-align:top;color:var(--soft)}
+  td:first-child{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:13px;
+    color:var(--ink);white-space:nowrap;padding-right:26px}
+
+  .lang{display:none} .lang.active{display:block}
+  footer{margin-top:64px;padding-top:22px;border-top:1px solid var(--rule);color:var(--faint);font-size:12.5px}
+  a{color:var(--accent);text-underline-offset:2px}
+  @media (max-width:560px){
+    .route{grid-template-columns:1fr}
+    .meter{padding-top:0}
+    td:first-child{white-space:normal}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+<style>
+  h3.sub{margin:34px 0 16px;font-size:13.5px;font-weight:700;letter-spacing:.02em;color:var(--ink)}
+  h3.sub::before{content:"";display:inline-block;width:14px;height:1px;background:var(--accent);
+    vertical-align:middle;margin-right:10px}
+  section > .lede{margin-bottom:6px}
+  footer{margin-top:56px}
+</style>
+<nav class="langbar" aria-label="Language"><span class="lbl">Language</span>
+<button class="langbtn" data-lang="en" aria-pressed="true">English</button>
+<button class="langbtn" data-lang="nl" aria-pressed="false">Nederlands</button>
+<button class="langbtn" data-lang="de" aria-pressed="false">Deutsch</button>
+<button class="langbtn" data-lang="fr" aria-pressed="false">Français</button>
+<button class="langbtn" data-lang="es" aria-pressed="false">Español</button>
+</nav>
+<div class="wrap">
+<section class="lang active" id="lang-en">
+  <header class="hero"><span class="kicker">Tester guide</span><h1>Earn without photographing your meter</h1><p class="lede">Normally you photograph your meter to earn B3TR. If something in your home can already read the meter, it can send the reading for you — and you never photograph again. Start by finding your setup below.</p></header>
+  <h2>Which setup do you have?</h2>
+  <div class="routes">
+    <div class="route pick"><div><h3>I use Home Assistant</h3><p>Works with almost any meter HA already reads. Install our add-on, or paste a few lines of YAML.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Easiest</span></div></div>
+    <div class="route"><div><h3>I have a HomeWizard P1</h3><p>No Home Assistant needed. A small helper finds your meter on the network by itself.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Some tech</span></div></div>
+    <div class="route"><div><h3>I have another P1 reader</h3><p>dsmr-reader, P1 Monitor, Shelly and friends — anything that serves its data as JSON.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span><span>Technical</span></div></div>
+    <div class="route"><div><h3>None of these</h3><p>Then keep photographing your meter. It works just as well and earns exactly the same. Nothing to set up.</p></div><div class="meter"><span>No setup</span></div></div>
+  </div>
+  <div class="note"><b>First, once: set your starting point</b>Whichever route you pick, do <strong>one normal photo submission</strong> in the app first. That tells the app where your meter started — without it, automatic readings can't be paid out.</div>
+  <h2>All automatic routes: get your token</h2>
+  <ol class="steps">
+      <li><p class="steptitle">Copy your device token</p>
+      <p>In the app: <span class="k">Submit → ⚡ Have a P1 reader? → ⚙️ Automatic setup → “Get my device token”</span>. Copy it.</p><div class="see"><b>What it is</b>A long code that says “these readings belong to my wallet”. Keep it private — anyone holding it can send readings in your name.</div></li>
+      </ol>
+  <h2>Route A — Home Assistant (any meter)</h2>
+  <p class="lede" style="font-size:15.5px">Two ways. The add-on is the simplest if you have a HomeWizard; the YAML works with <em>any</em> meter Home Assistant already shows you.</p>
+  <h3 class="sub">With our add-on (no YAML)</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Add the repository</p>
+      <p>In Home Assistant: <span class="k">Settings → Add-ons → Add-on Store → ⋮ (top right) → Repositories</span>. Paste this and press Add.</p>
+      <div class="code"><span class="cap">Repository address</span><button class="copy">Copy</button><pre>https://github.com/GreenUtilityLog/GreenUtilityLog</pre></div>
+      </li>
+      <li><p class="steptitle">Install the add-on</p>
+      <p>It appears at the bottom of the store as <strong>GreenUtilityLog Meter Bridge</strong>. Open it and press <strong>Install</strong>.</p>
+      </li>
+      <li><p class="steptitle">Paste your token and start</p>
+      <p>On the <strong>Configuration</strong> tab paste your token into <span class="k">token</span>, press <strong>Save</strong>, then <strong>Start</strong> on the Info tab.</p>
+      <div class="see"><b>Check the Log tab</b>Within a minute you should see <span class="k">pushed 8421.3 kWh ✓</span>.</div>
+      </li>
+      </ol>
+  <h3 class="sub">With your own sensor (any meter)</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Find your meter sensor</p>
+      <p>In Home Assistant: <span class="k">Developer tools → States</span>. Filter on <em>import</em> and pick the one in kWh whose value keeps counting up — that is your total. Entity ids differ per install, so use yours.</p>
+      </li>
+      <li><p class="steptitle">Add these lines</p>
+      <p>Put this in <span class="k">configuration.yaml</span>, replacing the entity and your token, then restart Home Assistant.</p>
+      <div class="code"><span class="cap">configuration.yaml + automations.yaml</span><button class="copy">Copy</button><pre>rest_command:
+  gul_push:
+    url: &quot;https://greenutilitylog-rewards.onrender.com/meter-ingest&quot;
+    method: POST
+    content_type: &quot;application/json&quot;
+    payload: &#x27;{&quot;token&quot;:&quot;YOUR_TOKEN&quot;,&quot;reading&quot;:{{ states(&quot;sensor.YOUR_ENTITY&quot;) | float }}}&#x27;
+
+# automations.yaml — send once an hour
+- alias: Push meter to GreenUtilityLog
+  trigger: { platform: time_pattern, hours: &quot;/1&quot; }
+  action: { service: rest_command.gul_push }</pre></div>
+      </li>
+      </ol>
+  <h2>Route B — HomeWizard P1, without Home Assistant</h2>
+  <ol class="steps">
+      <li><p class="steptitle">Turn on the Local API</p>
+      <p>In the <strong>HomeWizard Energy</strong> app: <span class="k">Settings → Meters → your P1 → Local API → ON</span>. This lets your own network read the meter.</p>
+      </li>
+      <li><p class="steptitle">Open a terminal on a device that stays on</p>
+      <p><strong>Windows:</strong> press Start, type <em>PowerShell</em>. <strong>Mac:</strong> open <em>Terminal</em>. <strong>Pi / NAS:</strong> its terminal, or over SSH.</p>
+      <div class="see"><b>You need Node.js 18+</b>Not installed? Get it from nodejs.org first, or the command below won't run.</div>
+      </li>
+      <li><p class="steptitle">Paste this, with your own token</p>
+      <p>Replace <span class="k">YOUR_TOKEN</span>, press Enter, and leave the window open.</p>
+      <div class="code"><span class="cap">One-off setup</span><button class="copy">Copy</button><pre>git clone https://github.com/GreenUtilityLog/GreenUtilityLog
+cd GreenUtilityLog/bridge
+GUL_TOKEN=YOUR_TOKEN node index.js</pre></div>
+      </li>
+      <li><p class="steptitle">Check it found the meter</p>
+      <p>You should see the meter being discovered and then pushed.</p>
+      <div class="see"><b>Expected output</b><span class="k">found HomeWizard at 192.168.…</span> then <span class="k">pushed 8421.3 kWh ✓</span></div>
+      </li>
+      </ol>
+  <h2>Route C — Another P1 reader</h2>
+  <p class="lede" style="font-size:15.5px">The same helper reads any device that serves its data as JSON over HTTP — you just tell it where.</p>
+  <ol class="steps">
+      <li><p class="steptitle">Find your reader's data URL</p>
+      <p>Open your reader's web page and look for the address that returns raw JSON (often something like <span class="k">/api/v1/data</span> or <span class="k">/api/v2/sm/actual</span>). Exact paths differ per brand — check your reader's own documentation.</p>
+      </li>
+      <li><p class="steptitle">Start the helper with that URL</p>
+      <p>Replace the URL and your token. If the reading isn't found automatically, add <span class="k">READ_FIELD=</span> with the dot-path to the kWh value in that JSON.</p>
+      <div class="code"><span class="cap">Any HTTP/JSON reader</span><button class="copy">Copy</button><pre>git clone https://github.com/GreenUtilityLog/GreenUtilityLog
+cd GreenUtilityLog/bridge
+GUL_TOKEN=YOUR_TOKEN READ_URL=http://192.168.1.60/api/v1/data node index.js</pre></div>
+      </li>
+      <li><p class="steptitle">Check it worked</p>
+      <p>The helper prints what it pushed.</p>
+      <div class="see"><b>Expected output</b><span class="k">pushed 8421.3 kWh ✓</span></div>
+      </li>
+      </ol>
+  <h2>Finally: claim it in the app</h2>
+  <ol class="steps">
+      <li><p class="steptitle">Your reading appears by itself</p>
+      <p>In the app open <strong>Submit</strong>. Under <strong>“Auto-received”</strong> you'll see your meter total and when it arrived.</p>
+      </li>
+      <li><p class="steptitle">Tap “Submit — no photo”</p>
+      <p>That's it. From now on your meter sends its reading every hour and you only claim it.</p>
+      </li>
+      </ol>
+  <div class="note flag"><b>🇧🇪 Belgium (Fluvius meters)</b>Digital Fluvius meters send encrypted data. Ask Fluvius for your free decryption key and enter it once in your reader's app — after that everything works the same.</div>
+  <h2>If something doesn't work</h2>
+  <div class="scroll"><table><tr><th>You see</th><th>What to do</th></tr>
+    <tr><td>No HomeWizard found</td><td>Your network blocks auto-discovery. Find your P1's IP in the HomeWizard app and set <span class="k">hw_ip</span> (add-on) or add <span class="k">HW_IP=192.168.1.50</span> before the command.</td></tr>
+    <tr><td>couldn&#x27;t find a total import kWh</td><td>The reader returned JSON the helper didn't recognise. Set <span class="k">READ_FIELD</span> to the dot-path of the cumulative kWh value.</td></tr>
+    <tr><td>Nothing under “Auto-received”</td><td>Check the token is pasted correctly and the helper is still running on the same network as the meter.</td></tr>
+    <tr><td>the automatic reading is stale</td><td>A reading must be under 48 hours old to pay out — make sure the add-on or terminal is still running.</td></tr>
+    <tr><td>submit one photo reading first</td><td>You skipped the starting point. Do one normal photo submission, then try again.</td></tr>
+  </table></div>
+  <div class="note">Still stuck? Send a message with what the Log tab (or terminal) shows — it usually says exactly what's missing.</div>
+  <footer>GreenUtilityLog · Tester guide · Testnet beta — test tokens, no real-world value yet.</footer>
+</section>
+<section class="lang" id="lang-nl">
+  <header class="hero"><span class="kicker">Testershandleiding</span><h1>Verdien zonder je meter te fotograferen</h1><p class="lede">Normaal fotografeer je je meter om B3TR te verdienen. Kan er thuis al iets je meter uitlezen, dan stuurt dát de stand door — en hoef jij nooit meer te fotograferen. Zoek hieronder je situatie op.</p></header>
+  <h2>Welke situatie heb jij?</h2>
+  <div class="routes">
+    <div class="route pick"><div><h3>Ik gebruik Home Assistant</h3><p>Werkt met vrijwel elke meter die HA al uitleest. Installeer onze add-on, of plak een paar regels YAML.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Makkelijkst</span></div></div>
+    <div class="route"><div><h3>Ik heb een HomeWizard P1</h3><p>Geen Home Assistant nodig. Een klein hulpprogramma vindt je meter zelf op het netwerk.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Beetje techniek</span></div></div>
+    <div class="route"><div><h3>Ik heb een andere P1-reader</h3><p>dsmr-reader, P1 Monitor, Shelly en dergelijke — alles wat z’n data als JSON aanbiedt.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span><span>Technisch</span></div></div>
+    <div class="route"><div><h3>Geen van deze</h3><p>Blijf dan je meter fotograferen. Dat werkt net zo goed en levert precies hetzelfde op. Niets in te stellen.</p></div><div class="meter"><span>Niets instellen</span></div></div>
+  </div>
+  <div class="note"><b>Eerst, eenmalig: zet je startpunt</b>Welke route je ook kiest, doe eerst <strong>één gewone foto-inzending</strong> in de app. Daarmee weet de app waar je meter begon — zonder dat kunnen automatische standen niet uitbetalen.</div>
+  <h2>Alle automatische routes: haal je token op</h2>
+  <ol class="steps">
+      <li><p class="steptitle">Kopieer je device-token</p>
+      <p>In de app: <span class="k">Submit → ⚡ Have a P1 reader? → ⚙️ Automatic setup → “Get my device token”</span>. Kopieer ’m.</p><div class="see"><b>Wat het is</b>Een lange code die zegt: “deze standen horen bij mijn wallet”. Houd ’m privé — wie ’m heeft kan standen op jouw naam insturen.</div></li>
+      </ol>
+  <h2>Route A — Home Assistant (elke meter)</h2>
+  <p class="lede" style="font-size:15.5px">Twee manieren. De add-on is het simpelst als je een HomeWizard hebt; de YAML werkt met <em>elke</em> meter die Home Assistant al laat zien.</p>
+  <h3 class="sub">Met onze add-on (geen YAML)</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Voeg de bron toe</p>
+      <p>In Home Assistant: <span class="k">Instellingen → Add-ons → Add-on Store → ⋮ (rechtsboven) → Repositories</span>. Plak dit en klik Toevoegen.</p>
+      <div class="code"><span class="cap">Adres van de bron</span><button class="copy">Kopieer</button><pre>https://github.com/GreenUtilityLog/GreenUtilityLog</pre></div>
+      </li>
+      <li><p class="steptitle">Installeer de add-on</p>
+      <p>Die staat nu onderaan in de store als <strong>GreenUtilityLog Meter Bridge</strong>. Open ’m en klik <strong>Installeren</strong>.</p>
+      </li>
+      <li><p class="steptitle">Plak je token en start</p>
+      <p>Plak je token op het tabblad <strong>Configuratie</strong> bij <span class="k">token</span>, klik <strong>Opslaan</strong> en daarna <strong>Starten</strong> op het Info-tabblad.</p>
+      <div class="see"><b>Kijk op het Log-tabblad</b>Binnen een minuut hoort daar <span class="k">pushed 8421.3 kWh ✓</span> te staan.</div>
+      </li>
+      </ol>
+  <h3 class="sub">Met je eigen sensor (elke meter)</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Zoek je meter-sensor op</p>
+      <p>In Home Assistant: <span class="k">Ontwikkelhulpmiddelen → Statussen</span>. Filter op <em>import</em> en pak degene in kWh waarvan de waarde blijft oplopen — dat is je totaalstand. Entity-ID’s verschillen per installatie, dus gebruik die van jou.</p>
+      </li>
+      <li><p class="steptitle">Voeg deze regels toe</p>
+      <p>Zet dit in <span class="k">configuration.yaml</span>, vervang de entity en je token, en herstart Home Assistant.</p>
+      <div class="code"><span class="cap">configuration.yaml + automations.yaml</span><button class="copy">Kopieer</button><pre>rest_command:
+  gul_push:
+    url: &quot;https://greenutilitylog-rewards.onrender.com/meter-ingest&quot;
+    method: POST
+    content_type: &quot;application/json&quot;
+    payload: &#x27;{&quot;token&quot;:&quot;JOUW_TOKEN&quot;,&quot;reading&quot;:{{ states(&quot;sensor.JOUW_ENTITY&quot;) | float }}}&#x27;
+
+# automations.yaml — stuur elk uur
+- alias: Push meter to GreenUtilityLog
+  trigger: { platform: time_pattern, hours: &quot;/1&quot; }
+  action: { service: rest_command.gul_push }</pre></div>
+      </li>
+      </ol>
+  <h2>Route B — HomeWizard P1, zonder Home Assistant</h2>
+  <ol class="steps">
+      <li><p class="steptitle">Zet de Local API aan</p>
+      <p>In de <strong>HomeWizard Energy</strong>-app: <span class="k">Instellingen → Meters → je P1 → Local API → AAN</span>. Hiermee mag je eigen netwerk de meter uitlezen.</p>
+      </li>
+      <li><p class="steptitle">Open een terminal op een apparaat dat aan blijft</p>
+      <p><strong>Windows:</strong> druk op Start, typ <em>PowerShell</em>. <strong>Mac:</strong> open <em>Terminal</em>. <strong>Pi / NAS:</strong> de terminal daar, of via SSH.</p>
+      <div class="see"><b>Je hebt Node.js 18+ nodig</b>Niet geïnstalleerd? Haal het eerst van nodejs.org, anders werkt het commando niet.</div>
+      </li>
+      <li><p class="steptitle">Plak dit, met je eigen token</p>
+      <p>Vervang <span class="k">JOUW_TOKEN</span>, druk op Enter en laat het venster openstaan.</p>
+      <div class="code"><span class="cap">Eenmalig instellen</span><button class="copy">Kopieer</button><pre>git clone https://github.com/GreenUtilityLog/GreenUtilityLog
+cd GreenUtilityLog/bridge
+GUL_TOKEN=JOUW_TOKEN node index.js</pre></div>
+      </li>
+      <li><p class="steptitle">Controleer of hij de meter vond</p>
+      <p>Je hoort te zien dat de meter gevonden en verstuurd wordt.</p>
+      <div class="see"><b>Dit hoor je te zien</b><span class="k">found HomeWizard at 192.168.…</span> en daarna <span class="k">pushed 8421.3 kWh ✓</span></div>
+      </li>
+      </ol>
+  <h2>Route C — Een andere P1-reader</h2>
+  <p class="lede" style="font-size:15.5px">Hetzelfde hulpprogramma leest elk apparaat dat z’n data als JSON via HTTP aanbiedt — je zegt alleen waar.</p>
+  <ol class="steps">
+      <li><p class="steptitle">Zoek de data-URL van je reader</p>
+      <p>Open de webpagina van je reader en zoek het adres dat ruwe JSON teruggeeft (vaak zoiets als <span class="k">/api/v1/data</span> of <span class="k">/api/v2/sm/actual</span>). Exacte paden verschillen per merk — kijk in de documentatie van je reader.</p>
+      </li>
+      <li><p class="steptitle">Start het hulpprogramma met die URL</p>
+      <p>Vervang de URL en je token. Wordt de stand niet automatisch gevonden, zet er dan <span class="k">READ_FIELD=</span> bij met het pad naar de kWh-waarde in die JSON.</p>
+      <div class="code"><span class="cap">Elke HTTP/JSON-reader</span><button class="copy">Kopieer</button><pre>git clone https://github.com/GreenUtilityLog/GreenUtilityLog
+cd GreenUtilityLog/bridge
+GUL_TOKEN=JOUW_TOKEN READ_URL=http://192.168.1.60/api/v1/data node index.js</pre></div>
+      </li>
+      <li><p class="steptitle">Controleer of het werkte</p>
+      <p>Het hulpprogramma laat zien wat het verstuurd heeft.</p>
+      <div class="see"><b>Dit hoor je te zien</b><span class="k">pushed 8421.3 kWh ✓</span></div>
+      </li>
+      </ol>
+  <h2>Tot slot: claimen in de app</h2>
+  <ol class="steps">
+      <li><p class="steptitle">Je stand verschijnt vanzelf</p>
+      <p>Ga in de app naar <strong>Submit</strong>. Onder <strong>“Auto-received”</strong> zie je je meterstand en hoe laat die binnenkwam.</p>
+      </li>
+      <li><p class="steptitle">Tik op “Submit — no photo”</p>
+      <p>Klaar. Vanaf nu stuurt je meter elk uur z'n stand en hoef jij alleen te claimen.</p>
+      </li>
+      </ol>
+  <div class="note flag"><b>🇧🇪 België (Fluvius-meters)</b>Digitale Fluvius-meters sturen versleutelde data. Vraag bij Fluvius je gratis decryptiesleutel op en voer die één keer in de app van je reader in — daarna werkt alles hetzelfde.</div>
+  <h2>Als er iets niet werkt</h2>
+  <div class="scroll"><table><tr><th>Je ziet</th><th>Wat te doen</th></tr>
+    <tr><td>No HomeWizard found</td><td>Je netwerk blokkeert auto-detectie. Zoek het IP van je P1 in de HomeWizard-app en vul <span class="k">hw_ip</span> in (add-on) of zet <span class="k">HW_IP=192.168.1.50</span> vóór het commando.</td></tr>
+    <tr><td>couldn&#x27;t find a total import kWh</td><td>De reader gaf JSON terug die het hulpprogramma niet herkende. Zet <span class="k">READ_FIELD</span> op het pad naar de cumulatieve kWh-waarde.</td></tr>
+    <tr><td>Niets onder “Auto-received”</td><td>Controleer of de token goed geplakt is en of het hulpprogramma nog draait op hetzelfde netwerk als de meter.</td></tr>
+    <tr><td>the automatic reading is stale</td><td>Een stand moet jonger dan 48 uur zijn om uit te betalen — zorg dat de add-on of terminal nog draait.</td></tr>
+    <tr><td>submit one photo reading first</td><td>Je hebt het startpunt overgeslagen. Doe één gewone foto-inzending en probeer opnieuw.</td></tr>
+  </table></div>
+  <div class="note">Kom je er niet uit? Stuur een berichtje met wat er in het Log-tabblad (of de terminal) staat — daar staat meestal precies wat er mist.</div>
+  <footer>GreenUtilityLog · Testershandleiding · Testnet-beta — test-tokens, nog geen echte waarde.</footer>
+</section>
+<section class="lang" id="lang-de">
+  <header class="hero"><span class="kicker">Tester-Anleitung</span><h1>Verdienen, ohne den Zähler zu fotografieren</h1><p class="lede">Normalerweise fotografierst du deinen Zähler, um B3TR zu verdienen. Kann bei dir zu Hause schon etwas den Zähler auslesen, sendet das den Stand für dich — und du fotografierst nie wieder. Such unten deine Situation.</p></header>
+  <h2>Welche Situation hast du?</h2>
+  <div class="routes">
+    <div class="route pick"><div><h3>Ich nutze Home Assistant</h3><p>Funktioniert mit fast jedem Zähler, den HA schon ausliest. Installiere unser Add-on oder füge ein paar Zeilen YAML ein.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Am einfachsten</span></div></div>
+    <div class="route"><div><h3>Ich habe einen HomeWizard P1</h3><p>Kein Home Assistant nötig. Ein kleines Hilfsprogramm findet deinen Zähler selbst im Netzwerk.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Etwas Technik</span></div></div>
+    <div class="route"><div><h3>Ich habe einen anderen P1-Reader</h3><p>dsmr-reader, P1 Monitor, Shelly und Co. — alles, was seine Daten als JSON anbietet.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span><span>Technisch</span></div></div>
+    <div class="route"><div><h3>Nichts davon</h3><p>Dann fotografiere deinen Zähler weiter. Das funktioniert genauso gut und bringt exakt dasselbe. Nichts einzurichten.</p></div><div class="meter"><span>Nichts einrichten</span></div></div>
+  </div>
+  <div class="note"><b>Zuerst, einmalig: Startpunkt setzen</b>Egal welche Route: mach zuerst <strong>eine normale Foto-Einreichung</strong> in der App. Damit weiß die App, wo dein Zähler startete — sonst können automatische Stände nicht ausgezahlt werden.</div>
+  <h2>Alle automatischen Routen: Token holen</h2>
+  <ol class="steps">
+      <li><p class="steptitle">Geräte-Token kopieren</p>
+      <p>In der App: <span class="k">Submit → ⚡ Have a P1 reader? → ⚙️ Automatic setup → „Get my device token“</span>. Kopieren.</p><div class="see"><b>Was das ist</b>Ein langer Code, der sagt: „diese Stände gehören zu meinem Wallet“. Halte ihn privat — wer ihn hat, kann Stände in deinem Namen senden.</div></li>
+      </ol>
+  <h2>Route A — Home Assistant (jeder Zähler)</h2>
+  <p class="lede" style="font-size:15.5px">Zwei Wege. Das Add-on ist am einfachsten, wenn du einen HomeWizard hast; das YAML funktioniert mit <em>jedem</em> Zähler, den Home Assistant bereits anzeigt.</p>
+  <h3 class="sub">Mit unserem Add-on (kein YAML)</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Repository hinzufügen</p>
+      <p>In Home Assistant: <span class="k">Einstellungen → Add-ons → Add-on Store → ⋮ (oben rechts) → Repositories</span>. Das hier einfügen und Hinzufügen drücken.</p>
+      <div class="code"><span class="cap">Repository-Adresse</span><button class="copy">Kopieren</button><pre>https://github.com/GreenUtilityLog/GreenUtilityLog</pre></div>
+      </li>
+      <li><p class="steptitle">Add-on installieren</p>
+      <p>Es erscheint unten im Store als <strong>GreenUtilityLog Meter Bridge</strong>. Öffnen und <strong>Installieren</strong> drücken.</p>
+      </li>
+      <li><p class="steptitle">Token einfügen und starten</p>
+      <p>Im Tab <strong>Konfiguration</strong> den Token bei <span class="k">token</span> einfügen, <strong>Speichern</strong>, dann im Info-Tab <strong>Starten</strong>.</p>
+      <div class="see"><b>Schau ins Protokoll</b>Binnen einer Minute sollte dort <span class="k">pushed 8421.3 kWh ✓</span> stehen.</div>
+      </li>
+      </ol>
+  <h3 class="sub">Mit deinem eigenen Sensor (jeder Zähler)</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Deinen Zähler-Sensor finden</p>
+      <p>In Home Assistant: <span class="k">Entwicklerwerkzeuge → Zustände</span>. Nach <em>import</em> filtern und den in kWh nehmen, dessen Wert weiter hochzählt — das ist dein Gesamtstand. Entity-IDs unterscheiden sich pro Installation, nimm also deine.</p>
+      </li>
+      <li><p class="steptitle">Diese Zeilen hinzufügen</p>
+      <p>Trag das in <span class="k">configuration.yaml</span> ein, ersetze Entity und Token, und starte Home Assistant neu.</p>
+      <div class="code"><span class="cap">configuration.yaml + automations.yaml</span><button class="copy">Kopieren</button><pre>rest_command:
+  gul_push:
+    url: &quot;https://greenutilitylog-rewards.onrender.com/meter-ingest&quot;
+    method: POST
+    content_type: &quot;application/json&quot;
+    payload: &#x27;{&quot;token&quot;:&quot;DEIN_TOKEN&quot;,&quot;reading&quot;:{{ states(&quot;sensor.DEINE_ENTITY&quot;) | float }}}&#x27;
+
+# automations.yaml — stündlich senden
+- alias: Push meter to GreenUtilityLog
+  trigger: { platform: time_pattern, hours: &quot;/1&quot; }
+  action: { service: rest_command.gul_push }</pre></div>
+      </li>
+      </ol>
+  <h2>Route B — HomeWizard P1, ohne Home Assistant</h2>
+  <ol class="steps">
+      <li><p class="steptitle">Local API aktivieren</p>
+      <p>In der <strong>HomeWizard Energy</strong>-App: <span class="k">Einstellungen → Zähler → dein P1 → Local API → EIN</span>. Damit darf dein Netzwerk den Zähler auslesen.</p>
+      </li>
+      <li><p class="steptitle">Terminal auf einem Dauergerät öffnen</p>
+      <p><strong>Windows:</strong> Start drücken, <em>PowerShell</em> tippen. <strong>Mac:</strong> <em>Terminal</em> öffnen. <strong>Pi / NAS:</strong> dessen Terminal oder per SSH.</p>
+      <div class="see"><b>Du brauchst Node.js 18+</b>Nicht installiert? Erst von nodejs.org holen, sonst läuft der Befehl nicht.</div>
+      </li>
+      <li><p class="steptitle">Das hier einfügen, mit deinem Token</p>
+      <p>Ersetze <span class="k">DEIN_TOKEN</span>, drücke Enter und lass das Fenster offen.</p>
+      <div class="code"><span class="cap">Einmalige Einrichtung</span><button class="copy">Kopieren</button><pre>git clone https://github.com/GreenUtilityLog/GreenUtilityLog
+cd GreenUtilityLog/bridge
+GUL_TOKEN=DEIN_TOKEN node index.js</pre></div>
+      </li>
+      <li><p class="steptitle">Prüfen, ob er den Zähler fand</p>
+      <p>Du solltest sehen, wie der Zähler gefunden und gesendet wird.</p>
+      <div class="see"><b>Erwartete Ausgabe</b><span class="k">found HomeWizard at 192.168.…</span> und danach <span class="k">pushed 8421.3 kWh ✓</span></div>
+      </li>
+      </ol>
+  <h2>Route C — Ein anderer P1-Reader</h2>
+  <p class="lede" style="font-size:15.5px">Dasselbe Hilfsprogramm liest jedes Gerät, das seine Daten als JSON über HTTP anbietet — du sagst ihm nur wo.</p>
+  <ol class="steps">
+      <li><p class="steptitle">Die Daten-URL deines Readers finden</p>
+      <p>Öffne die Weboberfläche deines Readers und such die Adresse, die rohes JSON zurückgibt (oft etwas wie <span class="k">/api/v1/data</span> oder <span class="k">/api/v2/sm/actual</span>). Die genauen Pfade unterscheiden sich je Marke — schau in die Doku deines Readers.</p>
+      </li>
+      <li><p class="steptitle">Hilfsprogramm mit dieser URL starten</p>
+      <p>Ersetze URL und Token. Wird der Stand nicht automatisch gefunden, ergänze <span class="k">READ_FIELD=</span> mit dem Pfad zum kWh-Wert in diesem JSON.</p>
+      <div class="code"><span class="cap">Jeder HTTP/JSON-Reader</span><button class="copy">Kopieren</button><pre>git clone https://github.com/GreenUtilityLog/GreenUtilityLog
+cd GreenUtilityLog/bridge
+GUL_TOKEN=DEIN_TOKEN READ_URL=http://192.168.1.60/api/v1/data node index.js</pre></div>
+      </li>
+      <li><p class="steptitle">Prüfen, ob es klappte</p>
+      <p>Das Hilfsprogramm zeigt, was es gesendet hat.</p>
+      <div class="see"><b>Erwartete Ausgabe</b><span class="k">pushed 8421.3 kWh ✓</span></div>
+      </li>
+      </ol>
+  <h2>Zum Schluss: in der App einlösen</h2>
+  <ol class="steps">
+      <li><p class="steptitle">Dein Stand erscheint von selbst</p>
+      <p>Geh in der App auf <strong>Submit</strong>. Unter <strong>„Auto-received“</strong> siehst du deinen Zählerstand und wann er ankam.</p>
+      </li>
+      <li><p class="steptitle">Auf „Submit — no photo“ tippen</p>
+      <p>Fertig. Ab jetzt sendet dein Zähler stündlich seinen Stand und du löst nur noch ein.</p>
+      </li>
+      </ol>
+  <div class="note flag"><b>🇧🇪 Belgien (Fluvius-Zähler)</b>Digitale Fluvius-Zähler senden verschlüsselt. Frag bei Fluvius deinen kostenlosen Entschlüsselungscode an und gib ihn einmal in der App deines Readers ein — danach läuft alles gleich.</div>
+  <h2>Wenn etwas nicht klappt</h2>
+  <div class="scroll"><table><tr><th>Du siehst</th><th>Was tun</th></tr>
+    <tr><td>No HomeWizard found</td><td>Dein Netzwerk blockiert die Erkennung. IP deines P1 in der HomeWizard-App suchen und <span class="k">hw_ip</span> setzen (Add-on) oder <span class="k">HW_IP=192.168.1.50</span> vor den Befehl.</td></tr>
+    <tr><td>couldn&#x27;t find a total import kWh</td><td>Der Reader lieferte JSON, das nicht erkannt wurde. Setz <span class="k">READ_FIELD</span> auf den Pfad zum kumulativen kWh-Wert.</td></tr>
+    <tr><td>Nichts unter „Auto-received“</td><td>Prüfe, ob der Token korrekt eingefügt ist und das Hilfsprogramm noch im selben Netzwerk wie der Zähler läuft.</td></tr>
+    <tr><td>the automatic reading is stale</td><td>Ein Stand muss jünger als 48 Stunden sein — Add-on bzw. Terminal muss laufen.</td></tr>
+    <tr><td>submit one photo reading first</td><td>Der Startpunkt fehlt. Mach eine normale Foto-Einreichung und versuch es erneut.</td></tr>
+  </table></div>
+  <div class="note">Kommst du nicht weiter? Schick eine Nachricht mit dem Inhalt des Protokoll-Tabs (oder Terminals) — dort steht meist genau, was fehlt.</div>
+  <footer>GreenUtilityLog · Tester-Anleitung · Testnet-Beta — Test-Token, noch kein realer Wert.</footer>
+</section>
+<section class="lang" id="lang-fr">
+  <header class="hero"><span class="kicker">Guide testeur</span><h1>Gagnez sans photographier votre compteur</h1><p class="lede">Normalement vous photographiez votre compteur pour gagner des B3TR. Si quelque chose chez vous sait déjà lire le compteur, il peut envoyer le relevé à votre place — et vous ne photographiez plus jamais. Trouvez votre cas ci-dessous.</p></header>
+  <h2>Quelle est votre situation ?</h2>
+  <div class="routes">
+    <div class="route pick"><div><h3>J'utilise Home Assistant</h3><p>Fonctionne avec presque tout compteur que HA lit déjà. Installez notre add-on, ou collez quelques lignes de YAML.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Le plus simple</span></div></div>
+    <div class="route"><div><h3>J'ai un HomeWizard P1</h3><p>Pas besoin de Home Assistant. Un petit utilitaire trouve votre compteur tout seul sur le réseau.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Un peu technique</span></div></div>
+    <div class="route"><div><h3>J'ai un autre lecteur P1</h3><p>dsmr-reader, P1 Monitor, Shelly et compagnie — tout ce qui expose ses données en JSON.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span><span>Technique</span></div></div>
+    <div class="route"><div><h3>Aucun des deux</h3><p>Continuez à photographier votre compteur. Ça marche aussi bien et rapporte exactement pareil. Rien à configurer.</p></div><div class="meter"><span>Rien à faire</span></div></div>
+  </div>
+  <div class="note"><b>D'abord, une fois : fixez votre point de départ</b>Quelle que soit la route, faites d'abord <strong>une soumission photo normale</strong> dans l'app. L'app sait ainsi où votre compteur a démarré — sinon les relevés automatiques ne peuvent pas être payés.</div>
+  <h2>Toutes les routes automatiques : récupérez votre jeton</h2>
+  <ol class="steps">
+      <li><p class="steptitle">Copiez votre jeton</p>
+      <p>Dans l'app : <span class="k">Submit → ⚡ Have a P1 reader? → ⚙️ Automatic setup → « Get my device token »</span>. Copiez-le.</p><div class="see"><b>Ce que c'est</b>Un long code qui dit « ces relevés appartiennent à mon wallet ». Gardez-le privé — celui qui l'a peut envoyer des relevés en votre nom.</div></li>
+      </ol>
+  <h2>Route A — Home Assistant (tout compteur)</h2>
+  <p class="lede" style="font-size:15.5px">Deux façons. L'add-on est le plus simple si vous avez un HomeWizard ; le YAML fonctionne avec <em>n'importe quel</em> compteur que Home Assistant affiche déjà.</p>
+  <h3 class="sub">Avec notre add-on (sans YAML)</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Ajoutez le dépôt</p>
+      <p>Dans Home Assistant : <span class="k">Paramètres → Modules → Boutique → ⋮ (en haut à droite) → Dépôts</span>. Collez ceci et appuyez sur Ajouter.</p>
+      <div class="code"><span class="cap">Adresse du dépôt</span><button class="copy">Copier</button><pre>https://github.com/GreenUtilityLog/GreenUtilityLog</pre></div>
+      </li>
+      <li><p class="steptitle">Installez l'add-on</p>
+      <p>Il apparaît en bas de la boutique sous <strong>GreenUtilityLog Meter Bridge</strong>. Ouvrez-le et appuyez sur <strong>Installer</strong>.</p>
+      </li>
+      <li><p class="steptitle">Collez votre jeton et démarrez</p>
+      <p>Dans l'onglet <strong>Configuration</strong>, collez le jeton dans <span class="k">token</span>, <strong>Enregistrer</strong>, puis <strong>Démarrer</strong> dans l'onglet Info.</p>
+      <div class="see"><b>Regardez l'onglet Journal</b>En une minute vous devriez voir <span class="k">pushed 8421.3 kWh ✓</span>.</div>
+      </li>
+      </ol>
+  <h3 class="sub">Avec votre propre capteur (tout compteur)</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Trouvez le capteur de votre compteur</p>
+      <p>Dans Home Assistant : <span class="k">Outils de développement → États</span>. Filtrez sur <em>import</em> et prenez celui en kWh dont la valeur continue de monter — c'est votre total. Les identifiants diffèrent par installation, utilisez le vôtre.</p>
+      </li>
+      <li><p class="steptitle">Ajoutez ces lignes</p>
+      <p>Mettez ceci dans <span class="k">configuration.yaml</span>, remplacez l'entité et votre jeton, puis redémarrez Home Assistant.</p>
+      <div class="code"><span class="cap">configuration.yaml + automations.yaml</span><button class="copy">Copier</button><pre>rest_command:
+  gul_push:
+    url: &quot;https://greenutilitylog-rewards.onrender.com/meter-ingest&quot;
+    method: POST
+    content_type: &quot;application/json&quot;
+    payload: &#x27;{&quot;token&quot;:&quot;VOTRE_JETON&quot;,&quot;reading&quot;:{{ states(&quot;sensor.VOTRE_ENTITE&quot;) | float }}}&#x27;
+
+# automations.yaml — envoyer chaque heure
+- alias: Push meter to GreenUtilityLog
+  trigger: { platform: time_pattern, hours: &quot;/1&quot; }
+  action: { service: rest_command.gul_push }</pre></div>
+      </li>
+      </ol>
+  <h2>Route B — HomeWizard P1, sans Home Assistant</h2>
+  <ol class="steps">
+      <li><p class="steptitle">Activez l'API locale</p>
+      <p>Dans l'app <strong>HomeWizard Energy</strong> : <span class="k">Réglages → Compteurs → votre P1 → Local API → ON</span>. Votre réseau peut alors lire le compteur.</p>
+      </li>
+      <li><p class="steptitle">Ouvrez un terminal sur un appareil qui reste allumé</p>
+      <p><strong>Windows :</strong> Démarrer, tapez <em>PowerShell</em>. <strong>Mac :</strong> ouvrez <em>Terminal</em>. <strong>Pi / NAS :</strong> son terminal, ou en SSH.</p>
+      <div class="see"><b>Il vous faut Node.js 18+</b>Pas installé ? Prenez-le sur nodejs.org, sinon la commande ne marchera pas.</div>
+      </li>
+      <li><p class="steptitle">Collez ceci, avec votre jeton</p>
+      <p>Remplacez <span class="k">VOTRE_JETON</span>, appuyez sur Entrée et laissez la fenêtre ouverte.</p>
+      <div class="code"><span class="cap">Configuration unique</span><button class="copy">Copier</button><pre>git clone https://github.com/GreenUtilityLog/GreenUtilityLog
+cd GreenUtilityLog/bridge
+GUL_TOKEN=VOTRE_JETON node index.js</pre></div>
+      </li>
+      <li><p class="steptitle">Vérifiez qu'il a trouvé le compteur</p>
+      <p>Vous devriez voir le compteur détecté puis envoyé.</p>
+      <div class="see"><b>Sortie attendue</b><span class="k">found HomeWizard at 192.168.…</span> puis <span class="k">pushed 8421.3 kWh ✓</span></div>
+      </li>
+      </ol>
+  <h2>Route C — Un autre lecteur P1</h2>
+  <p class="lede" style="font-size:15.5px">Le même utilitaire lit tout appareil qui expose ses données en JSON via HTTP — vous lui dites simplement où.</p>
+  <ol class="steps">
+      <li><p class="steptitle">Trouvez l'URL de données de votre lecteur</p>
+      <p>Ouvrez la page web de votre lecteur et cherchez l'adresse qui renvoie du JSON brut (souvent <span class="k">/api/v1/data</span> ou <span class="k">/api/v2/sm/actual</span>). Les chemins exacts diffèrent selon la marque — consultez la doc de votre lecteur.</p>
+      </li>
+      <li><p class="steptitle">Lancez l'utilitaire avec cette URL</p>
+      <p>Remplacez l'URL et votre jeton. Si le relevé n'est pas trouvé automatiquement, ajoutez <span class="k">READ_FIELD=</span> avec le chemin vers la valeur kWh dans ce JSON.</p>
+      <div class="code"><span class="cap">Tout lecteur HTTP/JSON</span><button class="copy">Copier</button><pre>git clone https://github.com/GreenUtilityLog/GreenUtilityLog
+cd GreenUtilityLog/bridge
+GUL_TOKEN=VOTRE_JETON READ_URL=http://192.168.1.60/api/v1/data node index.js</pre></div>
+      </li>
+      <li><p class="steptitle">Vérifiez que ça a marché</p>
+      <p>L'utilitaire affiche ce qu'il a envoyé.</p>
+      <div class="see"><b>Sortie attendue</b><span class="k">pushed 8421.3 kWh ✓</span></div>
+      </li>
+      </ol>
+  <h2>Enfin : réclamez dans l'app</h2>
+  <ol class="steps">
+      <li><p class="steptitle">Votre relevé apparaît tout seul</p>
+      <p>Dans l'app, allez sur <strong>Submit</strong>. Sous <strong>« Auto-received »</strong> vous voyez votre relevé et l'heure d'arrivée.</p>
+      </li>
+      <li><p class="steptitle">Touchez « Submit — no photo »</p>
+      <p>C'est tout. Votre compteur envoie son relevé chaque heure et vous n'avez plus qu'à réclamer.</p>
+      </li>
+      </ol>
+  <div class="note flag"><b>🇧🇪 Belgique (compteurs Fluvius)</b>Les compteurs Fluvius numériques envoient des données chiffrées. Demandez votre clé gratuite à Fluvius et saisissez-la une fois dans l'app de votre lecteur — ensuite tout fonctionne pareil.</div>
+  <h2>Si ça ne marche pas</h2>
+  <div class="scroll"><table><tr><th>Vous voyez</th><th>Que faire</th></tr>
+    <tr><td>No HomeWizard found</td><td>Votre réseau bloque la détection. Trouvez l'IP de votre P1 dans l'app HomeWizard et renseignez <span class="k">hw_ip</span> (add-on) ou <span class="k">HW_IP=192.168.1.50</span> avant la commande.</td></tr>
+    <tr><td>couldn&#x27;t find a total import kWh</td><td>Le lecteur a renvoyé du JSON non reconnu. Réglez <span class="k">READ_FIELD</span> sur le chemin de la valeur kWh cumulée.</td></tr>
+    <tr><td>Rien sous « Auto-received »</td><td>Vérifiez que le jeton est bien collé et que l'utilitaire tourne toujours sur le même réseau que le compteur.</td></tr>
+    <tr><td>the automatic reading is stale</td><td>Un relevé doit avoir moins de 48 h — l'add-on ou le terminal doit tourner.</td></tr>
+    <tr><td>submit one photo reading first</td><td>Le point de départ manque. Faites une soumission photo normale, puis réessayez.</td></tr>
+  </table></div>
+  <div class="note">Toujours bloqué ? Envoyez un message avec le contenu de l'onglet Journal (ou du terminal) — il dit généralement exactement ce qui manque.</div>
+  <footer>GreenUtilityLog · Guide testeur · Bêta testnet — jetons de test, sans valeur réelle.</footer>
+</section>
+<section class="lang" id="lang-es">
+  <header class="hero"><span class="kicker">Guía para testers</span><h1>Gana sin fotografiar tu contador</h1><p class="lede">Normalmente fotografías tu contador para ganar B3TR. Si algo en tu casa ya sabe leer el contador, puede enviar la lectura por ti — y no vuelves a fotografiar. Busca tu caso abajo.</p></header>
+  <h2>¿Cuál es tu caso?</h2>
+  <div class="routes">
+    <div class="route pick"><div><h3>Uso Home Assistant</h3><p>Funciona con casi cualquier contador que HA ya lee. Instala nuestro add-on, o pega unas líneas de YAML.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Lo más fácil</span></div></div>
+    <div class="route"><div><h3>Tengo un HomeWizard P1</h3><p>Sin Home Assistant. Un pequeño programa encuentra tu contador solo en la red.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Algo técnico</span></div></div>
+    <div class="route"><div><h3>Tengo otro lector P1</h3><p>dsmr-reader, P1 Monitor, Shelly y similares — cualquiera que sirva sus datos en JSON.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span><span>Técnico</span></div></div>
+    <div class="route"><div><h3>Ninguno</h3><p>Sigue fotografiando tu contador. Funciona igual de bien y da exactamente lo mismo. Nada que configurar.</p></div><div class="meter"><span>Sin configurar</span></div></div>
+  </div>
+  <div class="note"><b>Primero, una vez: fija tu punto de partida</b>Elijas la ruta que elijas, haz primero <strong>un envío con foto normal</strong> en la app. Así la app sabe dónde empezó tu contador — sin eso las lecturas automáticas no pueden pagarse.</div>
+  <h2>Todas las rutas automáticas: consigue tu token</h2>
+  <ol class="steps">
+      <li><p class="steptitle">Copia tu token</p>
+      <p>En la app: <span class="k">Submit → ⚡ Have a P1 reader? → ⚙️ Automatic setup → «Get my device token»</span>. Cópialo.</p><div class="see"><b>Qué es</b>Un código largo que dice «estas lecturas son de mi wallet». Mantenlo privado — quien lo tenga puede enviar lecturas en tu nombre.</div></li>
+      </ol>
+  <h2>Ruta A — Home Assistant (cualquier contador)</h2>
+  <p class="lede" style="font-size:15.5px">Dos formas. El add-on es lo más simple si tienes un HomeWizard; el YAML funciona con <em>cualquier</em> contador que Home Assistant ya muestre.</p>
+  <h3 class="sub">Con nuestro add-on (sin YAML)</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Añade el repositorio</p>
+      <p>En Home Assistant: <span class="k">Ajustes → Complementos → Tienda → ⋮ (arriba a la derecha) → Repositorios</span>. Pega esto y pulsa Añadir.</p>
+      <div class="code"><span class="cap">Dirección del repositorio</span><button class="copy">Copiar</button><pre>https://github.com/GreenUtilityLog/GreenUtilityLog</pre></div>
+      </li>
+      <li><p class="steptitle">Instala el add-on</p>
+      <p>Aparece al final de la tienda como <strong>GreenUtilityLog Meter Bridge</strong>. Ábrelo y pulsa <strong>Instalar</strong>.</p>
+      </li>
+      <li><p class="steptitle">Pega tu token e inicia</p>
+      <p>En la pestaña <strong>Configuración</strong> pega el token en <span class="k">token</span>, pulsa <strong>Guardar</strong> y luego <strong>Iniciar</strong> en la pestaña Info.</p>
+      <div class="see"><b>Mira la pestaña Registro</b>En un minuto deberías ver <span class="k">pushed 8421.3 kWh ✓</span>.</div>
+      </li>
+      </ol>
+  <h3 class="sub">Con tu propio sensor (cualquier contador)</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Encuentra el sensor de tu contador</p>
+      <p>En Home Assistant: <span class="k">Herramientas para desarrolladores → Estados</span>. Filtra por <em>import</em> y coge el de kWh cuyo valor sigue subiendo — ese es tu total. Los identificadores varían por instalación, usa el tuyo.</p>
+      </li>
+      <li><p class="steptitle">Añade estas líneas</p>
+      <p>Pon esto en <span class="k">configuration.yaml</span>, sustituye la entidad y tu token, y reinicia Home Assistant.</p>
+      <div class="code"><span class="cap">configuration.yaml + automations.yaml</span><button class="copy">Copiar</button><pre>rest_command:
+  gul_push:
+    url: &quot;https://greenutilitylog-rewards.onrender.com/meter-ingest&quot;
+    method: POST
+    content_type: &quot;application/json&quot;
+    payload: &#x27;{&quot;token&quot;:&quot;TU_TOKEN&quot;,&quot;reading&quot;:{{ states(&quot;sensor.TU_ENTIDAD&quot;) | float }}}&#x27;
+
+# automations.yaml — enviar cada hora
+- alias: Push meter to GreenUtilityLog
+  trigger: { platform: time_pattern, hours: &quot;/1&quot; }
+  action: { service: rest_command.gul_push }</pre></div>
+      </li>
+      </ol>
+  <h2>Ruta B — HomeWizard P1, sin Home Assistant</h2>
+  <ol class="steps">
+      <li><p class="steptitle">Activa la API local</p>
+      <p>En la app <strong>HomeWizard Energy</strong>: <span class="k">Ajustes → Contadores → tu P1 → Local API → ON</span>. Así tu red puede leer el contador.</p>
+      </li>
+      <li><p class="steptitle">Abre una terminal en un dispositivo que quede encendido</p>
+      <p><strong>Windows:</strong> Inicio, escribe <em>PowerShell</em>. <strong>Mac:</strong> abre <em>Terminal</em>. <strong>Pi / NAS:</strong> su terminal, o por SSH.</p>
+      <div class="see"><b>Necesitas Node.js 18+</b>¿No lo tienes? Descárgalo de nodejs.org, si no el comando no funcionará.</div>
+      </li>
+      <li><p class="steptitle">Pega esto, con tu token</p>
+      <p>Sustituye <span class="k">TU_TOKEN</span>, pulsa Enter y deja la ventana abierta.</p>
+      <div class="code"><span class="cap">Configuración única</span><button class="copy">Copiar</button><pre>git clone https://github.com/GreenUtilityLog/GreenUtilityLog
+cd GreenUtilityLog/bridge
+GUL_TOKEN=TU_TOKEN node index.js</pre></div>
+      </li>
+      <li><p class="steptitle">Comprueba que encontró el contador</p>
+      <p>Deberías ver el contador detectado y enviado.</p>
+      <div class="see"><b>Salida esperada</b><span class="k">found HomeWizard at 192.168.…</span> y luego <span class="k">pushed 8421.3 kWh ✓</span></div>
+      </li>
+      </ol>
+  <h2>Ruta C — Otro lector P1</h2>
+  <p class="lede" style="font-size:15.5px">El mismo programa lee cualquier dispositivo que sirva sus datos en JSON por HTTP — solo le dices dónde.</p>
+  <ol class="steps">
+      <li><p class="steptitle">Encuentra la URL de datos de tu lector</p>
+      <p>Abre la página web de tu lector y busca la dirección que devuelve JSON en bruto (a menudo <span class="k">/api/v1/data</span> o <span class="k">/api/v2/sm/actual</span>). Las rutas exactas varían por marca — consulta la documentación de tu lector.</p>
+      </li>
+      <li><p class="steptitle">Inicia el programa con esa URL</p>
+      <p>Sustituye la URL y tu token. Si la lectura no se encuentra automáticamente, añade <span class="k">READ_FIELD=</span> con la ruta al valor kWh en ese JSON.</p>
+      <div class="code"><span class="cap">Cualquier lector HTTP/JSON</span><button class="copy">Copiar</button><pre>git clone https://github.com/GreenUtilityLog/GreenUtilityLog
+cd GreenUtilityLog/bridge
+GUL_TOKEN=TU_TOKEN READ_URL=http://192.168.1.60/api/v1/data node index.js</pre></div>
+      </li>
+      <li><p class="steptitle">Comprueba que funcionó</p>
+      <p>El programa muestra lo que ha enviado.</p>
+      <div class="see"><b>Salida esperada</b><span class="k">pushed 8421.3 kWh ✓</span></div>
+      </li>
+      </ol>
+  <h2>Por último: reclama en la app</h2>
+  <ol class="steps">
+      <li><p class="steptitle">Tu lectura aparece sola</p>
+      <p>En la app abre <strong>Submit</strong>. Bajo <strong>«Auto-received»</strong> verás tu lectura y cuándo llegó.</p>
+      </li>
+      <li><p class="steptitle">Toca «Submit — no photo»</p>
+      <p>Listo. Desde ahora tu contador envía su lectura cada hora y tú solo reclamas.</p>
+      </li>
+      </ol>
+  <div class="note flag"><b>🇧🇪 Bélgica (contadores Fluvius)</b>Los contadores Fluvius digitales envían datos cifrados. Pide tu clave gratuita a Fluvius e introdúcela una vez en la app de tu lector — después todo funciona igual.</div>
+  <h2>Si algo no funciona</h2>
+  <div class="scroll"><table><tr><th>Ves</th><th>Qué hacer</th></tr>
+    <tr><td>No HomeWizard found</td><td>Tu red bloquea la detección. Busca la IP de tu P1 en la app HomeWizard y pon <span class="k">hw_ip</span> (add-on) o <span class="k">HW_IP=192.168.1.50</span> antes del comando.</td></tr>
+    <tr><td>couldn&#x27;t find a total import kWh</td><td>El lector devolvió JSON no reconocido. Pon <span class="k">READ_FIELD</span> con la ruta al valor kWh acumulado.</td></tr>
+    <tr><td>Nada bajo «Auto-received»</td><td>Comprueba que el token está bien pegado y que el programa sigue en marcha en la misma red que el contador.</td></tr>
+    <tr><td>the automatic reading is stale</td><td>Una lectura debe tener menos de 48 h — el add-on o la terminal debe estar en marcha.</td></tr>
+    <tr><td>submit one photo reading first</td><td>Falta el punto de partida. Haz un envío con foto normal e inténtalo otra vez.</td></tr>
+  </table></div>
+  <div class="note">¿Sigues atascado? Envía un mensaje con lo que muestra la pestaña Registro (o la terminal) — suele decir exactamente qué falta.</div>
+  <footer>GreenUtilityLog · Guía para testers · Beta en testnet — tokens de prueba, sin valor real.</footer>
+</section>
+</div>
+<script>
+  const sections = document.querySelectorAll(".lang");
+  const buttons = document.querySelectorAll(".langbtn");
+  function show(lang){
+    sections.forEach(s => s.classList.toggle("active", s.id === "lang-" + lang));
+    buttons.forEach(b => b.setAttribute("aria-pressed", String(b.dataset.lang === lang)));
+    try { localStorage.setItem("gul_guide_lang", lang); } catch (e) {}
+  }
+  buttons.forEach(b => b.addEventListener("click", () => show(b.dataset.lang)));
+  const supported = ["en","nl","de","fr","es"];
+  let pick = "en";
+  try {
+    const saved = localStorage.getItem("gul_guide_lang");
+    if (supported.includes(saved)) pick = saved;
+    else { const nav = (navigator.language||"").slice(0,2).toLowerCase(); if (supported.includes(nav)) pick = nav; }
+  } catch (e) {}
+  show(pick);
+  document.querySelectorAll(".copy").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const code = btn.parentElement.querySelector("pre").innerText;
+      navigator.clipboard?.writeText(code).then(() => {
+        const t = btn.textContent; btn.textContent = "\u2713"; setTimeout(() => btn.textContent = t, 1200);
+      }).catch(()=>{});
+    });
+  });
+</script>
+</body>
+</html>
