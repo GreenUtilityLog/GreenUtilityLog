@@ -10,6 +10,10 @@ There are two layers of tests here, and the split is deliberate:
     automatically unless pytest-homeassistant-custom-component is installed.
 
 The stubs below are intentionally minimal: just enough shape for the module to import.
+Three things get stubbed — `homeassistant`, `aiohttp` and `voluptuous` — and each only
+when it isn't already importable, so the CI leg that has the real ones tests against
+the real ones.
+
 They are NOT a Home Assistant emulator, and they can't tell you whether the config flow
 renders correctly or whether HACS accepts the repository — only a real install can.
 """
@@ -27,6 +31,49 @@ def _module(name: str, **attrs) -> types.ModuleType:
         setattr(mod, k, v)
     sys.modules[name] = mod
     return mod
+
+
+def _install_aiohttp_stub() -> None:
+    """`aiohttp` is used for one thing: building a ClientTimeout.
+
+    The session itself is always a test double, so nothing here is exercised for real.
+    Where aiohttp *is* installed (the CI leg that has the full Home Assistant harness)
+    the real module is used instead, which is what keeps this from hiding an API change.
+    """
+
+    class ClientTimeout:
+        def __init__(self, total=None, **kw):
+            self.total = total
+
+    _module("aiohttp", ClientTimeout=ClientTimeout, ClientError=type("ClientError", (Exception,), {}))
+
+
+def _install_voluptuous_stub() -> None:
+    """`voluptuous` only describes the config-flow form; the validation under test is
+    plain Python in `_validate`, so a marker-shaped stand-in is enough to import."""
+
+    class _Marker:
+        def __init__(self, schema, default=None, **kw):
+            self.schema = schema
+            self.default = default
+
+        def __hash__(self):
+            return hash(str(self.schema))
+
+    class Schema:
+        def __init__(self, schema, **kw):
+            self.schema = schema
+
+        def __call__(self, data):
+            return data
+
+    _module(
+        "voluptuous",
+        Schema=Schema,
+        Required=_Marker,
+        Optional=_Marker,
+        Invalid=type("Invalid", (Exception,), {}),
+    )
 
 
 def _install_homeassistant_stubs() -> None:
@@ -101,6 +148,12 @@ def _install_homeassistant_stubs() -> None:
 # BaseException, not Exception: a half-installed Home Assistant reaches a broken native
 # `cryptography` and dies with pyo3's PanicException, which inherits from BaseException.
 # Catching only Exception let that escape and turned every test into a collection error.
+for _dep, _stub in (("aiohttp", _install_aiohttp_stub), ("voluptuous", _install_voluptuous_stub)):
+    try:  # pragma: no cover - depends on the environment
+        __import__(_dep)
+    except BaseException:  # noqa: BLE001
+        _stub()
+
 try:  # pragma: no cover - depends on the environment
     import homeassistant.config_entries  # noqa: F401
 except BaseException:  # noqa: BLE001

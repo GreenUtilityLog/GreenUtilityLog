@@ -41,9 +41,10 @@ jobs:
   hacs:
     name: HACS validation
     runs-on: ubuntu-latest
-    # Advisory, not blocking. HACS also checks that the integration's logo is already
-    # merged into the upstream home-assistant/brands repository — a separate PR that
-    # can't land before this one. Read the job output; don't let it gate the build.
+    # Advisory, not blocking: one of HACS's nine checks requires the GitHub repository
+    # to have topics set, which lives in repository settings rather than in the tree,
+    # so no commit can turn it green. Everything a commit *can* fix must pass — read
+    # the job output rather than assuming the yellow mark is the expected one.
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
