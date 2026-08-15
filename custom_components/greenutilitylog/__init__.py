@@ -11,6 +11,7 @@ in the UI whether pushing actually works.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import timedelta
 from typing import Any
 
@@ -47,6 +48,29 @@ class GreenUtilityLogPusher:
         self.last_reading: float | None = None
         self.last_success: Any = None
         self.last_error: str | None = None
+        self._listeners: list[Callable[[], None]] = []
+
+    def add_listener(self, cb: Callable[[], None]) -> Callable[[], None]:
+        """Subscribe to push results. Returns the unsubscribe callable.
+
+        Without this the diagnostic sensor would only refresh on Home Assistant's
+        default 30-second poll, so a failure could sit invisible for half a minute and
+        the sensor would still read `unknown` immediately after setup.
+        """
+        self._listeners.append(cb)
+
+        def _remove() -> None:
+            if cb in self._listeners:
+                self._listeners.remove(cb)
+
+        return _remove
+
+    def _notify(self) -> None:
+        for cb in list(self._listeners):
+            try:
+                cb()
+            except Exception:  # noqa: BLE001 — one bad listener must not stop the rest
+                LOGGER.exception("GreenUtilityLog: listener failed")
 
     def _options(self) -> dict[str, Any]:
         """Options win over the original setup values, so edits take effect."""
@@ -54,6 +78,14 @@ class GreenUtilityLogPusher:
 
     async def async_push(self, _now: Any = None) -> None:
         """Read the source entity once and forward it. Never raises."""
+        # try/finally rather than a _notify() at each return: the method has six exit
+        # paths and a future seventh would silently stop updating the sensor.
+        try:
+            await self._push_once()
+        finally:
+            self._notify()
+
+    async def _push_once(self) -> None:
         opts = self._options()
         entity_id = opts.get(CONF_SOURCE_ENTITY)
         state = self.hass.states.get(entity_id) if entity_id else None
@@ -102,7 +134,10 @@ class GreenUtilityLogPusher:
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up from a config entry."""
     pusher = GreenUtilityLogPusher(hass, entry)
-    entry.runtime_data = pusher
+    # hass.data rather than entry.runtime_data: runtime_data needs HA 2024.6+, and
+    # this pattern works on every version back to well before that. No reason to
+    # exclude users running an older Home Assistant for a cosmetic API.
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = pusher
 
     minutes = int({**entry.data, **entry.options}.get(CONF_INTERVAL, DEFAULT_INTERVAL_MINUTES))
     entry.async_on_unload(
@@ -126,7 +161,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unloaded:
+        hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
+    return unloaded
 
 
 async def _async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:

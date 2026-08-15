@@ -25,7 +25,7 @@ from .const import CONF_SOURCE_ENTITY, DOMAIN
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    async_add_entities([LastSentSensor(entry)])
+    async_add_entities([LastSentSensor(hass, entry)])
 
 
 class LastSentSensor(SensorEntity):
@@ -33,6 +33,8 @@ class LastSentSensor(SensorEntity):
 
     _attr_has_entity_name = True
     _attr_name = "Last sent reading"
+    # The pusher tells us when something changed, so polling would only add latency.
+    _attr_should_poll = False
     _attr_icon = "mdi:transmission-tower-export"
     _attr_device_class = SensorDeviceClass.ENERGY
     # TOTAL_INCREASING, not TOTAL: this mirrors a meter register, which only ever
@@ -41,7 +43,8 @@ class LastSentSensor(SensorEntity):
     _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 
-    def __init__(self, entry: ConfigEntry) -> None:
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        self._hass = hass
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_last_sent"
         self._attr_device_info = {
@@ -51,18 +54,27 @@ class LastSentSensor(SensorEntity):
             "entry_type": "service",
         }
 
+    async def async_added_to_hass(self) -> None:
+        """Refresh as soon as a push finishes, rather than on a poll."""
+        pusher = self._pusher()
+        if pusher is not None:
+            self.async_on_remove(pusher.add_listener(self.async_write_ha_state))
+
+    def _pusher(self):
+        return self._hass.data.get(DOMAIN, {}).get(self._entry.entry_id)
+
     @property
     def available(self) -> bool:
-        return getattr(self._entry, "runtime_data", None) is not None
+        return self._pusher() is not None
 
     @property
     def native_value(self) -> float | None:
-        pusher = getattr(self._entry, "runtime_data", None)
+        pusher = self._pusher()
         return pusher.last_reading if pusher else None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        pusher = getattr(self._entry, "runtime_data", None)
+        pusher = self._pusher()
         if pusher is None:
             return {}
         opts = {**self._entry.data, **self._entry.options}

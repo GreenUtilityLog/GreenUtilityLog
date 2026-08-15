@@ -1,0 +1,83 @@
+name: Home Assistant integration
+
+# Nobody on the team has a Home Assistant box with a smart meter attached, so CI is
+# the tester. Three independent checks, in increasing strength:
+#   1. hassfest    — Home Assistant's own manifest/structure validator.
+#   2. HACS        — validates the repo the way HACS will when a user adds it.
+#   3. pytest      — the logic suite everywhere, plus the full harness suite on the
+#                    Python version pytest-homeassistant-custom-component supports.
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "custom_components/**"
+      - "tests/**"
+      - "hacs.json"
+      - ".github/workflows/ha-integration.yml"
+  pull_request:
+    paths:
+      - "custom_components/**"
+      - "tests/**"
+      - "hacs.json"
+      - ".github/workflows/ha-integration.yml"
+  # Home Assistant ships a new version every month and can deprecate things under us.
+  # A weekly run means we hear about it from CI, not from a user.
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  hassfest:
+    name: hassfest (Home Assistant validator)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: home-assistant/actions/hassfest@master
+
+  hacs:
+    name: HACS validation
+    runs-on: ubuntu-latest
+    # Advisory, not blocking: one of HACS's nine checks requires the GitHub repository
+    # to have topics set, which lives in repository settings rather than in the tree,
+    # so no commit can turn it green. Everything a commit *can* fix must pass — read
+    # the job output rather than assuming the yellow mark is the expected one.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hacs/action@main
+        with:
+          category: integration
+
+  tests:
+    name: pytest (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.12 is what current Home Assistant releases target, so the full harness
+        # installs there. 3.11 proves the logic suite still runs with no harness at
+        # all — that path is what makes the tests usable on a developer laptop.
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+          # Only attempt the full harness where it can actually resolve; on 3.11 it
+          # drags in dependencies that no longer build, and a red CI for that reason
+          # teaches people to ignore CI.
+          if [ "${{ matrix.python-version }}" = "3.12" ]; then
+            pip install pytest-homeassistant-custom-component
+          fi
+
+      - name: Run tests
+        run: pytest tests/ -v -rs

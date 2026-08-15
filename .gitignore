@@ -9,3 +9,9 @@ state.json
 state.json.tmp
 server/state.json
 server/state.json.tmp
+
+# Python bytecode / test caches — never ship these (HACS copies the whole
+# custom_components directory into the user's Home Assistant).
+__pycache__/
+*.py[cod]
+.pytest_cache/
