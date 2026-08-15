@@ -2257,12 +2257,13 @@ GUL_TOKEN=${token} node index.js
 # Prefer Docker?
 # docker build -t gul-bridge ./bridge
 # docker run -d --network host -e GUL_TOKEN=${token} gul-bridge`;
-                    const haYaml = `# EASIEST: install the add-on instead — no YAML, no terminal.
-#   Settings → Add-ons → Add-on Store → ⋮ → Repositories → add:
+                    const haYaml = `# EASIEST: install our integration instead — no YAML at all.
+#   HACS → ⋮ → Custom repositories → add (type: Integration):
 #   https://github.com/GreenUtilityLog/GreenUtilityLog
-#   Then install "GreenUtilityLog Meter Bridge", paste your token, press Start.
+#   Then: Settings → Devices & services → Add integration → GreenUtilityLog.
+#   Paste your token, pick your meter sensor from the list. Done.
 #
-# Prefer to wire it yourself with your own sensor? Use the YAML below.
+# Prefer to wire it yourself instead? Use the YAML below.
 # configuration.yaml — works with (almost) any meter Home Assistant supports
 #
 # FIRST: find YOUR entity — entity IDs differ per install (they include your device
@@ -2290,7 +2291,7 @@ curl -X POST ${ingestUrl} \\
                     const hint = device === "homewizard"
                       ? 'Turn on "Local API" in the HomeWizard app first. The bridge auto-discovers your P1 — if your network blocks mDNS, add HW_IP=<your P1 IP>. Needs Node 18+ or Docker.'
                       : device === "ha"
-                      ? "The easiest route: install our add-on from the Add-on Store (no terminal, no YAML) — the first lines below show how. Or wire it yourself with the YAML; entity IDs differ per install, so find yours under Developer tools → States (filter “import”, pick the kWh one that counts up)."
+                      ? "The easiest route: install our integration via HACS (no YAML at all) — the first lines below show how. Or wire it yourself with the YAML; entity IDs differ per install, so find yours under Developer tools → States (filter “import”, pick the kWh one that counts up)."
                       : "For any other setup. POST your cumulative kWh total from any device, or use the bridge’s generic mode (READ_URL) to read any HTTP/JSON reader.";
                     return (
                       <div>
