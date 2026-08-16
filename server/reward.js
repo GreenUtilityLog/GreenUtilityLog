@@ -104,7 +104,7 @@ export async function distributorAddress() {
 // Read-only checks against the VeBetterDAO contracts so /health can say exactly
 // why payouts would fail: pool empty, or the distributor lacking the
 // reward-distributor role for this app (the two classic revert causes).
-async function callView(to, fragment, args) {
+export async function callView(to, fragment, args) {
   const abi = new ABIFunction(fragment);
   const data = abi.encodeData(args).toString();
   const res = await fetch(`${NODE_URL}/accounts/${to}`, {
@@ -233,7 +233,7 @@ function decodeRevertReason(data) {
 
 // Dry-run a clause via the node (free, instant). Returns { reverted, reason } —
 // the contract's OWN error message, so failures stop being a guessing game.
-async function simulateClause(clause, caller) {
+export async function simulateClause(clause, caller) {
   const res = await fetch(`${NODE_URL}/accounts/*`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -248,8 +248,12 @@ async function simulateClause(clause, caller) {
 // Broadcast one clause and wait for its receipt. Broadcast ≠ paid: a broadcast
 // tx can still REVERT on-chain — and the app/admin read the CHAIN, so reporting
 // success on broadcast produced green toasts for payouts that never landed.
-async function sendClause(abi, args, comment) {
-  const clause = Clause.callFunction(Address.of(CONTRACTS.X2EarnRewardsPool), new ABIFunction(abi), args);
+// Generalised over the target contract so other modules (passport.js) can reuse the
+// distributor signer, gas estimation and receipt handling. sendClause below keeps the
+// original rewards-pool-only signature for every existing caller.
+export async function sendClauseTo(to, abi, args, comment) {
+  if (!signer) throw new Error("distributor key not configured");
+  const clause = Clause.callFunction(Address.of(to), new ABIFunction(abi), args);
   // sendTransaction estimates gas, builds, signs and broadcasts; resolves to txid.
   // With DELEGATION_URL set, the gas is paid by the sponsor at that URL (VIP-191).
   const txid = await signer.sendTransaction({
@@ -266,6 +270,9 @@ async function sendClause(abi, args, comment) {
   // On a rare receipt timeout treat as pending (not reverted).
   return { txid, reverted: !!(receipt && receipt.reverted) };
 }
+
+const sendClause = (abi, args, comment) =>
+  sendClauseTo(CONTRACTS.X2EarnRewardsPool, abi, args, comment);
 
 // Sign + broadcast the payout. Preferred path: distributeRewardWithProofAndMetadata
 // (the contract builds the standard VeBetter proof that wallets recognise, and our

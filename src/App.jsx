@@ -3147,6 +3147,129 @@ function AdminAccountTools({ T, onAdminApi, onToast }) {
 
 // Admin actions on the wallet you've drilled into — block/unblock, reset its
 // cooldown, and correct a meter's baseline right where you see the problem.
+// VeBetterDAO's own sybil defence, for one wallet. Reading it needs no permission
+// and is the useful half: the passport's verdict on a wallet is ecosystem-wide, so
+// a tester who isn't counted as a person here isn't counted anywhere.
+//
+// Signalling is the other half and is a genuine accusation — it costs the wallet
+// standing across every VeBetter app, not just this one. Blocking someone locally
+// is /admin/ban; this is not that, and the UI says so.
+function PassportPanel({ T, address, onAdminApi, onToast }) {
+  const [state, setState] = useState({ status: "idle" });
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const load = async () => {
+    setState({ status: "loading" });
+    try {
+      const d = await onAdminApi("/admin/passport", { wallets: [address] });
+      setState({ status: "live", status_: d.status, p: (d.passports || {})[address.toLowerCase()] || null });
+    } catch (e) {
+      setState({ status: "error", error: e?.message || "request failed" });
+    }
+  };
+
+  const mono = "'SF Mono',Menlo,'Courier New',monospace";
+  const box = { marginTop: 16, padding: 12, background: T.bgAlt, border: `1px solid ${T.border}`, borderRadius: 8 };
+  const head = { fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".8px", color: T.textSoft, marginBottom: 10 };
+  const btn = (bg, fg, dis) => ({ background: bg, color: fg, border: bg === "transparent" ? `1px solid ${T.border}` : "none", borderRadius: 6, padding: "9px 12px", fontWeight: 700, fontSize: 11, cursor: dis ? "default" : "pointer", opacity: dis ? 0.6 : 1, whiteSpace: "nowrap" });
+
+  if (state.status === "idle") {
+    return (
+      <div style={box}>
+        <div style={head}>🪪 VeBetterDAO passport</div>
+        <div style={{ fontSize: 10.5, color: T.textSoft, lineHeight: 1.6, marginBottom: 10 }}>
+          Whether VeBetterDAO still counts this wallet as a person, and how often it has been signalled as a bot.
+        </div>
+        <button onClick={load} style={btn("transparent", T.textMid, false)}>🪪 Check passport</button>
+      </div>
+    );
+  }
+  if (state.status === "loading") return <div style={box}><div style={head}>🪪 VeBetterDAO passport</div><div style={{ fontSize: 11, color: T.textSoft }}>Loading…</div></div>;
+  if (state.status === "error") {
+    return (
+      <div style={box}>
+        <div style={head}>🪪 VeBetterDAO passport</div>
+        <div style={{ fontSize: 11, color: T.text, lineHeight: 1.5, marginBottom: 10 }}>⚠️ Couldn't read the passport contract ({state.error}).</div>
+        <button onClick={load} style={btn("transparent", T.textMid, false)}>Retry</button>
+      </div>
+    );
+  }
+
+  const { p } = state;
+  const st = state.status_ || {};
+  const authorized = st.authorized === true;
+  // null means the node didn't answer — say "unknown" rather than implying a verdict.
+  const person = p?.isPerson;
+  const pill = (bg, fg, text) => <span style={{ background: bg, color: fg, borderRadius: 4, padding: "3px 7px", fontSize: 10, fontWeight: 800 }}>{text}</span>;
+
+  const doSignal = async () => {
+    if (reason.trim().length < 3) { onToast?.("❌ Give a reason first"); return; }
+    if (!window.confirm(`Signal ${address} as a bot?\n\nThis is an ecosystem-wide accusation recorded on-chain — it affects this wallet across every VeBetter app, not just here. To only stop them claiming in this app, use "Block wallet" instead.`)) return;
+    setBusy(true);
+    try {
+      const d = await onAdminApi("/admin/signal", { targetWallet: address, reason: reason.trim() });
+      onToast?.(`🚩 Signalled — tx ${String(d.txid || "").slice(0, 10)}…`);
+      setReason("");
+      await load();
+    } catch (e) {
+      onToast?.(`❌ ${e?.message || "signal failed"}`);
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div style={box}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={head}>🪪 VeBetterDAO passport</div>
+        <button onClick={load} style={{ background: "transparent", border: "none", fontSize: 11, color: T.textSoft, cursor: "pointer" }}>↻</button>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+        {person === true && pill(T.green1 || "#dce8e1", T.green3 || "#2e7d5b", "✓ Counts as a person")}
+        {person === false && pill("#7a1c1c", "#fff", "✕ Not counted as a person")}
+        {person == null && pill(T.gasBg, T.textMid, "? Unknown — node didn't answer")}
+        {p?.blacklisted === true && pill("#7a1c1c", "#fff", "Blacklisted")}
+      </div>
+
+      {p?.reason ? (
+        <div style={{ fontSize: 10.5, color: T.textMid, lineHeight: 1.6, marginBottom: 8 }}>
+          Contract's reason: <span style={{ fontFamily: mono }}>{p.reason}</span>
+        </div>
+      ) : null}
+
+      <div style={{ display: "flex", gap: 16, marginBottom: 10 }}>
+        <div><span style={{ fontSize: 15, fontWeight: 600, color: T.text, fontFamily: mono }}>{p?.signals ?? "–"}</span> <span style={{ fontSize: 9, color: T.textSoft }}>signals total</span></div>
+        <div><span style={{ fontSize: 15, fontWeight: 600, color: T.text, fontFamily: mono }}>{p?.appSignals ?? "–"}</span> <span style={{ fontSize: 9, color: T.textSoft }}>from this app</span></div>
+        {st.threshold != null && <div><span style={{ fontSize: 15, fontWeight: 600, color: T.textSoft, fontFamily: mono }}>{st.threshold}</span> <span style={{ fontSize: 9, color: T.textSoft }}>threshold</span></div>}
+      </div>
+
+      {authorized ? (
+        <>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <input
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Reason (recorded on-chain)"
+              maxLength={256}
+              style={{ flex: 1, minWidth: 160, boxSizing: "border-box", background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, padding: "8px 10px", fontSize: 12, color: T.text, outline: "none" }}
+            />
+            <button disabled={busy} onClick={doSignal} style={btn("#c0392b", "#fff", busy)}>{busy ? "…" : "🚩 Signal as bot"}</button>
+          </div>
+          <div style={{ fontSize: 9.5, color: T.textSoft, marginTop: 8, lineHeight: 1.6 }}>
+            Ecosystem-wide and permanent from our side — only VeBetterDAO can reset a wallet's signals. To just stop someone claiming here, use <b>Block wallet</b> above.
+          </div>
+        </>
+      ) : (
+        <div style={{ background: T.gasBg, border: `1px solid ${T.gasBorder}`, borderRadius: 6, padding: "10px 12px", fontSize: 10.5, color: T.textMid, lineHeight: 1.6 }}>
+          ℹ️ <b>Signalling is not enabled for this app.</b> It needs <span style={{ fontFamily: mono }}>SIGNALER_ROLE</span> on the passport contract, which only VeBetterDAO can grant via{" "}
+          <span style={{ fontFamily: mono }}>assignSignalerToApp</span>. Ask them to assign{" "}
+          <span style={{ fontFamily: mono, wordBreak: "break-all" }}>{st.signaler || "your distributor wallet"}</span> as signaler for this app. Reading the passport above works regardless.
+        </div>
+      )}
+    </div>
+  );
+}
+
 function WalletAdminActions({ T, address, meters, onAdminApi, onToast }) {
   const [busy, setBusy] = useState("");
   const [vals, setVals] = useState({});         // baseline inputs per meter
@@ -3496,7 +3619,10 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
           )}
 
           {onAdminApi
-            ? <WalletAdminActions T={T} address={selected} meters={meters} onAdminApi={onAdminApi} onToast={onToast} />
+            ? <>
+                <WalletAdminActions T={T} address={selected} meters={meters} onAdminApi={onAdminApi} onToast={onToast} />
+                <PassportPanel T={T} address={selected} onAdminApi={onAdminApi} onToast={onToast} />
+              </>
             : (
               <div style={{marginTop:16,padding:"10px 12px",background:T.gasBg,border:`1px solid ${T.gasBorder}`,borderRadius:6,fontSize:10.5,color:T.textMid,lineHeight:1.6}}>
                 ℹ️ This view is read-only (the blockchain is the source of truth). <strong>Editing</strong> a wallet's meters requires the reward backend (meters are otherwise stored on each user's own device).

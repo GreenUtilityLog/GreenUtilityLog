@@ -12,6 +12,7 @@ import { verifyPhoto } from "./media.js";
 import { store } from "./store.js";
 import { putPhoto, getPhotoDataUrl, deletePhoto, photoStoreEnabled } from "./photostore.js";
 import { distributeReward, distributeEcoReward, distributorAddress, chainDiagnostics, moveToRewardsPool } from "./reward.js";
+import { signalStatus, passportFor, signalUser } from "./passport.js";
 import { ocrImage, ocrEnabled, ocrProviders } from "./ocr.js";
 import { verifyWalletCertificate, REQUIRE_CERT } from "./auth.js";
 import { checkPhotoAuthenticity, aiPhotoCheckEnabled } from "./authenticity.js";
@@ -243,6 +244,50 @@ app.post("/admin/rename-meter", (req, res) => {
   if (newOwner && newOwner !== target.toLowerCase()) return res.status(409).json({ error: "the new meter number is registered to another wallet" });
   const r = store.renameMeter(utility, oldMeterNo, newMeterNo, target.toLowerCase());
   res.json({ ok: true, utility, ...r });
+});
+
+// ── Admin: VeBetterDAO bot signalling ────────────────────────────────────────
+// Read-only passport state for a batch of wallets, plus whether we may signal at
+// all. Works with no role and no key, which is the point: the admin can see who
+// the passport already distrusts long before we can file a signal ourselves.
+app.post("/admin/passport", async (req, res) => {
+  const a = verifyAdmin(req, "/admin/passport");
+  if (!a.ok) return res.status(a.code).json({ error: a.error });
+  const wallets = Array.isArray(req.body.wallets) ? req.body.wallets.slice(0, 100) : [];
+  try {
+    const [status, passports] = await Promise.all([signalStatus(), passportFor(wallets)]);
+    res.json({ ok: true, status, passports });
+  } catch (e) {
+    console.error("[/admin/passport]", e?.message || e);
+    res.status(502).json({ error: "could not read the passport contract" });
+  }
+});
+
+// File a bot signal against a wallet. This is an ecosystem-wide accusation, not a
+// local block — /admin/ban is the local one. Requires SIGNALER_ROLE, which only
+// VeBetterDAO can grant; without it the simulation fails and we return the
+// contract's own reason rather than spending gas.
+app.post("/admin/signal", async (req, res) => {
+  const a = verifyAdmin(req, "/admin/signal");
+  if (!a.ok) return res.status(a.code).json({ error: a.error });
+  const target = String(req.body.targetWallet || "");
+  if (!isAddr(target)) return res.status(400).json({ error: "invalid target wallet" });
+  if (ADMIN_USER_WALLETS.includes(target.toLowerCase())) {
+    return res.status(400).json({ error: "refusing to signal an admin wallet" });
+  }
+  const reason = String(req.body.reason || "").trim();
+  if (reason.length < 3) return res.status(400).json({ error: "a reason is required" });
+  try {
+    const txid = await signalUser(target, reason);
+    console.log(`[admin] signalled ${shortAddr(target)} by ${shortAddr(a.addr)}`);
+    res.json({ ok: true, txid, targetWallet: target.toLowerCase() });
+  } catch (e) {
+    const msg = e?.message || String(e);
+    console.error("[/admin/signal]", msg);
+    // The revert reason is the whole diagnostic here ("not authorised to signal"),
+    // so pass it through instead of flattening it to a generic 502.
+    res.status(502).json({ error: msg });
+  }
 });
 
 // Every wallet the backend knows about — app-seen, meter owners, paired devices and
