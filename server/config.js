@@ -126,6 +126,12 @@ export const BANNED_ADDRESSES = new Set(
 );
 export const isBanned = (addr) => BANNED_ADDRESSES.has(String(addr || "").toLowerCase());
 
+// Access passes. When on, only wallets an admin has issued a pass to can EARN —
+// everyone can still open the app, connect and submit, they just aren't paid. Off by
+// default: switching it on is a deliberate act, and the first boot with it on
+// grandfathers every wallet the backend already knows so nobody is cut off retroactively.
+export const REQUIRE_PASS = /^(1|true|yes)$/i.test(process.env.REQUIRE_PASS || "");
+
 // Cloudflare Turnstile (anti-bot captcha). Set TURNSTILE_SECRET to require a
 // valid captcha token on /reward; leave empty to disable the check.
 export const TURNSTILE_SECRET = process.env.TURNSTILE_SECRET || "";

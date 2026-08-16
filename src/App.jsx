@@ -3147,6 +3147,104 @@ function AdminAccountTools({ T, onAdminApi, onToast }) {
 
 // Admin actions on the wallet you've drilled into — block/unblock, reset its
 // cooldown, and correct a meter's baseline right where you see the problem.
+// The access pass: what actually lets a wallet earn once passes are switched on.
+// Not an NFT and deliberately so — it has to be revocable and cost nothing to issue,
+// and an admin hands them out one wallet at a time.
+//
+// Note this is a different thing from the VeBetterDAO passport below: that one is
+// VeBetterDAO's bot check on the whole ecosystem, this one is our own guest list.
+function AccessPassPanel({ T, address, onAdminApi, onToast }) {
+  const [state, setState] = useState({ status: "idle" });
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState("");
+
+  const load = async () => {
+    setState({ status: "loading" });
+    try {
+      const d = await onAdminApi("/admin/lookup", { targetWallet: address });
+      setState({ status: "live", pass: d.pass || null, requirePass: !!d.requirePass });
+    } catch (e) {
+      setState({ status: "error", error: e?.message || "request failed" });
+    }
+  };
+
+  const act = async (grant) => {
+    setBusy(grant ? "grant" : "revoke");
+    try {
+      const d = await onAdminApi("/admin/pass", { targetWallet: address, grant, ...(grant && note.trim() ? { note: note.trim() } : {}) });
+      setState((s) => ({ ...s, status: "live", pass: d.pass || null, requirePass: !!d.requirePass }));
+      onToast?.(grant ? `🎟️ Pass #${d.pass?.no} issued` : "🎟️ Pass withdrawn");
+      setNote("");
+    } catch (e) {
+      onToast?.(`❌ ${e?.message || "action failed"}`);
+    } finally { setBusy(""); }
+  };
+
+  const mono = "'SF Mono',Menlo,'Courier New',monospace";
+  const box = { marginTop: 16, padding: 12, background: T.bgAlt, border: `1px solid ${T.border}`, borderRadius: 8 };
+  const head = { fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".8px", color: T.textSoft, marginBottom: 10 };
+  const btn = (bg, fg, dis) => ({ background: bg, color: fg, border: bg === "transparent" ? `1px solid ${T.border}` : "none", borderRadius: 6, padding: "9px 12px", fontWeight: 700, fontSize: 11, cursor: dis ? "default" : "pointer", opacity: dis ? 0.6 : 1, whiteSpace: "nowrap" });
+
+  if (state.status === "idle") {
+    return (
+      <div style={box}>
+        <div style={head}>🎟️ Access pass</div>
+        <div style={{ fontSize: 10.5, color: T.textSoft, lineHeight: 1.6, marginBottom: 10 }}>Who may earn. Anyone can use the app; only pass holders get paid.</div>
+        <button onClick={load} style={btn("transparent", T.textMid, false)}>🎟️ Check pass</button>
+      </div>
+    );
+  }
+  if (state.status === "loading") return <div style={box}><div style={head}>🎟️ Access pass</div><div style={{ fontSize: 11, color: T.textSoft }}>Loading…</div></div>;
+  if (state.status === "error") {
+    return (
+      <div style={box}>
+        <div style={head}>🎟️ Access pass</div>
+        <div style={{ fontSize: 11, color: T.text, marginBottom: 10 }}>⚠️ {state.error}</div>
+        <button onClick={load} style={btn("transparent", T.textMid, false)}>Retry</button>
+      </div>
+    );
+  }
+
+  const p = state.pass;
+  return (
+    <div style={box}>
+      <div style={head}>🎟️ Access pass</div>
+      {p ? (
+        <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, padding: "10px 12px", marginBottom: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: T.green3, fontFamily: mono }}>Pass #{p.no}</div>
+            <span style={{ background: T.gasBg, color: T.textMid, borderRadius: 4, padding: "3px 7px", fontSize: 10, fontWeight: 800, textTransform: "uppercase" }}>{p.tier}</span>
+          </div>
+          <div style={{ fontSize: 10, color: T.textSoft, marginTop: 4 }}>
+            Issued {p.issuedAt ? new Date(p.issuedAt).toISOString().slice(0, 10) : "—"}{p.issuedBy ? ` by ${shortAddr(p.issuedBy)}` : ""}
+          </div>
+          {p.note ? <div style={{ fontSize: 10.5, color: T.textMid, marginTop: 4 }}>{p.note}</div> : null}
+        </div>
+      ) : (
+        <div style={{ fontSize: 11, color: T.textMid, marginBottom: 10, lineHeight: 1.6 }}>
+          No pass. {state.requirePass ? <b>This wallet cannot earn.</b> : "Passes are currently switched off, so this wallet can still earn."}
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {!p && (
+          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" maxLength={140}
+            style={{ flex: 1, minWidth: 140, boxSizing: "border-box", background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, padding: "8px 10px", fontSize: 12, color: T.text, outline: "none" }} />
+        )}
+        {p
+          ? <button disabled={busy === "revoke"} onClick={() => act(false)} style={btn("transparent", T.textMid, busy === "revoke")}>{busy === "revoke" ? "…" : "Withdraw pass"}</button>
+          : <button disabled={busy === "grant"} onClick={() => act(true)} style={btn(T.green3 || "#2e7d5b", "#fff", busy === "grant")}>{busy === "grant" ? "…" : "🎟️ Issue pass"}</button>}
+      </div>
+
+      {!state.requirePass && (
+        <div style={{ fontSize: 9.5, color: T.textSoft, marginTop: 8, lineHeight: 1.6 }}>
+          Passes aren't enforced yet — set <span style={{ fontFamily: mono }}>REQUIRE_PASS=true</span> in the backend to make them required. On the first boot after that, every wallet the backend already knows keeps earning automatically.
+        </div>
+      )}
+    </div>
+  );
+}
+
 // VeBetterDAO's own sybil defence, for one wallet. Reading it needs no permission
 // and is the useful half: the passport's verdict on a wallet is ecosystem-wide, so
 // a tester who isn't counted as a person here isn't counted anywhere.
@@ -3621,6 +3719,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
           {onAdminApi
             ? <>
                 <WalletAdminActions T={T} address={selected} meters={meters} onAdminApi={onAdminApi} onToast={onToast} />
+                <AccessPassPanel T={T} address={selected} onAdminApi={onAdminApi} onToast={onToast} />
                 <PassportPanel T={T} address={selected} onAdminApi={onAdminApi} onToast={onToast} />
               </>
             : (
@@ -4285,6 +4384,9 @@ export default function App() {
   const openRegistration = (utils = null, edit = false) => { setRegUtils(utils); setRegEdit(edit); setNeedsBaselines(true); };
   const closeRegistration = () => { setNeedsBaselines(false); setRegUtils(null); setRegEdit(false); };
   const [meters, setMeters]         = useState({ electric:"", gas:"", water:"", solar:"" });
+  // Access pass, reported by the backend on connect. `required:false` is the normal
+  // case today — the gate is off unless REQUIRE_PASS is set.
+  const [passInfo, setPassInfo]     = useState({ required: false, has: true, pass: null });
   const [dark, setDark]             = useState(getInitialDark);
   const T = dark ? DARK : LIGHT;
   const CSS = makeCSS(T);
@@ -4365,7 +4467,13 @@ export default function App() {
     fetch(`${REWARD_API.replace(/\/$/, "")}/wallet/seen`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ address: wallet, meters: list }),
-    }).catch(() => {});
+    })
+      // The same call reports whether this wallet holds an access pass. Knowing it up
+      // front means we can say so plainly, instead of letting the user photograph a
+      // meter, submit, and only then hit a 403 they can't act on.
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) setPassInfo({ required: !!d.requirePass, has: d.hasPass !== false, pass: d.pass || null }); })
+      .catch(() => {});
   }, [wallet, meters]);
   const { open: openWalletModal } = useWalletModal();
   const openConnectModal = () => openWalletModal();
@@ -5121,6 +5229,19 @@ export default function App() {
               </button>
             </div>
           </div>
+
+          {/* Say it before they act, not after. A wallet without a pass can still use
+              everything — it just won't be paid — so this is a notice, not a wall. */}
+          {wallet && passInfo.required && !passInfo.has && (tab==="home" || tab==="submit") && (
+            <div style={{margin:"0 14px 12px",background:T.gasBg,border:`1px solid ${T.gasBorder}`,borderRadius:8,padding:"11px 13px",fontSize:11.5,color:T.text,lineHeight:1.6}}>
+              🎟️ <b>No access pass yet.</b> You can try everything out, but rewards are only paid to wallets with a pass. Ask an admin to add yours — they'll need this address.
+            </div>
+          )}
+          {wallet && passInfo.pass && (tab==="profile") && (
+            <div style={{margin:"0 14px 12px",background:T.card,border:`1px solid ${T.border}`,borderRadius:8,padding:"11px 13px",fontSize:11.5,color:T.textMid,lineHeight:1.6}}>
+              🎟️ <b style={{color:T.green3}}>Access pass #{passInfo.pass.no}</b> · {passInfo.pass.tier}
+            </div>
+          )}
 
           {tab==="home"      && <HomeScreen b3tr={b3tr} streak={streak} subs={subs} setTab={setTab} T={T}/>}
           {tab==="submit"    && <SubmitScreen u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} busy={busy} usage={usage} reward={reward} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab} onEcoSubmit={handleEcoSubmit} ecoBusy={ecoBusy} ecoUsedThisWeek={ecoUsedThisWeek} ecoCooldownMs={ecoCooldownMs} onMeterAutoSubmit={handleMeterAutoSubmit} meterAutoBusy={meterAutoBusy} onRegisterMeter={(utils) => openRegistration(utils, true)}/>}

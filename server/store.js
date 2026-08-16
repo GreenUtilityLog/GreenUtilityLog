@@ -17,7 +17,10 @@ const R_TOK = (process.env.UPSTASH_REDIS_REST_TOKEN || "").trim();
 const USE_REDIS = !!(R_URL && R_TOK);
 const REDIS_KEY = process.env.STATE_KEY || "greenutilitylog:state";
 
-const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {} };
+// `passes` is the access-pass registry (address → pass); `passesInit` records that the
+// one-time grandfathering has run, so turning REQUIRE_PASS on can't silently cut off
+// every existing tester — and can't re-grant a pass an admin has since revoked.
+const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0 };
 
 // Cap the "seen wallets" roster so an open endpoint can't grow state without bound.
 // When exceeded we drop the least-recently-seen entries.
@@ -292,6 +295,49 @@ export const store = {
     persist();
   },
   listBans: () => Object.keys(state.bans),
+
+  // ── Access passes ───────────────────────────────────────────────────────────
+  // A pass is what lets a wallet actually earn, once REQUIRE_PASS is on. Issued by
+  // an admin, revocable, and durable. Deliberately not an on-chain NFT: it has to be
+  // reversible, and it costs nothing to issue.
+  //
+  // Revoking DELETES the record rather than flagging it, so a wallet is either
+  // holding a pass or it isn't — no third state to get wrong on the earning path.
+  getPass: (addr) => state.passes[String(addr || "").toLowerCase()] || null,
+  hasPass: (addr) => Boolean(state.passes[String(addr || "").toLowerCase()]),
+  grantPass: (addr, { tier, note, by } = {}) => {
+    const a = String(addr || "").toLowerCase();
+    if (!/^0x[0-9a-f]{40}$/.test(a)) return null;
+    const prev = state.passes[a];
+    const pass = {
+      // Stable per wallet: re-granting after a revoke keeps the original number, so
+      // "pass #7" means one tester forever rather than drifting between people.
+      no: prev?.no || (Object.keys(state.passes).length + 1),
+      issuedAt: prev?.issuedAt || Date.now(),
+      issuedBy: by ? String(by).toLowerCase() : (prev?.issuedBy || null),
+      tier: String(tier || prev?.tier || "tester").slice(0, 24),
+      note: String(note ?? prev?.note ?? "").slice(0, 140),
+    };
+    state.passes[a] = pass;
+    persist();
+    return pass;
+  },
+  revokePass: (addr) => {
+    const a = String(addr || "").toLowerCase();
+    const had = Object.prototype.hasOwnProperty.call(state.passes, a);
+    delete state.passes[a];
+    if (had) persist();
+    return had;
+  },
+  listPasses: () => Object.entries(state.passes).map(([address, p]) => ({ address, ...p })),
+  passCount: () => Object.keys(state.passes).length,
+
+  // One-time grandfathering. Turning REQUIRE_PASS on must not retroactively lock out
+  // people who were already earning, so on first enable every wallet the backend
+  // already knows gets a pass. Guarded by passesInit so it runs exactly once — after
+  // that, revoking a pass sticks.
+  passesInitialised: () => Boolean(state.passesInit),
+  markPassesInitialised: () => { state.passesInit = Date.now(); persist(); },
 
   // ── Admin: read/repair a meter's server-side state ──────────────────────────
   // Full snapshot for one meter/wallet so an admin can see what to fix. Utility-aware

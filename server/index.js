@@ -6,7 +6,7 @@ import "dotenv/config";
 import { randomBytes } from "node:crypto";
 import express from "express";
 import cors from "cors";
-import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, ECO_REWARD, ECO_MAX_PER_WEEK, ECO_COOLDOWN_MS, ECO_APPLIANCES, ecoWeekKey, RATES } from "./config.js";
+import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, REQUIRE_PASS, ECO_REWARD, ECO_MAX_PER_WEEK, ECO_COOLDOWN_MS, ECO_APPLIANCES, ecoWeekKey, RATES } from "./config.js";
 import { validateSubmission } from "./verify.js";
 import { verifyPhoto } from "./media.js";
 import { store } from "./store.js";
@@ -77,6 +77,9 @@ app.get("/health", async (req, res) => {
     photoArchive: photoStoreEnabled(),
     captcha: captchaEnabled(),
     corsLocked: !ALLOWED_ORIGINS.includes("*"),
+    // Access passes: whether earning is gated, and how many have been issued.
+    requirePass: REQUIRE_PASS,
+    passCount: store.passCount(),
     // Which wallets the backend authorises for /admin/* (already public in the client
     // bundle) — surfaced so admin access is easy to verify.
     adminWallets: ADMIN_USER_WALLETS,
@@ -111,6 +114,27 @@ const ADMIN_USER_WALLETS = (process.env.ADMIN_WALLETS || "0x3a007383fce8dcccdb92
 
 // A wallet is blocked if it's on the static env list OR the admin's dynamic list.
 const banned = (addr) => isBanned(addr) || store.isBanned(addr);
+
+// Access pass gate. Separate from `banned` on purpose: banned is "you did something
+// wrong", no pass is "you're not on the list yet" — different message, different fix.
+// Returns null when the wallet may earn, or an error string when it may not.
+function passBlock(addr) {
+  if (!REQUIRE_PASS) return null;
+  if (store.hasPass(addr)) return null;
+  return "this wallet has no access pass yet — ask an admin for one";
+}
+
+// One-time grandfathering, so switching REQUIRE_PASS on never retroactively strands
+// testers who were already earning. Runs at boot, exactly once, and only when the
+// store is readable — grandfathering off a half-loaded state would issue passes we'd
+// then persist over the real data.
+function backfillPasses() {
+  if (!REQUIRE_PASS || !store.ready() || store.passesInitialised()) return;
+  const known = store.listKnownWallets();
+  for (const w of known) if (!w.banned) store.grantPass(w.address, { tier: "tester", note: "grandfathered when passes were enabled" });
+  store.markPassesInitialised();
+  console.log(`[pass] REQUIRE_PASS enabled — granted a pass to ${known.length} already-known wallet(s). Newcomers now need one from an admin.`);
+}
 
 // Canonical string an admin certificate must sign, binding it to the EXACT action
 // and its parameters. Both the frontend and this server compute it identically from
@@ -202,6 +226,9 @@ app.post("/admin/lookup", (req, res) => {
     ok: true,
     ...snap,
     banned: isAddr(target) ? banned(target) : null,
+    // Access pass, so the admin sees in one place why a wallet can or can't earn.
+    requirePass: REQUIRE_PASS,
+    pass: isAddr(target) ? store.getPass(target) : null,
     // Every meter registered to this wallet (incl. ones added but not yet submitted).
     meters: isAddr(target) ? store.metersForWallet(target) : [],
   });
@@ -244,6 +271,31 @@ app.post("/admin/rename-meter", (req, res) => {
   if (newOwner && newOwner !== target.toLowerCase()) return res.status(409).json({ error: "the new meter number is registered to another wallet" });
   const r = store.renameMeter(utility, oldMeterNo, newMeterNo, target.toLowerCase());
   res.json({ ok: true, utility, ...r });
+});
+
+// ── Admin: access passes ─────────────────────────────────────────────────────
+// Issue or withdraw a wallet's pass. With REQUIRE_PASS on, holding one is what
+// lets a wallet earn — it does not restrict opening the app or submitting, so a
+// newcomer can still see what this is before asking for access.
+app.post("/admin/pass", (req, res) => {
+  const a = verifyAdmin(req, "/admin/pass");
+  if (!a.ok) return res.status(a.code).json({ error: a.error });
+  const target = String(req.body.targetWallet || "");
+  if (!isAddr(target)) return res.status(400).json({ error: "invalid target wallet" });
+  const grant = req.body.grant !== false; // default: issue
+  if (grant) {
+    const pass = store.grantPass(target, { tier: req.body.tier, note: req.body.note, by: a.addr });
+    return res.json({ ok: true, targetWallet: target.toLowerCase(), pass, requirePass: REQUIRE_PASS, passCount: store.passCount() });
+  }
+  const had = store.revokePass(target);
+  res.json({ ok: true, targetWallet: target.toLowerCase(), pass: null, revoked: had, requirePass: REQUIRE_PASS, passCount: store.passCount() });
+});
+
+// Every issued pass, for the admin overview.
+app.post("/admin/passes", (req, res) => {
+  const a = verifyAdmin(req, "/admin/passes");
+  if (!a.ok) return res.status(a.code).json({ error: a.error });
+  res.json({ ok: true, requirePass: REQUIRE_PASS, passes: store.listPasses() });
 });
 
 // ── Admin: VeBetterDAO bot signalling ────────────────────────────────────────
@@ -362,6 +414,7 @@ const inFlight = new Set();
 app.post("/reward", async (req, res) => {
   // 0) Ban list — blocked wallets can never claim.
   if (banned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
+  { const pb = passBlock(req.body.address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
 
   // 0a) Durable store must be loaded — otherwise cooldowns/hashes/baselines are blank
   // and a payout can't be recorded. Refuse rather than farm on an empty slate.
@@ -443,6 +496,7 @@ app.post("/reward", async (req, res) => {
 // calendar week (Mon–Sun) and a 24h cooldown between claims.
 app.post("/eco-action", async (req, res) => {
   if (banned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
+  { const pb = passBlock(req.body.address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
   if (!store.ready()) return res.status(503).json({ error: "service is warming up — please try again in a moment" });
 
   if (captchaEnabled()) {
@@ -591,7 +645,16 @@ app.post("/wallet/seen", (req, res) => {
   const address = String(req.body?.address || "");
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
   store.seenWallet(address, req.body?.meters);
-  res.json({ ok: true });
+  // The app calls this on connect anyway, so it's the natural place to tell it whether
+  // it holds a pass — no extra round-trip, and no separate endpoint that would leak
+  // the whole pass list. Only ever reports on the wallet that asked.
+  const pass = store.getPass(address);
+  res.json({
+    ok: true,
+    requirePass: REQUIRE_PASS,
+    hasPass: !REQUIRE_PASS || Boolean(pass),
+    pass: pass ? { no: pass.no, tier: pass.tier, issuedAt: pass.issuedAt } : null,
+  });
 });
 
 // The app fetches this on connect to PRE-FILL a meter number an admin registered for
@@ -738,6 +801,7 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
 
 app.post("/reward-from-meter", async (req, res) => {
   if (banned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
+  { const pb = passBlock(req.body.address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
   if (!store.ready()) return res.status(503).json({ error: "service is warming up — please try again in a moment" });
   if (captchaEnabled()) {
     const cap = await verifyCaptcha(req.body.captchaToken, req.clientIp);
@@ -840,6 +904,9 @@ if (NETWORK === "mainnet") {
 
 const server = app.listen(PORT, () => {
   console.log(`Reward distributor listening on :${PORT} (${NETWORK})`);
+  // After the store has had a chance to load — grandfathering off an unread store
+  // would issue passes against empty state and then persist that over the real data.
+  setTimeout(backfillPasses, 2000).unref?.();
 });
 
 // Graceful shutdown: a redeploy/scale-down sends SIGTERM. Flush any debounced
