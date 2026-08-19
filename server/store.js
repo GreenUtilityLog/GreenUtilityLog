@@ -20,7 +20,7 @@ const REDIS_KEY = process.env.STATE_KEY || "greenutilitylog:state";
 // `passes` is the access-pass registry (address → pass); `passesInit` records that the
 // one-time grandfathering has run, so turning REQUIRE_PASS on can't silently cut off
 // every existing tester — and can't re-grant a pass an admin has since revoked.
-const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0 };
+const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0 };
 
 // Cap the "seen wallets" roster so an open endpoint can't grow state without bound.
 // When exceeded we drop the least-recently-seen entries.
@@ -309,10 +309,21 @@ export const store = {
     const a = String(addr || "").toLowerCase();
     if (!/^0x[0-9a-f]{40}$/.test(a)) return null;
     const prev = state.passes[a];
+    // A monotonic counter, not a count of live passes: counting would re-issue a
+    // number after any revoke (grant 1,2,3 → revoke 2 → the next grant is also 3),
+    // and two wallets holding "Pass #3" makes the number worse than useless. Seeded
+    // from the highest number in use so state written before passSeq existed is safe.
+    const nextNo = () => {
+      const highest = Math.max(0, state.passSeq || 0, ...Object.values(state.passes).map((p) => Number(p?.no) || 0));
+      state.passSeq = highest + 1;
+      return state.passSeq;
+    };
     const pass = {
-      // Stable per wallet: re-granting after a revoke keeps the original number, so
-      // "pass #7" means one tester forever rather than drifting between people.
-      no: prev?.no || (Object.keys(state.passes).length + 1),
+      // Re-issuing to a wallet that still holds one (to edit its tier or note) keeps
+      // its number. A WITHDRAWN pass is gone — revoke deletes the record — so issuing
+      // again afterwards is a new pass with a new number. That's the honest reading:
+      // the number identifies a grant, not a person.
+      no: prev?.no || nextNo(),
       issuedAt: prev?.issuedAt || Date.now(),
       issuedBy: by ? String(by).toLowerCase() : (prev?.issuedBy || null),
       tier: String(tier || prev?.tier || "tester").slice(0, 24),

@@ -131,9 +131,15 @@ function passBlock(addr) {
 function backfillPasses() {
   if (!REQUIRE_PASS || !store.ready() || store.passesInitialised()) return;
   const known = store.listKnownWallets();
-  for (const w of known) if (!w.banned) store.grantPass(w.address, { tier: "tester", note: "grandfathered when passes were enabled" });
+  let granted = 0;
+  for (const w of known) {
+    if (w.banned) continue;   // a blocked wallet shouldn't be handed a pass on the way in
+    store.grantPass(w.address, { tier: "tester", note: "grandfathered when passes were enabled" });
+    granted++;
+  }
   store.markPassesInitialised();
-  console.log(`[pass] REQUIRE_PASS enabled — granted a pass to ${known.length} already-known wallet(s). Newcomers now need one from an admin.`);
+  // Count what was actually issued, not what was considered — banned wallets are skipped.
+  console.log(`[pass] REQUIRE_PASS enabled — issued a pass to ${granted} of ${known.length} known wallet(s). Newcomers now need one from an admin.`);
 }
 
 // Canonical string an admin certificate must sign, binding it to the EXACT action
@@ -305,7 +311,7 @@ app.post("/admin/passes", (req, res) => {
 app.post("/admin/passport", async (req, res) => {
   const a = verifyAdmin(req, "/admin/passport");
   if (!a.ok) return res.status(a.code).json({ error: a.error });
-  const wallets = Array.isArray(req.body.wallets) ? req.body.wallets.slice(0, 100) : [];
+  const wallets = Array.isArray(req.body.wallets) ? req.body.wallets.slice(0, 25) : [];
   try {
     const [status, passports] = await Promise.all([signalStatus(), passportFor(wallets)]);
     res.json({ ok: true, status, passports });

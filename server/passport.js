@@ -63,7 +63,13 @@ function tuple(decoded) {
   return [decoded];
 }
 const one = (decoded) => tuple(decoded)[0];
-const num = (v) => (v == null ? null : Number(BigInt(v)));
+// Never throw out of a decode. BigInt() rejects anything that isn't an integer-ish
+// value, and one unexpected shape from the node would otherwise take down the whole
+// panel — including the parts that decoded fine. An unreadable counter is "unknown".
+const num = (v) => {
+  if (v == null) return null;
+  try { return Number(BigInt(v)); } catch { const n = Number(v); return Number.isFinite(n) ? n : null; }
+};
 
 async function read(abi, args) {
   if (!PASSPORT) return null;
@@ -101,7 +107,7 @@ export async function passportFor(addresses) {
   const wallets = [...new Set((addresses || []).map((a) => String(a || "").toLowerCase()).filter((a) => /^0x[0-9a-f]{40}$/.test(a)))];
   if (!PASSPORT || !wallets.length) return {};
 
-  const entries = await Promise.all(wallets.map(async (addr) => {
+  const read4 = async (addr) => {
     const [person, signals, appSignals, blacklisted] = await Promise.all([
       read(IS_PERSON_ABI, [addr]),
       read(SIGNALED_COUNTER_ABI, [addr]),
@@ -118,7 +124,16 @@ export async function passportFor(addresses) {
       appSignals: num(one(appSignals)),
       blacklisted: one(blacklisted) === true ? true : (one(blacklisted) === false ? false : null),
     }];
-  }));
+  };
+
+  // Four node calls per wallet, so a full page of wallets would put hundreds of
+  // requests in flight at once and invite rate-limiting — which would come back as
+  // nulls and read like "the passport doesn't know these people". Five wallets at a
+  // time keeps it to twenty in flight.
+  const entries = [];
+  for (let i = 0; i < wallets.length; i += 5) {
+    entries.push(...await Promise.all(wallets.slice(i, i + 5).map(read4)));
+  }
   return Object.fromEntries(entries);
 }
 
