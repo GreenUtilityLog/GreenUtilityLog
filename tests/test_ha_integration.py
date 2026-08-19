@@ -58,8 +58,18 @@ def _allow_custom_integrations(enable_custom_integrations):
     yield
 
 
-def _set_meter(hass: HomeAssistant, state: str, unit: str | None = "kWh") -> None:
-    hass.states.async_set(METER, state, {"unit_of_measurement": unit} if unit else {})
+def _set_meter(
+    hass: HomeAssistant,
+    state: str,
+    unit: str | None = "kWh",
+    state_class: str | None = "total_increasing",
+) -> None:
+    attrs = {}
+    if unit:
+        attrs["unit_of_measurement"] = unit
+    if state_class:
+        attrs["state_class"] = state_class
+    hass.states.async_set(METER, state, attrs)
 
 
 def _session(status: int = 200, body: str = "{}", raises: Exception | None = None):
@@ -149,6 +159,16 @@ async def test_wrong_unit_is_rejected(hass: HomeAssistant) -> None:
     )
     result = await hass.config_entries.flow.async_configure(result["flow_id"], GOOD)
     assert result["errors"][CONF_SOURCE_ENTITY] == "entity_not_kwh"
+
+
+async def test_resetting_kwh_sensor_is_rejected(hass: HomeAssistant) -> None:
+    """A kWh sensor that zeroes each billing period (Opower's usage-to-date shape)."""
+    _set_meter(hass, "312.5", state_class="total")
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], GOOD)
+    assert result["errors"][CONF_SOURCE_ENTITY] == "entity_not_cumulative"
 
 
 async def test_same_meter_twice_aborts(hass: HomeAssistant) -> None:

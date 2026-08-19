@@ -20,7 +20,8 @@
       "token_required": "Plak het device-token uit de app.",
       "entity_not_found": "Die entity bestaat niet (meer). Kies een andere.",
       "entity_not_numeric": "Die entity heeft geen getalswaarde. Kies je cumulatieve meterstand.",
-      "entity_not_kwh": "Die entity staat niet in kWh. Kies de meterstand, niet het huidige vermogen."
+      "entity_not_kwh": "Die entity staat niet in kWh. Kies de meterstand, niet het huidige vermogen.",
+      "entity_not_cumulative": "Die sensor loopt telkens terug op nul (bijv. per factuurperiode); daar is verbruik niet uit af te leiden. Kies de meterstand die alleen oploopt."
     },
     "abort": {
       "already_configured": "Deze meter wordt al doorgestuurd."
@@ -43,7 +44,8 @@
       "token_required": "Plak het device-token uit de app.",
       "entity_not_found": "Die entity bestaat niet (meer). Kies een andere.",
       "entity_not_numeric": "Die entity heeft geen getalswaarde. Kies je cumulatieve meterstand.",
-      "entity_not_kwh": "Die entity staat niet in kWh. Kies de meterstand, niet het huidige vermogen."
+      "entity_not_kwh": "Die entity staat niet in kWh. Kies de meterstand, niet het huidige vermogen.",
+      "entity_not_cumulative": "Die sensor loopt telkens terug op nul (bijv. per factuurperiode); daar is verbruik niet uit af te leiden. Kies de meterstand die alleen oploopt."
     }
   },
   "services": {

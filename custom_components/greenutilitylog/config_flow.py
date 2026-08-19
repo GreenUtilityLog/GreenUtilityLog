@@ -82,6 +82,15 @@ def _validate(hass, user_input: dict[str, Any]) -> dict[str, str]:
             unit = state.attributes.get("unit_of_measurement")
             if unit and unit not in (UnitOfEnergy.KILO_WATT_HOUR, "kWh"):
                 errors[CONF_SOURCE_ENTITY] = "entity_not_kwh"
+            elif state.attributes.get("state_class") in ("total", "measurement"):
+                # A kWh sensor that isn't total_increasing is one that RESETS. The
+                # trap is Opower (many US utilities): `elec_usage_to_date` is kWh with
+                # device_class energy, so it looks right in the picker and passes every
+                # other check here — but it zeroes each billing period and can even
+                # decrease on a solar account. The backend measures usage as a rise
+                # from the last reading, so a monthly reset would read as the meter
+                # running backwards and then re-earn the same kWh next cycle.
+                errors[CONF_SOURCE_ENTITY] = "entity_not_cumulative"
 
     return errors
 
