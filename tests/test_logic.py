@@ -40,9 +40,13 @@ INGEST = "https://example.invalid/meter-ingest"
 
 
 class FakeState:
-    def __init__(self, state, unit="kWh"):
+    def __init__(self, state, unit="kWh", state_class="total_increasing"):
         self.state = state
-        self.attributes = {"unit_of_measurement": unit} if unit else {}
+        self.attributes = {}
+        if unit:
+            self.attributes["unit_of_measurement"] = unit
+        if state_class:
+            self.attributes["state_class"] = state_class
 
 
 class FakeHass:
@@ -120,6 +124,21 @@ def test_watts_instead_of_kwh_is_caught():
     hass = FakeHass({METER: FakeState("412", unit="W")})
     errors = _validate(hass, {CONF_TOKEN: "abc", CONF_SOURCE_ENTITY: METER})
     assert errors[CONF_SOURCE_ENTITY] == "entity_not_kwh"
+
+
+@pytest.mark.parametrize("state_class", ["total", "measurement"])
+def test_resetting_kwh_sensor_is_caught(state_class):
+    """Opower's `elec_usage_to_date` shape: kWh, device_class energy — and it zeroes
+    every billing period. It passes every other check, so only state_class catches it."""
+    hass = FakeHass({METER: FakeState("312.5", state_class=state_class)})
+    errors = _validate(hass, {CONF_TOKEN: "abc", CONF_SOURCE_ENTITY: METER})
+    assert errors[CONF_SOURCE_ENTITY] == "entity_not_cumulative"
+
+
+def test_missing_state_class_is_still_accepted():
+    """Plenty of good meter sensors set no state_class; don't lock them out."""
+    hass = FakeHass({METER: FakeState("8421.3", state_class=None)})
+    assert _validate(hass, {CONF_TOKEN: "abc", CONF_SOURCE_ENTITY: METER}) == {}
 
 
 # ── pushing ──────────────────────────────────────────────────────────────────

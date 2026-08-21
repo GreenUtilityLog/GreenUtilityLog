@@ -10,14 +10,19 @@ const NODES = {
 };
 export const NODE_URL = process.env.NODE_URL || NODES[NETWORK] || NODES.testnet;
 
+// VeBetterPassport addresses taken from VeChain Kit's own network config
+// (packages/vechain-kit/src/config/{testnet,mainnet}.ts). The X2Earn addresses in
+// that same file match the two below exactly, which is what corroborates it.
 const CONTRACTS_BY_NET = {
   mainnet: {
     X2EarnRewardsPool: "0x6Bee7DDab6c99d5B2Af0554EaEA484CE18F52631",
     X2EarnApps:        "0x8392B7CCc763dB03b47afcD8E8f5e24F9cf0554D",
+    VeBetterPassport:  "0x35a267671d8EDD607B2056A9a13E7ba7CF53c8b3",
   },
   testnet: {
     X2EarnRewardsPool: "0x2d2a2207c68a46fc79325d7718e639d1047b0d8b",
     X2EarnApps:        "0x0b54a094b877a25bdc95b4431eaa1e2206b1ddfe",
+    VeBetterPassport:  "0x592c756df7a5d39de1735030e8b9c18b7417e6c4",
   },
 };
 export const CONTRACTS = CONTRACTS_BY_NET[NETWORK] || CONTRACTS_BY_NET.testnet;
@@ -120,6 +125,12 @@ export const BANNED_ADDRESSES = new Set(
   (process.env.BANNED_ADDRESSES || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean)
 );
 export const isBanned = (addr) => BANNED_ADDRESSES.has(String(addr || "").toLowerCase());
+
+// Access passes. When on, only wallets an admin has issued a pass to can EARN —
+// everyone can still open the app, connect and submit, they just aren't paid. Off by
+// default: switching it on is a deliberate act, and the first boot with it on
+// grandfathers every wallet the backend already knows so nobody is cut off retroactively.
+export const REQUIRE_PASS = /^(1|true|yes)$/i.test(process.env.REQUIRE_PASS || "");
 
 // Cloudflare Turnstile (anti-bot captcha). Set TURNSTILE_SECRET to require a
 // valid captcha token on /reward; leave empty to disable the check.

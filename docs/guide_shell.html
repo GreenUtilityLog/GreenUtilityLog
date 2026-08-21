@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#146b47">
+<title>Automatic meter reading — GreenUtilityLog</title>
+<meta name="description" content="Connect a P1 reader, HomeWizard or Home Assistant and let your meter send its own reading to GreenUtilityLog. Step-by-step, in five languages.">
+<meta property="og:title" content="Automatic meter reading — GreenUtilityLog">
+<meta property="og:description" content="P1 reader, HomeWizard or Home Assistant — step by step, no photos needed.">
+<meta property="og:image" content="https://greenutilitylog.github.io/GreenUtilityLog/og-image.png">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔌</text></svg>">
+</head>
+<body>
+<style>
+  /* ── Design notes ────────────────────────────────────────────────────────────
+     Subject: a setup guide for reading a physical electricity meter. So the page
+     borrows from instrument documentation rather than marketing: hairline rules
+     instead of shadowed cards, generous measure, and a strict split between
+     HUMAN text (humanist UI stack) and MACHINE text (mono) — every command, path,
+     option name and log line is mono, so "what you type/see" is never ambiguous.
+     One accent, used sparingly. Difficulty is a meter, not an emoji.
+  ─────────────────────────────────────────────────────────────────────────────*/
+  :root{
+    --paper:#fbfbfa; --raise:#ffffff; --ink:#111614; --soft:#59635d; --faint:#8d958f;
+    --rule:#e3e7e4; --rule-strong:#cfd6d1;
+    --accent:#146b47; --accent-ink:#ffffff; --accent-wash:#eef4f0;
+    --mono-bg:#101614; --mono-ink:#cfded5; --mono-dim:#6f8b7d;
+    --flag:#8a5a13; --flag-wash:#fdf6ea; --flag-rule:#ecdcbd;
+    --measure:68ch;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --paper:#0b0f0d; --raise:#111614; --ink:#e8ede9; --soft:#9aa7a0; --faint:#6d7a73;
+      --rule:#1f2723; --rule-strong:#2c3630;
+      --accent:#54c08c; --accent-ink:#07120c; --accent-wash:#131f19;
+      --mono-bg:#080c0a; --mono-ink:#c6ddd1; --mono-dim:#5f7a6d;
+      --flag:#e0bd80; --flag-wash:#1e1810; --flag-rule:#3a2f1b;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0b0f0d; --raise:#111614; --ink:#e8ede9; --soft:#9aa7a0; --faint:#6d7a73;
+    --rule:#1f2723; --rule-strong:#2c3630;
+    --accent:#54c08c; --accent-ink:#07120c; --accent-wash:#131f19;
+    --mono-bg:#080c0a; --mono-ink:#c6ddd1; --mono-dim:#5f7a6d;
+    --flag:#e0bd80; --flag-wash:#1e1810; --flag-rule:#3a2f1b;
+  }
+
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:16px; line-height:1.62; -webkit-font-smoothing:antialiased;
+    font-variant-numeric:tabular-nums;
+  }
+  .wrap{max-width:780px;margin:0 auto;padding:0 24px 96px}
+  .mono,code,pre,.k{font-family:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace}
+
+  /* ── language bar ─────────────────────────────────────────────────────────*/
+  .langbar{position:sticky;top:0;z-index:10;display:flex;gap:2px;flex-wrap:wrap;align-items:center;
+    padding:9px 24px;margin:0 -24px;background:color-mix(in srgb,var(--paper) 92%,transparent);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--rule)}
+  .langbar .lbl{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--faint);margin-right:10px}
+  .langbtn{font:inherit;font-size:13px;font-weight:500;cursor:pointer;padding:4px 10px;border:none;
+    background:none;color:var(--soft);border-bottom:2px solid transparent;transition:color .15s,border-color .15s}
+  .langbtn:hover{color:var(--ink)}
+  .langbtn[aria-pressed="true"]{color:var(--ink);font-weight:650;border-bottom-color:var(--accent)}
+  .langbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* ── masthead ─────────────────────────────────────────────────────────────*/
+  header.hero{padding:56px 0 34px;border-bottom:1px solid var(--rule-strong)}
+  .kicker{font-size:10.5px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--accent)}
+  h1{font-size:clamp(30px,5.2vw,44px);line-height:1.08;letter-spacing:-.025em;font-weight:800;
+    text-wrap:balance;margin:16px 0 14px;max-width:20ch}
+  .lede{font-size:17px;color:var(--soft);max-width:var(--measure);margin:0}
+
+  /* ── section headers: label + rule ────────────────────────────────────────*/
+  h2{display:flex;align-items:center;gap:14px;margin:52px 0 20px;
+    font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+  h2::after{content:"";flex:1;height:1px;background:var(--rule)}
+
+  /* ── route comparison ─────────────────────────────────────────────────────*/
+  .routes{display:flex;flex-direction:column}
+  .route{display:grid;grid-template-columns:1fr auto;gap:8px 20px;align-items:start;
+    padding:18px 0;border-top:1px solid var(--rule)}
+  .route:last-child{border-bottom:1px solid var(--rule)}
+  .route h3{margin:0 0 4px;font-size:17px;font-weight:650;letter-spacing:-.01em}
+  .route p{margin:0;font-size:14.5px;color:var(--soft);max-width:52ch}
+  .route.pick h3{color:var(--accent)}
+  .meter{display:flex;align-items:center;gap:9px;white-space:nowrap;padding-top:3px}
+  .meter .dots{display:flex;gap:3px}
+  .meter i{width:6px;height:6px;border-radius:50%;background:var(--rule-strong);display:block}
+  .meter i.on{background:var(--accent)}
+  .meter span{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+
+  /* ── steps: mono numerals on a process rule ───────────────────────────────*/
+  ol.steps{list-style:none;counter-reset:s;margin:0;padding:0}
+  ol.steps>li{counter-increment:s;position:relative;padding:0 0 30px 52px}
+  ol.steps>li::before{content:counter(s,decimal-leading-zero);position:absolute;left:0;top:-1px;
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:12px;font-weight:700;
+    color:var(--accent);letter-spacing:.02em}
+  ol.steps>li::after{content:"";position:absolute;left:13px;top:18px;bottom:6px;width:1px;background:var(--rule)}
+  ol.steps>li:last-child{padding-bottom:4px}
+  ol.steps>li:last-child::after{display:none}
+  .steptitle{margin:0 0 6px;font-size:17px;font-weight:650;letter-spacing:-.01em}
+  ol.steps>li p{margin:0;color:var(--soft);font-size:15.5px;max-width:var(--measure)}
+  ol.steps>li p strong{color:var(--ink);font-weight:600}
+  .k{font-size:13.5px;background:var(--accent-wash);color:var(--ink);padding:1.5px 6px;border-radius:3px;
+    white-space:nowrap}
+
+  /* ── expected output: it IS terminal output, so it looks like it ──────────*/
+  .see{margin-top:14px;border-left:2px solid var(--accent);padding:2px 0 2px 16px}
+  .see b{display:block;font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--accent);margin-bottom:5px}
+  .see{font-size:14.5px;color:var(--soft)}
+
+  /* ── code ─────────────────────────────────────────────────────────────────*/
+  .code{position:relative;margin:16px 0 0;background:var(--mono-bg);border-radius:6px;overflow:hidden}
+  .code .cap{display:block;padding:11px 16px 0;color:var(--mono-dim);font-size:10px;font-weight:700;
+    letter-spacing:.14em;text-transform:uppercase}
+  .code pre{margin:0;padding:12px 16px 16px;overflow-x:auto;color:var(--mono-ink);font-size:13px;line-height:1.75}
+  .copy{position:absolute;top:10px;right:10px;font:inherit;font-size:10.5px;font-weight:700;cursor:pointer;
+    border:1px solid rgba(255,255,255,.16);border-radius:4px;padding:4px 9px;background:transparent;
+    color:var(--mono-ink);letter-spacing:.04em}
+  .copy:hover{background:rgba(255,255,255,.08)}
+  .copy:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* ── notes ────────────────────────────────────────────────────────────────*/
+  .note{margin-top:22px;padding:16px 18px;background:var(--raise);border:1px solid var(--rule);
+    border-radius:6px;font-size:14.5px;color:var(--soft);max-width:var(--measure)}
+  .note b{display:block;color:var(--ink);font-weight:650;font-size:14.5px;margin-bottom:4px}
+  .note strong{color:var(--ink);font-weight:600}
+  .note.flag{background:var(--flag-wash);border-color:var(--flag-rule)}
+  .note.flag b{color:var(--flag)}
+
+  /* ── troubleshooting table ────────────────────────────────────────────────*/
+  .scroll{overflow-x:auto;margin-top:4px}
+  table{width:100%;border-collapse:collapse;font-size:14.5px}
+  th{text-align:left;padding:0 16px 8px 0;font-size:10px;font-weight:700;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--faint);border-bottom:1px solid var(--rule-strong)}
+  td{padding:13px 16px 13px 0;border-bottom:1px solid var(--rule);vertical-align:top;color:var(--soft)}
+  td:first-child{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:13px;
+    color:var(--ink);white-space:nowrap;padding-right:26px}
+
+  .lang{display:none} .lang.active{display:block}
+  footer{margin-top:64px;padding-top:22px;border-top:1px solid var(--rule);color:var(--faint);font-size:12.5px}
+  a{color:var(--accent);text-underline-offset:2px}
+  @media (max-width:560px){
+    .route{grid-template-columns:1fr}
+    .meter{padding-top:0}
+    td:first-child{white-space:normal}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+<style>
+  h3.sub{margin:34px 0 16px;font-size:13.5px;font-weight:700;letter-spacing:.02em;color:var(--ink)}
+  h3.sub::before{content:"";display:inline-block;width:14px;height:1px;background:var(--accent);
+    vertical-align:middle;margin-right:10px}
+  section > .lede{margin-bottom:6px}
+  footer{margin-top:56px}
+</style>
+<!--CONTENT-->
+</body>
+</html>

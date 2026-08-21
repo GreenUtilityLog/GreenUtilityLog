@@ -20,7 +20,8 @@
       "token_required": "Paste the device token from the app.",
       "entity_not_found": "That entity doesn't exist (any more). Pick another.",
       "entity_not_numeric": "That entity has no numeric value. Pick your cumulative meter total.",
-      "entity_not_kwh": "That entity isn't in kWh. Pick the total meter reading, not current power."
+      "entity_not_kwh": "That entity isn't in kWh. Pick the total meter reading, not current power.",
+      "entity_not_cumulative": "That sensor resets (e.g. per billing period), so usage can't be measured from it. Pick the meter total that only counts up."
     },
     "abort": {
       "already_configured": "This meter is already being sent."
@@ -43,7 +44,8 @@
       "token_required": "Paste the device token from the app.",
       "entity_not_found": "That entity doesn't exist (any more). Pick another.",
       "entity_not_numeric": "That entity has no numeric value. Pick your cumulative meter total.",
-      "entity_not_kwh": "That entity isn't in kWh. Pick the total meter reading, not current power."
+      "entity_not_kwh": "That entity isn't in kWh. Pick the total meter reading, not current power.",
+      "entity_not_cumulative": "That sensor resets (e.g. per billing period), so usage can't be measured from it. Pick the meter total that only counts up."
     }
   },
   "services": {

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Generate the multilingual tester guide from one content source, so all five
 # languages keep identical structure and only the prose differs.
-import io, html
+import io, os, html
 
 REPO = "https://github.com/GreenUtilityLog/GreenUtilityLog"
 CLONE = "git clone https://github.com/GreenUtilityLog/GreenUtilityLog\ncd GreenUtilityLog/bridge"
@@ -65,7 +65,7 @@ L["en"] = dict(
   s_country='Does this work where you live?',
   country_intro="The socket on your meter differs per country, so not every reader works everywhere. What always works: <strong>if Home Assistant already shows your meter's total, Route A works</strong> — whatever country you're in.",
   country_th=('Country', 'Your meter has', 'What to use'),
-  country_rows=[('🇳🇱 Netherlands', 'P1 port (RJ12)', 'Any route. HomeWizard works out of the box.'), ('🇧🇪 Belgium', 'P1 port (RJ12)', 'Same — plus the free Fluvius decryption key, once.'), ('🇱🇺 Luxembourg', 'P1 port (Dutch DSMR)', 'Same as the Netherlands.'), ('🇸🇪 Sweden · 🇫🇮 Finland', 'HAN port (RJ12)', 'A P1/HAN reader, or Home Assistant.'), ('🇩🇰 Denmark', 'HAN (pin header, encrypted)', 'A reader with the right connector, or Home Assistant.'), ('🇳🇴 Norway', 'HAN (RJ45, M-BUS)', 'A Norwegian HAN reader + Home Assistant.'), ('🇩🇪 Germany', 'Smart-Meter-Gateway / optical head', 'Home Assistant.'), ('Anywhere else', 'Varies', 'If Home Assistant reads your meter, Route A works.')],
+  country_rows=[('🇳🇱 Netherlands', 'P1 port (RJ12)', 'Any route. HomeWizard works out of the box.'), ('🇧🇪 Belgium', 'P1 port (RJ12)', 'Same — plus the free Fluvius decryption key, once.'), ('🇱🇺 Luxembourg', 'P1 port (Dutch DSMR)', 'Same as the Netherlands.'), ('🇸🇪 Sweden · 🇫🇮 Finland', 'HAN port (RJ12)', 'A P1/HAN reader, or Home Assistant.'), ('🇩🇰 Denmark', 'HAN (pin header, encrypted)', 'A reader with the right connector, or Home Assistant.'), ('🇳🇴 Norway', 'HAN (RJ45, M-BUS)', 'A Norwegian HAN reader + Home Assistant.'), ('🇩🇪 Germany', 'Smart-Meter-Gateway / optical head', 'Home Assistant.'), ('🇺🇸 United States', 'No socket — Zigbee radio (HAN)', 'A Rainforest EAGLE/RAVEn, switched on by your utility.'), ('Anywhere else', 'Varies', 'If Home Assistant reads your meter, Route A works.')],
   country_close="Not sure? Open Home Assistant and look for your meter under Developer tools → States. If a kWh value is there and counting up, you're set.",
   be_t="🇧🇪 Belgium (Fluvius meters)",
   be_b="Digital Fluvius meters send encrypted data. Ask Fluvius for your free decryption key and enter it once in your reader's app — after that everything works the same.",
@@ -138,7 +138,7 @@ L["nl"] = dict(
   s_country='Werkt dit ook in jouw land?',
   country_intro='De aansluiting op je meter verschilt per land, dus niet elke reader werkt overal. Wat altijd werkt: <strong>toont Home Assistant je meterstand al, dan werkt Route A</strong> — in welk land je ook zit.',
   country_th=('Land', 'Jouw meter heeft', 'Wat je gebruikt'),
-  country_rows=[('🇳🇱 Nederland', 'P1-poort (RJ12)', 'Elke route. HomeWizard werkt direct.'), ('🇧🇪 België', 'P1-poort (RJ12)', 'Hetzelfde — plus eenmalig de gratis Fluvius-sleutel.'), ('🇱🇺 Luxemburg', 'P1-poort (Nederlandse DSMR)', 'Hetzelfde als Nederland.'), ('🇸🇪 Zweden · 🇫🇮 Finland', 'HAN-poort (RJ12)', 'Een P1/HAN-reader, of Home Assistant.'), ('🇩🇰 Denemarken', 'HAN (pin-header, versleuteld)', 'Een reader met de juiste connector, of Home Assistant.'), ('🇳🇴 Noorwegen', 'HAN (RJ45, M-BUS)', 'Een Noorse HAN-reader + Home Assistant.'), ('🇩🇪 Duitsland', 'Smart-Meter-Gateway / optische kop', 'Home Assistant.'), ('Elders', 'Verschilt', 'Leest Home Assistant je meter, dan werkt Route A.')],
+  country_rows=[('🇳🇱 Nederland', 'P1-poort (RJ12)', 'Elke route. HomeWizard werkt direct.'), ('🇧🇪 België', 'P1-poort (RJ12)', 'Hetzelfde — plus eenmalig de gratis Fluvius-sleutel.'), ('🇱🇺 Luxemburg', 'P1-poort (Nederlandse DSMR)', 'Hetzelfde als Nederland.'), ('🇸🇪 Zweden · 🇫🇮 Finland', 'HAN-poort (RJ12)', 'Een P1/HAN-reader, of Home Assistant.'), ('🇩🇰 Denemarken', 'HAN (pin-header, versleuteld)', 'Een reader met de juiste connector, of Home Assistant.'), ('🇳🇴 Noorwegen', 'HAN (RJ45, M-BUS)', 'Een Noorse HAN-reader + Home Assistant.'), ('🇩🇪 Duitsland', 'Smart-Meter-Gateway / optische kop', 'Home Assistant.'), ('🇺🇸 Verenigde Staten', 'Geen poort — Zigbee-radio (HAN)', 'Een Rainforest EAGLE/RAVEn, door je leverancier geactiveerd.'), ('Elders', 'Verschilt', 'Leest Home Assistant je meter, dan werkt Route A.')],
   country_close='Niet zeker? Open Home Assistant en zoek je meter onder Ontwikkelhulpmiddelen → Statussen. Staat er een kWh-waarde die oploopt, dan zit je goed.',
   be_t="🇧🇪 België (Fluvius-meters)",
   be_b="Digitale Fluvius-meters sturen versleutelde data. Vraag bij Fluvius je gratis decryptiesleutel op en voer die één keer in de app van je reader in — daarna werkt alles hetzelfde.",
@@ -211,7 +211,7 @@ L["de"] = dict(
   s_country='Funktioniert das in deinem Land?',
   country_intro='Der Anschluss am Zähler unterscheidet sich je Land, nicht jeder Reader passt überall. Was immer geht: <strong>zeigt Home Assistant deinen Zählerstand bereits, funktioniert Route A</strong> — egal in welchem Land.',
   country_th=('Land', 'Dein Zähler hat', 'Was du nutzt'),
-  country_rows=[('🇳🇱 Niederlande', 'P1-Port (RJ12)', 'Jede Route. HomeWizard läuft direkt.'), ('🇧🇪 Belgien', 'P1-Port (RJ12)', 'Genauso — plus einmalig den kostenlosen Fluvius-Schlüssel.'), ('🇱🇺 Luxemburg', 'P1-Port (niederländischer DSMR)', 'Wie in den Niederlanden.'), ('🇸🇪 Schweden · 🇫🇮 Finnland', 'HAN-Port (RJ12)', 'Ein P1/HAN-Reader, oder Home Assistant.'), ('🇩🇰 Dänemark', 'HAN (Pin-Header, verschlüsselt)', 'Ein Reader mit passendem Stecker, oder Home Assistant.'), ('🇳🇴 Norwegen', 'HAN (RJ45, M-BUS)', 'Ein norwegischer HAN-Reader + Home Assistant.'), ('🇩🇪 Deutschland', 'Smart-Meter-Gateway / Lesekopf', 'Home Assistant.'), ('Anderswo', 'Unterschiedlich', 'Liest Home Assistant deinen Zähler, funktioniert Route A.')],
+  country_rows=[('🇳🇱 Niederlande', 'P1-Port (RJ12)', 'Jede Route. HomeWizard läuft direkt.'), ('🇧🇪 Belgien', 'P1-Port (RJ12)', 'Genauso — plus einmalig den kostenlosen Fluvius-Schlüssel.'), ('🇱🇺 Luxemburg', 'P1-Port (niederländischer DSMR)', 'Wie in den Niederlanden.'), ('🇸🇪 Schweden · 🇫🇮 Finnland', 'HAN-Port (RJ12)', 'Ein P1/HAN-Reader, oder Home Assistant.'), ('🇩🇰 Dänemark', 'HAN (Pin-Header, verschlüsselt)', 'Ein Reader mit passendem Stecker, oder Home Assistant.'), ('🇳🇴 Norwegen', 'HAN (RJ45, M-BUS)', 'Ein norwegischer HAN-Reader + Home Assistant.'), ('🇩🇪 Deutschland', 'Smart-Meter-Gateway / Lesekopf', 'Home Assistant.'), ('🇺🇸 USA', 'Kein Port — Zigbee-Funk (HAN)', 'Ein Rainforest EAGLE/RAVEn, vom Versorger freigeschaltet.'), ('Anderswo', 'Unterschiedlich', 'Liest Home Assistant deinen Zähler, funktioniert Route A.')],
   country_close='Unsicher? Öffne Home Assistant und such deinen Zähler unter Entwicklerwerkzeuge → Zustände. Steht dort ein kWh-Wert, der hochzählt, passt es.',
   be_t="🇧🇪 Belgien (Fluvius-Zähler)",
   be_b="Digitale Fluvius-Zähler senden verschlüsselt. Frag bei Fluvius deinen kostenlosen Entschlüsselungscode an und gib ihn einmal in der App deines Readers ein — danach läuft alles gleich.",
@@ -284,7 +284,7 @@ L["fr"] = dict(
   s_country='Est-ce que ça marche chez vous ?',
   country_intro='La prise de votre compteur diffère selon le pays, donc tous les lecteurs ne fonctionnent pas partout. Ce qui marche toujours : <strong>si Home Assistant affiche déjà votre relevé, la Route A fonctionne</strong> — quel que soit le pays.',
   country_th=('Pays', 'Votre compteur a', 'Quoi utiliser'),
-  country_rows=[('🇳🇱 Pays-Bas', 'Port P1 (RJ12)', 'Toutes les routes. HomeWizard marche directement.'), ('🇧🇪 Belgique', 'Port P1 (RJ12)', 'Pareil — plus la clé Fluvius gratuite, une fois.'), ('🇱🇺 Luxembourg', 'Port P1 (DSMR néerlandais)', 'Comme aux Pays-Bas.'), ('🇸🇪 Suède · 🇫🇮 Finlande', 'Port HAN (RJ12)', 'Un lecteur P1/HAN, ou Home Assistant.'), ('🇩🇰 Danemark', 'HAN (connecteur à broches, chiffré)', 'Un lecteur au bon connecteur, ou Home Assistant.'), ('🇳🇴 Norvège', 'HAN (RJ45, M-BUS)', 'Un lecteur HAN norvégien + Home Assistant.'), ('🇩🇪 Allemagne', 'Smart-Meter-Gateway / tête optique', 'Home Assistant.'), ('Ailleurs', 'Variable', 'Si Home Assistant lit votre compteur, la Route A marche.')],
+  country_rows=[('🇳🇱 Pays-Bas', 'Port P1 (RJ12)', 'Toutes les routes. HomeWizard marche directement.'), ('🇧🇪 Belgique', 'Port P1 (RJ12)', 'Pareil — plus la clé Fluvius gratuite, une fois.'), ('🇱🇺 Luxembourg', 'Port P1 (DSMR néerlandais)', 'Comme aux Pays-Bas.'), ('🇸🇪 Suède · 🇫🇮 Finlande', 'Port HAN (RJ12)', 'Un lecteur P1/HAN, ou Home Assistant.'), ('🇩🇰 Danemark', 'HAN (connecteur à broches, chiffré)', 'Un lecteur au bon connecteur, ou Home Assistant.'), ('🇳🇴 Norvège', 'HAN (RJ45, M-BUS)', 'Un lecteur HAN norvégien + Home Assistant.'), ('🇩🇪 Allemagne', 'Smart-Meter-Gateway / tête optique', 'Home Assistant.'), ('🇺🇸 États-Unis', 'Pas de prise — radio Zigbee (HAN)', 'Un Rainforest EAGLE/RAVEn, activé par votre fournisseur.'), ('Ailleurs', 'Variable', 'Si Home Assistant lit votre compteur, la Route A marche.')],
   country_close="Pas sûr ? Ouvrez Home Assistant et cherchez votre compteur dans Outils de développement → États. Si une valeur en kWh monte, c'est bon.",
   be_t="🇧🇪 Belgique (compteurs Fluvius)",
   be_b="Les compteurs Fluvius numériques envoient des données chiffrées. Demandez votre clé gratuite à Fluvius et saisissez-la une fois dans l'app de votre lecteur — ensuite tout fonctionne pareil.",
@@ -357,7 +357,7 @@ L["es"] = dict(
   s_country='¿Funciona en tu país?',
   country_intro='La toma de tu contador varía según el país, así que no todos los lectores sirven en todas partes. Lo que siempre funciona: <strong>si Home Assistant ya muestra tu lectura, la Ruta A funciona</strong> — estés donde estés.',
   country_th=('País', 'Tu contador tiene', 'Qué usar'),
-  country_rows=[('🇳🇱 Países Bajos', 'Puerto P1 (RJ12)', 'Cualquier ruta. HomeWizard funciona directamente.'), ('🇧🇪 Bélgica', 'Puerto P1 (RJ12)', 'Igual — más la clave gratuita de Fluvius, una vez.'), ('🇱🇺 Luxemburgo', 'Puerto P1 (DSMR neerlandés)', 'Igual que Países Bajos.'), ('🇸🇪 Suecia · 🇫🇮 Finlandia', 'Puerto HAN (RJ12)', 'Un lector P1/HAN, o Home Assistant.'), ('🇩🇰 Dinamarca', 'HAN (conector de pines, cifrado)', 'Un lector con el conector correcto, o Home Assistant.'), ('🇳🇴 Noruega', 'HAN (RJ45, M-BUS)', 'Un lector HAN noruego + Home Assistant.'), ('🇩🇪 Alemania', 'Smart-Meter-Gateway / cabezal óptico', 'Home Assistant.'), ('En otro lugar', 'Varía', 'Si Home Assistant lee tu contador, la Ruta A funciona.')],
+  country_rows=[('🇳🇱 Países Bajos', 'Puerto P1 (RJ12)', 'Cualquier ruta. HomeWizard funciona directamente.'), ('🇧🇪 Bélgica', 'Puerto P1 (RJ12)', 'Igual — más la clave gratuita de Fluvius, una vez.'), ('🇱🇺 Luxemburgo', 'Puerto P1 (DSMR neerlandés)', 'Igual que Países Bajos.'), ('🇸🇪 Suecia · 🇫🇮 Finlandia', 'Puerto HAN (RJ12)', 'Un lector P1/HAN, o Home Assistant.'), ('🇩🇰 Dinamarca', 'HAN (conector de pines, cifrado)', 'Un lector con el conector correcto, o Home Assistant.'), ('🇳🇴 Noruega', 'HAN (RJ45, M-BUS)', 'Un lector HAN noruego + Home Assistant.'), ('🇩🇪 Alemania', 'Smart-Meter-Gateway / cabezal óptico', 'Home Assistant.'), ('🇺🇸 Estados Unidos', 'Sin toma — radio Zigbee (HAN)', 'Un Rainforest EAGLE/RAVEn, activado por tu compañía.'), ('En otro lugar', 'Varía', 'Si Home Assistant lee tu contador, la Ruta A funciona.')],
   country_close='¿No estás seguro? Abre Home Assistant y busca tu contador en Herramientas para desarrolladores → Estados. Si hay un valor en kWh que sube, listo.',
   be_t="🇧🇪 Bélgica (contadores Fluvius)",
   be_b="Los contadores Fluvius digitales envían datos cifrados. Pide tu clave gratuita a Fluvius e introdúcela una vez en la app de tu lector — después todo funciona igual.",
@@ -481,14 +481,20 @@ script = """<script>
   });
 </script>"""
 
-style = io.open("newstyle.css", encoding="utf8").read()
-extra = """<style>
-  h3.sub{margin:34px 0 16px;font-size:13.5px;font-weight:700;letter-spacing:.02em;color:var(--ink)}
-  h3.sub::before{content:"";display:inline-block;width:14px;height:1px;background:var(--accent);
-    vertical-align:middle;margin-right:10px}
-  section > .lede{margin-bottom:6px}
-  footer{margin-top:56px}
-</style>"""
+# The document shell — doctype, head, OG tags, favicon and all the styling — lives in
+# guide_shell.html, which this script fills in at <!--CONTENT-->. It used to read a
+# "newstyle.css" that isn't in the repo and write "homewizard-guide.html", which is
+# neither the file that gets deployed nor a file that could be produced from a clean
+# checkout: the generator simply crashed, and guide.html was being edited by hand. The
+# five languages can only stay in step if running this actually rewrites the real file.
+HERE = os.path.dirname(os.path.abspath(__file__))
+shell_path = os.path.join(HERE, "guide_shell.html")
+out_path = os.path.join(HERE, "guide.html")
 
-io.open("homewizard-guide.html","w",encoding="utf8").write(style + extra + "\n" + "\n".join(nav) + "\n" + body + "\n" + script)
-print("gegenereerd:", sum(len(L[c]["routes"]) for c in L), "routes,", len(L), "talen")
+shell = io.open(shell_path, encoding="utf8").read()
+if "<!--CONTENT-->" not in shell:
+    raise SystemExit(f"{shell_path} has no <!--CONTENT--> placeholder — nothing to fill in")
+
+content = "\n".join(nav) + "\n" + body + "\n" + script
+io.open(out_path, "w", encoding="utf8").write(shell.replace("<!--CONTENT-->", content))
+print("gegenereerd:", sum(len(L[c]["routes"]) for c in L), "routes,", len(L), "talen", "->", out_path)
