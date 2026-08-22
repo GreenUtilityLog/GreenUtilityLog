@@ -80,6 +80,10 @@ app.get("/health", async (req, res) => {
     // Access passes: whether earning is gated, and how many have been issued.
     requirePass: REQUIRE_PASS,
     passCount: store.passCount(),
+    // Submissions whose photo the app couldn't auto-confirm. All were paid — this is
+    // a counter, not a queue. Also the cheapest way to tell from outside whether a
+    // deploy carries the flag-recording change at all.
+    flaggedCount: store.listFlags().length,
     // Which wallets the backend authorises for /admin/* (already public in the client
     // bundle) — surfaced so admin access is easy to verify.
     adminWallets: ADMIN_USER_WALLETS,
