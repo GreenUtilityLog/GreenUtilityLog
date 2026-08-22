@@ -279,6 +279,17 @@ app.post("/admin/rename-meter", (req, res) => {
   res.json({ ok: true, utility, ...r });
 });
 
+// Submissions the app's own checks couldn't fully confirm. They were paid — these
+// checks don't hold a payout — so this is the list a human actually reviews.
+app.post("/admin/flags", (req, res) => {
+  const a = verifyAdmin(req, "/admin/flags");
+  if (!a.ok) return res.status(a.code).json({ error: a.error });
+  const target = String(req.body.targetWallet || "");
+  const all = store.listFlags().sort((x, y) => (y.at || 0) - (x.at || 0));
+  const flags = isAddr(target) ? all.filter((f) => f.addr === target.toLowerCase()) : all;
+  res.json({ ok: true, flags: flags.slice(0, 200), total: all.length });
+});
+
 // ── Admin: access passes ─────────────────────────────────────────────────────
 // Issue or withdraw a wallet's pass. With REQUIRE_PASS on, holding one is what
 // lets a wallet earn — it does not restrict opening the app or submitting, so a
@@ -482,7 +493,17 @@ app.post("/reward", async (req, res) => {
     // must never delay or fail the payout. Keyed by txid so it lines up with the
     // on-chain history row shown in admin.
     archivePhoto(txid, req.body.photo, req.body.photoMime, req.body.address);
-    res.json({ txid, amount: v.amount });
+    // The app's own checks (OCR match, meter number, plausibility) rode along in the
+    // request and were being discarded — so the app could tell a user their
+    // submission was "flagged for review" while nothing was recorded and no review
+    // was possible. These checks intentionally don't hold a payout (they
+    // false-positive on genuine phone photos), but they are worth keeping so an
+    // admin can look afterwards. Best-effort: never let it affect the response.
+    if (req.body.clientFlagged) {
+      try { store.addFlag(txid, req.body.address, req.body.flagReason || "client checks were inconclusive"); }
+      catch (e) { console.error("[/reward] could not record flag:", e?.message || e); }
+    }
+    res.json({ txid, amount: v.amount, flagged: !!req.body.clientFlagged });
   } catch (e) {
     console.error("[/reward]", e?.message || e);
     res.status(502).json({ error: e?.message || "distribution failed" });

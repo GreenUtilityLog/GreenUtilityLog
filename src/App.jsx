@@ -432,7 +432,10 @@ function pickPlausibleReading(nums, { utilId, prevRead, preferred }) {
 // OCR tolerance — a number within ~8%, or one that shares the reading's last 4
 // digits, counts as a match. Checked at SUBMIT time so a reading edited after the
 // photo was verified can't silently pass: if the photo can't back it up, the
-// submission is flagged for review (it is not auto-blocked — that's the hybrid).
+// submission is recorded as unconfirmed. It is still PAID — these checks
+// false-positive on genuine phone photos, so blocking on them would punish honest
+// users. The flag travels to the server, which stores it against the txid for an
+// admin to look at afterwards; nothing is held and nobody is waiting on a decision.
 function readingMatchesPhoto(reading, ocrNums) {
   const claimed = parseFloat(reading);
   if (!Number.isFinite(claimed) || claimed <= 0) return false;
@@ -1803,11 +1806,11 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
     const verified = !blocked;
     const softFlags = fraudFlags.filter(f => f !== "duplicate_photo");
     const meterNote = meterNoConfirmed === true ? " ✓ Meter # confirmed on photo."
-      : meterNoConfirmed === false ? " ⚠ Meter # not detected — flagged for review."
+      : meterNoConfirmed === false ? " ⚠ Meter # not detected on the photo — this doesn't stop your reward."
       : "";
     const summary  = blocked
       ? (fraudReason || "Verification failed. Please retake the photo.")
-      : `${getUtil(utilId).label} meter${meterNo ? ` #${meterNo}` : ""} accepted.${softFlags.length ? " ⚠ Some checks were soft — flagged for review." : ` ${ocrResult.ocrNums?.length ? "OCR read: " + ocrResult.ocrNums.slice(0,2).join(", ") + "." : "Reading accepted."}`}${meterNote}`;
+      : `${getUtil(utilId).label} meter${meterNo ? ` #${meterNo}` : ""} accepted.${softFlags.length ? " ⚠ Some checks were inconclusive — noted for an admin, your reward is unaffected." : ` ${ocrResult.ocrNums?.length ? "OCR read: " + ocrResult.ocrNums.slice(0,2).join(", ") + "." : "Reading accepted."}`}${meterNote}`;
 
     const finalResult = { verified, fraudFlags, fraudReason, summary, ocrNums: ocrResult.ocrNums, ocrFailed: !!ocrResult.ocrFailed, meterNoConfirmed, secScore: score, anomCheck, usageVal };
     setResult(finalResult);
@@ -1993,7 +1996,7 @@ function HistItem({ s, T }) {
       <div className="hright">
         <div className="hb3tr">+{parseFloat(s.b3tr).toFixed(2)}</div>
         {s.flagged
-          ? <div className="hstatus" style={{color:T.gas,background:T.gasBg,border:`1px solid ${T.gasBorder}`}} title="Reading couldn't be confirmed from the photo — needs review">⚠ review</div>
+          ? <div className="hstatus" style={{color:T.gas,background:T.gasBg,border:`1px solid ${T.gasBorder}`}} title="Paid. The photo couldn't be auto-checked, so it's noted for an admin to look at later.">⚠ noted</div>
           : <div className={`hstatus s-${s.status}`}>{s.status}</div>}
       </div>
     </div>
@@ -3147,6 +3150,74 @@ function AdminAccountTools({ T, onAdminApi, onToast }) {
 
 // Admin actions on the wallet you've drilled into — block/unblock, reset its
 // cooldown, and correct a meter's baseline right where you see the problem.
+// Submissions the app's own photo checks couldn't confirm. They were all PAID —
+// those checks false-positive on real phone photos, so they never hold a reward.
+// This is the list that makes the word "noted" mean something: without it the app
+// was telling users their submission was flagged while nothing was recorded.
+function FlaggedPanel({ T, address, onAdminApi }) {
+  const [state, setState] = useState({ status: "idle" });
+
+  const load = async () => {
+    setState({ status: "loading" });
+    try {
+      const d = await onAdminApi("/admin/flags", { targetWallet: address });
+      setState({ status: "live", flags: d.flags || [] });
+    } catch (e) {
+      setState({ status: "error", error: e?.message || "request failed" });
+    }
+  };
+
+  const mono = "'SF Mono',Menlo,'Courier New',monospace";
+  const box = { marginTop: 16, padding: 12, background: T.bgAlt, border: `1px solid ${T.border}`, borderRadius: 8 };
+  const head = { fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".8px", color: T.textSoft, marginBottom: 10 };
+  const btn = { background: "transparent", border: `1px solid ${T.border}`, borderRadius: 6, padding: "9px 12px", fontWeight: 700, fontSize: 11, color: T.textMid, cursor: "pointer" };
+
+  if (state.status === "idle") {
+    return (
+      <div style={box}>
+        <div style={head}>⚠️ Unconfirmed photos</div>
+        <div style={{ fontSize: 10.5, color: T.textSoft, lineHeight: 1.6, marginBottom: 10 }}>
+          Submissions whose photo the app couldn't auto-check. All were paid — this is for spotting a pattern, not a queue.
+        </div>
+        <button onClick={load} style={btn}>⚠️ Show for this wallet</button>
+      </div>
+    );
+  }
+  if (state.status === "loading") return <div style={box}><div style={head}>⚠️ Unconfirmed photos</div><div style={{ fontSize: 11, color: T.textSoft }}>Loading…</div></div>;
+  if (state.status === "error") {
+    return (
+      <div style={box}>
+        <div style={head}>⚠️ Unconfirmed photos</div>
+        <div style={{ fontSize: 11, color: T.text, marginBottom: 10 }}>⚠️ {state.error}</div>
+        <button onClick={load} style={btn}>Retry</button>
+      </div>
+    );
+  }
+
+  const flags = state.flags || [];
+  return (
+    <div style={box}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={head}>⚠️ Unconfirmed photos ({flags.length})</div>
+        <button onClick={load} style={{ background: "transparent", border: "none", fontSize: 11, color: T.textSoft, cursor: "pointer" }}>↻</button>
+      </div>
+      {flags.length === 0 ? (
+        <div style={{ fontSize: 11, color: T.textSoft, lineHeight: 1.6 }}>None — every submission from this wallet passed the app's photo checks.</div>
+      ) : flags.map((f) => (
+        <div key={f.txid} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, padding: "9px 11px", marginBottom: 6 }}>
+          <div style={{ fontSize: 10.5, color: T.text, lineHeight: 1.5 }}>{f.reason}</div>
+          <div style={{ fontSize: 9, color: T.textSoft, marginTop: 3, fontFamily: mono, wordBreak: "break-all" }}>
+            {f.at ? new Date(f.at).toISOString().slice(0, 16).replace("T", " ") : "—"} · {String(f.txid).slice(0, 14)}…
+          </div>
+        </div>
+      ))}
+      <div style={{ fontSize: 9.5, color: T.textSoft, marginTop: 8, lineHeight: 1.6 }}>
+        These were paid. A single one usually means a blurry photo; many from one wallet is worth a look.
+      </div>
+    </div>
+  );
+}
+
 // The access pass: what actually lets a wallet earn once passes are switched on.
 // Not an NFT and deliberately so — it has to be revocable and cost nothing to issue,
 // and an admin hands them out one wallet at a time.
@@ -3719,6 +3790,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
           {onAdminApi
             ? <>
                 <WalletAdminActions T={T} address={selected} meters={meters} onAdminApi={onAdminApi} onToast={onToast} />
+                <FlaggedPanel T={T} address={selected} onAdminApi={onAdminApi} />
                 <AccessPassPanel T={T} address={selected} onAdminApi={onAdminApi} onToast={onToast} />
                 <PassportPanel T={T} address={selected} onAdminApi={onAdminApi} onToast={onToast} />
               </>
@@ -5164,7 +5236,9 @@ export default function App() {
       setVerifyKey(k => k + 1);
       showToast(photoConfirmed
         ? `✅ +${paidAmount.toFixed(2)} B3TR on ${NETWORK_LABEL}${txid ? ` • TX: ${txid.slice(0, 10)}...` : ""}`
-        : `⚠️ Submitted — couldn't confirm the reading from the photo, flagged for review`);
+        // Paid either way. The old text said only "flagged for review" and omitted
+        // the amount, so a paid submission read as if it were being held.
+        : `✅ +${paidAmount.toFixed(2)} B3TR${txid ? ` • TX: ${txid.slice(0, 10)}...` : ""} — photo couldn't be auto-checked, noted for an admin`);
       setBusy(false);
     } catch (e) {
       setBusy(false);
