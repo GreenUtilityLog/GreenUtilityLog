@@ -20,11 +20,15 @@ const REDIS_KEY = process.env.STATE_KEY || "greenutilitylog:state";
 // `passes` is the access-pass registry (address → pass); `passesInit` records that the
 // one-time grandfathering has run, so turning REQUIRE_PASS on can't silently cut off
 // every existing tester — and can't re-grant a pass an admin has since revoked.
-const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0 };
+const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {} };
 
 // Cap the "seen wallets" roster so an open endpoint can't grow state without bound.
 // When exceeded we drop the least-recently-seen entries.
 const SEEN_MAX = 2000;
+
+// Same reasoning for the flagged-submission log: one entry per flagged payout,
+// forever, would grow state without bound.
+const FLAG_MAX = 2000;
 
 async function redisCmd(cmd) {
   const res = await fetch(R_URL, {
@@ -376,6 +380,31 @@ export const store = {
   // Maps a payout txID -> { at, addr } for photos kept in the R2 archive. This is
   // only an index for retention/lookup; the image bytes live in R2 (photostore.js),
   // never here. Small (~a few dozen bytes each), safe for the single-blob state.
+  // ── Flagged submissions ─────────────────────────────────────────────────────
+  // The app runs client-side checks (OCR match, meter number, plausibility) and
+  // sends the result along. Those checks false-positive on genuine phone photos, so
+  // they deliberately do NOT hold a payout — but they were also being thrown away,
+  // which left the app telling users a submission was "flagged for review" when
+  // nothing was recorded and nobody could review anything. Keeping them makes the
+  // word true: paid, and visible to an admin afterwards.
+  addFlag: (txid, addr, reason) => {
+    const k = String(txid || "").toLowerCase();
+    if (!k) return;
+    state.flags[k] = {
+      at: Date.now(),
+      addr: String(addr || "").toLowerCase(),
+      reason: String(reason || "").slice(0, 200),
+    };
+    // Bound it like the seen-roster: this grows once per flagged payout forever.
+    const keys = Object.keys(state.flags);
+    if (keys.length > FLAG_MAX) {
+      keys.sort((x, y) => (state.flags[x]?.at || 0) - (state.flags[y]?.at || 0));
+      for (const k2 of keys.slice(0, keys.length - FLAG_MAX)) delete state.flags[k2];
+    }
+    persist();
+  },
+  listFlags: () => Object.entries(state.flags).map(([txid, v]) => ({ txid, ...v })),
+
   addPhoto: (id, addr) => {
     const k = String(id || "").toLowerCase();
     if (!k) return;
