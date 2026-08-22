@@ -4728,6 +4728,11 @@ export default function App() {
               id: item.id, type: item.type, meterNo: item.meterNo || "",
               cur: item.cur, prev: item.prev, date: dayKey(new Date(item.id)),
               b3tr: paid, status: item.flagged ? "review" : "confirmed", txHash: data.txid || "", submittedAt: item.id,
+              // Carry the flag through. Without it this row had status "review" but no
+              // `flagged`, so the history fell through to rendering the bare word
+              // "review" — unstyled, unexplained, on a submission that was paid. The
+              // badge only appears when `flagged` is set.
+              flagged: !!item.flagged, flagReason: item.flagReason || "",
             }, ...prev]);
             setB3tr(b => b + (parseFloat(paid) || 0));
             synced++;
