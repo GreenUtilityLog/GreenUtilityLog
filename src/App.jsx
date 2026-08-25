@@ -578,6 +578,19 @@ const UTILS = [
   // { id:"solar",    label:"Solar",    unit:"kWh", rate:0.72, ph:["130.1","142.3"],    hint:"Solar panel output", optional:true },
 ];
 
+// The welcome copy is built from UTILS rather than written out, because it had
+// drifted: three of the four meters above are commented out and the tagline still
+// promised "electric, gas, water & solar". A new tester read a promise the app broke
+// on the next screen. Re-enable a meter and this sentence follows on its own.
+const UTIL_WORDS = UTILS.map(u => u.label.toLowerCase());
+const UTILS_PHRASE = UTIL_WORDS.length === 1
+  ? `your ${UTIL_WORDS[0]} meter`
+  : `your ${UTIL_WORDS.slice(0, -1).join(", ")} & ${UTIL_WORDS[UTIL_WORDS.length - 1]} meters`;
+
+// A chart of a single point says nothing, so the tab stays out of the way until
+// there are at least two readings to draw a line between.
+const CHARTS_MIN_SUBS = 2;
+
 // ── Conservation-based reward (MUST match server/config.js) ───────────────────
 // We reward USING LESS, not using more:
 //   reward = base + max(0, benchmark - usage) * rate     (consumption meters)
@@ -1374,7 +1387,7 @@ function LogoTile({ size = 30, shadow = true }) {
 
 function IntroScreen({ onStart }) {
   const slides = [
-    { icon: 'logo', title: 'Welcome to Green Utility Log', sub: 'Track your electric, gas, water & solar meters. Earn real B3TR rewards on VeChain.' },
+    { icon: 'logo', title: 'Welcome to Green Utility Log', sub: `Track ${UTILS_PHRASE}. Earn real B3TR rewards on VeChain.` },
     { icon: '📸', title: 'Verify Your Meters', sub: 'Take a photo of your meter. AI-powered OCR verifies readings instantly.' },
     { icon: '💰', title: 'Earn B3TR Rewards', sub: 'Earn B3TR for logging your meter and saving energy. Testnet beta — test tokens, no real-world value yet.' },
     { icon: '🏆', title: 'Climb the Leaderboard', sub: 'Compete globally. Unlock achievement badges. Build your sustainability streak.' },
@@ -2022,6 +2035,11 @@ function HomeScreen({ b3tr, streak, subs, setTab, T }) {
         </div>
       </div>
 
+      {/* With a single utility this whole block restates the tiles above — one card
+          reading "1 readings logged / +0.00 B3TR" next to "Submissions: 1" and
+          "Total B3TR: 0.00". A heading over one permanent item isn't navigation.
+          It comes back on its own as soon as a second meter is enabled in UTILS. */}
+      {UTILS.length > 1 && (<>
       <div className="sec"><div className="sec-line"/><div className="sec-txt">Utilities</div><div className="sec-line"/></div>
       <div className="util-grid">
         {UTILS.map(u => {
@@ -2037,6 +2055,7 @@ function HomeScreen({ b3tr, streak, subs, setTab, T }) {
           );
         })}
       </div>
+      </>)}
 
       <div className="sec"><div className="sec-line"/><div className="sec-txt">Activity</div><div className="sec-line"/></div>
       <StreakCalendar subs={subs} />
@@ -5331,7 +5350,11 @@ export default function App() {
         </div>
 
         <div className="bnav">
-          {[{id:"home",icon:"🏠",label:"Home"},{id:"submit",icon:"📸",label:"Submit"},{id:"charts",icon:"📊",label:"Charts"},{id:"leaderboard",icon:"🏆",label:"Rank"},{id:"profile",icon:"👤",label:"Profile"}].map(n=>(
+          {/* Charts is hidden until there are two readings to draw a line between —
+              a new tester's first impression was otherwise a tab holding an empty
+              graph. It reappears the moment there's something to plot, and stays
+              visible while you're standing on it so the nav never loses its place. */}
+          {[{id:"home",icon:"🏠",label:"Home"},{id:"submit",icon:"📸",label:"Submit"},{id:"charts",icon:"📊",label:"Charts",show:subs.length>=CHARTS_MIN_SUBS||tab==="charts"},{id:"leaderboard",icon:"🏆",label:"Rank"},{id:"profile",icon:"👤",label:"Profile"}].filter(n=>n.show!==false).map(n=>(
             <button key={n.id} className={`nitem ${tab===n.id?"active":""}`} onClick={()=>setTab(n.id)}>
               <div className="nicon">{n.icon}</div>
               <div className="nlabel">{n.label}</div>
