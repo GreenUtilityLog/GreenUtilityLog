@@ -562,6 +562,28 @@ const DARK = {
   heroFrom:"#102218", heroTo:"#1f3d2d",
 };
 
+// The chrome used platform emoji — a red question mark, a yellow moon, a blue
+// person, a multicoloured camera — over a muted sage palette they had nothing to do
+// with, rendering differently on every OS. UTIL_ICONS below was already a proper
+// inline-SVG set, so these are drawn in the same idiom: 20x20 box, currentColor,
+// 1.7 stroke, round caps. They inherit the text colour, so they follow the theme and
+// the active/inactive nav state on their own.
+const UI_ICON = (paths, filled) => (
+  <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"
+       fill={filled ? "currentColor" : "none"} stroke={filled ? "none" : "currentColor"}
+       strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{paths}</svg>
+);
+const UI_ICONS = {
+  home:   UI_ICON(<><path d="M3.5 9.2 10 3.5l6.5 5.7"/><path d="M5.2 8.6V16a.8.8 0 0 0 .8.8h8a.8.8 0 0 0 .8-.8V8.6"/></>),
+  camera: UI_ICON(<><path d="M2.8 6.9h2.9l1.3-2h6l1.3 2h2.9a.8.8 0 0 1 .8.8v7.5a.8.8 0 0 1-.8.8H2.8a.8.8 0 0 1-.8-.8V7.7a.8.8 0 0 1 .8-.8Z"/><circle cx="10" cy="11.3" r="3"/></>),
+  chart:  UI_ICON(<><path d="M3 16.5V12"/><path d="M7.7 16.5V6.5"/><path d="M12.3 16.5V9.5"/><path d="M17 16.5V4"/></>),
+  trophy: UI_ICON(<><path d="M6 3.5h8v4a4 4 0 0 1-8 0v-4Z"/><path d="M6 5H3.8v1.2A2.6 2.6 0 0 0 6.4 8.8"/><path d="M14 5h2.2v1.2a2.6 2.6 0 0 1-2.6 2.6"/><path d="M10 11.5v3"/><path d="M7 16.5h6"/></>),
+  person: UI_ICON(<><circle cx="10" cy="7" r="3"/><path d="M4.5 16.5c0-2.8 2.5-4.6 5.5-4.6s5.5 1.8 5.5 4.6"/></>),
+  help:   UI_ICON(<><circle cx="10" cy="10" r="7"/><path d="M7.9 7.8a2.2 2.2 0 1 1 2.9 2.1c-.5.2-.8.6-.8 1.1v.4"/><path d="M10 14.2h.01"/></>),
+  moon:   UI_ICON(<><path d="M15.6 11.6A6 6 0 0 1 8.4 4.4a6.2 6.2 0 1 0 7.2 7.2Z"/></>),
+  sun:    UI_ICON(<><circle cx="10" cy="10" r="3.4"/><path d="M10 2.6v1.6M10 15.8v1.6M2.6 10h1.6M15.8 10h1.6M4.8 4.8l1.1 1.1M14.1 14.1l1.1 1.1M4.8 15.2l1.1-1.1M14.1 5.9l1.1-1.1"/></>),
+};
+
 const UTIL_ICONS = {
   electric: <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path d="M11 2L4 12h6l-1 6 7-10h-6l1-6z"/></svg>,
   gas:      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" width="16" height="16"><path d="M10 17c-3.3 0-6-2.7-6-6 0-4 3-7 6-9 3 2 6 5 6 9 0 3.3-2.7 6-6 6z"/><path d="M10 13a2 2 0 000-4c-1.1 0-2 .9-2 2" strokeOpacity=".6"/></svg>,
@@ -1139,6 +1161,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
    title. It returns as soon as there's room. */
 @media (max-width:430px){.logo-name{display:none;}}
 .hdr-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.dark-toggle svg{width:20px;height:20px;}
 .dark-toggle{width:44px;height:44px;border-radius:3px;background:transparent;border:1px solid ${T.border};display:flex;align-items:center;justify-content:center;cursor:pointer;color:${T.textMid};transition:all .15s;flex-shrink:0;font-size:14px;}
 .dark-toggle:hover{border-color:${T.green3};color:${T.green3};}
 .wallet-pill{display:flex;align-items:center;justify-content:center;min-height:44px;gap:6px;background:transparent;border:1px solid ${T.border};border-radius:3px;padding:5px 9px;cursor:pointer;transition:all .15s;flex-shrink:0;font-size:11px;font-weight:600;}
@@ -1152,7 +1175,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .hero-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2.4px;color:${T.textSoft};margin-bottom:12px;}
 .hero-amount{font-family:'SF Mono',Menlo,'Courier New',monospace;font-size:48px;font-weight:500;color:${T.text};line-height:1;letter-spacing:-1.5px;}
 .hero-amount span{font-size:14px;font-weight:400;color:${T.textSoft};margin-left:8px;letter-spacing:0;}
-.hero-usd{font-size:11px;color:${T.textSoft};margin-top:8px;font-family:'SF Mono',Menlo,'Courier New',monospace;}
+.hero-usd{font-size:11px;color:${T.textSoft};margin-top:8px;}
 .hero-chips{display:flex;gap:0;margin-top:20px;padding-top:18px;border-top:1px solid ${T.border};}
 .hchip{flex:1;padding-right:18px;margin-right:18px;border-right:1px solid ${T.border};}
 .hchip:last-child{border-right:none;margin-right:0;padding-right:0;}
@@ -1174,11 +1197,12 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .calendar{margin:0 14px 14px;background:${T.card};border:1px solid ${T.border};border-radius:4px;padding:16px;}
 .cal-hdr{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:13px;}
 .cal-month{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:${T.text};}
-.cal-streak{font-size:11px;font-weight:500;color:${T.green3};font-family:'SF Mono',Menlo,'Courier New',monospace;}
+.cal-streak{font-size:11px;font-weight:600;color:${T.green3};display:flex;align-items:center;gap:5px;}
+.cal-streak svg{width:15px;height:15px;}
 .cal-days-hdr{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px;}
 .cal-day-name{text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${T.textSoft};}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
-.cal-cell{aspect-ratio:1;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:${T.textSoft};background:${T.bgAlt};font-family:'SF Mono',Menlo,'Courier New',monospace;}
+.cal-cell{aspect-ratio:1;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:${T.textSoft};background:${T.bgAlt};}
 .cal-cell.has-sub{background:${T.green1};color:#fff;font-weight:600;}
 .cal-cell.today{outline:1.5px solid ${T.green3};outline-offset:-1px;}
 .cal-cell.empty{opacity:0;}
@@ -1294,7 +1318,8 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .nitem{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;border:none;background:none;color:${T.textSoft};transition:all .18s;padding:6px 2px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;position:relative;}
 .nitem.active{color:${T.green2};}
 .nitem.active::before{content:'';position:absolute;top:-2px;left:50%;transform:translateX(-50%);width:20px;height:2px;background:${T.green3};border-radius:1px;}
-.nicon{font-size:17px;width:30px;height:26px;display:flex;align-items:center;justify-content:center;color:inherit;}
+.nicon{width:30px;height:26px;display:flex;align-items:center;justify-content:center;color:inherit;}
+.nicon svg{width:21px;height:21px;}
 .nlabel{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;}
 
 .toast{position:fixed;top:72px;left:50%;transform:translateX(-50%);background:${T.text};border-radius:3px;padding:8px 14px;font-size:11px;font-weight:700;letter-spacing:.3px;color:${T.bg};z-index:200;white-space:nowrap;animation:toastin .18s ease;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
@@ -1973,7 +1998,7 @@ function StreakCalendar({ subs }) {
     <div className="calendar">
       <div className="cal-hdr">
         <div className="cal-month">{today.toLocaleString('en', { month: 'long' })} {year}</div>
-        <div className="cal-streak">🔥 {currentStreak} day{currentStreak !== 1 ? 's' : ''}</div>
+        <div className="cal-streak">{currentStreak} day{currentStreak !== 1 ? 's' : ''} streak</div>
       </div>
       <div className="cal-days-hdr">
         {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(d => <div key={d} className="cal-day-name">{d}</div>)}
@@ -5319,10 +5344,10 @@ export default function App() {
                 <div style={{width:7,height:7,borderRadius:"50%",background:online?T.green3:T.gas,animation:online?"pulse 2.5s infinite":"none"}}/>
               </div>
               <button className="dark-toggle" onClick={() => setShowHelp(true)} aria-label="Help and FAQ" title="Help & FAQ">
-                ❓
+                {UI_ICONS.help}
               </button>
               <button className="dark-toggle" onClick={toggleDark} aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}>
-                {dark ? '☀️' : '🌙'}
+                {dark ? UI_ICONS.sun : UI_ICONS.moon}
               </button>
               {/* Connect button — opens dapp-kit's wallet modal
                   (VeWorld, WalletConnect/mobile QR) via useWalletModal. */}
@@ -5365,7 +5390,7 @@ export default function App() {
               a new tester's first impression was otherwise a tab holding an empty
               graph. It reappears the moment there's something to plot, and stays
               visible while you're standing on it so the nav never loses its place. */}
-          {[{id:"home",icon:"🏠",label:"Home"},{id:"submit",icon:"📸",label:"Submit"},{id:"charts",icon:"📊",label:"Charts",show:subs.length>=CHARTS_MIN_SUBS||tab==="charts"},{id:"leaderboard",icon:"🏆",label:"Rank"},{id:"profile",icon:"👤",label:"Profile"}].filter(n=>n.show!==false).map(n=>(
+          {[{id:"home",icon:UI_ICONS.home,label:"Home"},{id:"submit",icon:UI_ICONS.camera,label:"Submit"},{id:"charts",icon:UI_ICONS.chart,label:"Charts",show:subs.length>=CHARTS_MIN_SUBS||tab==="charts"},{id:"leaderboard",icon:UI_ICONS.trophy,label:"Rank"},{id:"profile",icon:UI_ICONS.person,label:"Profile"}].filter(n=>n.show!==false).map(n=>(
             <button key={n.id} className={`nitem ${tab===n.id?"active":""}`} onClick={()=>setTab(n.id)}>
               <div className="nicon">{n.icon}</div>
               <div className="nlabel">{n.label}</div>
