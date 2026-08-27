@@ -28,6 +28,14 @@ jobs:
       # (…/GreenUtilityLog/guide.html) with no login. Copied here rather than via
       # Vite's publicDir, which is deliberately disabled — see vite.config.js.
       - run: cp docs/guide.html dist/guide.html
+      # A 404 page inside the published site, so a mistyped or stale address under
+      # /GreenUtilityLog/ lands somewhere that explains itself and offers a way back,
+      # instead of GitHub's bare "there isn't a GitHub Pages site here".
+      - run: cp docs/404.html dist/404.html
+      # The guide has advertised this image in its og:image tag since it was written,
+      # and it was never published — every share of that link 404'd for the crawler,
+      # so the preview card came out blank.
+      - run: cp docs/og-image.png dist/og-image.png
       - uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
