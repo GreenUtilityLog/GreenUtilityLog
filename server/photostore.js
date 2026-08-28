@@ -48,7 +48,10 @@ export function photoStoreEnabled() {
 
 // Sanitise the payout txID into a safe object key / redis key fragment.
 function safeId(id) {
-  return String(id || "").replace(/^0x/i, "").replace(/[^0-9a-fA-F]/g, "").slice(0, 96);
+  // Lowercased: the retention index in store.js keys on a lowercased txid, and a
+  // txid that arrives capitalised from one path and lowercase from another would
+  // otherwise store and look up under two different keys.
+  return String(id || "").replace(/^0x/i, "").replace(/[^0-9a-fA-F]/g, "").toLowerCase().slice(0, 96);
 }
 
 // Downscale to a JPEG thumbnail. Uses sharp when available; if not, returns the
