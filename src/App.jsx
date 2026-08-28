@@ -1155,43 +1155,37 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .logo{display:flex;align-items:center;gap:10px;flex:1;min-width:0;}
 .logo-mark{width:30px;height:30px;border-radius:4px;background:linear-gradient(135deg,${T.green1},${T.green2});display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;box-shadow:0 2px 8px ${T.shadow};font-weight:700;font-size:11px;}
 .logo-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;font-weight:800;color:${T.text};letter-spacing:-0.5px;line-height:1;}
-/* At 390px the header has ~42px left for a wordmark that needs ~118px:
-   mark + name + four 44px controls simply don't fit. Showing the mark alone
-   is the honest resolution — the name is on the intro screen and in the tab
-   title. It returns as soon as there's room. */
-@media (max-width:430px){.logo-name{display:none;}}
 .hdr-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;}
-.dark-toggle svg{width:20px;height:20px;}
-.dark-toggle{width:44px;height:44px;border-radius:3px;background:transparent;border:1px solid ${T.border};display:flex;align-items:center;justify-content:center;cursor:pointer;color:${T.textMid};transition:all .15s;flex-shrink:0;font-size:14px;}
+.dark-toggle{width:30px;height:30px;border-radius:3px;background:transparent;border:1px solid ${T.border};display:flex;align-items:center;justify-content:center;cursor:pointer;color:${T.textMid};transition:all .15s;flex-shrink:0;font-size:14px;}
 .dark-toggle:hover{border-color:${T.green3};color:${T.green3};}
-.wallet-pill{display:flex;align-items:center;justify-content:center;min-height:44px;gap:6px;background:transparent;border:1px solid ${T.border};border-radius:3px;padding:5px 9px;cursor:pointer;transition:all .15s;flex-shrink:0;font-size:11px;font-weight:600;}
+.wallet-pill{display:flex;align-items:center;gap:6px;background:transparent;border:1px solid ${T.border};border-radius:3px;padding:5px 9px;cursor:pointer;transition:all .15s;flex-shrink:0;font-size:11px;font-weight:600;}
 .wallet-pill:hover,.wallet-pill.connected{border-color:${T.green3};color:${T.green3};}
 .wdot{width:5px;height:5px;border-radius:50%;background:${T.green3};animation:wpulse 2.5s infinite;flex-shrink:0;}
 .wdot.off{background:${T.textSoft};animation:none;}
 @keyframes wpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.25;transform:scale(.65)}}
-.waddr{font-family:'SF Mono',Menlo,'Courier New',monospace;font-size:11px;color:${T.textMid};letter-spacing:0;}
+.waddr{font-family:'SF Mono',Menlo,'Courier New',monospace;font-size:9px;color:${T.textMid};letter-spacing:0;}
 
 .hero{margin:16px 14px 0;border-radius:5px;border:1px solid ${T.border};background:${T.card};padding:22px;position:relative;overflow:hidden;box-shadow:0 2px 6px ${T.shadow};}
-.hero-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2.4px;color:${T.textSoft};margin-bottom:12px;}
+.hero-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:2.4px;color:${T.textSoft};margin-bottom:12px;}
 .hero-amount{font-family:'SF Mono',Menlo,'Courier New',monospace;font-size:48px;font-weight:500;color:${T.text};line-height:1;letter-spacing:-1.5px;}
 .hero-amount span{font-size:14px;font-weight:400;color:${T.textSoft};margin-left:8px;letter-spacing:0;}
-.hero-usd{font-size:11px;color:${T.textSoft};margin-top:8px;}
+.hero-usd{font-size:10px;color:${T.textSoft};margin-top:8px;}
 .hero-chips{display:flex;gap:0;margin-top:20px;padding-top:18px;border-top:1px solid ${T.border};}
 .hchip{flex:1;padding-right:18px;margin-right:18px;border-right:1px solid ${T.border};}
 .hchip:last-child{border-right:none;margin-right:0;padding-right:0;}
 .hchip-val{font-size:20px;font-weight:600;color:${T.text};font-family:'SF Mono',Menlo,'Courier New',monospace;line-height:1;}
-.hchip-key{white-space:nowrap;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:${T.textSoft};margin-top:5px;}
+.hchip-key{white-space:nowrap;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:${T.textSoft};margin-top:5px;}
 
 .sec{display:flex;align-items:center;gap:12px;margin:24px 14px 14px;padding:0;}
 .sec-line{flex:1;height:1px;background:${T.border};}
-.sec-txt{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:2.8px;color:${T.textSoft};}
+.sec-txt{font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:2.8px;color:${T.textSoft};}
 
 .util-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 14px 16px;}
 .ucard{background:${T.card};border:1px solid ${T.border};border-radius:5px;padding:14px;transition:all .2s;cursor:pointer;box-shadow:0 1px 3px ${T.shadow};}
 .ucard:hover{border-color:${T.green3};box-shadow:0 4px 12px ${T.shadowMd};}
 .ucard-icon{width:32px;height:32px;border-radius:4px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;color:${T.green2};font-size:16px;}
 .ucard-name{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${T.text};}
-.ucard-reads{font-size:11px;color:${T.textSoft};margin-top:4px;font-weight:500;}
+.ucard-reads{font-size:9px;color:${T.textSoft};margin-top:4px;font-weight:500;}
 .ucard-b3tr{font-size:16px;font-weight:600;margin-top:9px;font-family:'SF Mono',Menlo,'Courier New',monospace;}
 
 .calendar{margin:0 14px 14px;background:${T.card};border:1px solid ${T.border};border-radius:4px;padding:16px;}
@@ -1200,9 +1194,9 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .cal-streak{font-size:11px;font-weight:600;color:${T.green3};display:flex;align-items:center;gap:5px;}
 .cal-streak svg{width:15px;height:15px;}
 .cal-days-hdr{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px;}
-.cal-day-name{text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${T.textSoft};}
+.cal-day-name{text-align:center;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${T.textSoft};}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
-.cal-cell{aspect-ratio:1;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:${T.textSoft};background:${T.bgAlt};}
+.cal-cell{aspect-ratio:1;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:500;color:${T.textSoft};background:${T.bgAlt};}
 .cal-cell.has-sub{background:${T.green1};color:#fff;font-weight:600;}
 .cal-cell.today{outline:1.5px solid ${T.green3};outline-offset:-1px;}
 .cal-cell.empty{opacity:0;}
@@ -1212,17 +1206,17 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .hicon{width:32px;height:32px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
 .hinfo{flex:1;min-width:0;}
 .htitle{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:${T.text};}
-.hdate{font-size:11px;color:${T.textSoft};font-family:'SF Mono',Menlo,'Courier New',monospace;margin-top:2px;}
+.hdate{font-size:10px;color:${T.textSoft};font-family:'SF Mono',Menlo,'Courier New',monospace;margin-top:2px;}
 .hright{text-align:right;flex-shrink:0;}
 .hb3tr{font-size:14px;font-weight:500;color:${T.green1};font-family:'SF Mono',Menlo,'Courier New',monospace;}
-.hstatus{font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;padding:1px 5px;border-radius:1px;margin-top:4px;display:inline-block;}
+.hstatus{font-size:8px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;padding:1px 5px;border-radius:1px;margin-top:4px;display:inline-block;}
 .s-confirmed{background:${T.green5};color:${T.green2};border:1px solid ${T.green4};}
 
 .sub-header{padding:20px 18px 10px;}
 .sub-title{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:22px;font-weight:800;color:${T.text};letter-spacing:-0.4px;}
 .sub-sub{font-size:11px;color:${T.textSoft};margin-top:4px;text-transform:uppercase;letter-spacing:.8px;}
 .util-selector{display:grid;grid-template-columns:repeat(${UTILS.length},1fr);margin:0 14px 14px;border:1px solid ${T.border};border-radius:4px;overflow:hidden;}
-.utab{display:flex;flex-direction:column;align-items:center;gap:3px;background:${T.card};border-right:1px solid ${T.border};padding:10px 4px;cursor:pointer;transition:background .12s,color .12s;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${T.textSoft};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;border-radius:0;}
+.utab{display:flex;flex-direction:column;align-items:center;gap:3px;background:${T.card};border-right:1px solid ${T.border};padding:10px 4px;cursor:pointer;transition:background .12s,color .12s;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${T.textSoft};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;border-radius:0;}
 .utab:last-child{border-right:none;}
 .utab:hover,.utab.active{background:var(--ubg);color:var(--uc);}
 .utab-icon{font-size:18px;}
@@ -1234,38 +1228,38 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .vz-idle{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:26px;text-align:center;}
 .vz-icon{font-size:26px;margin-bottom:2px;}
 .vz-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${T.text};}
-.vz-sub{font-size:11px;color:${T.textSoft};}
-.vz-meter{font-size:11px;font-weight:700;font-family:'SF Mono',Menlo,'Courier New',monospace;color:${T.green1};background:${T.bgAlt};border:1px solid ${T.border};border-radius:3px;padding:2px 8px;letter-spacing:.4px;}
+.vz-sub{font-size:10px;color:${T.textSoft};}
+.vz-meter{font-size:10px;font-weight:700;font-family:'SF Mono',Menlo,'Courier New',monospace;color:${T.green1};background:${T.bgAlt};border:1px solid ${T.border};border-radius:3px;padding:2px 8px;letter-spacing:.4px;}
 .vz-verifying{display:flex;flex-direction:column;align-items:center;gap:12px;padding:26px;}
 .ai-ring{width:36px;height:36px;border-radius:50%;border:2px solid ${T.border};border-top-color:${T.green3};animation:spin .8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg)}}
 .ai-steps{display:flex;flex-direction:column;gap:2px;width:100%;}
-.ai-step{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:500;color:${T.textSoft};padding:4px 10px;border-radius:2px;transition:color .2s;}
+.ai-step{display:flex;align-items:center;gap:8px;font-size:10px;font-weight:500;color:${T.textSoft};padding:4px 10px;border-radius:2px;transition:color .2s;}
 .ai-step.done{color:${T.green3};}
 .ai-step.active{color:${T.text};font-weight:700;}
-.ai-step-icon{font-size:11px;width:12px;text-align:center;}
+.ai-step-icon{font-size:10px;width:12px;text-align:center;}
 .vz-result{padding:14px 16px;}
 .vr-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
-.vr-badge{display:flex;align-items:center;gap:4px;background:transparent;border:1px solid ${T.green3};border-radius:2px;padding:3px 7px;font-size:11px;font-weight:700;color:${T.green3};text-transform:uppercase;letter-spacing:1px;}
-.vr-confidence{font-size:11px;color:${T.textSoft};margin-left:auto;font-family:'SF Mono',Menlo,'Courier New',monospace;}
+.vr-badge{display:flex;align-items:center;gap:4px;background:transparent;border:1px solid ${T.green3};border-radius:2px;padding:3px 7px;font-size:9px;font-weight:700;color:${T.green3};text-transform:uppercase;letter-spacing:1px;}
+.vr-confidence{font-size:10px;color:${T.textSoft};margin-left:auto;font-family:'SF Mono',Menlo,'Courier New',monospace;}
 .vr-summary{font-size:11px;color:${T.textMid};line-height:1.55;}
-.vr-retry{font-size:11px;font-weight:700;color:${T.green3};margin-top:7px;cursor:pointer;text-transform:uppercase;letter-spacing:.8px;}
+.vr-retry{font-size:9px;font-weight:700;color:${T.green3};margin-top:7px;cursor:pointer;text-transform:uppercase;letter-spacing:.8px;}
 .vz-photo{width:100%;max-height:160px;object-fit:cover;border-radius:3px;border:1px solid ${T.border};margin-bottom:10px;display:block;}
 .vz-photo.sm{max-height:90px;}
 
 .form-card{margin:0 14px 14px;background:${T.card};border:1px solid ${T.border};border-radius:5px;padding:16px;box-shadow:0 2px 6px ${T.shadow};}
 .irow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
 .igroup{display:flex;flex-direction:column;gap:4px;}
-.ilabel{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:${T.textSoft};display:flex;align-items:center;gap:6px;}
-.utag{border-radius:1px;padding:1px 4px;font-size:11px;font-weight:700;background:var(--ubg);color:var(--uc);border:1px solid var(--uborder);text-transform:uppercase;letter-spacing:.6px;}
+.ilabel{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:${T.textSoft};display:flex;align-items:center;gap:6px;}
+.utag{border-radius:1px;padding:1px 4px;font-size:7px;font-weight:700;background:var(--ubg);color:var(--uc);border:1px solid var(--uborder);text-transform:uppercase;letter-spacing:.6px;}
 .ifield{width:100%;background:${T.bg};border:1px solid ${T.border};border-radius:3px;padding:9px 10px;color:${T.text};font-family:'SF Mono',Menlo,'Courier New',monospace;font-size:15px;outline:none;transition:border-color .15s;}
 .ifield:focus{border-color:var(--uc,${T.green3});}
 .ifield::placeholder{color:${T.textSoft};opacity:.5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;}
 .reward-preview{background:${T.bgAlt};border:1px solid ${T.border};border-left:3px solid ${T.green3};border-radius:3px;padding:12px 13px;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
-.rp-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:${T.textSoft};}
-.rp-rate{font-size:11px;color:${T.textSoft};margin-top:3px;font-family:'SF Mono',Menlo,'Courier New',monospace;}
+.rp-label{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:${T.textSoft};}
+.rp-rate{font-size:10px;color:${T.textSoft};margin-top:3px;font-family:'SF Mono',Menlo,'Courier New',monospace;}
 .rp-val{font-size:28px;font-weight:500;color:${T.text};font-family:'SF Mono',Menlo,'Courier New',monospace;letter-spacing:-0.5px;}
-.rp-b3tr{font-size:11px;color:${T.textSoft};text-transform:uppercase;letter-spacing:1.4px;}
+.rp-b3tr{font-size:9px;color:${T.textSoft};text-transform:uppercase;letter-spacing:1.4px;}
 .sbtn{width:100%;background:linear-gradient(135deg,${T.green1},${T.green2});border:none;border-radius:4px;padding:14px;color:${T.bg};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;letter-spacing:1px;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 12px rgba(26,51,38,0.2);}
 .sbtn:hover:not(:disabled){box-shadow:0 6px 20px rgba(26,51,38,0.3);transform:translateY(-1px);}
 .sbtn:disabled{opacity:.4;cursor:not-allowed;}
@@ -1278,8 +1272,8 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .chart-bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;}
 .chart-bar{width:100%;border-radius:1px 1px 0 0;min-height:3px;transition:all .3s;cursor:pointer;}
 .chart-bar:hover{filter:brightness(1.2);}
-.chart-val{font-size:11px;font-family:'SF Mono',Menlo,'Courier New',monospace;color:${T.textSoft};text-align:center;}
-.chart-lbl{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:${T.textSoft};text-align:center;}
+.chart-val{font-size:8px;font-family:'SF Mono',Menlo,'Courier New',monospace;color:${T.textSoft};text-align:center;}
+.chart-lbl{font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:${T.textSoft};text-align:center;}
 
 .lb-hero{margin:14px 14px 0;border-radius:4px;border:1px solid ${T.border};border-left:3px solid #7c3aed;background:${T.card};padding:20px;}
 .lb-hero-rank{font-family:'SF Mono',Menlo,'Courier New',monospace;font-size:52px;font-weight:500;color:${T.text};line-height:1;letter-spacing:-2px;}
@@ -1295,13 +1289,13 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .pstat-row{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin:0 14px 14px;}
 .pstat{background:${T.card};border:1px solid ${T.border};border-radius:4px;padding:13px;text-align:center;}
 .pstat-val{font-size:22px;font-weight:500;color:${T.text};font-family:'SF Mono',Menlo,'Courier New',monospace;letter-spacing:-0.5px;}
-.pstat-key{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:${T.textSoft};margin-top:3px;}
+.pstat-key{font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:${T.textSoft};margin-top:3px;}
 .notif-card{margin:0 14px 9px;background:${T.card};border:1px solid ${T.border};border-radius:4px;padding:15px;}
-.notif-hdr{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:${T.text};margin-bottom:12px;}
+.notif-hdr{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:${T.text};margin-bottom:12px;}
 .notif-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid ${T.border};}
 .notif-row:last-child{border-bottom:none;padding-bottom:0;}
 .notif-label{font-size:12px;font-weight:600;color:${T.text};}
-.notif-sub{font-size:11px;color:${T.textSoft};margin-top:1px;}
+.notif-sub{font-size:10px;color:${T.textSoft};margin-top:1px;}
 .toggle{width:34px;height:19px;border-radius:10px;background:${T.border};border:none;cursor:pointer;position:relative;transition:background .18s;flex-shrink:0;}
 .toggle.on{background:${T.green3};}
 .toggle-dot{position:absolute;top:3px;left:3px;width:13px;height:13px;border-radius:50%;background:#fff;transition:transform .16s;box-shadow:0 1px 2px rgba(0,0,0,.2);}
@@ -1311,7 +1305,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .sr-left{display:flex;align-items:center;gap:10px;}
 .sr-icon{width:28px;height:28px;border-radius:3px;background:${T.bgAlt};display:flex;align-items:center;justify-content:center;font-size:13px;border:1px solid ${T.border};}
 .sr-label{font-size:12px;font-weight:600;color:${T.text};}
-.sr-sub{font-size:11px;color:${T.textSoft};margin-top:1px;}
+.sr-sub{font-size:10px;color:${T.textSoft};margin-top:1px;}
 .sr-right{display:flex;align-items:center;gap:6px;}
 
 .bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:420px;background:${T.navBg};border-top:1px solid ${T.border};display:grid;grid-auto-flow:column;grid-auto-columns:1fr;padding:10px 0 24px;z-index:20;backdrop-filter:blur(20px);}
@@ -1319,7 +1313,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .nitem.active{color:${T.green2};}
 .nitem.active::before{content:'';position:absolute;top:-2px;left:50%;transform:translateX(-50%);width:20px;height:2px;background:${T.green3};border-radius:1px;}
 .nicon{font-size:17px;width:30px;height:26px;display:flex;align-items:center;justify-content:center;color:inherit;}
-.nlabel{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;}
+.nlabel{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:1px;}
 
 .toast{position:fixed;top:72px;left:50%;transform:translateX(-50%);background:${T.text};border-radius:3px;padding:8px 14px;font-size:11px;font-weight:700;letter-spacing:.3px;color:${T.bg};z-index:200;white-space:nowrap;animation:toastin .18s ease;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
 @keyframes toastin{from{opacity:0;transform:translateX(-50%) translateY(-5px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
@@ -1345,11 +1339,11 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .ob-dot.active{width:18px;background:${T.green1};}
 .ob-btn{margin-top:24px;width:100%;max-width:280px;background:linear-gradient(135deg,${T.green1},${T.green2});border:none;border-radius:4px;padding:15px;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;text-transform:uppercase;letter-spacing:1.2px;box-shadow:0 4px 12px rgba(26,51,38,0.2);}
 .ob-btn:hover{box-shadow:0 6px 20px rgba(26,51,38,0.3);transform:translateY(-1px);}
-.ob-skip{margin-top:13px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${T.textSoft};cursor:pointer;background:none;border:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
+.ob-skip{margin-top:13px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${T.textSoft};cursor:pointer;background:none;border:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
 
 .spin-sm{width:13px;height:13px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block;}
 .filter-row{display:flex;gap:5px;padding:0 14px 13px;overflow-x:auto;}
-.fchip{flex-shrink:0;padding:4px 11px;border-radius:2px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid ${T.border};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;transition:all .12s;text-transform:uppercase;letter-spacing:.8px;background:${T.card};color:${T.textSoft};}
+.fchip{flex-shrink:0;padding:4px 11px;border-radius:2px;font-size:9px;font-weight:700;cursor:pointer;border:1px solid ${T.border};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;transition:all .12s;text-transform:uppercase;letter-spacing:.8px;background:${T.card};color:${T.textSoft};}
 .fchip.active{background:${T.green1};color:#fff;border-color:${T.green1};}
 `;
 }
@@ -1514,7 +1508,7 @@ function IntroScreen({ onStart }) {
         )}
       </div>
 
-      <div style={{fontSize:11,color:"rgba(255,255,255,0.4)",marginTop:16}}>
+      <div style={{fontSize:10,color:"rgba(255,255,255,0.4)",marginTop:16}}>
         Slide {slide + 1} of {slides.length}
       </div>
     </div>
@@ -1592,7 +1586,7 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
           <div key={u.id} style={{display:"flex",alignItems:"flex-start",gap:12,background:T.card,borderRadius:4,padding:"10px 14px",border:`1px solid ${T.border}`}}>
             <span style={{width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center",color:T[u.id]||T.text,flexShrink:0,marginTop:2}}>{UTIL_ICONS[u.id]}</span>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginBottom:4}}>{u.label} <span style={{fontWeight:400}}>({u.unit})</span>{locked ? <span style={{fontWeight:400,textTransform:"none",letterSpacing:0,color:T.eco||T.text}}> · 🔒 locked</span> : (!needsMeter && <span style={{fontWeight:400,textTransform:"none",letterSpacing:0}}> · optional</span>)}</div>
+              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginBottom:4}}>{u.label} <span style={{fontWeight:400}}>({u.unit})</span>{locked ? <span style={{fontWeight:400,textTransform:"none",letterSpacing:0,color:T.eco||T.text}}> · 🔒 locked</span> : (!needsMeter && <span style={{fontWeight:400,textTransform:"none",letterSpacing:0}}> · optional</span>)}</div>
               <input
                 type="text"
                 readOnly={locked}
@@ -1961,8 +1955,8 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
         {result.anomCheck?.anomaly && (
           <div style={{marginTop:12,padding:10,background:T?.electricBg||"#fff3e0",border:`1px solid ${T?.electricBorder||"#FFB74D"}`,borderRadius:4}}>
             <div style={{fontSize:11,fontWeight:700,color:T?.electric||"#E65100"}}>⚠️ High Usage Detected</div>
-            <div style={{fontSize:11,color:T?.textMid||"#666",marginTop:4}}>This reading is {result.anomCheck.avg ? `${Math.round((result.usageVal/result.anomCheck.avg - 1)*100)}%` : "significantly"} higher than your average.</div>
-            <div style={{fontSize:11,color:T?.electric||"#E65100",marginTop:4,fontWeight:600}}>Allow anyway? Tap Submit to continue.</div>
+            <div style={{fontSize:10,color:T?.textMid||"#666",marginTop:4}}>This reading is {result.anomCheck.avg ? `${Math.round((result.usageVal/result.anomCheck.avg - 1)*100)}%` : "significantly"} higher than your average.</div>
+            <div style={{fontSize:10,color:T?.electric||"#E65100",marginTop:4,fontWeight:600}}>Allow anyway? Tap Submit to continue.</div>
           </div>
         )}
         <div className="vr-retry" onClick={reset}>Retake photo</div>
@@ -1997,7 +1991,7 @@ function StreakCalendar({ subs }) {
     <div className="calendar">
       <div className="cal-hdr">
         <div className="cal-month">{today.toLocaleString('en', { month: 'long' })} {year}</div>
-        <div className="cal-streak">{currentStreak} day{currentStreak !== 1 ? 's' : ''} streak</div>
+        <div className="cal-streak">🔥 {currentStreak} day{currentStreak !== 1 ? 's' : ''}</div>
       </div>
       <div className="cal-days-hdr">
         {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(d => <div key={d} className="cal-day-name">{d}</div>)}
@@ -2037,7 +2031,7 @@ function HistItem({ s, T }) {
       title={txUrl ? "View this transaction on the VeChain explorer" : undefined}>
       <div className="hicon" style={{background: getColorBg(s.type, T), color: T[s.type] || T.electric}}>{UTIL_ICONS[s.type]}</div>
       <div className="hinfo">
-        <div className="htitle">{util.label}{s.meterNo ? <span style={{fontWeight:400,color:T.textSoft,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",fontSize:11}}> · #{s.meterNo}</span> : null}</div>
+        <div className="htitle">{util.label}{s.meterNo ? <span style={{fontWeight:400,color:T.textSoft,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",fontSize:9}}> · #{s.meterNo}</span> : null}</div>
         <div className="hdate">{s.date}{txUrl ? <span style={{color:T.textSoft}}> · tx ↗</span> : null}</div>
         <div style={{color: T[s.type] || T.electric, fontSize: isEco ? 12 : undefined}}>{delta}{util.unit ? ` ${util.unit}` : ""}</div>
       </div>
@@ -2257,9 +2251,9 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
                photo needed (the device token binds it to your wallet). */
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "10px 12px", background: T.bg, border: `1px solid ${T.border || T.waterBorder}`, borderRadius: 8 }}>
               <div>
-                <div style={{ fontSize:11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft }}>Auto-received</div>
+                <div style={{ fontSize:10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft }}>Auto-received</div>
                 <div style={{ ...mono, fontSize: 15, fontWeight: 800, color: T.eco || T.text }}>{rd.reading} kWh</div>
-                {rd.source && <div style={{ fontSize:11, color: T.textSoft }}>via {rd.source}{rd.at ? ` · ${new Date(rd.at).toLocaleString()}` : ""}</div>}
+                {rd.source && <div style={{ fontSize:10, color: T.textSoft }}>via {rd.source}{rd.at ? ` · ${new Date(rd.at).toLocaleString()}` : ""}</div>}
               </div>
               <button disabled={busyAny} onClick={() => onAutoSubmit?.()} style={{ ...btn(T.eco || T.electric), whiteSpace: "nowrap", opacity: busyAny ? .6 : 1 }}>
                 {busyAny ? "Submitting…" : "Submit — no photo"}
@@ -2285,7 +2279,7 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
                 <div style={{ marginTop: 10 }}>
                   {/* Setup is long-form and read on a laptop, so it lives in the guide.
                       Here: just what you need to act — the snippet and where it goes. */}
-                  <div style={{ fontSize:11, color: T.textSoft, lineHeight: 1.6, marginBottom: 8 }}>
+                  <div style={{ fontSize:10.5, color: T.textSoft, lineHeight: 1.6, marginBottom: 8 }}>
                     Pick your device and copy the ready-made setup — your token is already filled in.{" "}
                     <a href={GUIDE_URL} target="_blank" rel="noopener noreferrer" style={{ color: T.eco || T.electric, fontWeight: 700 }}>
                       Full step-by-step guide ↗
@@ -2371,16 +2365,16 @@ curl -X POST ${ingestUrl} \\
 
                         {/* Pre-filled, one-tap-copy setup */}
                         <div style={{ position: "relative" }}>
-                          <button onClick={() => copy(snip, "snip")} style={{ position: "absolute", top: 6, right: 6, padding: "4px 8px", fontSize:11, fontWeight: 700, border: "none", borderRadius: 5, cursor: "pointer", background: copied === "snip" ? (T.eco || T.green3 || T.electric) : T.textSoft, color: "#fff" }}>
+                          <button onClick={() => copy(snip, "snip")} style={{ position: "absolute", top: 6, right: 6, padding: "4px 8px", fontSize:10, fontWeight: 700, border: "none", borderRadius: 5, cursor: "pointer", background: copied === "snip" ? (T.eco || T.green3 || T.electric) : T.textSoft, color: "#fff" }}>
                             {copied === "snip" ? "✓ Copied" : "Copy setup"}
                           </button>
-                          <pre style={{ ...mono, fontSize:11, lineHeight: 1.5, color: T.text, background: T.bg, border: `1px dashed ${T.border || T.waterBorder}`, padding: "10px 10px 10px", borderRadius: 6, overflowX: "auto", margin: 0, whiteSpace: "pre" }}>{snip}</pre>
+                          <pre style={{ ...mono, fontSize:10, lineHeight: 1.5, color: T.text, background: T.bg, border: `1px dashed ${T.border || T.waterBorder}`, padding: "10px 10px 10px", borderRadius: 6, overflowX: "auto", margin: 0, whiteSpace: "pre" }}>{snip}</pre>
                         </div>
-                        <div style={{ fontSize:11, color: T.textSoft, lineHeight: 1.5, margin: "6px 2px 0" }}>{hint}</div>
+                        <div style={{ fontSize:10, color: T.textSoft, lineHeight: 1.5, margin: "6px 2px 0" }}>{hint}</div>
 
                         {/* One line, not a manual: the detail lives in the guide. */}
                         {device !== "ha" && (
-                          <div style={{ fontSize:11, color: T.textSoft, lineHeight: 1.6, marginTop: 8 }}>
+                          <div style={{ fontSize:10, color: T.textSoft, lineHeight: 1.6, marginTop: 8 }}>
                             📍 Paste this in a <b>terminal</b> on the device that stays on (Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH). Needs Node.js 18+.{" "}
                             <a href={GUIDE_URL} target="_blank" rel="noopener noreferrer" style={{ color: T.eco || T.electric, fontWeight: 700 }}>Show me ↗</a>
                           </div>
@@ -2388,8 +2382,8 @@ curl -X POST ${ingestUrl} \\
 
                         {/* Raw token / URL for reference */}
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-                          <button onClick={() => copy(token, "tok")} style={{ ...btn(T.textSoft), padding: "5px 9px", fontSize:11 }}>{copied === "tok" ? "✓ Token copied" : "Copy token only"}</button>
-                          <button onClick={() => copy(ingestUrl, "url")} style={{ ...btn(T.textSoft), padding: "5px 9px", fontSize:11 }}>{copied === "url" ? "✓ URL copied" : "Copy URL only"}</button>
+                          <button onClick={() => copy(token, "tok")} style={{ ...btn(T.textSoft), padding: "5px 9px", fontSize:10 }}>{copied === "tok" ? "✓ Token copied" : "Copy token only"}</button>
+                          <button onClick={() => copy(ingestUrl, "url")} style={{ ...btn(T.textSoft), padding: "5px 9px", fontSize:10 }}>{copied === "url" ? "✓ URL copied" : "Copy URL only"}</button>
                         </div>
                       </div>
                     );
@@ -2481,7 +2475,7 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
 
       <div onClick={() => { if (!meterNo) onRegisterMeter?.([selUtil]); }}
         style={{margin:"0 14px 12px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"9px 12px",background:meterNo?getColorBg(selUtil,T):T.gasBg,border:`1px solid ${meterNo?(T[selUtil+"Border"]||T.electricBorder):T.gasBorder}`,borderRadius:6,cursor:meterNo?"default":"pointer"}}>
-        <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft}}>Registered meter</div>
+        <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft}}>Registered meter</div>
         <div style={{fontSize:12,fontWeight:700,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:meterNo?(T[selUtil]||T.text):T.gas}}>{meterNo || "Tap to register →"}</div>
       </div>
 
@@ -2683,9 +2677,9 @@ function EcoBonusCard({ T, wallet, setShowWallet, onSubmit, busy, usedThisWeek, 
     <div style={{background:T.card,border:`1px solid ${T.green4||T.border}`,borderRadius:6,padding:"14px",margin:"0 14px 14px"}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
         <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".6px",color:T.green3}}>🌿 Eco Mode Bonus</div>
-        <div style={{fontSize:11,fontWeight:700,color:left ? T.green3 : T.textSoft}}>{left}/{ECO_MAX_PER_WEEK_UI} left this week</div>
+        <div style={{fontSize:10,fontWeight:700,color:left ? T.green3 : T.textSoft}}>{left}/{ECO_MAX_PER_WEEK_UI} left this week</div>
       </div>
-      <div style={{fontSize:11,color:T.textMid,lineHeight:1.5,marginBottom:10}}>
+      <div style={{fontSize:10.5,color:T.textMid,lineHeight:1.5,marginBottom:10}}>
         Running your washer, dryer or dishwasher on the <b>eco setting</b>? Photograph the appliance with the eco mode visible and earn a bonus. Fresh photo every time — max 4 per week (Mon–Sun), one per 24h.
       </div>
 
@@ -2704,7 +2698,7 @@ function EcoBonusCard({ T, wallet, setShowWallet, onSubmit, busy, usedThisWeek, 
           <text x="14" y="55" fontSize="6.5" fill={T.textSoft} fontFamily="-apple-system,sans-serif">40°</text>
           <text x="30" y="55" fontSize="6.5" fill={T.textSoft} fontFamily="-apple-system,sans-serif">60°</text>
         </svg>
-        <div style={{fontSize:11,color:T.textMid,lineHeight:1.5}}>
+        <div style={{fontSize:10,color:T.textMid,lineHeight:1.5}}>
           <b style={{color:T.green3}}>Example photo:</b> the appliance's panel or dial with <b>ECO</b> selected and clearly readable. Include the whole panel, not just the light.
         </div>
       </div>
@@ -2725,7 +2719,7 @@ function EcoBonusCard({ T, wallet, setShowWallet, onSubmit, busy, usedThisWeek, 
       {preview ? (
         <div>
           <img src={preview.url} alt="Eco mode photo" style={{width:"100%",maxHeight:220,objectFit:"cover",borderRadius:6,border:`1px solid ${T.border}`,display:"block"}} />
-          <div style={{fontSize:11,color:T.textMid,margin:"8px 0 10px"}}>Is the <b>ECO</b> setting clearly visible? Submit for your {ECO_APPLIANCE_OPTIONS.find(a=>a.id===appliance)?.label} bonus, or retake.</div>
+          <div style={{fontSize:10.5,color:T.textMid,margin:"8px 0 10px"}}>Is the <b>ECO</b> setting clearly visible? Submit for your {ECO_APPLIANCE_OPTIONS.find(a=>a.id===appliance)?.label} bonus, or retake.</div>
           <div style={{display:"flex",gap:8}}>
             <button className="sbtn" style={{flex:1}} disabled={busy}
               onClick={() => { const f = preview.file; clearPreview(); onSubmit(f, appliance); }}>
@@ -2806,8 +2800,8 @@ function ChartsScreen({ subs, T }) {
     <div className="pstat">
       <div style={{fontSize:16,marginBottom:2}}>{icon}</div>
       <div className="pstat-val" style={{fontSize:19}}>{val}<span style={{fontSize:11,fontWeight:600,color:T.textSoft}}> {unit}</span></div>
-      <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".6px",color:T.textSoft,marginTop:2}}>{label}</div>
-      {sub && <div style={{fontSize:11,color:T.textSoft,marginTop:1}}>{sub}</div>}
+      <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".6px",color:T.textSoft,marginTop:2}}>{label}</div>
+      {sub && <div style={{fontSize:9,color:T.textSoft,marginTop:1}}>{sub}</div>}
     </div>
   );
 
@@ -2850,14 +2844,14 @@ function ChartsScreen({ subs, T }) {
           <div key={u.id} className="chart-card">
             <div className="chart-hdr">
               <div className="chart-title">{u.label} — {saving ? "usage vs target" : "production"}</div>
-              <div style={{fontSize:11,color:T.textSoft}}>{series.length ? `avg ${avg.toFixed(1)} ${u.unit}` : ""}</div>
+              <div style={{fontSize:10,color:T.textSoft}}>{series.length ? `avg ${avg.toFixed(1)} ${u.unit}` : ""}</div>
             </div>
             {series.length ? (
               <>
                 <div style={{position:"relative",height:110,display:"flex",alignItems:"flex-end",gap:2,padding:"14px 2px 0"}}>
                   {bench > 0 && (
                     <div style={{position:"absolute",left:0,right:0,bottom:`${(bench / maxScale) * 100}%`,borderTop:`2px dashed ${T.textSoft}`,zIndex:1}}>
-                      <span style={{position:"absolute",right:2,top:-14,fontSize:11,fontWeight:700,color:T.textSoft,background:T.card,padding:"0 3px"}}>target {bench} {u.unit}</span>
+                      <span style={{position:"absolute",right:2,top:-14,fontSize:9,fontWeight:700,color:T.textSoft,background:T.card,padding:"0 3px"}}>target {bench} {u.unit}</span>
                     </div>
                   )}
                   {series.map((d, i) => (
@@ -2866,10 +2860,10 @@ function ChartsScreen({ subs, T }) {
                   ))}
                 </div>
                 <div style={{display:"flex",gap:2,padding:"2px 2px 0"}}>
-                  {series.map((d, i) => <div key={i} style={{flex:1,textAlign:"center",fontSize:11,color:T.textSoft}}>{d.label}</div>)}
+                  {series.map((d, i) => <div key={i} style={{flex:1,textAlign:"center",fontSize:8.5,color:T.textSoft}}>{d.label}</div>)}
                 </div>
                 {saving && (
-                <div style={{display:"flex",gap:12,marginTop:8,fontSize:11,color:T.textMid}}>
+                <div style={{display:"flex",gap:12,marginTop:8,fontSize:9.5,color:T.textMid}}>
                   <span><span style={{display:"inline-block",width:8,height:8,borderRadius:2,background:T.green3,marginRight:4,verticalAlign:"middle"}}/>under target ({underCount})</span>
                   <span><span style={{display:"inline-block",width:8,height:8,borderRadius:2,background:T.electric,marginRight:4,verticalAlign:"middle"}}/>above target ({series.length - underCount})</span>
                 </div>
@@ -2886,25 +2880,25 @@ function ChartsScreen({ subs, T }) {
       <div className="chart-card">
         <div className="chart-hdr">
           <div className="chart-title">B3TR earned per week</div>
-          <div style={{fontSize:11,color:T.textSoft}}>last 6 weeks</div>
+          <div style={{fontSize:10,color:T.textSoft}}>last 6 weeks</div>
         </div>
         <div style={{position:"relative",height:90,display:"flex",alignItems:"flex-end",gap:4,padding:"12px 2px 0"}}>
           {weeks.map((w, i) => (
             <div key={i} title={`week of ${wkLabel(w.start)}: ${w.b3tr.toFixed(2)} B3TR (${w.n} submission${w.n === 1 ? "" : "s"})`}
               style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end",height:"100%"}}>
-              {w.b3tr > 0 && w.b3tr === weekMax && <div style={{fontSize:11,fontWeight:700,color:T.textMid,fontFamily:mono,marginBottom:2}}>{w.b3tr.toFixed(1)}</div>}
+              {w.b3tr > 0 && w.b3tr === weekMax && <div style={{fontSize:9,fontWeight:700,color:T.textMid,fontFamily:mono,marginBottom:2}}>{w.b3tr.toFixed(1)}</div>}
               <div style={{width:"100%",height: weekMax > 0 ? `${Math.max(4, (w.b3tr / weekMax) * 72)}%` : "4px",background: w.b3tr > 0 ? T.green3 : T.bgAlt,borderRadius:"4px 4px 0 0"}} />
             </div>
           ))}
         </div>
         <div style={{display:"flex",gap:4,padding:"2px 2px 0"}}>
-          {weeks.map((w, i) => <div key={i} style={{flex:1,textAlign:"center",fontSize:11,color: w.start === thisWeek ? T.green3 : T.textSoft,fontWeight: w.start === thisWeek ? 700 : 400}}>{w.start === thisWeek ? "now" : wkLabel(w.start)}</div>)}
+          {weeks.map((w, i) => <div key={i} style={{flex:1,textAlign:"center",fontSize:8.5,color: w.start === thisWeek ? T.green3 : T.textSoft,fontWeight: w.start === thisWeek ? 700 : 400}}>{w.start === thisWeek ? "now" : wkLabel(w.start)}</div>)}
         </div>
       </div>
 
       {/* Eco bonus + personal records */}
       <div className="chart-card">
-        <div className="chart-hdr"><div className="chart-title">🌿 Eco bonus this week</div><div style={{fontSize:11,color:T.textSoft}}>resets Monday</div></div>
+        <div className="chart-hdr"><div className="chart-title">🌿 Eco bonus this week</div><div style={{fontSize:10,color:T.textSoft}}>resets Monday</div></div>
         <div style={{display:"flex",alignItems:"center",gap:10,marginTop:4}}>
           <div style={{display:"flex",gap:5}}>
             {Array.from({ length: 4 }, (_, i) => (
@@ -3013,22 +3007,22 @@ function LeaderboardScreen({ b3tr, streak, subs, wallet, T }) {
   return (
     <>
       <div className="lb-hero" style={{borderLeftColor:currentTier.color}}>
-        <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"2.2px",color:T.textSoft,marginBottom:10}}>Your Rank & Tier</div>
+        <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:"2.2px",color:T.textSoft,marginBottom:10}}>Your Rank & Tier</div>
         <div className="lb-hero-rank">#{myRank}</div>
         <div style={{fontSize:12,fontWeight:700,color:currentTier.color,marginTop:8}}>{currentTier.name} Tier ({currentTier.multiplier}x bonus)</div>
         <div style={{fontSize:11,color:T.textSoft,marginTop:5}}>{(isLive ? myBoardB3tr : b3tr).toFixed(2)} B3TR · {streak} day streak</div>
 
-        <div style={{fontSize:11,fontWeight:700,color:T.green3,marginTop:10,display:"flex",alignItems:"center",gap:6}}>
+        <div style={{fontSize:10,fontWeight:700,color:T.green3,marginTop:10,display:"flex",alignItems:"center",gap:6}}>
           {myRank === 1 ? "🏆 Top of the leaderboard" : `↑ ${gapToNext.toFixed(2)} B3TR to reach #${myRank - 1}`}
         </div>
 
         {nextTier && (
           <div style={{marginTop:14,width:"100%"}}>
-            <div style={{fontSize:11,fontWeight:700,color:T.textMid,marginBottom:6}}>Progress to {nextTier.name} Tier</div>
+            <div style={{fontSize:9,fontWeight:700,color:T.textMid,marginBottom:6}}>Progress to {nextTier.name} Tier</div>
             <div style={{width:"100%",height:6,background:T.border,borderRadius:3,overflow:"hidden"}}>
               <div style={{width:`${progressPercent}%`,height:"100%",background:T.green3,transition:"width 0.3s"}}/>
             </div>
-            <div style={{fontSize:11,color:T.textSoft,marginTop:4,textAlign:"center"}}>{progressPercent}% • Need {b3trNeeded.toFixed(2)} more B3TR</div>
+            <div style={{fontSize:8,color:T.textSoft,marginTop:4,textAlign:"center"}}>{progressPercent}% • Need {b3trNeeded.toFixed(2)} more B3TR</div>
           </div>
         )}
       </div>
@@ -3037,32 +3031,32 @@ function LeaderboardScreen({ b3tr, streak, subs, wallet, T }) {
       <div style={{margin:"0 14px 14px",padding:14,background:T.card,border:`1px solid ${T.border}`,borderRadius:5}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
           <div style={{fontSize:11,fontWeight:700,color:T.text}}>100 B3TR Achievement</div>
-          <div style={{fontSize:11,fontWeight:700,color:T.green3,fontFamily:"'SF Mono',monospace"}}>{to100 > 0 ? `${to100.toFixed(2)} away` : "Achieved ✓"}</div>
+          <div style={{fontSize:10,fontWeight:700,color:T.green3,fontFamily:"'SF Mono',monospace"}}>{to100 > 0 ? `${to100.toFixed(2)} away` : "Achieved ✓"}</div>
         </div>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
           <div style={{fontSize:11,fontWeight:700,color:T.text}}>#1 Global Rank</div>
-          <div style={{fontSize:11,fontWeight:700,color:T.green3,fontFamily:"'SF Mono',monospace"}}>{myRank === 1 ? "You're #1!" : `${myRank - 1} spots away`}</div>
+          <div style={{fontSize:10,fontWeight:700,color:T.green3,fontFamily:"'SF Mono',monospace"}}>{myRank === 1 ? "You're #1!" : `${myRank - 1} spots away`}</div>
         </div>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div style={{fontSize:11,fontWeight:700,color:T.text}}>30-Day Streak</div>
-          <div style={{fontSize:11,fontWeight:700,color:T.green3,fontFamily:"'SF Mono',monospace"}}>{Math.max(0, 30-streak)} days away</div>
+          <div style={{fontSize:10,fontWeight:700,color:T.green3,fontFamily:"'SF Mono',monospace"}}>{Math.max(0, 30-streak)} days away</div>
         </div>
       </div>
 
       <div className="sec"><div className="sec-line"/><div className="sec-txt">📊 This Week</div><div className="sec-line"/></div>
       <div style={{margin:"0 14px 14px",padding:14,background:T.card,border:`1px solid ${T.border}`,borderRadius:5}}>
-        <div style={{fontSize:11,fontWeight:700,color:T.green3,marginBottom:8}}>✓ +{weekB3tr} B3TR</div>
-        <div style={{fontSize:11,fontWeight:700,color:T.green3,marginBottom:8}}>✓ +{weekSubs.length} submissions</div>
-        <div style={{fontSize:11,fontWeight:700,color:T.green3}}>✓ Avg: {(weekB3tr/7).toFixed(2)} B3TR/day</div>
+        <div style={{fontSize:10,fontWeight:700,color:T.green3,marginBottom:8}}>✓ +{weekB3tr} B3TR</div>
+        <div style={{fontSize:10,fontWeight:700,color:T.green3,marginBottom:8}}>✓ +{weekSubs.length} submissions</div>
+        <div style={{fontSize:10,fontWeight:700,color:T.green3}}>✓ Avg: {(weekB3tr/7).toFixed(2)} B3TR/day</div>
       </div>
 
       <div className="sec"><div className="sec-line"/><div className="sec-txt">💰 Earning Power</div><div className="sec-line"/></div>
       <div style={{margin:"0 14px 14px",padding:14,background:T.card,border:`1px solid ${T.border}`,borderRadius:5}}>
-        <div style={{fontSize:11,fontWeight:700,color:T.textSoft,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:8}}>Base Rate</div>
+        <div style={{fontSize:9,fontWeight:700,color:T.textSoft,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:8}}>Base Rate</div>
         <div style={{fontSize:11,fontWeight:700,color:T.text,marginBottom:12,fontFamily:"'SF Mono',monospace"}}>Ø {dailyAvg} B3TR/day</div>
-        <div style={{fontSize:11,fontWeight:700,color:T.textSoft,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:8}}>With {currentTier.name} Tier ({currentTier.multiplier}x)</div>
+        <div style={{fontSize:9,fontWeight:700,color:T.textSoft,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:8}}>With {currentTier.name} Tier ({currentTier.multiplier}x)</div>
         <div style={{fontSize:11,fontWeight:700,color:currentTier.color,marginBottom:12,fontFamily:"'SF Mono',monospace"}}>{withBonus} B3TR/day <span style={{color:T.green3}}>+{bonusExtra} bonus!</span></div>
-        <div style={{fontSize:11,color:T.textSoft,lineHeight:1.6}}>
+        <div style={{fontSize:9,color:T.textSoft,lineHeight:1.6}}>
           📅 Monthly: {(dailyAvg * 30).toFixed(2)} B3TR<br/>
           📅 Yearly: {(dailyAvg * 365).toFixed(2)} B3TR
         </div>
@@ -3073,13 +3067,13 @@ function LeaderboardScreen({ b3tr, streak, subs, wallet, T }) {
         {badges.map(b => (
           <div key={b.id} style={{padding:12,background:b.unlocked?T.card:T.bgAlt,border:`1px solid ${b.unlocked?T.border:T.textSoft}`,borderRadius:4,textAlign:"center",opacity:b.unlocked?1:0.5}}>
             <div style={{fontSize:24,marginBottom:4}}>{b.icon}</div>
-            <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.8px",color:T.textSoft}}>{b.name}</div>
+            <div style={{fontSize:8,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.8px",color:T.textSoft}}>{b.name}</div>
           </div>
         ))}
       </div>
 
       <div className="sec"><div className="sec-line"/><div className="sec-txt">Global Leaderboard</div><div className="sec-line"/></div>
-      <div style={{margin:"0 14px 10px",display:"flex",alignItems:"center",justifyContent:"center",gap:7,fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:chain.status==="live"?T.green3:T.textSoft}}>
+      <div style={{margin:"0 14px 10px",display:"flex",alignItems:"center",justifyContent:"center",gap:7,fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:chain.status==="live"?T.green3:T.textSoft}}>
         {chain.status==="loading"
           ? <><span className="spin-sm" style={{width:9,height:9,borderColor:`${T.border}`,borderTopColor:T.green3}}/> Loading on-chain rankings…</>
           : chain.status==="live"
@@ -3091,12 +3085,12 @@ function LeaderboardScreen({ b3tr, streak, subs, wallet, T }) {
         <div key={item.isMe ? "me" : (item.rawAddr || item.name)} className={`lb-item ${item.isMe ? 'me' : ''}`}>
           <div className="lb-rank">{item.rank}</div>
           <div style={{flex:1}}>
-            <div className="lb-name">{item.name} {item.isMe && <span style={{fontSize:11,fontWeight:700,background:T.green1,color:"#fff",borderRadius:1,padding:"1px 4px",letterSpacing:".8px"}}>YOU</span>}</div>
-            <div style={{fontSize:11,color:T.textSoft,fontFamily:"'SF Mono',monospace"}}>{item.addr}</div>
+            <div className="lb-name">{item.name} {item.isMe && <span style={{fontSize:7,fontWeight:700,background:T.green1,color:"#fff",borderRadius:1,padding:"1px 4px",letterSpacing:".8px"}}>YOU</span>}</div>
+            <div style={{fontSize:9,color:T.textSoft,fontFamily:"'SF Mono',monospace"}}>{item.addr}</div>
           </div>
           <div style={{textAlign:"right"}}>
             <div className="lb-b3tr">+{Number(item.b3tr).toFixed(item.count!=null ? 2 : (item.isMe ? 2 : 1))}</div>
-            <div style={{fontSize:11,color:T.textSoft}}>{item.count!=null ? `📸 ${item.count}` : `🔥 ${item.streak}d`}</div>
+            <div style={{fontSize:9,color:T.textSoft}}>{item.count!=null ? `📸 ${item.count}` : `🔥 ${item.streak}d`}</div>
           </div>
         </div>
       ))}
@@ -3151,7 +3145,7 @@ function AdminAccountTools({ T, onAdminApi, onToast }) {
 
   const inp = { width: "100%", boxSizing: "border-box", background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, padding: "9px 11px", fontSize: 12, color: T.text, fontFamily: "'SF Mono',Menlo,'Courier New',monospace", outline: "none" };
   const btn = (bg, fg, disabled) => ({ background: bg, color: fg, border: bg === "transparent" ? `1px solid ${T.border}` : "none", borderRadius: 6, padding: "9px 12px", fontWeight: 700, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap", opacity: disabled ? 0.6 : 1 });
-  const lbl = { fontSize:11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft, margin: "0 0 5px" };
+  const lbl = { fontSize:10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft, margin: "0 0 5px" };
   const card = { background: T.bgAlt, border: `1px solid ${T.border}`, borderRadius: 8, padding: 12, marginBottom: 10 };
 
   return (
@@ -3175,7 +3169,7 @@ function AdminAccountTools({ T, onAdminApi, onToast }) {
         <input value={reading} onChange={e => setReading(e.target.value)} type="number" step="0.01" inputMode="decimal" placeholder="Correct current reading" style={{ ...inp, marginBottom: 8 }} />
         <input value={owner} onChange={e => setOwner(e.target.value)} placeholder="Bind to wallet (optional 0x…)" spellCheck={false} style={inp} />
         <button disabled={busy === "base" || !meterNo.trim() || !(Number(reading) >= 0)} onClick={() => run("base", () => onAdminApi("/admin/set-baseline", { meterNo: meterNo.trim(), reading: Number(reading), ...(isAddr(owner) ? { targetWallet: owner.trim() } : {}) }), (d) => `✅ Baseline set: ${d.meterNo} → ${d.baseline}`)} style={{ ...btn(T.green3 || "#2e7d5b", "#fff", busy === "base" || !meterNo.trim() || !(Number(reading) >= 0)), marginTop: 8 }}>{busy === "base" ? "Saving…" : "Set baseline"}</button>
-        <div style={{ fontSize:11, color: T.textSoft, marginTop: 6, lineHeight: 1.5 }}>Sets the value future usage is measured from. Use it to correct a mis-entered reading. To let the user resubmit now, also reset their cooldown below.</div>
+        <div style={{ fontSize:10, color: T.textSoft, marginTop: 6, lineHeight: 1.5 }}>Sets the value future usage is measured from. Use it to correct a mis-entered reading. To let the user resubmit now, also reset their cooldown below.</div>
       </div>
 
       {/* Reset a wallet's cooldown */}
@@ -3230,7 +3224,7 @@ function FlaggedPanel({ T, address, onAdminApi }) {
     return (
       <div style={box}>
         <div style={head}>⚠️ Unconfirmed photos</div>
-        <div style={{ fontSize:11, color: T.textSoft, lineHeight: 1.6, marginBottom: 10 }}>
+        <div style={{ fontSize:10.5, color: T.textSoft, lineHeight: 1.6, marginBottom: 10 }}>
           Submissions whose photo the app couldn't auto-check. All were paid — this is for spotting a pattern, not a queue.
         </div>
         <button onClick={load} style={btn}>⚠️ Show for this wallet</button>
@@ -3259,13 +3253,13 @@ function FlaggedPanel({ T, address, onAdminApi }) {
         <div style={{ fontSize: 11, color: T.textSoft, lineHeight: 1.6 }}>None — every submission from this wallet passed the app's photo checks.</div>
       ) : flags.map((f) => (
         <div key={f.txid} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, padding: "9px 11px", marginBottom: 6 }}>
-          <div style={{ fontSize:11, color: T.text, lineHeight: 1.5 }}>{f.reason}</div>
-          <div style={{ fontSize:11, color: T.textSoft, marginTop: 3, fontFamily: mono, wordBreak: "break-all" }}>
+          <div style={{ fontSize:10.5, color: T.text, lineHeight: 1.5 }}>{f.reason}</div>
+          <div style={{ fontSize:9, color: T.textSoft, marginTop: 3, fontFamily: mono, wordBreak: "break-all" }}>
             {f.at ? new Date(f.at).toISOString().slice(0, 16).replace("T", " ") : "—"} · {String(f.txid).slice(0, 14)}…
           </div>
         </div>
       ))}
-      <div style={{ fontSize:11, color: T.textSoft, marginTop: 8, lineHeight: 1.6 }}>
+      <div style={{ fontSize:9.5, color: T.textSoft, marginTop: 8, lineHeight: 1.6 }}>
         These were paid. A single one usually means a blurry photo; many from one wallet is worth a look.
       </div>
     </div>
@@ -3314,7 +3308,7 @@ function AccessPassPanel({ T, address, onAdminApi, onToast }) {
     return (
       <div style={box}>
         <div style={head}>🎟️ Access pass</div>
-        <div style={{ fontSize:11, color: T.textSoft, lineHeight: 1.6, marginBottom: 10 }}>Who may earn. Anyone can use the app; only pass holders get paid.</div>
+        <div style={{ fontSize:10.5, color: T.textSoft, lineHeight: 1.6, marginBottom: 10 }}>Who may earn. Anyone can use the app; only pass holders get paid.</div>
         <button onClick={load} style={btn("transparent", T.textMid, false)}>🎟️ Check pass</button>
       </div>
     );
@@ -3338,12 +3332,12 @@ function AccessPassPanel({ T, address, onAdminApi, onToast }) {
         <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, padding: "10px 12px", marginBottom: 10 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
             <div style={{ fontSize: 14, fontWeight: 800, color: T.green3, fontFamily: mono }}>Pass #{p.no}</div>
-            <span style={{ background: T.gasBg, color: T.textMid, borderRadius: 4, padding: "3px 7px", fontSize:11, fontWeight: 800, textTransform: "uppercase" }}>{p.tier}</span>
+            <span style={{ background: T.gasBg, color: T.textMid, borderRadius: 4, padding: "3px 7px", fontSize:10, fontWeight: 800, textTransform: "uppercase" }}>{p.tier}</span>
           </div>
-          <div style={{ fontSize:11, color: T.textSoft, marginTop: 4 }}>
+          <div style={{ fontSize:10, color: T.textSoft, marginTop: 4 }}>
             Issued {p.issuedAt ? new Date(p.issuedAt).toISOString().slice(0, 10) : "—"}{p.issuedBy ? ` by ${shortAddr(p.issuedBy)}` : ""}
           </div>
-          {p.note ? <div style={{ fontSize:11, color: T.textMid, marginTop: 4 }}>{p.note}</div> : null}
+          {p.note ? <div style={{ fontSize:10.5, color: T.textMid, marginTop: 4 }}>{p.note}</div> : null}
         </div>
       ) : (
         <div style={{ fontSize: 11, color: T.textMid, marginBottom: 10, lineHeight: 1.6 }}>
@@ -3362,7 +3356,7 @@ function AccessPassPanel({ T, address, onAdminApi, onToast }) {
       </div>
 
       {!state.requirePass && (
-        <div style={{ fontSize:11, color: T.textSoft, marginTop: 8, lineHeight: 1.6 }}>
+        <div style={{ fontSize:9.5, color: T.textSoft, marginTop: 8, lineHeight: 1.6 }}>
           Passes aren't enforced yet — set <span style={{ fontFamily: mono }}>REQUIRE_PASS=true</span> in the backend to make them required. On the first boot after that, every wallet the backend already knows keeps earning automatically.
         </div>
       )}
@@ -3401,7 +3395,7 @@ function PassportPanel({ T, address, onAdminApi, onToast }) {
     return (
       <div style={box}>
         <div style={head}>🪪 VeBetterDAO passport</div>
-        <div style={{ fontSize:11, color: T.textSoft, lineHeight: 1.6, marginBottom: 10 }}>
+        <div style={{ fontSize:10.5, color: T.textSoft, lineHeight: 1.6, marginBottom: 10 }}>
           Whether VeBetterDAO still counts this wallet as a person, and how often it has been signalled as a bot.
         </div>
         <button onClick={load} style={btn("transparent", T.textMid, false)}>🪪 Check passport</button>
@@ -3424,7 +3418,7 @@ function PassportPanel({ T, address, onAdminApi, onToast }) {
   const authorized = st.authorized === true;
   // null means the node didn't answer — say "unknown" rather than implying a verdict.
   const person = p?.isPerson;
-  const pill = (bg, fg, text) => <span style={{ background: bg, color: fg, borderRadius: 4, padding: "3px 7px", fontSize:11, fontWeight: 800 }}>{text}</span>;
+  const pill = (bg, fg, text) => <span style={{ background: bg, color: fg, borderRadius: 4, padding: "3px 7px", fontSize:10, fontWeight: 800 }}>{text}</span>;
 
   const doSignal = async () => {
     if (reason.trim().length < 3) { onToast?.("❌ Give a reason first"); return; }
@@ -3455,15 +3449,15 @@ function PassportPanel({ T, address, onAdminApi, onToast }) {
       </div>
 
       {p?.reason ? (
-        <div style={{ fontSize:11, color: T.textMid, lineHeight: 1.6, marginBottom: 8 }}>
+        <div style={{ fontSize:10.5, color: T.textMid, lineHeight: 1.6, marginBottom: 8 }}>
           Contract's reason: <span style={{ fontFamily: mono }}>{p.reason}</span>
         </div>
       ) : null}
 
       <div style={{ display: "flex", gap: 16, marginBottom: 10 }}>
-        <div><span style={{ fontSize: 15, fontWeight: 600, color: T.text, fontFamily: mono }}>{p?.signals ?? "–"}</span> <span style={{ fontSize:11, color: T.textSoft }}>signals total</span></div>
-        <div><span style={{ fontSize: 15, fontWeight: 600, color: T.text, fontFamily: mono }}>{p?.appSignals ?? "–"}</span> <span style={{ fontSize:11, color: T.textSoft }}>from this app</span></div>
-        {st.threshold != null && <div><span style={{ fontSize: 15, fontWeight: 600, color: T.textSoft, fontFamily: mono }}>{st.threshold}</span> <span style={{ fontSize:11, color: T.textSoft }}>threshold</span></div>}
+        <div><span style={{ fontSize: 15, fontWeight: 600, color: T.text, fontFamily: mono }}>{p?.signals ?? "–"}</span> <span style={{ fontSize:9, color: T.textSoft }}>signals total</span></div>
+        <div><span style={{ fontSize: 15, fontWeight: 600, color: T.text, fontFamily: mono }}>{p?.appSignals ?? "–"}</span> <span style={{ fontSize:9, color: T.textSoft }}>from this app</span></div>
+        {st.threshold != null && <div><span style={{ fontSize: 15, fontWeight: 600, color: T.textSoft, fontFamily: mono }}>{st.threshold}</span> <span style={{ fontSize:9, color: T.textSoft }}>threshold</span></div>}
       </div>
 
       {authorized ? (
@@ -3478,12 +3472,12 @@ function PassportPanel({ T, address, onAdminApi, onToast }) {
             />
             <button disabled={busy} onClick={doSignal} style={btn("#c0392b", "#fff", busy)}>{busy ? "…" : "🚩 Signal as bot"}</button>
           </div>
-          <div style={{ fontSize:11, color: T.textSoft, marginTop: 8, lineHeight: 1.6 }}>
+          <div style={{ fontSize:9.5, color: T.textSoft, marginTop: 8, lineHeight: 1.6 }}>
             Ecosystem-wide and permanent from our side — only VeBetterDAO can reset a wallet's signals. To just stop someone claiming here, use <b>Block wallet</b> above.
           </div>
         </>
       ) : (
-        <div style={{ background: T.gasBg, border: `1px solid ${T.gasBorder}`, borderRadius: 6, padding: "10px 12px", fontSize:11, color: T.textMid, lineHeight: 1.6 }}>
+        <div style={{ background: T.gasBg, border: `1px solid ${T.gasBorder}`, borderRadius: 6, padding: "10px 12px", fontSize:10.5, color: T.textMid, lineHeight: 1.6 }}>
           ℹ️ <b>Signalling is not enabled for this app.</b> It needs <span style={{ fontFamily: mono }}>SIGNALER_ROLE</span> on the passport contract, which only VeBetterDAO can grant via{" "}
           <span style={{ fontFamily: mono }}>assignSignalerToApp</span>. Ask them to assign{" "}
           <span style={{ fontFamily: mono, wordBreak: "break-all" }}>{st.signaler || "your distributor wallet"}</span> as signaler for this app. Reading the passport above works regardless.
@@ -3529,12 +3523,12 @@ function WalletAdminActions({ T, address, meters, onAdminApi, onToast }) {
       </div>
 
       {shown.length === 0 && (
-        <div style={{ fontSize:11, color: T.textSoft, marginTop: 10, lineHeight: 1.5 }}>No meters yet from on-chain submissions. Tap <b>🔍 Load meters</b> to show ones registered on the backend, or add one below.</div>
+        <div style={{ fontSize:10.5, color: T.textSoft, marginTop: 10, lineHeight: 1.5 }}>No meters yet from on-chain submissions. Tap <b>🔍 Load meters</b> to show ones registered on the backend, or add one below.</div>
       )}
 
       {shown.map((m, i) => (
         <div key={i} style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${T.border}` }}>
-          <div style={{ fontSize:11, color: T.textSoft, marginBottom: 5 }}><span style={{ fontFamily: mono, color: T.text }}>{m.meterNo}</span> · {m.utility}{m.last != null ? ` · last ${m.last}` : ""}</div>
+          <div style={{ fontSize:10, color: T.textSoft, marginBottom: 5 }}><span style={{ fontFamily: mono, color: T.text }}>{m.meterNo}</span> · {m.utility}{m.last != null ? ` · last ${m.last}` : ""}</div>
           <div style={{ display: "flex", gap: 8 }}>
             <input value={vals[m.meterNo] ?? ""} onChange={e => setVals(v => ({ ...v, [m.meterNo]: e.target.value }))} type="number" step="0.01" inputMode="decimal" placeholder={`Fix reading${m.last != null ? ` (e.g. ${m.last})` : ""}`} style={inp} />
             <button disabled={busy === "base" + i || !(Number(vals[m.meterNo]) >= 0)} onClick={() => run("base" + i, () => onAdminApi("/admin/set-baseline", { meterNo: m.meterNo, utility: m.utility, reading: Number(vals[m.meterNo]), targetWallet: address }), (d) => `✅ Baseline set: ${d.meterNo} → ${d.baseline}`)} style={btn(T.green3 || "#2e7d5b", "#fff", busy === "base" + i || !(Number(vals[m.meterNo]) >= 0))}>{busy === "base" + i ? "…" : "Set"}</button>
@@ -3549,7 +3543,7 @@ function WalletAdminActions({ T, address, meters, onAdminApi, onToast }) {
       {/* Register / add a meter to this wallet (e.g. before their first submission,
           or to add a second utility). Sets its server-side baseline + ownership. */}
       <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${T.border}` }}>
-        <div style={{ fontSize:11, fontWeight: 700, color: T.textSoft, marginBottom: 5 }}>➕ Add a meter to this wallet</div>
+        <div style={{ fontSize:10, fontWeight: 700, color: T.textSoft, marginBottom: 5 }}>➕ Add a meter to this wallet</div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <input value={add.meterNo} onChange={e => setAdd(a => ({ ...a, meterNo: e.target.value }))} placeholder="Meter number" spellCheck={false} style={{ ...inp, flex: "2 1 120px" }} />
           <select value={add.utility} onChange={e => setAdd(a => ({ ...a, utility: e.target.value }))} style={{ ...inp, flex: "1 1 90px", fontFamily: "inherit", cursor: "pointer" }}>
@@ -3560,7 +3554,7 @@ function WalletAdminActions({ T, address, meters, onAdminApi, onToast }) {
         </div>
       </div>
 
-      <div style={{ fontSize:11, color: T.textSoft, marginTop: 10, lineHeight: 1.5 }}>Each action asks for one wallet signature (admin proof). Fix baseline corrects a mis-entered reading; Rename changes a wrong meter number (moves its baseline); Add registers a meter + baseline for this wallet. Meters/baselines live on the backend, not the chain.</div>
+      <div style={{ fontSize:10, color: T.textSoft, marginTop: 10, lineHeight: 1.5 }}>Each action asks for one wallet signature (admin proof). Fix baseline corrects a mis-entered reading; Rename changes a wrong meter number (moves its baseline); Add registers a meter + baseline for this wallet. Meters/baselines live on the backend, not the chain.</div>
     </div>
   );
 }
@@ -3620,14 +3614,14 @@ function SubmissionRow({ r, T, onAdminApi, onToast, archiveOn }) {
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:12,fontWeight:700,color:T.text}}>
             {isEco ? "Eco bonus" : "Meter reading"}
-            {!isEco && r.meterNo ? <span style={{fontWeight:400,color:T.textSoft,fontFamily:MONO,fontSize:11}}> · #{r.meterNo}</span> : null}
+            {!isEco && r.meterNo ? <span style={{fontWeight:400,color:T.textSoft,fontFamily:MONO,fontSize:10}}> · #{r.meterNo}</span> : null}
           </div>
-          <div style={{fontSize:11,color:T.textSoft,fontFamily:MONO}}>
+          <div style={{fontSize:10,color:T.textSoft,fontFamily:MONO}}>
             {isEco
               ? (r.appliance ? `${r.appliance} on eco mode` : "appliance on eco mode")
               : (usage != null ? `${r.prev} → ${r.cur} · ${usage} ${unit} used` : (r.cur !== "" ? `reading ${r.cur}` : "reading"))}
           </div>
-          <div style={{fontSize:11,color:T.textSoft,marginTop:2}}>{r.date}{txUrl ? " · tx ↗" : ""}</div>
+          <div style={{fontSize:9,color:T.textSoft,marginTop:2}}>{r.date}{txUrl ? " · tx ↗" : ""}</div>
         </div>
         {canPhoto && photo.status !== "deleted" && (
           <span onClick={(e) => e.stopPropagation()} style={{display:"flex",gap:4}}>
@@ -3643,7 +3637,7 @@ function SubmissionRow({ r, T, onAdminApi, onToast, archiveOn }) {
         </div>
       )}
       {photo.status === "deleted" && (
-        <div style={{padding:"0 12px 10px",fontSize:11,color:T.textSoft}}>🗑️ Photo deleted.</div>
+        <div style={{padding:"0 12px 10px",fontSize:10,color:T.textSoft}}>🗑️ Photo deleted.</div>
       )}
     </div>
   );
@@ -3745,7 +3739,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
         {onBack && <button onClick={onBack} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:4,padding:"6px 10px",fontSize:12,fontWeight:700,color:T.textMid,cursor:"pointer"}}>←</button>}
         <div>
           <div style={{fontSize:14,fontWeight:800,color:T.text}}>{title}</div>
-          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginTop:2}}>{sub}</div>
+          <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginTop:2}}>{sub}</div>
         </div>
       </div>
       <button onClick={onClose} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:4,padding:"6px 12px",fontSize:11,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Close</button>
@@ -3772,13 +3766,13 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
           <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:6,padding:"12px 14px",marginBottom:14}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
               <div style={{fontSize:13,fontWeight:700,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:T.text}}>{shortAddr(selected)}</div>
-              <button onClick={() => { try { navigator.clipboard.writeText(selected); } catch {} }} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:4,padding:"4px 8px",fontSize:11,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Copy</button>
+              <button onClick={() => { try { navigator.clipboard.writeText(selected); } catch {} }} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:4,padding:"4px 8px",fontSize:10,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Copy</button>
             </div>
-            <div style={{fontSize:11,color:T.textSoft,wordBreak:"break-all",marginTop:4,fontFamily:"'SF Mono',Menlo,'Courier New',monospace"}}>{selected}</div>
+            <div style={{fontSize:9,color:T.textSoft,wordBreak:"break-all",marginTop:4,fontFamily:"'SF Mono',Menlo,'Courier New',monospace"}}>{selected}</div>
             <div style={{display:"flex",gap:16,marginTop:10}}>
-              <div><span style={{fontSize:15,fontWeight:600,color:T.green3}}>{row ? row.b3tr.toFixed(2) : (detail.rows.reduce((a,r)=>a+(parseFloat(r.b3tr)||0),0)).toFixed(2)}</span> <span style={{fontSize:11,color:T.textSoft}}>B3TR</span></div>
-              <div><span style={{fontSize:15,fontWeight:600,color:T.text}}>{detail.rows.length}</span> <span style={{fontSize:11,color:T.textSoft}}>submissions</span></div>
-              <div><span style={{fontSize:15,fontWeight:600,color:T.text}}>{meters.length}</span> <span style={{fontSize:11,color:T.textSoft}}>meters</span></div>
+              <div><span style={{fontSize:15,fontWeight:600,color:T.green3}}>{row ? row.b3tr.toFixed(2) : (detail.rows.reduce((a,r)=>a+(parseFloat(r.b3tr)||0),0)).toFixed(2)}</span> <span style={{fontSize:9,color:T.textSoft}}>B3TR</span></div>
+              <div><span style={{fontSize:15,fontWeight:600,color:T.text}}>{detail.rows.length}</span> <span style={{fontSize:9,color:T.textSoft}}>submissions</span></div>
+              <div><span style={{fontSize:15,fontWeight:600,color:T.text}}>{meters.length}</span> <span style={{fontSize:9,color:T.textSoft}}>meters</span></div>
             </div>
           </div>
 
@@ -3807,7 +3801,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
               <span style={{fontSize:15}}>{UTIL_ICONS[m.utility]}</span>
               <div style={{flex:1}}>
                 <div style={{fontSize:12,fontWeight:700,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:T.text}}>{m.meterNo}</div>
-                <div style={{fontSize:11,color:T.textSoft,textTransform:"capitalize"}}>{m.utility} · {m.count} reading{m.count!==1?"s":""} · last {m.last}</div>
+                <div style={{fontSize:9,color:T.textSoft,textTransform:"capitalize"}}>{m.utility} · {m.count} reading{m.count!==1?"s":""} · last {m.last}</div>
               </div>
             </div>
           ))}
@@ -3824,15 +3818,15 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
                 <span style={{fontSize:16}}>{icon}</span>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontSize:12,fontWeight:700,color:T.textMid}}>{title}</div>
-                  <div style={{fontSize:11,color:T.textSoft,fontFamily:MONO}}>{sub}</div>
-                  <div style={{fontSize:11,color:T.textSoft,marginTop:2}}>2026-08-02 · tx ↗</div>
+                  <div style={{fontSize:10,color:T.textSoft,fontFamily:MONO}}>{sub}</div>
+                  <div style={{fontSize:9,color:T.textSoft,marginTop:2}}>2026-08-02 · tx ↗</div>
                 </div>
                 <div style={{fontSize:13,fontWeight:800,color:T.green3,fontFamily:MONO,whiteSpace:"nowrap"}}>{amt}</div>
               </div>
             );
             return (
               <div>
-                <div style={{fontSize:11,color:T.textSoft,marginBottom:8}}>No submissions yet — here's what they'll look like (example):</div>
+                <div style={{fontSize:10,color:T.textSoft,marginBottom:8}}>No submissions yet — here's what they'll look like (example):</div>
                 {ghost("⚡", "Meter reading", "3775 → 3776 · 1.0 kWh used", "+4.47")}
                 {ghost("🌿", "Eco bonus", "washer on eco mode", "+8.00")}
               </div>
@@ -3843,7 +3837,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
             <SubmissionRow key={r.id} r={r} T={T} onAdminApi={onAdminApi} onToast={onToast} archiveOn={!!(onAdminApi && diag.health?.photoArchive)} />
           ))}
           {onAdminApi && diag.health && !diag.health.photoArchive && detail.rows.length > 0 && (
-            <div style={{marginTop:2,fontSize:11,color:T.textSoft,padding:"0 2px"}}>
+            <div style={{marginTop:2,fontSize:9.5,color:T.textSoft,padding:"0 2px"}}>
               📷 Photo review is off. Set the R2 keys in the backend to keep a thumbnail of each submission here.
             </div>
           )}
@@ -3856,7 +3850,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
                 <PassportPanel T={T} address={selected} onAdminApi={onAdminApi} onToast={onToast} />
               </>
             : (
-              <div style={{marginTop:16,padding:"10px 12px",background:T.gasBg,border:`1px solid ${T.gasBorder}`,borderRadius:6,fontSize:11,color:T.textMid,lineHeight:1.6}}>
+              <div style={{marginTop:16,padding:"10px 12px",background:T.gasBg,border:`1px solid ${T.gasBorder}`,borderRadius:6,fontSize:10.5,color:T.textMid,lineHeight:1.6}}>
                 ℹ️ This view is read-only (the blockchain is the source of truth). <strong>Editing</strong> a wallet's meters requires the reward backend (meters are otherwise stored on each user's own device).
               </div>
             )}
@@ -3878,7 +3872,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
           ].map(s => (
             <div key={s.k} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:5,padding:"12px 8px",textAlign:"center"}}>
               <div style={{fontSize:17,fontWeight:600,color:T.text,fontFamily:"'SF Mono',monospace"}}>{s.v}</div>
-              <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".6px",color:T.textSoft,marginTop:3}}>{s.k}</div>
+              <div style={{fontSize:7.5,fontWeight:700,textTransform:"uppercase",letterSpacing:".6px",color:T.textSoft,marginTop:3}}>{s.k}</div>
             </div>
           ))}
         </div>
@@ -3899,7 +3893,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
               <span style={{fontSize:13,lineHeight:"16px"}}>{ok === null ? "◌" : ok ? "✅" : "❌"}</span>
               <div style={{flex:1}}>
                 <div style={{fontSize:11.5,fontWeight:700,color:ok === false ? T.gas : T.text}}>{label}</div>
-                {ok === false && fix && <div style={{fontSize:11,color:T.textMid,lineHeight:1.45,marginTop:2}}>{fix}</div>}
+                {ok === false && fix && <div style={{fontSize:10.5,color:T.textMid,lineHeight:1.45,marginTop:2}}>{fix}</div>}
               </div>
             </div>
           );
@@ -3908,7 +3902,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
                 <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".6px",color:T.green3}}>🩺 System check</div>
                 <button onClick={() => { setDiag({ status: "loading" }); runDiagnostics().catch(() => {}); }}
-                  style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"5px 10px",fontSize:11,fontWeight:700,color:T.textMid,cursor:"pointer"}}>
+                  style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"5px 10px",fontSize:10,fontWeight:700,color:T.textMid,cursor:"pointer"}}>
                   {diag.status === "loading" ? "…" : "↻ Re-run"}
                 </button>
               </div>
@@ -3969,15 +3963,15 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
               const c = pool.status === "live" ? (empty ? T.gas : T.green3) : T.textSoft;
               return (
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,background:T.bgAlt,border:`1px solid ${empty ? T.gasBorder : T.border}`,borderRadius:6,padding:"9px 12px",marginBottom:10}}>
-                  <span style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".6px",color:T.textSoft}}>Pool balance</span>
+                  <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".6px",color:T.textSoft}}>Pool balance</span>
                   <span style={{display:"inline-flex",alignItems:"center",fontSize:14,fontWeight:700,color:c,fontFamily:"'SF Mono',Menlo,'Courier New',monospace"}}>
                     {pool.status === "loading" ? "…" : pool.status === "error" ? "—" : `${pool.b3tr.toFixed(2)} B3TR`}
-                    {empty && <span style={{fontSize:11,fontWeight:700,marginLeft:6,color:T.gas,background:T.gasBg,border:`1px solid ${T.gasBorder}`,borderRadius:2,padding:"1px 5px"}}>EMPTY</span>}
+                    {empty && <span style={{fontSize:9,fontWeight:700,marginLeft:6,color:T.gas,background:T.gasBg,border:`1px solid ${T.gasBorder}`,borderRadius:2,padding:"1px 5px"}}>EMPTY</span>}
                   </span>
                 </div>
               );
             })()}
-            <div style={{fontSize:11,color:T.textMid,lineHeight:1.5,marginBottom:10}}>Deposit B3TR from your connected wallet into this app's reward pool. You sign one transaction (approve + deposit) in your wallet.</div>
+            <div style={{fontSize:10.5,color:T.textMid,lineHeight:1.5,marginBottom:10}}>Deposit B3TR from your connected wallet into this app's reward pool. You sign one transaction (approve + deposit) in your wallet.</div>
             <div style={{display:"flex",gap:8}}>
               <input value={fundAmt} onChange={e=>setFundAmt(e.target.value)} type="number" min="0" step="1" placeholder="B3TR amount"
                 style={{flex:1,boxSizing:"border-box",background:T.bgAlt,border:`1px solid ${T.border}`,borderRadius:6,padding:"10px 12px",fontSize:13,color:T.text,outline:"none"}} />
@@ -3988,7 +3982,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
             </div>
             {onMoveToRewardsPool && (
               <div style={{marginTop:8,display:"flex",alignItems:"center",gap:8}}>
-                <div style={{fontSize:11,color:T.textSoft,lineHeight:1.45,flex:1}}>Payouts reverting while funded? Move the deposit into the app's distributable rewards-pool bucket (same amount field above).</div>
+                <div style={{fontSize:10,color:T.textSoft,lineHeight:1.45,flex:1}}>Payouts reverting while funded? Move the deposit into the app's distributable rewards-pool bucket (same amount field above).</div>
                 <button disabled={funding} onClick={async()=>{ setFunding(true); try { await onMoveToRewardsPool(fundAmt); setDiag({ status: "loading" }); runDiagnostics().catch(() => {}); } finally { setFunding(false); } }}
                   style={{background:"transparent",color:T.green3,border:`1px solid ${T.green4||T.border}`,borderRadius:6,padding:"8px 12px",fontWeight:700,fontSize:11,cursor:"pointer",whiteSpace:"nowrap",opacity:funding?0.6:1}}>
                   ⇄ Move to rewards pool
@@ -3997,7 +3991,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
             )}
             {onDisableRewardsPool && (
               <div style={{marginTop:8,display:"flex",alignItems:"center",gap:8}}>
-                <div style={{fontSize:11,color:T.textSoft,lineHeight:1.45,flex:1}}>Or turn the rewards-pool feature OFF so payouts draw straight from available funds (no bucket-moving needed).</div>
+                <div style={{fontSize:10,color:T.textSoft,lineHeight:1.45,flex:1}}>Or turn the rewards-pool feature OFF so payouts draw straight from available funds (no bucket-moving needed).</div>
                 <button disabled={funding} onClick={async()=>{ setFunding(true); try { await onDisableRewardsPool(); setDiag({ status: "loading" }); runDiagnostics().catch(() => {}); } finally { setFunding(false); } }}
                   style={{background:"transparent",color:T.textMid,border:`1px solid ${T.border}`,borderRadius:6,padding:"8px 12px",fontWeight:700,fontSize:11,cursor:"pointer",whiteSpace:"nowrap",opacity:funding?0.6:1}}>
                   🔧 Disable feature
@@ -4006,7 +4000,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
             )}
             {onClaimB3TR && (
               <div style={{marginTop:10,paddingTop:10,borderTop:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
-                <div style={{fontSize:11,color:T.textSoft,lineHeight:1.45,flex:1}}>No test-B3TR yet? Claim a free batch from the testnet faucet first, then fund the pool.</div>
+                <div style={{fontSize:10,color:T.textSoft,lineHeight:1.45,flex:1}}>No test-B3TR yet? Claim a free batch from the testnet faucet first, then fund the pool.</div>
                 <button disabled={claiming} onClick={async()=>{ setClaiming(true); try { await onClaimB3TR(); } finally { setClaiming(false); } }}
                   style={{background:"transparent",color:T.green3,border:`1px solid ${T.green4||T.border}`,borderRadius:6,padding:"8px 12px",fontWeight:700,fontSize:11,cursor:"pointer",opacity:claiming?0.6:1,whiteSpace:"nowrap"}}>
                   {claiming ? "Claiming…" : "💧 Claim test-B3TR"}
@@ -4073,9 +4067,9 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
             <div style={{flex:1}}>
               <div className="lb-name" style={{fontFamily:"'SF Mono',monospace",fontSize:11}}>
                 {shortAddr(r.addr)}
-                {r.banned && <span style={{marginLeft:6,fontSize:11,fontWeight:800,color:"#c0392b"}}>BLOCKED</span>}
+                {r.banned && <span style={{marginLeft:6,fontSize:8,fontWeight:800,color:"#c0392b"}}>BLOCKED</span>}
               </div>
-              <div style={{fontSize:11,color:T.textSoft}}>
+              <div style={{fontSize:9,color:T.textSoft}}>
                 {r.isNew
                   ? `🆕 No rewards yet${r.meters?.length ? ` · ${r.meters.length} meter${r.meters.length !== 1 ? "s" : ""} registered` : ""} · tap to view`
                   : `📸 ${r.count} submission${r.count !== 1 ? "s" : ""} · tap to view`}
@@ -4083,7 +4077,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
             </div>
             <div style={{textAlign:"right"}}>
               <div className="lb-b3tr" style={r.isNew ? {color:T.textSoft} : undefined}>+{r.b3tr.toFixed(2)}</div>
-              <div style={{fontSize:11,color:T.textSoft}}>B3TR</div>
+              <div style={{fontSize:9,color:T.textSoft}}>B3TR</div>
             </div>
           </div>
         ))}
@@ -4099,8 +4093,8 @@ function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, notif
       <div className="profile-hero">
         <div style={{fontSize:18}}>🌱</div>
         <div className="pname">My Account</div>
-        <div style={{fontSize:11,color:T.textSoft,fontFamily:"'SF Mono',monospace",marginTop:3}}>{wallet ? shortAddr(wallet) : "Not connected"}</div>
-        <div style={{fontSize:11,fontWeight:700,background:T.bgAlt,color:tier.color,border:`1px solid ${T.border}`,borderRadius:2,padding:"3px 7px",marginTop:10,textTransform:"uppercase",letterSpacing:".8px"}}>{tier.name} Tier</div>
+        <div style={{fontSize:10,color:T.textSoft,fontFamily:"'SF Mono',monospace",marginTop:3}}>{wallet ? shortAddr(wallet) : "Not connected"}</div>
+        <div style={{fontSize:8,fontWeight:700,background:T.bgAlt,color:tier.color,border:`1px solid ${T.border}`,borderRadius:2,padding:"3px 7px",marginTop:10,textTransform:"uppercase",letterSpacing:".8px"}}>{tier.name} Tier</div>
       </div>
       
       <div className="pstat-row">
@@ -4187,7 +4181,7 @@ function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, notif
           <div className="sr-icon">💼</div>
           <div><div className="sr-label">Wallet</div><div className="sr-sub">{wallet || "Not connected"}</div></div>
         </div>
-        <div className="sr-right" style={{fontSize:11,color:T.green3}}>Connect</div>
+        <div className="sr-right" style={{fontSize:10,color:T.green3}}>Connect</div>
       </div>
       <div className="setting-row" style={{marginBottom:isAdmin?5:14}} onClick={() => setOnboarded(false)}>
         <div className="sr-left">
@@ -4350,7 +4344,7 @@ function HelpScreen({ onClose, onFeedback, T }) {
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 18px",borderBottom:`1px solid ${T.border}`}}>
         <div>
           <div style={{fontSize:14,fontWeight:800,color:T.text}}>❓ Help &amp; FAQ</div>
-          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginTop:2}}>{L.subtitle} · {NETWORK_LABEL}</div>
+          <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginTop:2}}>{L.subtitle} · {NETWORK_LABEL}</div>
         </div>
         <button onClick={onClose} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:4,padding:"6px 12px",fontSize:11,fontWeight:700,color:T.textMid,cursor:"pointer"}}>{L.close}</button>
       </div>
@@ -4397,7 +4391,7 @@ function HelpScreen({ onClose, onFeedback, T }) {
             background:T.card,border:`1px solid ${T.border}`,borderRadius:6,padding:"13px 14px",textDecoration:"none"}}>
           <span>
             <span style={{display:"block",fontSize:12.5,fontWeight:700,color:T.text}}>📖 Automatic meter reading — full guide</span>
-            <span style={{display:"block",fontSize:11,color:T.textSoft,marginTop:2}}>P1 reader, Home Assistant & other readers · step by step</span>
+            <span style={{display:"block",fontSize:10.5,color:T.textSoft,marginTop:2}}>P1 reader, Home Assistant & other readers · step by step</span>
           </span>
           <span style={{color:T.green3,fontWeight:800}}>↗</span>
         </a>
@@ -4450,7 +4444,7 @@ function FeedbackScreen({ onClose, onToast, wallet, tab, T }) {
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 18px",borderBottom:`1px solid ${T.border}`}}>
         <div>
           <div style={{fontSize:14,fontWeight:800,color:T.text}}>✉️ Send Feedback</div>
-          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginTop:2}}>Help us improve the test</div>
+          <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginTop:2}}>Help us improve the test</div>
         </div>
         <button onClick={onClose} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:4,padding:"6px 12px",fontSize:11,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Close</button>
       </div>
@@ -4468,7 +4462,7 @@ function FeedbackScreen({ onClose, onToast, wallet, tab, T }) {
           placeholder={kind==="bug" ? "What went wrong? What did you expect to happen?" : kind==="idea" ? "What would make this better?" : "Tell us anything…"}
           style={inputStyle}
         />
-        <div style={{fontSize:11,color:T.textSoft,lineHeight:1.55,margin:"10px 2px 16px"}}>
+        <div style={{fontSize:10.5,color:T.textSoft,lineHeight:1.55,margin:"10px 2px 16px"}}>
           We attach a little diagnostic info (app version, network, screen, device) so we can reproduce issues. No reading photos or private keys are ever included.
         </div>
         <button onClick={sendEmail} style={{width:"100%",background:T.green3,border:"none",borderRadius:6,padding:"13px",color:"#fff",fontSize:12,fontWeight:800,textTransform:"uppercase",letterSpacing:"1px",cursor:"pointer",marginBottom:8}}>✉️ Send via email</button>
@@ -5350,10 +5344,10 @@ export default function App() {
                 <div style={{width:7,height:7,borderRadius:"50%",background:online?T.green3:T.gas,animation:online?"pulse 2.5s infinite":"none"}}/>
               </div>
               <button className="dark-toggle" onClick={() => setShowHelp(true)} aria-label="Help and FAQ" title="Help & FAQ">
-                {UI_ICONS.help}
+                ❓
               </button>
               <button className="dark-toggle" onClick={toggleDark} aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}>
-                {dark ? UI_ICONS.sun : UI_ICONS.moon}
+                {dark ? '☀️' : '🌙'}
               </button>
               {/* Connect button — opens dapp-kit's wallet modal
                   (VeWorld, WalletConnect/mobile QR) via useWalletModal. */}
