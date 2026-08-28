@@ -392,7 +392,18 @@ app.post("/admin/photo", async (req, res) => {
   const txid = String(req.body.txid || "").trim();
   if (!txid) return res.status(400).json({ error: "txid is required" });
   const dataUrl = await getPhotoDataUrl(txid);
-  res.json({ ok: true, enabled: true, found: !!dataUrl, dataUrl: dataUrl || null });
+  if (dataUrl) return res.json({ ok: true, enabled: true, found: true, dataUrl });
+  // "No photo" has three very different causes and the admin could not tell them
+  // apart. The retention index records every submission we DID archive, so a missing
+  // blob with an index entry means the retention window passed (or it was deleted),
+  // while no index entry at all means the photo was never stored — typically a
+  // submission made before the archive was switched on.
+  const known = store.hasPhoto(txid);
+  res.json({
+    ok: true, enabled: true, found: false, dataUrl: null,
+    reason: known ? "expired" : "never-archived",
+    retentionDays: Number(process.env.PHOTO_RETENTION_DAYS || 30),
+  });
 });
 
 // Delete one archived photo (per-submission 🗑️ in admin, or a GDPR erase request).

@@ -1318,8 +1318,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .nitem{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;border:none;background:none;color:${T.textSoft};transition:all .18s;padding:6px 2px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;position:relative;}
 .nitem.active{color:${T.green2};}
 .nitem.active::before{content:'';position:absolute;top:-2px;left:50%;transform:translateX(-50%);width:20px;height:2px;background:${T.green3};border-radius:1px;}
-.nicon{width:30px;height:26px;display:flex;align-items:center;justify-content:center;color:inherit;}
-.nicon svg{width:21px;height:21px;}
+.nicon{font-size:17px;width:30px;height:26px;display:flex;align-items:center;justify-content:center;color:inherit;}
 .nlabel{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;}
 
 .toast{position:fixed;top:72px;left:50%;transform:translateX(-50%);background:${T.text};border-radius:3px;padding:8px 14px;font-size:11px;font-weight:700;letter-spacing:.3px;color:${T.bg};z-index:200;white-space:nowrap;animation:toastin .18s ease;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
@@ -3586,7 +3585,14 @@ function SubmissionRow({ r, T, onAdminApi, onToast, archiveOn }) {
     try {
       const d = await onAdminApi("/admin/photo", { txid: r.txHash });
       if (d.found && d.dataUrl) setPhoto({ status: "shown", dataUrl: d.dataUrl });
-      else { setPhoto({ status: "none", dataUrl: null }); onToast?.("📭 No photo stored for this submission"); }
+      else {
+        setPhoto({ status: "none", dataUrl: null });
+        onToast?.(d.reason === "expired"
+          ? `📭 This photo was archived but is past the ${d.retentionDays}-day retention window, so storage has dropped it`
+          : d.enabled === false
+            ? "📭 Photo archiving is switched off in the backend"
+            : "📭 No photo was ever archived for this submission — it predates the photo archive being switched on");
+      }
     } catch (err) { setPhoto({ status: "idle", dataUrl: null }); onToast?.(`⚠️ ${err.message}`); }
   };
   const deletePhoto = async (e) => {
@@ -5390,7 +5396,7 @@ export default function App() {
               a new tester's first impression was otherwise a tab holding an empty
               graph. It reappears the moment there's something to plot, and stays
               visible while you're standing on it so the nav never loses its place. */}
-          {[{id:"home",icon:UI_ICONS.home,label:"Home"},{id:"submit",icon:UI_ICONS.camera,label:"Submit"},{id:"charts",icon:UI_ICONS.chart,label:"Charts",show:subs.length>=CHARTS_MIN_SUBS||tab==="charts"},{id:"leaderboard",icon:UI_ICONS.trophy,label:"Rank"},{id:"profile",icon:UI_ICONS.person,label:"Profile"}].filter(n=>n.show!==false).map(n=>(
+          {[{id:"home",icon:"🏠",label:"Home"},{id:"submit",icon:"📸",label:"Submit"},{id:"charts",icon:"📊",label:"Charts",show:subs.length>=CHARTS_MIN_SUBS||tab==="charts"},{id:"leaderboard",icon:"🏆",label:"Rank"},{id:"profile",icon:"👤",label:"Profile"}].filter(n=>n.show!==false).map(n=>(
             <button key={n.id} className={`nitem ${tab===n.id?"active":""}`} onClick={()=>setTab(n.id)}>
               <div className="nicon">{n.icon}</div>
               <div className="nlabel">{n.label}</div>
