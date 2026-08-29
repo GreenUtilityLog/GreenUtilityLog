@@ -1848,11 +1848,11 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
     const verified = !blocked;
     const softFlags = fraudFlags.filter(f => f !== "duplicate_photo");
     const meterNote = meterNoConfirmed === true ? " ✓ Meter # confirmed on photo."
-      : meterNoConfirmed === false ? " ⚠ Meter # not detected on the photo — this doesn't stop your reward."
+      : meterNoConfirmed === false ? " Tip: next time try to get the whole meter in frame, including its number."
       : "";
     const summary  = blocked
       ? (fraudReason || "Verification failed. Please retake the photo.")
-      : `${getUtil(utilId).label} meter${meterNo ? ` #${meterNo}` : ""} accepted.${softFlags.length ? " ⚠ Some checks were inconclusive — noted for an admin, your reward is unaffected." : ` ${ocrResult.ocrNums?.length ? "OCR read: " + ocrResult.ocrNums.slice(0,2).join(", ") + "." : "Reading accepted."}`}${meterNote}`;
+      : `${getUtil(utilId).label} meter${meterNo ? ` #${meterNo}` : ""} accepted.${softFlags.length ? "" : ` ${ocrResult.ocrNums?.length ? "OCR read: " + ocrResult.ocrNums.slice(0,2).join(", ") + "." : "Reading accepted."}`}${meterNote}`;
 
     const finalResult = { verified, fraudFlags, fraudReason, summary, ocrNums: ocrResult.ocrNums, ocrFailed: !!ocrResult.ocrFailed, meterNoConfirmed, secScore: score, anomCheck, usageVal };
     setResult(finalResult);
@@ -2037,9 +2037,7 @@ function HistItem({ s, T }) {
       </div>
       <div className="hright">
         <div className="hb3tr">+{parseFloat(s.b3tr).toFixed(2)}</div>
-        {s.flagged
-          ? <div className="hstatus" style={{color:T.gas,background:T.gasBg,border:`1px solid ${T.gasBorder}`}} title="Paid. The photo couldn't be auto-checked, so it's noted for an admin to look at later.">⚠ noted</div>
-          : <div className={`hstatus s-${s.status}`}>{s.status}</div>}
+        <div className={`hstatus s-${s.status}`}>{s.status}</div>
       </div>
     </div>
   );
@@ -4782,7 +4780,7 @@ export default function App() {
             setSubs(prev => [{
               id: item.id, type: item.type, meterNo: item.meterNo || "",
               cur: item.cur, prev: item.prev, date: dayKey(new Date(item.id)),
-              b3tr: paid, status: item.flagged ? "review" : "confirmed", txHash: data.txid || "", submittedAt: item.id,
+              b3tr: paid, status: "confirmed", txHash: data.txid || "", submittedAt: item.id,
               // Carry the flag through. Without it this row had status "review" but no
               // `flagged`, so the history fell through to rendering the bare word
               // "review" — unstyled, unexplained, on a submission that was paid. The
@@ -5279,7 +5277,7 @@ export default function App() {
         prev: prevRead,
         date: dateStr,
         b3tr: paidAmount,
-        status: photoConfirmed ? "confirmed" : "review",
+        status: "confirmed",
         flagged: !photoConfirmed,
         flagReason,
         txHash: txid || "",
@@ -5294,11 +5292,7 @@ export default function App() {
       setPrevRead("");
       prevReadEdited.current = false;
       setVerifyKey(k => k + 1);
-      showToast(photoConfirmed
-        ? `✅ +${paidAmount.toFixed(2)} B3TR on ${NETWORK_LABEL}${txid ? ` • TX: ${txid.slice(0, 10)}...` : ""}`
-        // Paid either way. The old text said only "flagged for review" and omitted
-        // the amount, so a paid submission read as if it were being held.
-        : `✅ +${paidAmount.toFixed(2)} B3TR${txid ? ` • TX: ${txid.slice(0, 10)}...` : ""} — photo couldn't be auto-checked, noted for an admin`);
+      showToast(`✅ +${paidAmount.toFixed(2)} B3TR on ${NETWORK_LABEL}${txid ? ` • TX: ${txid.slice(0, 10)}...` : ""}`);
       setBusy(false);
     } catch (e) {
       setBusy(false);
