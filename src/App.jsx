@@ -2559,12 +2559,12 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
           const isSaving = SAVING_UTILS.has(u.id);
           const rateText = isSaving
             ? (usage() === 0
-                ? `${base} base + no consumption — maximum saving! (${bench} ${u.unit} under target × ${u.rate} B3TR)`
+                ? `${base} base + no consumption — maximum saving! (${bench} ${u.unit} under the per-submission target × ${u.rate} B3TR)`
                 : saved > 0
-                ? `${base} base + ${saved.toFixed(1)} ${u.unit} saved × ${u.rate} B3TR (target ≤ ${bench} ${u.unit})`
-                : `Base only — used ${usage()} ${u.unit}, target is ≤ ${bench} ${u.unit}`)
+                ? `${base} base + ${saved.toFixed(1)} ${u.unit} saved × ${u.rate} B3TR (target ≤ ${bench} ${u.unit} per submission)`
+                : `Base only — used ${usage()} ${u.unit}, target is ≤ ${bench} ${u.unit} per submission`)
             : `${base} base + ${usage()} ${u.unit} produced × ${u.rate} B3TR`;
-          return (
+          return (<>
             <div className="reward-preview">
               <div>
                 <div className="rp-label">Estimated Reward</div>
@@ -2575,7 +2575,16 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
                 <div className="rp-b3tr">B3TR</div>
               </div>
             </div>
-          );
+            {/* Say the quiet part out loud: the target counts per submission, so a
+                reading that covers several days is measured against a one-day
+                target. Without this the maths looks broken to anyone who doesn't
+                submit daily. */}
+            {isSaving && (
+              <div style={{fontSize:10,color:T.textSoft,lineHeight:1.5,margin:"-6px 0 12px 2px"}}>
+                The {bench} {u.unit} target counts per submission, not per day — so send a reading about once a day to stay under it.
+              </div>
+            )}
+          </>);
         })()}
 
         {!wallet
