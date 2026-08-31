@@ -20,7 +20,7 @@ const REDIS_KEY = process.env.STATE_KEY || "greenutilitylog:state";
 // `passes` is the access-pass registry (address → pass); `passesInit` records that the
 // one-time grandfathering has run, so turning REQUIRE_PASS on can't silently cut off
 // every existing tester — and can't re-grant a pass an admin has since revoked.
-const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {} };
+const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {} };
 
 // Cap the "seen wallets" roster so an open endpoint can't grow state without bound.
 // When exceeded we drop the least-recently-seen entries.
@@ -171,9 +171,23 @@ export const store = {
     return null;
   },
   setLastReading: (utility, meterNo, val) => {
-    state.readings[mKey(utility, meterNo)] = val;
-    if (mFallback(utility)) delete state.readings[meterNo]; // migrate legacy electric
+    const k = mKey(utility, meterNo);
+    state.readings[k] = val;
+    // When this reading was taken, so the next submission knows how many days it
+    // covers. Kept in its own map rather than nested in `readings`, so existing
+    // stored baselines keep their shape and nothing needs migrating.
+    state.readingAts[k] = Date.now();
+    if (mFallback(utility)) { delete state.readings[meterNo]; delete state.readingAts[meterNo]; }
     persist();
+  },
+  // Timestamp of the last paid reading for this meter, or null when we've never
+  // recorded one — which is also the case for meters that last submitted before
+  // this map existed. Callers treat null as "assume a single day".
+  lastReadingAt: (utility, meterNo) => {
+    const k = mKey(utility, meterNo);
+    if (Object.prototype.hasOwnProperty.call(state.readingAts, k)) return state.readingAts[k];
+    if (mFallback(utility) && Object.prototype.hasOwnProperty.call(state.readingAts, meterNo)) return state.readingAts[meterNo];
+    return null;
   },
   // ── Seen wallets ────────────────────────────────────────────────────────────
   // The admin participant list is built from on-chain rewards, so a tester who has

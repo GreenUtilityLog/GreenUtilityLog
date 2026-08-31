@@ -87,15 +87,48 @@ export function ecoWeekKey(ts = Date.now()) {
 }
 
 // Reward amount for a single reading, given the utility and its usage.
-export function computeReward(utility, usage) {
+// A reading covers the days since the previous one, so the benchmark it is judged
+// against has to cover the same span. Without this a tester who used 9 kWh over five
+// days — 1.8 a day, genuinely efficient — was measured against a one-day target of 8
+// and paid the floor, while the same consumption submitted daily paid 99x more.
+//
+// MAX_SPAN_DAYS bounds how far the target can stretch, so a long silence can't mint a
+// huge payout, and DAILY_REWARD_CAP puts a ceiling on B3TR per day covered.
+export const MAX_SPAN_DAYS     = Number(process.env.MAX_SPAN_DAYS || 7);
+export const DAILY_REWARD_CAP  = Number(process.env.DAILY_REWARD_CAP || 6);
+
+// Days a submission covers, clamped to [1, MAX_SPAN_DAYS]. Anything under a day (or
+// an unknown gap — a first submission, or a meter whose last reading predates this
+// being recorded) counts as one, which is exactly the old behaviour.
+export function spanDays(msSinceLastReading) {
+  const d = Number(msSinceLastReading) / 86400000;
+  if (!Number.isFinite(d) || d <= 1) return 1;
+  return Math.min(d, MAX_SPAN_DAYS);
+}
+
+export function computeReward(utility, usage, days = 1) {
+  const span = Math.min(Math.max(Number(days) || 1, 1), MAX_SPAN_DAYS);
   const base = REWARD_BASE[utility] ?? 0;
   const rate = RATES[utility] ?? 0;
+  let amount;
   if (SAVING_UTILS.has(utility)) {
-    const saved = Math.max(0, (USAGE_BENCHMARK[utility] ?? 0) - usage);
-    return +(base + saved * rate).toFixed(2);
+    const saved = Math.max(0, (USAGE_BENCHMARK[utility] ?? 0) * span - usage);
+    amount = base + saved * rate;
+  } else {
+    // solar / production meters: reward the clean energy produced
+    amount = base + Math.max(0, usage) * rate;
   }
-  // solar / production meters: reward the clean energy produced
-  return +(base + Math.max(0, usage) * rate).toFixed(2);
+  // Ceiling scales with the span too, so it means the same thing however often
+  // someone submits: at most DAILY_REWARD_CAP B3TR per day covered.
+  return +Math.min(amount, DAILY_REWARD_CAP * span).toFixed(2);
+}
+
+// Plausible usage grows with the span as well — otherwise a perfectly normal
+// fortnight's consumption is rejected as "outside the plausible range".
+export function usageBoundsFor(utility, days = 1) {
+  const span = Math.min(Math.max(Number(days) || 1, 1), MAX_SPAN_DAYS);
+  const [lo, hi] = USAGE_BOUNDS[utility] || [0, Infinity];
+  return [lo, hi * span];
 }
 
 // Plausible usage bounds per utility — MUST match the frontend checkPlausibility
