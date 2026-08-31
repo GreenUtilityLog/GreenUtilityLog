@@ -595,6 +595,9 @@ const UTIL_ICONS = {
 const UTILS = [
   { id:"electric", label:"Electric", unit:"kWh", rate:0.61, ph:["3834.8","3847.2"], hint:"Lights, appliances, boiler" },
   // Hidden for now — testing electricity first. Uncomment a line to bring that meter back.
+  // Before re-enabling SOLAR: DAILY_REWARD_CAP (6 B3TR per day covered) applies to
+  // production meters too, and solar is rewarded for producing MORE, not less. A good
+  // day used to pay around 43; under the cap it pays 6. Decide that deliberately.
   // { id:"gas",      label:"Gas",      unit:"m³",  rate:0.84, ph:["521.4","523.1"],   hint:"Heating & cooking" },
   // { id:"water",    label:"Water",    unit:"L",   rate:0.12, ph:["12320","12450"],    hint:"Household water usage" },
   // { id:"solar",    label:"Solar",    unit:"kWh", rate:0.72, ph:["130.1","142.3"],    hint:"Solar panel output", optional:true },
