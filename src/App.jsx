@@ -623,15 +623,33 @@ const CHARTS_MIN_SUBS = 2;
 const REWARD_BASE     = { electric: 0.2, gas: 0.2, water: 0.1, solar: 0.2 };
 const USAGE_BENCHMARK = { electric: 8,   gas: 6,   water: 300, solar: 0   };
 const SAVING_UTILS    = new Set(["electric", "gas", "water"]); // solar rewards production
-function computeReward(utilId, usage) {
+// MUST mirror server/config.js — the preview here and the payout there have to
+// agree, or the app promises a number it doesn't deliver.
+const MAX_SPAN_DAYS    = 7;
+const DAILY_REWARD_CAP = 6;
+
+// Days this reading covers, clamped to [1, MAX_SPAN_DAYS]. The target stretches with
+// it, so a reading taken after five days is judged against five days of allowance
+// instead of one — which is what made an efficient five-day reading pay the floor.
+function spanDays(msSinceLastReading) {
+  const d = Number(msSinceLastReading) / 86400000;
+  if (!Number.isFinite(d) || d <= 1) return 1;
+  return Math.min(d, MAX_SPAN_DAYS);
+}
+
+function computeReward(utilId, usage, days = 1) {
   const u = UTILS.find(x => x.id === utilId) || {};
+  const span = Math.min(Math.max(Number(days) || 1, 1), MAX_SPAN_DAYS);
   const base = REWARD_BASE[utilId] ?? 0;
   const rate = u.rate ?? 0;
+  let amount;
   if (SAVING_UTILS.has(utilId)) {
-    const saved = Math.max(0, (USAGE_BENCHMARK[utilId] ?? 0) - usage);
-    return parseFloat((base + saved * rate).toFixed(2));
+    const saved = Math.max(0, (USAGE_BENCHMARK[utilId] ?? 0) * span - usage);
+    amount = base + saved * rate;
+  } else {
+    amount = base + Math.max(0, usage) * rate;
   }
-  return parseFloat((base + Math.max(0, usage) * rate).toFixed(2));
+  return parseFloat(Math.min(amount, DAILY_REWARD_CAP * span).toFixed(2));
 }
 
 const HISTORY_SEED = [
@@ -2403,7 +2421,7 @@ curl -X POST ${ingestUrl} \\
   );
 }
 
-function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading, setReading, prevRead, setPrevRead, busy, usage, reward, handleSubmit, verifyKey, wallet, setShowWallet, subs, meters, T, setTab, onEcoSubmit, ecoBusy, ecoUsedThisWeek, ecoCooldownMs, onMeterAutoSubmit, meterAutoBusy, onRegisterMeter }) {
+function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading, setReading, prevRead, setPrevRead, busy, usage, reward, days, handleSubmit, verifyKey, wallet, setShowWallet, subs, meters, T, setTab, onEcoSubmit, ecoBusy, ecoUsedThisWeek, ecoCooldownMs, onMeterAutoSubmit, meterAutoBusy, onRegisterMeter }) {
   const meterNo  = (meters?.[selUtil] || "").trim();
   // Submittable when current ≥ previous (equal = zero usage = valid, max reward).
   const _r = parseFloat(reading), _p = parseFloat(prevRead);
@@ -2553,7 +2571,8 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
         )}
 
         {readingReady && (() => {
-          const bench = USAGE_BENCHMARK[u.id] ?? 0;
+          const span  = Math.min(Math.max(Number(days) || 1, 1), MAX_SPAN_DAYS);
+          const bench = +((USAGE_BENCHMARK[u.id] ?? 0) * span).toFixed(1);
           const saved = Math.max(0, bench - usage());
           const base  = REWARD_BASE[u.id] ?? 0;
           const isSaving = SAVING_UTILS.has(u.id);
@@ -2581,7 +2600,9 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
                 submit daily. */}
             {isSaving && (
               <div style={{fontSize:10,color:T.textSoft,lineHeight:1.5,margin:"-6px 0 12px 2px"}}>
-                The {bench} {u.unit} target counts per submission, not per day — so send a reading about once a day to stay under it.
+                {span > 1
+                  ? `Target ${bench} ${u.unit} — ${USAGE_BENCHMARK[u.id]} per day over the ${span.toFixed(span % 1 ? 1 : 0)} days since your last reading.`
+                  : `Target ${bench} ${u.unit} per day. Take longer between readings and the target grows with it, up to ${MAX_SPAN_DAYS} days.`}
               </div>
             )}
           </>);
@@ -5036,7 +5057,13 @@ export default function App() {
   const readingReady = () => { const r=parseFloat(reading),p=parseFloat(prevRead); return Number.isFinite(r)&&Number.isFinite(p)&&r>=p; };
   const usage = () => { const r=parseFloat(reading),p=parseFloat(prevRead); return readingReady()?parseFloat((r-p).toFixed(2)):0; };
   // Conservation reward: you earn for using LESS than the benchmark, not more.
-  const reward = () => (readingReady() ? computeReward(selUtil, usage()) : 0);
+  // The benchmark covers the days since this meter's last reading, so a reading that
+  // spans several days is judged against several days of allowance.
+  const daysSinceLast = () => {
+    const last = subs.find(x => x.type === selUtil && x.submittedAt);
+    return last ? spanDays(Date.now() - last.submittedAt) : 1;
+  };
+  const reward = () => (readingReady() ? computeReward(selUtil, usage(), daysSinceLast()) : 0);
 
   // ── Eco-mode bonus ──────────────────────────────────────────────────────────
   // Photo of an appliance running in eco mode → fixed bonus via the backend.
@@ -5381,7 +5408,7 @@ export default function App() {
           )}
 
           {tab==="home"      && <HomeScreen b3tr={b3tr} streak={streak} subs={subs} setTab={setTab} T={T}/>}
-          {tab==="submit"    && <SubmitScreen u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} busy={busy} usage={usage} reward={reward} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab} onEcoSubmit={handleEcoSubmit} ecoBusy={ecoBusy} ecoUsedThisWeek={ecoUsedThisWeek} ecoCooldownMs={ecoCooldownMs} onMeterAutoSubmit={handleMeterAutoSubmit} meterAutoBusy={meterAutoBusy} onRegisterMeter={(utils) => openRegistration(utils, true)}/>}
+          {tab==="submit"    && <SubmitScreen u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} busy={busy} usage={usage} reward={reward} days={daysSinceLast()} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab} onEcoSubmit={handleEcoSubmit} ecoBusy={ecoBusy} ecoUsedThisWeek={ecoUsedThisWeek} ecoCooldownMs={ecoCooldownMs} onMeterAutoSubmit={handleMeterAutoSubmit} meterAutoBusy={meterAutoBusy} onRegisterMeter={(utils) => openRegistration(utils, true)}/>}
           {tab==="charts"    && <ChartsScreen subs={subs} T={T}/>}
           {tab==="leaderboard" && <LeaderboardScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}

@@ -3,7 +3,7 @@
 // every payout is re-validated here. The reward AMOUNT is always recomputed on
 // the server — a client-sent amount is never trusted.
 
-import { RATES, UNITS, USAGE_BOUNDS, COOLDOWN_MS, computeReward, MAX_REWARD } from "./config.js";
+import { RATES, UNITS, COOLDOWN_MS, computeReward, usageBoundsFor, spanDays, MAX_REWARD } from "./config.js";
 import { store } from "./store.js";
 
 const isAddress = (a) => typeof a === "string" && /^0x[0-9a-fA-F]{40}$/.test(a);
@@ -43,7 +43,15 @@ export function validateSubmission(body) {
   if (r < prev) return { ok: false, error: `current reading (${r}) can't be lower than the last recorded reading (${prev})` };
 
   const usage = +(r - prev).toFixed(2);
-  const [lo, hi] = USAGE_BOUNDS[utility] || [0, Infinity];
+
+  // How many days this reading covers, from the timestamp of the last paid reading
+  // for THIS meter (not the wallet cooldown, which would be wrong for a wallet with
+  // two meters on the same utility). Unknown — a first submission, or a meter last
+  // read before we recorded timestamps — counts as one day, i.e. the old behaviour.
+  const lastAt = store.lastReadingAt(utility, meterKey);
+  const days = lastAt ? spanDays(Date.now() - lastAt) : 1;
+
+  const [lo, hi] = usageBoundsFor(utility, days);
   // usage 0 (equal readings) is allowed; only a tiny-but-nonzero delta below the
   // plausible floor, or an abnormally high delta, is rejected.
   if ((usage > 0 && usage < lo) || usage > hi) {
@@ -60,7 +68,7 @@ export function validateSubmission(body) {
 
   // Server is the source of truth for the reward amount. Conservation-based:
   // you earn for using LESS than the benchmark, not for using more.
-  const amount = computeReward(utility, usage);
+  const amount = computeReward(utility, usage, days);
   if (amount <= 0) return { ok: false, error: "computed reward is zero" };
   // Hard per-payout ceiling — a stateless sanity bound so a bug or a crafted
   // submission can never sign an absurd amount. Tune MAX_REWARD in config/env.
@@ -69,6 +77,7 @@ export function validateSubmission(body) {
   return {
     ok: true,
     usage,
+    days,
     prev, // server-authoritative baseline, so the on-chain proof reflects what we validated
     amount,
     // Called only after a successful payout: start the cooldown, bind the meter
