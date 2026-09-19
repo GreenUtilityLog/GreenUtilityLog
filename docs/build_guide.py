@@ -63,7 +63,7 @@ L["en"] = dict(
   ],
   b=[
     ("Turn on the Local API", 'In the <strong>HomeWizard Energy</strong> app: <span class="k">Settings → Meters → your P1 → Local API → ON</span>. This lets your own network read the meter.', None, None, None),
-    ("Open a terminal on a device that stays on", '<strong>Windows:</strong> press Start, type <em>PowerShell</em>. <strong>Mac:</strong> open <em>Terminal</em>. <strong>Pi / NAS:</strong> its terminal, or over SSH.', "see", "You need Node.js 18+", 'Not installed? Get it from nodejs.org first, or the command below won\'t run.'),
+    ("Open a terminal on a device that stays on", '<strong>Windows:</strong> press Start, type <em>PowerShell</em>. <strong>Mac:</strong> open <em>Terminal</em>. <strong>Pi / NAS:</strong> its terminal, or over SSH.', "see", "You need Node.js 18+", 'Not installed? On Windows paste <span class="k">winget install OpenJS.NodeJS.LTS</span> and then open a <strong>new</strong> PowerShell window. Anywhere else: nodejs.org. That is the only thing you need — git isn\'t.'),
     ("Paste one line, press Enter", 'It downloads the helper and starts it. The first time it asks for your token — paste that and press Enter. It remembers it, so after this you only ever run <span class="k">node gul.js</span>. Leave the window open.', "code2", RUN, CAPS),
     ("Check it found the meter", 'You should see the meter being discovered and then pushed.', "see", "Expected output", '<span class="k">found HomeWizard at 192.168.…</span> then <span class="k">pushed 8421.3 kWh ✓</span>'),
   ],
@@ -86,7 +86,7 @@ L["en"] = dict(
   be_b="Digital Fluvius meters send encrypted data. Ask Fluvius for your free decryption key and enter it once in your reader's app — after that everything works the same.",
   th=("You see", "What to do"),
   trouble=[
-    ("'node' is not recognized", 'Node.js isn\'t installed, or that window was already open when you installed it. Get it from <span class="k">nodejs.org</span>, then open a <strong>new</strong> terminal and paste the line again. You do not need git.'),
+    ("'node' is not recognized", 'Node.js isn\'t installed, or that window was already open when you installed it. On Windows: <span class="k">winget install OpenJS.NodeJS.LTS</span>. Elsewhere: nodejs.org. Then open a <strong>new</strong> terminal and paste the line again. You do not need git.'),
     ("No HomeWizard found", 'Your network blocks auto-discovery. Find your P1\'s IP in the HomeWizard app and set <span class="k">hw_ip</span> (add-on) or add <span class="k">--ip=192.168.1.50</span> to the end of the command.'),
     ("couldn't find a total import kWh", 'The reader returned JSON the helper didn\'t recognise. Set <span class="k">--field=</span> to the dot-path of the cumulative kWh value.'),
     ("Nothing under “Auto-received”", 'Check the token is pasted correctly and the helper is still running on the same network as the meter.'),
@@ -136,7 +136,7 @@ L["nl"] = dict(
   ],
   b=[
     ("Zet de Local API aan", 'In de <strong>HomeWizard Energy</strong>-app: <span class="k">Instellingen → Meters → je P1 → Local API → AAN</span>. Hiermee mag je eigen netwerk de meter uitlezen.', None, None, None),
-    ("Open een terminal op een apparaat dat aan blijft", '<strong>Windows:</strong> druk op Start, typ <em>PowerShell</em>. <strong>Mac:</strong> open <em>Terminal</em>. <strong>Pi / NAS:</strong> de terminal daar, of via SSH.', "see", "Je hebt Node.js 18+ nodig", 'Niet geïnstalleerd? Haal het eerst van nodejs.org, anders werkt het commando niet.'),
+    ("Open een terminal op een apparaat dat aan blijft", '<strong>Windows:</strong> druk op Start, typ <em>PowerShell</em>. <strong>Mac:</strong> open <em>Terminal</em>. <strong>Pi / NAS:</strong> de terminal daar, of via SSH.', "see", "Je hebt Node.js 18+ nodig", 'Niet geïnstalleerd? Plak op Windows <span class="k">winget install OpenJS.NodeJS.LTS</span> en open daarna een <strong>nieuw</strong> PowerShell-venster. Elders: nodejs.org. Meer heb je niet nodig — git dus niet.'),
     ("Plak één regel, druk op Enter", 'Die haalt de helper op en start hem. De eerste keer vraagt hij om je token — plak dat en druk op Enter. Hij onthoudt het, dus daarna start je hem met alleen <span class="k">node gul.js</span>. Laat het venster openstaan.', "code2", RUN, CAPS),
     ("Controleer of hij de meter vond", 'Je hoort te zien dat de meter gevonden en verstuurd wordt.', "see", "Dit hoor je te zien", '<span class="k">found HomeWizard at 192.168.…</span> en daarna <span class="k">pushed 8421.3 kWh ✓</span>'),
   ],
@@ -159,7 +159,7 @@ L["nl"] = dict(
   be_b="Digitale Fluvius-meters sturen versleutelde data. Vraag bij Fluvius je gratis decryptiesleutel op en voer die één keer in de app van je reader in — daarna werkt alles hetzelfde.",
   th=("Je ziet", "Wat te doen"),
   trouble=[
-    ("'node' is not recognized", 'Node.js staat er niet op, of het venster stond al open toen je het installeerde. Haal het van <span class="k">nodejs.org</span>, open daarna een <strong>nieuw</strong> venster en plak de regel opnieuw. Git heb je niet nodig.'),
+    ("'node' is not recognized", 'Node.js staat er niet op, of het venster stond al open toen je het installeerde. Op Windows: <span class="k">winget install OpenJS.NodeJS.LTS</span>. Elders: nodejs.org. Open daarna een <strong>nieuw</strong> venster en plak de regel opnieuw. Git heb je niet nodig.'),
     ("No HomeWizard found", 'Je netwerk blokkeert auto-detectie. Zoek het IP van je P1 in de HomeWizard-app en vul <span class="k">hw_ip</span> in (add-on) of zet <span class="k">--ip=192.168.1.50</span> achter het commando.'),
     ("couldn't find a total import kWh", 'De reader gaf JSON terug die het hulpprogramma niet herkende. Zet <span class="k">--field=</span> op het pad naar de cumulatieve kWh-waarde.'),
     ("Niets onder “Auto-received”", 'Controleer of de token goed geplakt is en of het hulpprogramma nog draait op hetzelfde netwerk als de meter.'),
@@ -209,7 +209,7 @@ L["de"] = dict(
   ],
   b=[
     ("Local API aktivieren", 'In der <strong>HomeWizard Energy</strong>-App: <span class="k">Einstellungen → Zähler → dein P1 → Local API → EIN</span>. Damit darf dein Netzwerk den Zähler auslesen.', None, None, None),
-    ("Terminal auf einem Dauergerät öffnen", '<strong>Windows:</strong> Start drücken, <em>PowerShell</em> tippen. <strong>Mac:</strong> <em>Terminal</em> öffnen. <strong>Pi / NAS:</strong> dessen Terminal oder per SSH.', "see", "Du brauchst Node.js 18+", 'Nicht installiert? Erst von nodejs.org holen, sonst läuft der Befehl nicht.'),
+    ("Terminal auf einem Dauergerät öffnen", '<strong>Windows:</strong> Start drücken, <em>PowerShell</em> tippen. <strong>Mac:</strong> <em>Terminal</em> öffnen. <strong>Pi / NAS:</strong> dessen Terminal oder per SSH.', "see", "Du brauchst Node.js 18+", 'Nicht installiert? Unter Windows <span class="k">winget install OpenJS.NodeJS.LTS</span> einfügen und danach ein <strong>neues</strong> PowerShell-Fenster öffnen. Sonst: nodejs.org. Mehr brauchst du nicht — git nicht.'),
     ("Eine Zeile einfügen, Enter drücken", 'Sie lädt das Hilfsprogramm und startet es. Beim ersten Mal fragt es nach deinem Token — einfügen und Enter. Es merkt es sich, danach genügt <span class="k">node gul.js</span>. Lass das Fenster offen.', "code2", RUN, CAPS),
     ("Prüfen, ob er den Zähler fand", 'Du solltest sehen, wie der Zähler gefunden und gesendet wird.', "see", "Erwartete Ausgabe", '<span class="k">found HomeWizard at 192.168.…</span> und danach <span class="k">pushed 8421.3 kWh ✓</span>'),
   ],
@@ -232,7 +232,7 @@ L["de"] = dict(
   be_b="Digitale Fluvius-Zähler senden verschlüsselt. Frag bei Fluvius deinen kostenlosen Entschlüsselungscode an und gib ihn einmal in der App deines Readers ein — danach läuft alles gleich.",
   th=("Du siehst", "Was tun"),
   trouble=[
-    ("'node' is not recognized", 'Node.js fehlt, oder das Fenster war schon offen, als du es installiert hast. Hol es von <span class="k">nodejs.org</span>, öffne dann ein <strong>neues</strong> Fenster und füg die Zeile erneut ein. Git brauchst du nicht.'),
+    ("'node' is not recognized", 'Node.js fehlt, oder das Fenster war schon offen, als du es installiert hast. Unter Windows: <span class="k">winget install OpenJS.NodeJS.LTS</span>. Sonst: nodejs.org. Öffne dann ein <strong>neues</strong> Fenster und füg die Zeile erneut ein. Git brauchst du nicht.'),
     ("No HomeWizard found", 'Dein Netzwerk blockiert die Erkennung. IP deines P1 in der HomeWizard-App suchen und <span class="k">hw_ip</span> setzen (Add-on) oder <span class="k">--ip=192.168.1.50</span> ans Ende des Befehls.'),
     ("couldn't find a total import kWh", 'Der Reader lieferte JSON, das nicht erkannt wurde. Setz <span class="k">--field=</span> auf den Pfad zum kumulativen kWh-Wert.'),
     ("Nichts unter „Auto-received“", 'Prüfe, ob der Token korrekt eingefügt ist und das Hilfsprogramm noch im selben Netzwerk wie der Zähler läuft.'),
@@ -282,7 +282,7 @@ L["fr"] = dict(
   ],
   b=[
     ("Activez l'API locale", 'Dans l\'app <strong>HomeWizard Energy</strong> : <span class="k">Réglages → Compteurs → votre P1 → Local API → ON</span>. Votre réseau peut alors lire le compteur.', None, None, None),
-    ("Ouvrez un terminal sur un appareil qui reste allumé", '<strong>Windows :</strong> Démarrer, tapez <em>PowerShell</em>. <strong>Mac :</strong> ouvrez <em>Terminal</em>. <strong>Pi / NAS :</strong> son terminal, ou en SSH.', "see", "Il vous faut Node.js 18+", 'Pas installé ? Prenez-le sur nodejs.org, sinon la commande ne marchera pas.'),
+    ("Ouvrez un terminal sur un appareil qui reste allumé", '<strong>Windows :</strong> Démarrer, tapez <em>PowerShell</em>. <strong>Mac :</strong> ouvrez <em>Terminal</em>. <strong>Pi / NAS :</strong> son terminal, ou en SSH.', "see", "Il vous faut Node.js 18+", 'Pas installé ? Sous Windows, collez <span class="k">winget install OpenJS.NodeJS.LTS</span> puis ouvrez une <strong>nouvelle</strong> fenêtre PowerShell. Ailleurs : nodejs.org. C\'est tout ce qu\'il faut — pas git.'),
     ("Collez une ligne, appuyez sur Entrée", 'Elle télécharge l\'utilitaire et le lance. La première fois, il demande votre jeton — collez-le et appuyez sur Entrée. Il le retient : ensuite, <span class="k">node gul.js</span> suffit. Laissez la fenêtre ouverte.', "code2", RUN, CAPS),
     ("Vérifiez qu'il a trouvé le compteur", 'Vous devriez voir le compteur détecté puis envoyé.', "see", "Sortie attendue", '<span class="k">found HomeWizard at 192.168.…</span> puis <span class="k">pushed 8421.3 kWh ✓</span>'),
   ],
@@ -305,7 +305,7 @@ L["fr"] = dict(
   be_b="Les compteurs Fluvius numériques envoient des données chiffrées. Demandez votre clé gratuite à Fluvius et saisissez-la une fois dans l'app de votre lecteur — ensuite tout fonctionne pareil.",
   th=("Vous voyez", "Que faire"),
   trouble=[
-    ("'node' is not recognized", 'Node.js n\'est pas installé, ou la fenêtre était déjà ouverte quand vous l\'avez installé. Prenez-le sur <span class="k">nodejs.org</span>, puis ouvrez une <strong>nouvelle</strong> fenêtre et recollez la ligne. Git n\'est pas nécessaire.'),
+    ("'node' is not recognized", 'Node.js n\'est pas installé, ou la fenêtre était déjà ouverte quand vous l\'avez installé. Sous Windows : <span class="k">winget install OpenJS.NodeJS.LTS</span>. Ailleurs : nodejs.org. Puis ouvrez une <strong>nouvelle</strong> fenêtre et recollez la ligne. Git n\'est pas nécessaire.'),
     ("No HomeWizard found", 'Votre réseau bloque la détection. Trouvez l\'IP de votre P1 dans l\'app HomeWizard et renseignez <span class="k">hw_ip</span> (add-on) ou <span class="k">--ip=192.168.1.50</span> à la fin de la commande.'),
     ("couldn't find a total import kWh", 'Le lecteur a renvoyé du JSON non reconnu. Réglez <span class="k">--field=</span> sur le chemin de la valeur kWh cumulée.'),
     ("Rien sous « Auto-received »", 'Vérifiez que le jeton est bien collé et que l\'utilitaire tourne toujours sur le même réseau que le compteur.'),
@@ -355,7 +355,7 @@ L["es"] = dict(
   ],
   b=[
     ("Activa la API local", 'En la app <strong>HomeWizard Energy</strong>: <span class="k">Ajustes → Contadores → tu P1 → Local API → ON</span>. Así tu red puede leer el contador.', None, None, None),
-    ("Abre una terminal en un dispositivo que quede encendido", '<strong>Windows:</strong> Inicio, escribe <em>PowerShell</em>. <strong>Mac:</strong> abre <em>Terminal</em>. <strong>Pi / NAS:</strong> su terminal, o por SSH.', "see", "Necesitas Node.js 18+", '¿No lo tienes? Descárgalo de nodejs.org, si no el comando no funcionará.'),
+    ("Abre una terminal en un dispositivo que quede encendido", '<strong>Windows:</strong> Inicio, escribe <em>PowerShell</em>. <strong>Mac:</strong> abre <em>Terminal</em>. <strong>Pi / NAS:</strong> su terminal, o por SSH.', "see", "Necesitas Node.js 18+", '¿No lo tienes? En Windows pega <span class="k">winget install OpenJS.NodeJS.LTS</span> y abre después una ventana <strong>nueva</strong> de PowerShell. En otros sistemas: nodejs.org. No hace falta nada más — git tampoco.'),
     ("Pega una línea y pulsa Enter", 'Descarga el programa y lo arranca. La primera vez te pide tu token — pégalo y pulsa Enter. Lo recuerda, así que a partir de ahí basta con <span class="k">node gul.js</span>. Deja la ventana abierta.', "code2", RUN, CAPS),
     ("Comprueba que encontró el contador", 'Deberías ver el contador detectado y enviado.', "see", "Salida esperada", '<span class="k">found HomeWizard at 192.168.…</span> y luego <span class="k">pushed 8421.3 kWh ✓</span>'),
   ],
@@ -378,7 +378,7 @@ L["es"] = dict(
   be_b="Los contadores Fluvius digitales envían datos cifrados. Pide tu clave gratuita a Fluvius e introdúcela una vez en la app de tu lector — después todo funciona igual.",
   th=("Ves", "Qué hacer"),
   trouble=[
-    ("'node' is not recognized", 'Node.js no está instalado, o la ventana ya estaba abierta cuando lo instalaste. Descárgalo de <span class="k">nodejs.org</span>, abre una ventana <strong>nueva</strong> y vuelve a pegar la línea. No necesitas git.'),
+    ("'node' is not recognized", 'Node.js no está instalado, o la ventana ya estaba abierta cuando lo instalaste. En Windows: <span class="k">winget install OpenJS.NodeJS.LTS</span>. En otros sistemas: nodejs.org. Abre una ventana <strong>nueva</strong> y vuelve a pegar la línea. No necesitas git.'),
     ("No HomeWizard found", 'Tu red bloquea la detección. Busca la IP de tu P1 en la app HomeWizard y pon <span class="k">hw_ip</span> (add-on) o <span class="k">--ip=192.168.1.50</span> al final del comando.'),
     ("couldn't find a total import kWh", 'El lector devolvió JSON no reconocido. Pon <span class="k">--field=</span> con la ruta al valor kWh acumulado.'),
     ("Nada bajo «Auto-received»", 'Comprueba que el token está bien pegado y que el programa sigue en marcha en la misma red que el contador.'),
@@ -475,7 +475,11 @@ for code in L:
     nav.append(f'<button class="langbtn" data-lang="{code}" aria-pressed="{"true" if code=="en" else "false"}">{L[code]["name"]}</button>')
 nav.append("</nav>")
 
-body = "\n".join(['<div class="wrap">'] + [render(c, L[c]) for c in L] + ["</div>"])
+# The language bar goes INSIDE .wrap. Its `margin:0 -24px` exists to cancel the
+# wrapper's 24px padding and run edge to edge; sitting outside the wrapper there was
+# nothing to cancel, so it stuck out 24px each side and dragged the whole page into a
+# sideways scroll.
+body = "\n".join(['<div class="wrap">'] + nav + [render(c, L[c]) for c in L] + ["</div>"])
 
 script = """<script>
   const sections = document.querySelectorAll(".lang");
@@ -525,6 +529,6 @@ shell = io.open(shell_path, encoding="utf8").read()
 if "<!--CONTENT-->" not in shell:
     raise SystemExit(f"{shell_path} has no <!--CONTENT--> placeholder — nothing to fill in")
 
-content = "\n".join(nav) + "\n" + body + "\n" + script
+content = body + "\n" + script
 io.open(out_path, "w", encoding="utf8").write(shell.replace("<!--CONTENT-->", content))
 print("gegenereerd:", sum(len(L[c]["routes"]) for c in L), "routes,", len(L), "talen", "->", out_path)
