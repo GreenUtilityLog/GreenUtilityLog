@@ -6,7 +6,11 @@
 
 import { createHash } from "node:crypto";
 import { store } from "./store.js";
+import { exifTakenAt } from "./exif.js";
 
+// How old a photo may be, when it tells us. Generous on purpose: the point is to
+// refuse stock images and old camera-roll shots, not to police a day's delay.
+const PHOTO_MAX_AGE_DAYS = Number(process.env.PHOTO_MAX_AGE_DAYS || 7);
 const MIN_BYTES = 5 * 1024;          // reject blank/placeholder images
 const MAX_BYTES = 15 * 1024 * 1024;  // 15 MB cap (modern phone photos are big)
 
@@ -52,6 +56,27 @@ export async function verifyPhoto({ imageBase64, reading, ocr = false, mime: cli
   const mime = sniffImage(buf);
   if (!mime) return { ok: false, error: "file is not a recognised image — please take a real photo" };
 
+  // When the photo says when it was taken, it has to be recent. This is the cheapest
+  // block on the laziest fraud — a meter photo pulled off the internet is either
+  // years old or carries no EXIF at all — and it needs no API key, unlike the AI
+  // authenticity check. Checked BEFORE the hash is reserved, so a refusal doesn't
+  // burn a hash the user might legitimately need.
+  //
+  // Only a clearly stale date refuses. A MISSING date does not: plenty of honest
+  // uploads lose EXIF (share sheets strip it, PNG has no such field), and blocking
+  // on absence would punish real users. That case is reported for flagging instead.
+  const exif = exifTakenAt(buf);
+  if (exif.taken != null) {
+    const ageDays = (Date.now() - exif.taken) / 86400000;
+    if (ageDays > PHOTO_MAX_AGE_DAYS) {
+      return { ok: false, error: `this photo was taken ${Math.round(ageDays)} days ago — please take a fresh one` };
+    }
+    // A date in the future is a wrong clock or a crafted file; allow a day of slack.
+    if (ageDays < -1) {
+      return { ok: false, error: "this photo's date is in the future — check your device clock" };
+    }
+  }
+
   const hash = createHash("sha256").update(buf).digest("hex");
   if (store.hasHash(hash)) return { ok: false, error: "duplicate photo — each submission needs a fresh photo" };
 
@@ -70,7 +95,7 @@ export async function verifyPhoto({ imageBase64, reading, ocr = false, mime: cli
 
   // markUsed is now a no-op (the hash is already reserved) — kept for call-site
   // compatibility. unreserve() releases the reservation on a failed payout.
-  return { ok: true, hash, mime, markUsed: () => {}, unreserve };
+  return { ok: true, hash, mime, exif, markUsed: () => {}, unreserve };
 }
 
 // Best-effort OCR via tesseract.js (lazy-loaded so the service runs without it).
