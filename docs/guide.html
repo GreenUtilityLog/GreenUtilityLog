@@ -256,9 +256,16 @@
       <li><p class="steptitle">Turn on the Local API</p>
       <p>In the <strong>HomeWizard Energy</strong> app: <span class="k">Settings → Meters → your P1 → Local API → ON</span>. This lets your own network read the meter.</p>
       </li>
-      <li><p class="steptitle">Open a terminal on a device that stays on</p>
-      <p><strong>Windows:</strong> press Start, type <em>PowerShell</em>. <strong>Mac:</strong> open <em>Terminal</em>. <strong>Pi / NAS:</strong> its terminal, or over SSH.</p>
-      <div class="see"><b>You need Node.js 18+</b>Not installed? On Windows paste <span class="k">winget install OpenJS.NodeJS.LTS</span> and then open a <strong>new</strong> PowerShell window. Anywhere else: nodejs.org. That is the only thing you need — git isn't.</div>
+      <li><p class="steptitle">Open PowerShell (or a terminal)</p>
+      <p><strong>Windows:</strong> press Start, type <em>PowerShell</em>, press Enter. <strong>Mac:</strong> open <em>Terminal</em>. <strong>Raspberry Pi / NAS:</strong> its own terminal, or over SSH. Everything below is typed into that window.</p>
+      </li>
+      <li><p class="steptitle">Check whether you already have Node</p>
+      <p>Type this and press Enter. A version number — anything from <span class="k">v18</span> up — means you are set, and you can skip the next step. An error instead means Node isn’t installed yet.</p>
+      <div class="code"><span class="cap">Windows · Mac · Linux</span><button class="copy">Copy</button><pre>node -v</pre></div>
+      </li>
+      <li><p class="steptitle">Install Node.js, if that gave an error</p>
+      <p><strong>Windows:</strong> paste the line below; press <span class="k">Y</span> if it asks you to accept the source terms. <strong>Mac:</strong> the LTS installer from nodejs.org, or <span class="k">brew install node</span>. <strong>Raspberry Pi / Debian:</strong> <span class="k">sudo apt install nodejs</span>. Then <strong>close that window and open a new one</strong> — a window that was already open keeps the old PATH, so <span class="k">node</span> would still not be found. Check again with <span class="k">node -v</span>.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copy</button><pre>winget install OpenJS.NodeJS.LTS</pre></div>
       </li>
       <li><p class="steptitle">Paste one line, press Enter</p>
       <p>It downloads the helper and starts it. Leave the window open — that is the whole setup.</p>
@@ -271,7 +278,7 @@
       </li>
       </ol>
   <h2>Route C — Another P1 reader</h2>
-  <p class="lede" style="font-size:15.5px">The same helper reads any device that serves its data as JSON over HTTP — you just tell it where.</p>
+  <p class="lede" style="font-size:15.5px">The same helper reads any device that serves its data as JSON over HTTP — you just tell it where. Do steps 2–4 of Route B first (terminal and Node); only the command below is different.</p>
   <ol class="steps">
       <li><p class="steptitle">Find your reader's data URL</p>
       <p>Open your reader's web page and look for the address that returns raw JSON (often something like <span class="k">/api/v1/data</span> or <span class="k">/api/v2/sm/actual</span>). Exact paths differ per brand — check your reader's own documentation.</p>
@@ -382,9 +389,16 @@
       <li><p class="steptitle">Zet de Local API aan</p>
       <p>In de <strong>HomeWizard Energy</strong>-app: <span class="k">Instellingen → Meters → je P1 → Local API → AAN</span>. Hiermee mag je eigen netwerk de meter uitlezen.</p>
       </li>
-      <li><p class="steptitle">Open een terminal op een apparaat dat aan blijft</p>
-      <p><strong>Windows:</strong> druk op Start, typ <em>PowerShell</em>. <strong>Mac:</strong> open <em>Terminal</em>. <strong>Pi / NAS:</strong> de terminal daar, of via SSH.</p>
-      <div class="see"><b>Je hebt Node.js 18+ nodig</b>Niet geïnstalleerd? Plak op Windows <span class="k">winget install OpenJS.NodeJS.LTS</span> en open daarna een <strong>nieuw</strong> PowerShell-venster. Elders: nodejs.org. Meer heb je niet nodig — git dus niet.</div>
+      <li><p class="steptitle">PowerShell openen (of een terminal)</p>
+      <p><strong>Windows:</strong> druk op Start, typ <em>PowerShell</em>, Enter. <strong>Mac:</strong> open <em>Terminal</em>. <strong>Raspberry Pi / NAS:</strong> de terminal daar, of via SSH. Alles hieronder typ je in dat venster.</p>
+      </li>
+      <li><p class="steptitle">Kijk of je Node al hebt</p>
+      <p>Typ dit en druk op Enter. Krijg je een versienummer — alles vanaf <span class="k">v18</span> — dan ben je klaar en sla je de volgende stap over. Krijg je een foutmelding, dan staat Node er nog niet op.</p>
+      <div class="code"><span class="cap">Windows · Mac · Linux</span><button class="copy">Kopieer</button><pre>node -v</pre></div>
+      </li>
+      <li><p class="steptitle">Node.js installeren, als dat een fout gaf</p>
+      <p><strong>Windows:</strong> plak de regel hieronder; druk op <span class="k">Y</span> als hij vraagt of je akkoord gaat met de voorwaarden van de bron. <strong>Mac:</strong> de LTS-installer van nodejs.org, of <span class="k">brew install node</span>. <strong>Raspberry Pi / Debian:</strong> <span class="k">sudo apt install nodejs</span>. Daarna <strong>dat venster sluiten en een nieuw venster openen</strong> — een venster dat al openstond houdt de oude PATH vast, en dan wordt <span class="k">node</span> nog steeds niet gevonden. Controleer opnieuw met <span class="k">node -v</span>.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieer</button><pre>winget install OpenJS.NodeJS.LTS</pre></div>
       </li>
       <li><p class="steptitle">Plak één regel, druk op Enter</p>
       <p>Die haalt de helper op en start hem. Laat het venster openstaan — meer is het niet.</p>
@@ -397,7 +411,7 @@
       </li>
       </ol>
   <h2>Route C — Een andere P1-reader</h2>
-  <p class="lede" style="font-size:15.5px">Hetzelfde hulpprogramma leest elk apparaat dat z’n data als JSON via HTTP aanbiedt — je zegt alleen waar.</p>
+  <p class="lede" style="font-size:15.5px">Hetzelfde hulpprogramma leest elk apparaat dat z’n data als JSON via HTTP aanbiedt — je zegt alleen waar. Doe eerst stap 2 t/m 4 van route B (terminal en Node); alleen het commando hieronder is anders.</p>
   <ol class="steps">
       <li><p class="steptitle">Zoek de data-URL van je reader</p>
       <p>Open de webpagina van je reader en zoek het adres dat ruwe JSON teruggeeft (vaak zoiets als <span class="k">/api/v1/data</span> of <span class="k">/api/v2/sm/actual</span>). Exacte paden verschillen per merk — kijk in de documentatie van je reader.</p>
@@ -508,9 +522,16 @@
       <li><p class="steptitle">Local API aktivieren</p>
       <p>In der <strong>HomeWizard Energy</strong>-App: <span class="k">Einstellungen → Zähler → dein P1 → Local API → EIN</span>. Damit darf dein Netzwerk den Zähler auslesen.</p>
       </li>
-      <li><p class="steptitle">Terminal auf einem Dauergerät öffnen</p>
-      <p><strong>Windows:</strong> Start drücken, <em>PowerShell</em> tippen. <strong>Mac:</strong> <em>Terminal</em> öffnen. <strong>Pi / NAS:</strong> dessen Terminal oder per SSH.</p>
-      <div class="see"><b>Du brauchst Node.js 18+</b>Nicht installiert? Unter Windows <span class="k">winget install OpenJS.NodeJS.LTS</span> einfügen und danach ein <strong>neues</strong> PowerShell-Fenster öffnen. Sonst: nodejs.org. Mehr brauchst du nicht — git nicht.</div>
+      <li><p class="steptitle">PowerShell öffnen (oder ein Terminal)</p>
+      <p><strong>Windows:</strong> Start drücken, <em>PowerShell</em> tippen, Enter. <strong>Mac:</strong> <em>Terminal</em> öffnen. <strong>Raspberry Pi / NAS:</strong> dessen Terminal oder per SSH. Alles Weitere tippst du in dieses Fenster.</p>
+      </li>
+      <li><p class="steptitle">Prüfen, ob du Node schon hast</p>
+      <p>Tipp das und drück Enter. Eine Versionsnummer — alles ab <span class="k">v18</span> — heißt: passt, überspring den nächsten Schritt. Eine Fehlermeldung heißt: Node fehlt noch.</p>
+      <div class="code"><span class="cap">Windows · Mac · Linux</span><button class="copy">Kopieren</button><pre>node -v</pre></div>
+      </li>
+      <li><p class="steptitle">Node.js installieren, falls das einen Fehler gab</p>
+      <p><strong>Windows:</strong> die Zeile unten einfügen; mit <span class="k">Y</span> bestätigen, falls nach den Quellbedingungen gefragt wird. <strong>Mac:</strong> LTS-Installer von nodejs.org oder <span class="k">brew install node</span>. <strong>Raspberry Pi / Debian:</strong> <span class="k">sudo apt install nodejs</span>. Danach <strong>das Fenster schließen und ein neues öffnen</strong> — ein bereits offenes Fenster behält den alten PATH, und <span class="k">node</span> würde weiterhin nicht gefunden. Prüf erneut mit <span class="k">node -v</span>.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieren</button><pre>winget install OpenJS.NodeJS.LTS</pre></div>
       </li>
       <li><p class="steptitle">Eine Zeile einfügen, Enter drücken</p>
       <p>Sie lädt das Hilfsprogramm und startet es. Lass das Fenster offen — mehr ist es nicht.</p>
@@ -523,7 +544,7 @@
       </li>
       </ol>
   <h2>Route C — Ein anderer P1-Reader</h2>
-  <p class="lede" style="font-size:15.5px">Dasselbe Hilfsprogramm liest jedes Gerät, das seine Daten als JSON über HTTP anbietet — du sagst ihm nur wo.</p>
+  <p class="lede" style="font-size:15.5px">Dasselbe Hilfsprogramm liest jedes Gerät, das seine Daten als JSON über HTTP anbietet — du sagst ihm nur wo. Mach zuerst Schritt 2–4 aus Route B (Terminal und Node); nur der Befehl unten ist anders.</p>
   <ol class="steps">
       <li><p class="steptitle">Die Daten-URL deines Readers finden</p>
       <p>Öffne die Weboberfläche deines Readers und such die Adresse, die rohes JSON zurückgibt (oft etwas wie <span class="k">/api/v1/data</span> oder <span class="k">/api/v2/sm/actual</span>). Die genauen Pfade unterscheiden sich je Marke — schau in die Doku deines Readers.</p>
@@ -634,9 +655,16 @@
       <li><p class="steptitle">Activez l'API locale</p>
       <p>Dans l'app <strong>HomeWizard Energy</strong> : <span class="k">Réglages → Compteurs → votre P1 → Local API → ON</span>. Votre réseau peut alors lire le compteur.</p>
       </li>
-      <li><p class="steptitle">Ouvrez un terminal sur un appareil qui reste allumé</p>
-      <p><strong>Windows :</strong> Démarrer, tapez <em>PowerShell</em>. <strong>Mac :</strong> ouvrez <em>Terminal</em>. <strong>Pi / NAS :</strong> son terminal, ou en SSH.</p>
-      <div class="see"><b>Il vous faut Node.js 18+</b>Pas installé ? Sous Windows, collez <span class="k">winget install OpenJS.NodeJS.LTS</span> puis ouvrez une <strong>nouvelle</strong> fenêtre PowerShell. Ailleurs : nodejs.org. C'est tout ce qu'il faut — pas git.</div>
+      <li><p class="steptitle">Ouvrez PowerShell (ou un terminal)</p>
+      <p><strong>Windows :</strong> Démarrer, tapez <em>PowerShell</em>, Entrée. <strong>Mac :</strong> ouvrez <em>Terminal</em>. <strong>Raspberry Pi / NAS :</strong> son terminal, ou en SSH. Tout ce qui suit se tape dans cette fenêtre.</p>
+      </li>
+      <li><p class="steptitle">Vérifiez si Node est déjà là</p>
+      <p>Tapez ceci et appuyez sur Entrée. Un numéro de version — à partir de <span class="k">v18</span> — et c’est bon, passez l’étape suivante. Une erreur signifie que Node n’est pas installé.</p>
+      <div class="code"><span class="cap">Windows · Mac · Linux</span><button class="copy">Copier</button><pre>node -v</pre></div>
+      </li>
+      <li><p class="steptitle">Installez Node.js si cela a donné une erreur</p>
+      <p><strong>Windows :</strong> collez la ligne ci-dessous ; appuyez sur <span class="k">Y</span> s’il demande d’accepter les conditions de la source. <strong>Mac :</strong> l’installeur LTS de nodejs.org, ou <span class="k">brew install node</span>. <strong>Raspberry Pi / Debian :</strong> <span class="k">sudo apt install nodejs</span>. Ensuite <strong>fermez la fenêtre et ouvrez-en une nouvelle</strong> — une fenêtre déjà ouverte garde l’ancien PATH, et <span class="k">node</span> resterait introuvable. Revérifiez avec <span class="k">node -v</span>.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copier</button><pre>winget install OpenJS.NodeJS.LTS</pre></div>
       </li>
       <li><p class="steptitle">Collez une ligne, appuyez sur Entrée</p>
       <p>Elle télécharge l’utilitaire et le lance. Laissez la fenêtre ouverte — c’est toute l’installation.</p>
@@ -649,7 +677,7 @@
       </li>
       </ol>
   <h2>Route C — Un autre lecteur P1</h2>
-  <p class="lede" style="font-size:15.5px">Le même utilitaire lit tout appareil qui expose ses données en JSON via HTTP — vous lui dites simplement où.</p>
+  <p class="lede" style="font-size:15.5px">Le même utilitaire lit tout appareil qui expose ses données en JSON via HTTP — vous lui dites simplement où. Faites d’abord les étapes 2 à 4 de la route B (terminal et Node) ; seule la commande ci-dessous change.</p>
   <ol class="steps">
       <li><p class="steptitle">Trouvez l'URL de données de votre lecteur</p>
       <p>Ouvrez la page web de votre lecteur et cherchez l'adresse qui renvoie du JSON brut (souvent <span class="k">/api/v1/data</span> ou <span class="k">/api/v2/sm/actual</span>). Les chemins exacts diffèrent selon la marque — consultez la doc de votre lecteur.</p>
@@ -760,9 +788,16 @@
       <li><p class="steptitle">Activa la API local</p>
       <p>En la app <strong>HomeWizard Energy</strong>: <span class="k">Ajustes → Contadores → tu P1 → Local API → ON</span>. Así tu red puede leer el contador.</p>
       </li>
-      <li><p class="steptitle">Abre una terminal en un dispositivo que quede encendido</p>
-      <p><strong>Windows:</strong> Inicio, escribe <em>PowerShell</em>. <strong>Mac:</strong> abre <em>Terminal</em>. <strong>Pi / NAS:</strong> su terminal, o por SSH.</p>
-      <div class="see"><b>Necesitas Node.js 18+</b>¿No lo tienes? En Windows pega <span class="k">winget install OpenJS.NodeJS.LTS</span> y abre después una ventana <strong>nueva</strong> de PowerShell. En otros sistemas: nodejs.org. No hace falta nada más — git tampoco.</div>
+      <li><p class="steptitle">Abre PowerShell (o una terminal)</p>
+      <p><strong>Windows:</strong> Inicio, escribe <em>PowerShell</em>, Enter. <strong>Mac:</strong> abre <em>Terminal</em>. <strong>Raspberry Pi / NAS:</strong> su terminal, o por SSH. Todo lo de abajo se escribe en esa ventana.</p>
+      </li>
+      <li><p class="steptitle">Comprueba si ya tienes Node</p>
+      <p>Escribe esto y pulsa Enter. Un número de versión — desde <span class="k">v18</span> en adelante — significa que ya está, y puedes saltarte el paso siguiente. Un error significa que Node no está instalado.</p>
+      <div class="code"><span class="cap">Windows · Mac · Linux</span><button class="copy">Copiar</button><pre>node -v</pre></div>
+      </li>
+      <li><p class="steptitle">Instala Node.js si eso dio error</p>
+      <p><strong>Windows:</strong> pega la línea de abajo; pulsa <span class="k">Y</span> si pide aceptar los términos de la fuente. <strong>Mac:</strong> el instalador LTS de nodejs.org, o <span class="k">brew install node</span>. <strong>Raspberry Pi / Debian:</strong> <span class="k">sudo apt install nodejs</span>. Después <strong>cierra la ventana y abre una nueva</strong> — una ventana ya abierta conserva el PATH antiguo, y <span class="k">node</span> seguiría sin encontrarse. Vuelve a comprobarlo con <span class="k">node -v</span>.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>winget install OpenJS.NodeJS.LTS</pre></div>
       </li>
       <li><p class="steptitle">Pega una línea y pulsa Enter</p>
       <p>Descarga el programa y lo arranca. Deja la ventana abierta — eso es toda la instalación.</p>
@@ -775,7 +810,7 @@
       </li>
       </ol>
   <h2>Ruta C — Otro lector P1</h2>
-  <p class="lede" style="font-size:15.5px">El mismo programa lee cualquier dispositivo que sirva sus datos en JSON por HTTP — solo le dices dónde.</p>
+  <p class="lede" style="font-size:15.5px">El mismo programa lee cualquier dispositivo que sirva sus datos en JSON por HTTP — solo le dices dónde. Haz primero los pasos 2 a 4 de la ruta B (terminal y Node); solo cambia el comando de abajo.</p>
   <ol class="steps">
       <li><p class="steptitle">Encuentra la URL de datos de tu lector</p>
       <p>Abre la página web de tu lector y busca la dirección que devuelve JSON en bruto (a menudo <span class="k">/api/v1/data</span> o <span class="k">/api/v2/sm/actual</span>). Las rutas exactas varían por marca — consulta la documentación de tu lector.</p>
