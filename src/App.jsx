@@ -2337,9 +2337,17 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
                     const fetchCmd = (args) => os === "win"
                       ? `iwr ${BRIDGE_JS_URL} -OutFile gul.js; node gul.js ${args}`
                       : `curl -fsSL ${BRIDGE_JS_URL} -o gul.js && node gul.js ${args}`;
+                    // The one thing still needed beforehand is Node. Named right here,
+                    // as a # comment (a comment in both shells, so pasting the whole
+                    // block is safe), because "install Node first" buried in a hint is
+                    // how you get `node : The term 'node' is not recognized`.
+                    const needNode = os === "win"
+                      ? "# No Node yet? winget install OpenJS.NodeJS.LTS — then open a NEW window."
+                      : "# No Node yet? Get it from nodejs.org (Pi/Debian: sudo apt install nodejs).";
                     const bridgeCmd = `# The bridge finds your HomeWizard on the network by itself and keeps
-# pushing. Run it on a machine that stays on (PC / Pi / NAS). Needs Node 18+
-# from nodejs.org — nothing else to install. Leave the window open.
+# pushing. Run it on a machine that stays on (PC / Pi / NAS).
+# Leave the window open — that is the whole setup.
+${needNode}
 
 ${fetchCmd(`--token=${token}`)}
 
@@ -2379,7 +2387,7 @@ curl -X POST ${ingestUrl} \\
 ${fetchCmd(`--token=${token} --url=http://<reader-ip>/api/v1/data`)}`;
                     const snip = device === "ha" ? haYaml : device === "curl" ? curlSnippet : bridgeCmd;
                     const hint = device === "homewizard"
-                      ? 'Turn on "Local API" in the HomeWizard app first (Settings → Meters → your P1). The bridge finds your P1 itself — if your network blocks mDNS, add --ip=<your P1 IP>. Needs Node 18+ or Docker; no git, no install.'
+                      ? 'Turn on "Local API" in the HomeWizard app first (Settings → Meters → your P1). The bridge finds your P1 itself — if your network blocks mDNS, add --ip=<your P1 IP>. Needs Node 18+ or Docker — nothing to clone, no git.'
                       : device === "ha"
                       ? "The easiest route: install our integration via HACS (no YAML at all) — the first lines below show how. Or wire it yourself with the YAML; entity IDs differ per install, so find yours under Developer tools → States (filter “import”, pick the kWh one that counts up)."
                       : "For any other setup. POST your cumulative kWh total from any device, or let the bridge read any HTTP/JSON reader for you with --url=.";

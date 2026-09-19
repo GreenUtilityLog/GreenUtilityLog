@@ -109,8 +109,14 @@
   .steptitle{margin:0 0 6px;font-size:17px;font-weight:650;letter-spacing:-.01em}
   ol.steps>li p{margin:0;color:var(--soft);font-size:15.5px;max-width:var(--measure)}
   ol.steps>li p strong{color:var(--ink);font-weight:600}
+  /* These hold UI breadcrumbs ("Settings → Meters → your P1 → Local API → ON"), which
+     are longer than a phone is wide. They used to be white-space:nowrap, so the page
+     itself grew to fit them: 257px of sideways scroll at 430px, with text running off
+     the right edge of the very guide testers are told to follow. They wrap now, at the
+     spaces that are already there around each arrow; box-decoration-break keeps the
+     pill's padding and rounded ends on every line instead of only the first. */
   .k{font-size:13.5px;background:var(--accent-wash);color:var(--ink);padding:1.5px 6px;border-radius:3px;
-    white-space:nowrap}
+    overflow-wrap:break-word;-webkit-box-decoration-break:clone;box-decoration-break:clone}
 
   /* ── expected output: it IS terminal output, so it looks like it ──────────*/
   .see{margin-top:14px;border-left:2px solid var(--accent);padding:2px 0 2px 16px}

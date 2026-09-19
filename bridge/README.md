@@ -71,8 +71,9 @@ node gul.js --url=http://192.168.1.60/api/readings --field=electricity.import_kw
 
 ## Notes
 - **`node` is not recognized?** Node isn't installed, or the window was already open
-  when you installed it. Get it from [nodejs.org](https://nodejs.org), then open a
-  **new** terminal. Nothing else is needed — not git, not a package manager.
+  when you installed it. On Windows: `winget install OpenJS.NodeJS.LTS`. Anywhere
+  else: [nodejs.org](https://nodejs.org). Then open a **new** terminal — the old one
+  doesn't pick up the new PATH. Nothing else is needed; git isn't.
 - **Discovery not finding it?** Some networks block mDNS (VLANs, guest Wi-Fi). Add
   `--ip=192.168.1.50` (the IP is in the HomeWizard app) and it skips discovery.
 - Readings must be < 48h old to pay out; the usual cooldown / plausibility limits
