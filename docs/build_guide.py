@@ -64,8 +64,8 @@ L["en"] = dict(
   b=[
     ("Turn on the Local API", 'In the <strong>HomeWizard Energy</strong> app: <span class="k">Settings → Meters → your P1 → Local API → ON</span>. This lets your own network read the meter.', None, None, None),
     ("Open a terminal on a device that stays on", '<strong>Windows:</strong> press Start, type <em>PowerShell</em>. <strong>Mac:</strong> open <em>Terminal</em>. <strong>Pi / NAS:</strong> its terminal, or over SSH.', "see", "You need Node.js 18+", 'Not installed? On Windows paste <span class="k">winget install OpenJS.NodeJS.LTS</span> and then open a <strong>new</strong> PowerShell window. Anywhere else: nodejs.org. That is the only thing you need — git isn\'t.'),
-    ("Paste one line, press Enter", 'It downloads the helper and starts it. The first time it asks for your token — paste that and press Enter. It remembers it, so after this you only ever run <span class="k">node gul.js</span>. Leave the window open.', "code2", RUN, CAPS),
-    ("Check it found the meter", 'You should see the meter being discovered and then pushed.', "see", "Expected output", '<span class="k">found HomeWizard at 192.168.…</span> then <span class="k">pushed 8421.3 kWh ✓</span>'),
+    ("Paste one line, press Enter", "It downloads the helper and starts it. Leave the window open — that is the whole setup.", "code2", RUN, CAPS),
+    ("Paste your token when it asks", "It asks once and remembers it, so from then on you start it with just <span class=\"k\">node gul.js</span>. Then it finds the meter and sends the reading.", "see", "What you should see, in order", "<span class=\"k\">Paste your device token…</span> → <span class=\"k\">found HomeWizard at 192.168.…</span> → <span class=\"k\">pushed 8421.3 kWh ✓</span>"),
   ],
   c_intro="The same helper reads any device that serves its data as JSON over HTTP — you just tell it where.",
   c=[
@@ -84,14 +84,19 @@ L["en"] = dict(
   country_close="Not sure? Open Home Assistant and look for your meter under Developer tools → States. If a kWh value is there and counting up, you're set.",
   be_t="🇧🇪 Belgium (Fluvius meters)",
   be_b="Digital Fluvius meters send encrypted data. Ask Fluvius for your free decryption key and enter it once in your reader's app — after that everything works the same.",
+  once_t="No machine that stays on?",
+  once_b="You don’t need one. Run <span class=\"k\">node gul.js --once</span> whenever it suits you: it reads the meter, sends the reading and closes. Then claim it in the app — the only rule is that the reading is under 48 hours old when you claim. A laptop you open now and then is enough; leaving the helper running only saves you from having to think about it.",
   th=("You see", "What to do"),
   trouble=[
-    ("'node' is not recognized", 'Node.js isn\'t installed, or that window was already open when you installed it. On Windows: <span class="k">winget install OpenJS.NodeJS.LTS</span>. Elsewhere: nodejs.org. Then open a <strong>new</strong> terminal and paste the line again. You do not need git.'),
-    ("No HomeWizard found", 'Your network blocks auto-discovery. Find your P1\'s IP in the HomeWizard app and set <span class="k">hw_ip</span> (add-on) or add <span class="k">--ip=192.168.1.50</span> to the end of the command.'),
-    ("couldn't find a total import kWh", 'The reader returned JSON the helper didn\'t recognise. Set <span class="k">--field=</span> to the dot-path of the cumulative kWh value.'),
-    ("Nothing under “Auto-received”", 'Check the token is pasted correctly and the helper is still running on the same network as the meter.'),
-    ("the automatic reading is stale", 'A reading must be under 48 hours old to pay out — make sure the add-on or terminal is still running.'),
-    ("submit one photo reading first", 'You skipped the starting point. Do one normal photo submission, then try again.'),
+    ("'node' is not recognized", "Node.js isn’t installed, or that window was already open when you installed it. On Windows: <span class=\"k\">winget install OpenJS.NodeJS.LTS</span>. Elsewhere: nodejs.org. Then open a <strong>new</strong> terminal and paste the line again. You do not need git."),
+    ("Nothing at all — no output, straight back to the prompt", "An old copy of the helper, from before 19 September. It had a bug that made it exit on Windows without printing anything. Download it again with the line above; the new one asks for your token."),
+    ("no HomeWizard found on the network", "Your network blocks auto-discovery — common on guest Wi-Fi and with VLANs. Look up your P1’s IP in the HomeWizard app and run <span class=\"k\">node gul.js --ip=192.168.1.50</span>. On the Home Assistant add-on, fill in <span class=\"k\">hw_ip</span> instead."),
+    ("couldn't find a total import kWh", "It reached the device but got nothing usable back: <strong>Local API is still off</strong> in the HomeWizard app, or this isn’t a P1 meter. For another brand of reader, use <span class=\"k\">--url=</span>."),
+    ("couldn't find a kWh number at …", "Your reader’s JSON doesn’t use a name the helper knows. Add <span class=\"k\">--field=</span> with the dot-path to the value, e.g. <span class=\"k\">--field=electricity.import_kwh</span>."),
+    ("ingest 401", "The token is wrong or incomplete. Copy it again from the app and run <span class=\"k\">node gul.js --token=…</span> once to replace the saved one."),
+    ("submit one photo reading first", "Your meter has no starting point yet. Do one normal photo submission in the app — automatic readings never set the first value, so that a device cannot invent its own baseline. After that it pays out."),
+    ("the automatic reading is stale", "A reading has to be under 48 hours old at the moment you claim it. Run the helper again (or leave it running) and claim once it prints <span class=\"k\">pushed … ✓</span>."),
+    ("Nothing under “Auto-received”", "The helper hasn’t pushed successfully yet. Look at its window: every cycle prints either <span class=\"k\">pushed … ✓</span> or the reason it failed."),
   ],
   close="Still stuck? Send a message with what the Log tab (or terminal) shows — it usually says exactly what's missing.",
   foot="GreenUtilityLog · Tester guide · Testnet beta — test tokens, no real-world value yet.",
@@ -137,8 +142,8 @@ L["nl"] = dict(
   b=[
     ("Zet de Local API aan", 'In de <strong>HomeWizard Energy</strong>-app: <span class="k">Instellingen → Meters → je P1 → Local API → AAN</span>. Hiermee mag je eigen netwerk de meter uitlezen.', None, None, None),
     ("Open een terminal op een apparaat dat aan blijft", '<strong>Windows:</strong> druk op Start, typ <em>PowerShell</em>. <strong>Mac:</strong> open <em>Terminal</em>. <strong>Pi / NAS:</strong> de terminal daar, of via SSH.', "see", "Je hebt Node.js 18+ nodig", 'Niet geïnstalleerd? Plak op Windows <span class="k">winget install OpenJS.NodeJS.LTS</span> en open daarna een <strong>nieuw</strong> PowerShell-venster. Elders: nodejs.org. Meer heb je niet nodig — git dus niet.'),
-    ("Plak één regel, druk op Enter", 'Die haalt de helper op en start hem. De eerste keer vraagt hij om je token — plak dat en druk op Enter. Hij onthoudt het, dus daarna start je hem met alleen <span class="k">node gul.js</span>. Laat het venster openstaan.', "code2", RUN, CAPS),
-    ("Controleer of hij de meter vond", 'Je hoort te zien dat de meter gevonden en verstuurd wordt.', "see", "Dit hoor je te zien", '<span class="k">found HomeWizard at 192.168.…</span> en daarna <span class="k">pushed 8421.3 kWh ✓</span>'),
+    ("Plak één regel, druk op Enter", "Die haalt de helper op en start hem. Laat het venster openstaan — meer is het niet.", "code2", RUN, CAPS),
+    ("Plak je token als hij erom vraagt", "Hij vraagt het één keer en onthoudt het, dus daarna start je hem met alleen <span class=\"k\">node gul.js</span>. Daarna zoekt hij de meter en stuurt hij de stand door.", "see", "Dit hoor je te zien, in deze volgorde", "<span class=\"k\">Paste your device token…</span> → <span class=\"k\">found HomeWizard at 192.168.…</span> → <span class=\"k\">pushed 8421.3 kWh ✓</span>"),
   ],
   c_intro="Hetzelfde hulpprogramma leest elk apparaat dat z’n data als JSON via HTTP aanbiedt — je zegt alleen waar.",
   c=[
@@ -157,14 +162,19 @@ L["nl"] = dict(
   country_close='Niet zeker? Open Home Assistant en zoek je meter onder Ontwikkelhulpmiddelen → Statussen. Staat er een kWh-waarde die oploopt, dan zit je goed.',
   be_t="🇧🇪 België (Fluvius-meters)",
   be_b="Digitale Fluvius-meters sturen versleutelde data. Vraag bij Fluvius je gratis decryptiesleutel op en voer die één keer in de app van je reader in — daarna werkt alles hetzelfde.",
+  once_t="Geen apparaat dat aan blijft?",
+  once_b="Hoeft ook niet. Draai <span class=\"k\">node gul.js --once</span> wanneer het jou uitkomt: hij leest de meter, stuurt de stand door en sluit af. Daarna claim je in de app — de enige eis is dat de stand jonger dan 48 uur is op het moment dat je claimt. Een laptop die je af en toe openklapt is genoeg; continu laten draaien scheelt je alleen dat je eraan moet denken.",
   th=("Je ziet", "Wat te doen"),
   trouble=[
-    ("'node' is not recognized", 'Node.js staat er niet op, of het venster stond al open toen je het installeerde. Op Windows: <span class="k">winget install OpenJS.NodeJS.LTS</span>. Elders: nodejs.org. Open daarna een <strong>nieuw</strong> venster en plak de regel opnieuw. Git heb je niet nodig.'),
-    ("No HomeWizard found", 'Je netwerk blokkeert auto-detectie. Zoek het IP van je P1 in de HomeWizard-app en vul <span class="k">hw_ip</span> in (add-on) of zet <span class="k">--ip=192.168.1.50</span> achter het commando.'),
-    ("couldn't find a total import kWh", 'De reader gaf JSON terug die het hulpprogramma niet herkende. Zet <span class="k">--field=</span> op het pad naar de cumulatieve kWh-waarde.'),
-    ("Niets onder “Auto-received”", 'Controleer of de token goed geplakt is en of het hulpprogramma nog draait op hetzelfde netwerk als de meter.'),
-    ("the automatic reading is stale", 'Een stand moet jonger dan 48 uur zijn om uit te betalen — zorg dat de add-on of terminal nog draait.'),
-    ("submit one photo reading first", 'Je hebt het startpunt overgeslagen. Doe één gewone foto-inzending en probeer opnieuw.'),
+    ("'node' is not recognized", "Node.js staat er niet op, of het venster stond al open toen je het installeerde. Op Windows: <span class=\"k\">winget install OpenJS.NodeJS.LTS</span>. Elders: nodejs.org. Open daarna een <strong>nieuw</strong> venster en plak de regel opnieuw. Git heb je niet nodig."),
+    ("Helemaal niets — geen uitvoer, meteen terug naar de prompt", "Een oude kopie van de helper, van vóór 19 september. Die had een fout waardoor hij op Windows afsloot zonder iets te tonen. Haal hem opnieuw op met de regel hierboven; de nieuwe vraagt om je token."),
+    ("no HomeWizard found on the network", "Je netwerk blokkeert auto-detectie — gebruikelijk op gasten-wifi en met VLANs. Zoek het IP van je P1 in de HomeWizard-app en draai <span class=\"k\">node gul.js --ip=192.168.1.50</span>. Bij de Home Assistant add-on vul je <span class=\"k\">hw_ip</span> in."),
+    ("couldn't find a total import kWh", "Hij bereikte het apparaat maar kreeg niets bruikbaars terug: <strong>Local API staat nog uit</strong> in de HomeWizard-app, of dit is geen P1-meter. Voor een ander merk reader: <span class=\"k\">--url=</span>."),
+    ("couldn't find a kWh number at …", "De JSON van je reader gebruikt geen naam die de helper kent. Zet er <span class=\"k\">--field=</span> bij met het pad naar de waarde, bijvoorbeeld <span class=\"k\">--field=electricity.import_kwh</span>."),
+    ("ingest 401", "De token klopt niet of is onvolledig. Kopieer hem opnieuw uit de app en draai één keer <span class=\"k\">node gul.js --token=…</span> om de opgeslagen token te vervangen."),
+    ("submit one photo reading first", "Je meter heeft nog geen startpunt. Doe één gewone foto-inzending in de app — automatische standen zetten nooit de eerste waarde, zodat een apparaat zijn eigen beginstand niet kan verzinnen. Daarna betaalt het uit."),
+    ("the automatic reading is stale", "Een stand moet jonger dan 48 uur zijn op het moment dat je claimt. Start de helper opnieuw (of laat hem draaien) en claim zodra er <span class=\"k\">pushed … ✓</span> staat."),
+    ("Niets onder “Auto-received”", "De helper heeft nog niets succesvol doorgestuurd. Kijk in zijn venster: elke ronde print hij óf <span class=\"k\">pushed … ✓</span> óf de reden waarom het niet lukte."),
   ],
   close="Kom je er niet uit? Stuur een berichtje met wat er in het Log-tabblad (of de terminal) staat — daar staat meestal precies wat er mist.",
   foot="GreenUtilityLog · Testershandleiding · Testnet-beta — test-tokens, nog geen echte waarde.",
@@ -210,8 +220,8 @@ L["de"] = dict(
   b=[
     ("Local API aktivieren", 'In der <strong>HomeWizard Energy</strong>-App: <span class="k">Einstellungen → Zähler → dein P1 → Local API → EIN</span>. Damit darf dein Netzwerk den Zähler auslesen.', None, None, None),
     ("Terminal auf einem Dauergerät öffnen", '<strong>Windows:</strong> Start drücken, <em>PowerShell</em> tippen. <strong>Mac:</strong> <em>Terminal</em> öffnen. <strong>Pi / NAS:</strong> dessen Terminal oder per SSH.', "see", "Du brauchst Node.js 18+", 'Nicht installiert? Unter Windows <span class="k">winget install OpenJS.NodeJS.LTS</span> einfügen und danach ein <strong>neues</strong> PowerShell-Fenster öffnen. Sonst: nodejs.org. Mehr brauchst du nicht — git nicht.'),
-    ("Eine Zeile einfügen, Enter drücken", 'Sie lädt das Hilfsprogramm und startet es. Beim ersten Mal fragt es nach deinem Token — einfügen und Enter. Es merkt es sich, danach genügt <span class="k">node gul.js</span>. Lass das Fenster offen.', "code2", RUN, CAPS),
-    ("Prüfen, ob er den Zähler fand", 'Du solltest sehen, wie der Zähler gefunden und gesendet wird.', "see", "Erwartete Ausgabe", '<span class="k">found HomeWizard at 192.168.…</span> und danach <span class="k">pushed 8421.3 kWh ✓</span>'),
+    ("Eine Zeile einfügen, Enter drücken", "Sie lädt das Hilfsprogramm und startet es. Lass das Fenster offen — mehr ist es nicht.", "code2", RUN, CAPS),
+    ("Token einfügen, wenn er danach fragt", "Er fragt einmal und merkt es sich, danach startest du ihn mit nur <span class=\"k\">node gul.js</span>. Dann findet er den Zähler und sendet den Stand.", "see", "Das solltest du sehen, in dieser Reihenfolge", "<span class=\"k\">Paste your device token…</span> → <span class=\"k\">found HomeWizard at 192.168.…</span> → <span class=\"k\">pushed 8421.3 kWh ✓</span>"),
   ],
   c_intro="Dasselbe Hilfsprogramm liest jedes Gerät, das seine Daten als JSON über HTTP anbietet — du sagst ihm nur wo.",
   c=[
@@ -230,14 +240,19 @@ L["de"] = dict(
   country_close='Unsicher? Öffne Home Assistant und such deinen Zähler unter Entwicklerwerkzeuge → Zustände. Steht dort ein kWh-Wert, der hochzählt, passt es.',
   be_t="🇧🇪 Belgien (Fluvius-Zähler)",
   be_b="Digitale Fluvius-Zähler senden verschlüsselt. Frag bei Fluvius deinen kostenlosen Entschlüsselungscode an und gib ihn einmal in der App deines Readers ein — danach läuft alles gleich.",
+  once_t="Kein Gerät, das durchläuft?",
+  once_b="Brauchst du nicht. Führ <span class=\"k\">node gul.js --once</span> aus, wann es dir passt: liest den Zähler, sendet den Stand und beendet sich. Danach claimst du in der App — die einzige Bedingung ist, dass der Stand beim Claimen jünger als 48 Stunden ist. Ein Laptop, den du ab und zu aufklappst, reicht; durchlaufen lassen erspart dir nur das Daran-denken.",
   th=("Du siehst", "Was tun"),
   trouble=[
-    ("'node' is not recognized", 'Node.js fehlt, oder das Fenster war schon offen, als du es installiert hast. Unter Windows: <span class="k">winget install OpenJS.NodeJS.LTS</span>. Sonst: nodejs.org. Öffne dann ein <strong>neues</strong> Fenster und füg die Zeile erneut ein. Git brauchst du nicht.'),
-    ("No HomeWizard found", 'Dein Netzwerk blockiert die Erkennung. IP deines P1 in der HomeWizard-App suchen und <span class="k">hw_ip</span> setzen (Add-on) oder <span class="k">--ip=192.168.1.50</span> ans Ende des Befehls.'),
-    ("couldn't find a total import kWh", 'Der Reader lieferte JSON, das nicht erkannt wurde. Setz <span class="k">--field=</span> auf den Pfad zum kumulativen kWh-Wert.'),
-    ("Nichts unter „Auto-received“", 'Prüfe, ob der Token korrekt eingefügt ist und das Hilfsprogramm noch im selben Netzwerk wie der Zähler läuft.'),
-    ("the automatic reading is stale", 'Ein Stand muss jünger als 48 Stunden sein — Add-on bzw. Terminal muss laufen.'),
-    ("submit one photo reading first", 'Der Startpunkt fehlt. Mach eine normale Foto-Einreichung und versuch es erneut.'),
+    ("'node' is not recognized", "Node.js fehlt, oder das Fenster war schon offen, als du es installiert hast. Unter Windows: <span class=\"k\">winget install OpenJS.NodeJS.LTS</span>. Sonst: nodejs.org. Öffne dann ein <strong>neues</strong> Fenster und füg die Zeile erneut ein. Git brauchst du nicht."),
+    ("Gar nichts — keine Ausgabe, sofort zurück zur Eingabe", "Eine alte Kopie des Hilfsprogramms, von vor dem 19. September. Sie hatte einen Fehler, durch den sie unter Windows ohne jede Ausgabe beendete. Lad sie mit der Zeile oben erneut; die neue fragt nach deinem Token."),
+    ("no HomeWizard found on the network", "Dein Netzwerk blockiert die Erkennung — häufig bei Gast-WLAN und VLANs. Such die IP deines P1 in der HomeWizard-App und führ <span class=\"k\">node gul.js --ip=192.168.1.50</span> aus. Beim Home-Assistant-Add-on trägst du stattdessen <span class=\"k\">hw_ip</span> ein."),
+    ("couldn't find a total import kWh", "Er hat das Gerät erreicht, aber nichts Brauchbares bekommen: <strong>Local API ist noch aus</strong> in der HomeWizard-App, oder das ist kein P1-Zähler. Für eine andere Reader-Marke: <span class=\"k\">--url=</span>."),
+    ("couldn't find a kWh number at …", "Das JSON deines Readers benutzt keinen Namen, den das Hilfsprogramm kennt. Ergänze <span class=\"k\">--field=</span> mit dem Pfad zum Wert, z. B. <span class=\"k\">--field=electricity.import_kwh</span>."),
+    ("ingest 401", "Das Token stimmt nicht oder ist unvollständig. Kopier es erneut aus der App und führ einmal <span class=\"k\">node gul.js --token=…</span> aus, um das gespeicherte zu ersetzen."),
+    ("submit one photo reading first", "Dein Zähler hat noch keinen Startpunkt. Mach eine normale Foto-Einreichung in der App — automatische Stände setzen nie den ersten Wert, damit ein Gerät sich seinen Anfangsstand nicht ausdenken kann. Danach wird ausgezahlt."),
+    ("the automatic reading is stale", "Ein Stand muss beim Claimen jünger als 48 Stunden sein. Starte das Hilfsprogramm erneut (oder lass es laufen) und claime, sobald <span class=\"k\">pushed … ✓</span> erscheint."),
+    ("Nichts unter „Auto-received“", "Das Hilfsprogramm hat noch nichts erfolgreich gesendet. Schau in sein Fenster: jede Runde zeigt entweder <span class=\"k\">pushed … ✓</span> oder den Grund für den Fehlschlag."),
   ],
   close="Kommst du nicht weiter? Schick eine Nachricht mit dem Inhalt des Protokoll-Tabs (oder Terminals) — dort steht meist genau, was fehlt.",
   foot="GreenUtilityLog · Tester-Anleitung · Testnet-Beta — Test-Token, noch kein realer Wert.",
@@ -283,8 +298,8 @@ L["fr"] = dict(
   b=[
     ("Activez l'API locale", 'Dans l\'app <strong>HomeWizard Energy</strong> : <span class="k">Réglages → Compteurs → votre P1 → Local API → ON</span>. Votre réseau peut alors lire le compteur.', None, None, None),
     ("Ouvrez un terminal sur un appareil qui reste allumé", '<strong>Windows :</strong> Démarrer, tapez <em>PowerShell</em>. <strong>Mac :</strong> ouvrez <em>Terminal</em>. <strong>Pi / NAS :</strong> son terminal, ou en SSH.', "see", "Il vous faut Node.js 18+", 'Pas installé ? Sous Windows, collez <span class="k">winget install OpenJS.NodeJS.LTS</span> puis ouvrez une <strong>nouvelle</strong> fenêtre PowerShell. Ailleurs : nodejs.org. C\'est tout ce qu\'il faut — pas git.'),
-    ("Collez une ligne, appuyez sur Entrée", 'Elle télécharge l\'utilitaire et le lance. La première fois, il demande votre jeton — collez-le et appuyez sur Entrée. Il le retient : ensuite, <span class="k">node gul.js</span> suffit. Laissez la fenêtre ouverte.', "code2", RUN, CAPS),
-    ("Vérifiez qu'il a trouvé le compteur", 'Vous devriez voir le compteur détecté puis envoyé.', "see", "Sortie attendue", '<span class="k">found HomeWizard at 192.168.…</span> puis <span class="k">pushed 8421.3 kWh ✓</span>'),
+    ("Collez une ligne, appuyez sur Entrée", "Elle télécharge l’utilitaire et le lance. Laissez la fenêtre ouverte — c’est toute l’installation.", "code2", RUN, CAPS),
+    ("Collez votre jeton quand il le demande", "Il ne le demande qu’une fois et le retient ; ensuite <span class=\"k\">node gul.js</span> suffit. Il trouve alors le compteur et envoie le relevé.", "see", "Ce que vous devez voir, dans cet ordre", "<span class=\"k\">Paste your device token…</span> → <span class=\"k\">found HomeWizard at 192.168.…</span> → <span class=\"k\">pushed 8421.3 kWh ✓</span>"),
   ],
   c_intro="Le même utilitaire lit tout appareil qui expose ses données en JSON via HTTP — vous lui dites simplement où.",
   c=[
@@ -303,14 +318,19 @@ L["fr"] = dict(
   country_close="Pas sûr ? Ouvrez Home Assistant et cherchez votre compteur dans Outils de développement → États. Si une valeur en kWh monte, c'est bon.",
   be_t="🇧🇪 Belgique (compteurs Fluvius)",
   be_b="Les compteurs Fluvius numériques envoient des données chiffrées. Demandez votre clé gratuite à Fluvius et saisissez-la une fois dans l'app de votre lecteur — ensuite tout fonctionne pareil.",
+  once_t="Pas d’appareil qui reste allumé ?",
+  once_b="Ce n’est pas nécessaire. Lancez <span class=\"k\">node gul.js --once</span> quand cela vous arrange : il lit le compteur, envoie le relevé et se ferme. Vous réclamez ensuite dans l’app — la seule règle est que le relevé ait moins de 48 heures au moment de la réclamation. Un ordinateur portable que vous ouvrez de temps en temps suffit ; le laisser tourner vous évite seulement d’y penser.",
   th=("Vous voyez", "Que faire"),
   trouble=[
-    ("'node' is not recognized", 'Node.js n\'est pas installé, ou la fenêtre était déjà ouverte quand vous l\'avez installé. Sous Windows : <span class="k">winget install OpenJS.NodeJS.LTS</span>. Ailleurs : nodejs.org. Puis ouvrez une <strong>nouvelle</strong> fenêtre et recollez la ligne. Git n\'est pas nécessaire.'),
-    ("No HomeWizard found", 'Votre réseau bloque la détection. Trouvez l\'IP de votre P1 dans l\'app HomeWizard et renseignez <span class="k">hw_ip</span> (add-on) ou <span class="k">--ip=192.168.1.50</span> à la fin de la commande.'),
-    ("couldn't find a total import kWh", 'Le lecteur a renvoyé du JSON non reconnu. Réglez <span class="k">--field=</span> sur le chemin de la valeur kWh cumulée.'),
-    ("Rien sous « Auto-received »", 'Vérifiez que le jeton est bien collé et que l\'utilitaire tourne toujours sur le même réseau que le compteur.'),
-    ("the automatic reading is stale", 'Un relevé doit avoir moins de 48 h — l\'add-on ou le terminal doit tourner.'),
-    ("submit one photo reading first", 'Le point de départ manque. Faites une soumission photo normale, puis réessayez.'),
+    ("'node' is not recognized", "Node.js n’est pas installé, ou la fenêtre était déjà ouverte quand vous l’avez installé. Sous Windows : <span class=\"k\">winget install OpenJS.NodeJS.LTS</span>. Ailleurs : nodejs.org. Puis ouvrez une <strong>nouvelle</strong> fenêtre et recollez la ligne. Git n’est pas nécessaire."),
+    ("Rien du tout — aucune sortie, retour immédiat à l’invite", "Une ancienne copie de l’utilitaire, antérieure au 19 septembre. Elle avait un bug qui la faisait quitter sous Windows sans rien afficher. Retéléchargez-la avec la ligne ci-dessus ; la nouvelle demande votre jeton."),
+    ("no HomeWizard found on the network", "Votre réseau bloque la détection — fréquent en Wi-Fi invité et avec des VLAN. Trouvez l’IP de votre P1 dans l’app HomeWizard et lancez <span class=\"k\">node gul.js --ip=192.168.1.50</span>. Avec l’add-on Home Assistant, renseignez plutôt <span class=\"k\">hw_ip</span>."),
+    ("couldn't find a total import kWh", "Il a joint l’appareil mais n’a rien reçu d’exploitable : <strong>l’API locale est encore désactivée</strong> dans l’app HomeWizard, ou ce n’est pas un compteur P1. Pour une autre marque de lecteur : <span class=\"k\">--url=</span>."),
+    ("couldn't find a kWh number at …", "Le JSON de votre lecteur n’utilise pas un nom connu de l’utilitaire. Ajoutez <span class=\"k\">--field=</span> avec le chemin vers la valeur, p. ex. <span class=\"k\">--field=electricity.import_kwh</span>."),
+    ("ingest 401", "Le jeton est incorrect ou incomplet. Recopiez-le depuis l’app et lancez une fois <span class=\"k\">node gul.js --token=…</span> pour remplacer celui qui est enregistré."),
+    ("submit one photo reading first", "Votre compteur n’a pas encore de point de départ. Faites une soumission photo normale dans l’app — les relevés automatiques ne fixent jamais la première valeur, pour qu’un appareil ne puisse pas inventer son propre point de départ. Ensuite, ça paie."),
+    ("the automatic reading is stale", "Un relevé doit avoir moins de 48 heures au moment où vous le réclamez. Relancez l’utilitaire (ou laissez-le tourner) et réclamez dès qu’il affiche <span class=\"k\">pushed … ✓</span>."),
+    ("Rien sous « Auto-received »", "L’utilitaire n’a encore rien envoyé avec succès. Regardez sa fenêtre : chaque cycle affiche soit <span class=\"k\">pushed … ✓</span>, soit la raison de l’échec."),
   ],
   close="Toujours bloqué ? Envoyez un message avec le contenu de l'onglet Journal (ou du terminal) — il dit généralement exactement ce qui manque.",
   foot="GreenUtilityLog · Guide testeur · Bêta testnet — jetons de test, sans valeur réelle.",
@@ -356,8 +376,8 @@ L["es"] = dict(
   b=[
     ("Activa la API local", 'En la app <strong>HomeWizard Energy</strong>: <span class="k">Ajustes → Contadores → tu P1 → Local API → ON</span>. Así tu red puede leer el contador.', None, None, None),
     ("Abre una terminal en un dispositivo que quede encendido", '<strong>Windows:</strong> Inicio, escribe <em>PowerShell</em>. <strong>Mac:</strong> abre <em>Terminal</em>. <strong>Pi / NAS:</strong> su terminal, o por SSH.', "see", "Necesitas Node.js 18+", '¿No lo tienes? En Windows pega <span class="k">winget install OpenJS.NodeJS.LTS</span> y abre después una ventana <strong>nueva</strong> de PowerShell. En otros sistemas: nodejs.org. No hace falta nada más — git tampoco.'),
-    ("Pega una línea y pulsa Enter", 'Descarga el programa y lo arranca. La primera vez te pide tu token — pégalo y pulsa Enter. Lo recuerda, así que a partir de ahí basta con <span class="k">node gul.js</span>. Deja la ventana abierta.', "code2", RUN, CAPS),
-    ("Comprueba que encontró el contador", 'Deberías ver el contador detectado y enviado.', "see", "Salida esperada", '<span class="k">found HomeWizard at 192.168.…</span> y luego <span class="k">pushed 8421.3 kWh ✓</span>'),
+    ("Pega una línea y pulsa Enter", "Descarga el programa y lo arranca. Deja la ventana abierta — eso es toda la instalación.", "code2", RUN, CAPS),
+    ("Pega tu token cuando lo pida", "Lo pide una sola vez y lo recuerda, así que después arrancas con solo <span class=\"k\">node gul.js</span>. Entonces encuentra el contador y envía la lectura.", "see", "Lo que deberías ver, en este orden", "<span class=\"k\">Paste your device token…</span> → <span class=\"k\">found HomeWizard at 192.168.…</span> → <span class=\"k\">pushed 8421.3 kWh ✓</span>"),
   ],
   c_intro="El mismo programa lee cualquier dispositivo que sirva sus datos en JSON por HTTP — solo le dices dónde.",
   c=[
@@ -376,14 +396,19 @@ L["es"] = dict(
   country_close='¿No estás seguro? Abre Home Assistant y busca tu contador en Herramientas para desarrolladores → Estados. Si hay un valor en kWh que sube, listo.',
   be_t="🇧🇪 Bélgica (contadores Fluvius)",
   be_b="Los contadores Fluvius digitales envían datos cifrados. Pide tu clave gratuita a Fluvius e introdúcela una vez en la app de tu lector — después todo funciona igual.",
+  once_t="¿No tienes un equipo que quede encendido?",
+  once_b="No hace falta. Ejecuta <span class=\"k\">node gul.js --once</span> cuando te venga bien: lee el contador, envía la lectura y se cierra. Luego reclamas en la app — la única condición es que la lectura tenga menos de 48 horas al reclamar. Un portátil que abres de vez en cuando basta; dejarlo en marcha solo te ahorra tener que acordarte.",
   th=("Ves", "Qué hacer"),
   trouble=[
-    ("'node' is not recognized", 'Node.js no está instalado, o la ventana ya estaba abierta cuando lo instalaste. En Windows: <span class="k">winget install OpenJS.NodeJS.LTS</span>. En otros sistemas: nodejs.org. Abre una ventana <strong>nueva</strong> y vuelve a pegar la línea. No necesitas git.'),
-    ("No HomeWizard found", 'Tu red bloquea la detección. Busca la IP de tu P1 en la app HomeWizard y pon <span class="k">hw_ip</span> (add-on) o <span class="k">--ip=192.168.1.50</span> al final del comando.'),
-    ("couldn't find a total import kWh", 'El lector devolvió JSON no reconocido. Pon <span class="k">--field=</span> con la ruta al valor kWh acumulado.'),
-    ("Nada bajo «Auto-received»", 'Comprueba que el token está bien pegado y que el programa sigue en marcha en la misma red que el contador.'),
-    ("the automatic reading is stale", 'Una lectura debe tener menos de 48 h — el add-on o la terminal debe estar en marcha.'),
-    ("submit one photo reading first", 'Falta el punto de partida. Haz un envío con foto normal e inténtalo otra vez.'),
+    ("'node' is not recognized", "Node.js no está instalado, o la ventana ya estaba abierta cuando lo instalaste. En Windows: <span class=\"k\">winget install OpenJS.NodeJS.LTS</span>. En otros sistemas: nodejs.org. Abre después una ventana <strong>nueva</strong> y vuelve a pegar la línea. No necesitas git."),
+    ("Nada en absoluto — sin salida, vuelve al indicador", "Una copia antigua del programa, anterior al 19 de septiembre. Tenía un fallo por el que salía en Windows sin mostrar nada. Descárgalo otra vez con la línea de arriba; el nuevo te pide el token."),
+    ("no HomeWizard found on the network", "Tu red bloquea la detección automática — habitual en wifi de invitados y con VLAN. Busca la IP de tu P1 en la app HomeWizard y ejecuta <span class=\"k\">node gul.js --ip=192.168.1.50</span>. Con el add-on de Home Assistant, rellena <span class=\"k\">hw_ip</span>."),
+    ("couldn't find a total import kWh", "Llegó al dispositivo pero no recibió nada aprovechable: <strong>la API local sigue desactivada</strong> en la app HomeWizard, o esto no es un contador P1. Para otra marca de lector: <span class=\"k\">--url=</span>."),
+    ("couldn't find a kWh number at …", "El JSON de tu lector no usa un nombre que el programa conozca. Añade <span class=\"k\">--field=</span> con la ruta al valor, p. ej. <span class=\"k\">--field=electricity.import_kwh</span>."),
+    ("ingest 401", "El token es incorrecto o está incompleto. Cópialo de nuevo desde la app y ejecuta una vez <span class=\"k\">node gul.js --token=…</span> para reemplazar el guardado."),
+    ("submit one photo reading first", "Tu contador aún no tiene punto de partida. Haz un envío con foto normal en la app — las lecturas automáticas nunca fijan el primer valor, para que un dispositivo no pueda inventarse su propio punto de partida. Después sí paga."),
+    ("the automatic reading is stale", "Una lectura debe tener menos de 48 horas en el momento de reclamarla. Vuelve a ejecutar el programa (o déjalo en marcha) y reclama en cuanto muestre <span class=\"k\">pushed … ✓</span>."),
+    ("Nada en “Auto-received”", "El programa aún no ha enviado nada con éxito. Mira su ventana: cada ciclo muestra o bien <span class=\"k\">pushed … ✓</span> o el motivo del fallo."),
   ],
   close="¿Sigues atascado? Envía un mensaje con lo que muestra la pestaña Registro (o la terminal) — suele decir exactamente qué falta.",
   foot="GreenUtilityLog · Guía para testers · Beta en testnet — tokens de prueba, sin valor real.",
@@ -456,11 +481,19 @@ def render(code, d):
     # route B / C
     r.append(f'  <h2>{d["s_b"]}</h2>\n  {steps(d["b"])}')
     r.append(f'  <h2>{d["s_c"]}</h2>\n  <p class="lede" style="font-size:15.5px">{d["c_intro"]}</p>\n  {steps(d["c"])}')
+    # Sits right before "claim it in the app", because that is where a reader with no
+    # Pi or NAS decides this is not for them. It is, and always was — a reading only
+    # has to be under 48 hours old at the moment it is claimed.
+    r.append(f'  <div class="note"><b>{d["once_t"]}</b>{d["once_b"]}</div>')
     # claim
     r.append(f'  <h2>{d["s_claim"]}</h2>\n  {steps(d["claim"])}')
     r.append(f'  <div class="note flag"><b>{d["be_t"]}</b>{d["be_b"]}</div>')
     # trouble
-    r.append(f'  <h2>{d["s_trouble"]}</h2>\n  <div class="scroll"><table>'
+    # class="stack": on a phone this one turns into a list, message above remedy. Two
+    # columns cannot both hold a literal error message and a fix containing commands
+    # like --field=electricity.import_kwh in 342px — the table needed dragging sideways
+    # to read the answer, which is a poor way to treat someone already stuck.
+    r.append(f'  <h2>{d["s_trouble"]}</h2>\n  <div class="scroll"><table class="stack">'
              f'<tr><th>{d["th"][0]}</th><th>{d["th"][1]}</th></tr>')
     for a, b in d["trouble"]:
         r.append(f'    <tr><td>{html.escape(a)}</td><td>{b}</td></tr>')
