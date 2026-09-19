@@ -226,14 +226,14 @@ async function cycle() {
       // Generic mode — any HTTP/JSON reader.
       const data = await getJson(READ_URL);
       reading = readGeneric(data, READ_FIELD);
-      if (reading == null) { log(`couldn't find a kWh number at ${READ_URL}${READ_FIELD ? ` (field "${READ_FIELD}")` : ""} — set READ_FIELD=<dot.path>.`); return; }
+      if (reading == null) { log(`couldn't find a kWh number at ${READ_URL}${READ_FIELD ? ` (field "${READ_FIELD}")` : ""} — add --field=<dot.path>.`); return; }
     } else {
       // HomeWizard mode — discover on the network, then read the local API.
       if (!lastIp) { lastIp = await discover(); if (lastIp) log(`found HomeWizard at ${lastIp}`); }
-      if (!lastIp) { log("no HomeWizard found on the network — set HW_IP=<ip>, or use READ_URL=<url> for another reader."); return; }
+      if (!lastIp) { log("no HomeWizard found on the network — add --ip=<ip>, or --url=<url> for another reader."); return; }
       const data = await getJson(`http://${lastIp}/api/v1/data`);
       reading = readTotal(data);
-      if (reading == null) { log("couldn't find a total import kWh — is this a HomeWizard P1? (or use READ_URL)"); return; }
+      if (reading == null) { log("couldn't find a total import kWh — is this a HomeWizard P1? (or use --url=)"); return; }
     }
     await push(reading);
     log(`pushed ${reading} kWh ✓`);
@@ -253,8 +253,18 @@ async function main() {
   setInterval(cycle, INTERVAL_MS);
 }
 
-// Only run the loop when executed directly (so tests can import the helpers).
-const invokedDirectly = process.argv[1] && import.meta.url === `file://${process.argv[1]}`;
-if (invokedDirectly) main();
+// Run it. There used to be an "only when invoked directly" guard here that compared
+// import.meta.url against `file://${process.argv[1]}` — string concatenation that
+// cannot produce a valid file URL. On Windows argv[1] is "C:\Users\you\gul.js", so the
+// comparison was `file://C:\Users\you\gul.js` vs `file:///C:/Users/you/gul.js`: never
+// equal, for any path. main() was skipped and the script exited printing NOTHING, on
+// every Windows machine. The same bug shows up anywhere the path needs escaping — a
+// single space is enough, since the real URL has %20 and the concatenation doesn't.
+//
+// Nothing in this repository imports this file; the exports below exist for ad-hoc
+// checks. So run unconditionally and give importers an explicit opt-out, rather than
+// inferring "was I run directly?" from a comparison that has to be exactly right on
+// three platforms to avoid failing silently.
+if (!process.env.GUL_NO_MAIN) main();
 
 export { buildQuery, parseARecords, skipName, readTotal, readGeneric };
