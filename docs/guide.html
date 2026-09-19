@@ -245,11 +245,10 @@
       <p><strong>Windows:</strong> press Start, type <em>PowerShell</em>. <strong>Mac:</strong> open <em>Terminal</em>. <strong>Pi / NAS:</strong> its terminal, or over SSH.</p>
       <div class="see"><b>You need Node.js 18+</b>Not installed? Get it from nodejs.org first, or the command below won't run.</div>
       </li>
-      <li><p class="steptitle">Paste this, with your own token</p>
-      <p>Replace <span class="k">YOUR_TOKEN</span>, press Enter, and leave the window open.</p>
-      <div class="code"><span class="cap">One-off setup</span><button class="copy">Copy</button><pre>git clone https://github.com/GreenUtilityLog/GreenUtilityLog
-cd GreenUtilityLog/bridge
-GUL_TOKEN=YOUR_TOKEN node index.js</pre></div>
+      <li><p class="steptitle">Paste one line, press Enter</p>
+      <p>It downloads the helper and starts it. The first time it asks for your token — paste that and press Enter. It remembers it, so after this you only ever run <span class="k">node gul.js</span>. Leave the window open.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copy</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copy</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js</pre></div>
       </li>
       <li><p class="steptitle">Check it found the meter</p>
       <p>You should see the meter being discovered and then pushed.</p>
@@ -263,10 +262,9 @@ GUL_TOKEN=YOUR_TOKEN node index.js</pre></div>
       <p>Open your reader's web page and look for the address that returns raw JSON (often something like <span class="k">/api/v1/data</span> or <span class="k">/api/v2/sm/actual</span>). Exact paths differ per brand — check your reader's own documentation.</p>
       </li>
       <li><p class="steptitle">Start the helper with that URL</p>
-      <p>Replace the URL and your token. If the reading isn't found automatically, add <span class="k">READ_FIELD=</span> with the dot-path to the kWh value in that JSON.</p>
-      <div class="code"><span class="cap">Any HTTP/JSON reader</span><button class="copy">Copy</button><pre>git clone https://github.com/GreenUtilityLog/GreenUtilityLog
-cd GreenUtilityLog/bridge
-GUL_TOKEN=YOUR_TOKEN READ_URL=http://192.168.1.60/api/v1/data node index.js</pre></div>
+      <p>Put your own address in place of the example one; it asks for your token itself. If the reading isn't found automatically, add <span class="k">--field=</span> with the dot-path to the kWh value in that JSON.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copy</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copy</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">Check it worked</p>
       <p>The helper prints what it pushed.</p>
@@ -285,8 +283,9 @@ GUL_TOKEN=YOUR_TOKEN READ_URL=http://192.168.1.60/api/v1/data node index.js</pre
   <div class="note flag"><b>🇧🇪 Belgium (Fluvius meters)</b>Digital Fluvius meters send encrypted data. Ask Fluvius for your free decryption key and enter it once in your reader's app — after that everything works the same.</div>
   <h2>If something doesn't work</h2>
   <div class="scroll"><table><tr><th>You see</th><th>What to do</th></tr>
-    <tr><td>No HomeWizard found</td><td>Your network blocks auto-discovery. Find your P1's IP in the HomeWizard app and set <span class="k">hw_ip</span> (add-on) or add <span class="k">HW_IP=192.168.1.50</span> before the command.</td></tr>
-    <tr><td>couldn&#x27;t find a total import kWh</td><td>The reader returned JSON the helper didn't recognise. Set <span class="k">READ_FIELD</span> to the dot-path of the cumulative kWh value.</td></tr>
+    <tr><td>&#x27;node&#x27; is not recognized</td><td>Node.js isn't installed, or that window was already open when you installed it. Get it from <span class="k">nodejs.org</span>, then open a <strong>new</strong> terminal and paste the line again. You do not need git.</td></tr>
+    <tr><td>No HomeWizard found</td><td>Your network blocks auto-discovery. Find your P1's IP in the HomeWizard app and set <span class="k">hw_ip</span> (add-on) or add <span class="k">--ip=192.168.1.50</span> to the end of the command.</td></tr>
+    <tr><td>couldn&#x27;t find a total import kWh</td><td>The reader returned JSON the helper didn't recognise. Set <span class="k">--field=</span> to the dot-path of the cumulative kWh value.</td></tr>
     <tr><td>Nothing under “Auto-received”</td><td>Check the token is pasted correctly and the helper is still running on the same network as the meter.</td></tr>
     <tr><td>the automatic reading is stale</td><td>A reading must be under 48 hours old to pay out — make sure the add-on or terminal is still running.</td></tr>
     <tr><td>submit one photo reading first</td><td>You skipped the starting point. Do one normal photo submission, then try again.</td></tr>
@@ -368,11 +367,10 @@ GUL_TOKEN=YOUR_TOKEN READ_URL=http://192.168.1.60/api/v1/data node index.js</pre
       <p><strong>Windows:</strong> druk op Start, typ <em>PowerShell</em>. <strong>Mac:</strong> open <em>Terminal</em>. <strong>Pi / NAS:</strong> de terminal daar, of via SSH.</p>
       <div class="see"><b>Je hebt Node.js 18+ nodig</b>Niet geïnstalleerd? Haal het eerst van nodejs.org, anders werkt het commando niet.</div>
       </li>
-      <li><p class="steptitle">Plak dit, met je eigen token</p>
-      <p>Vervang <span class="k">JOUW_TOKEN</span>, druk op Enter en laat het venster openstaan.</p>
-      <div class="code"><span class="cap">Eenmalig instellen</span><button class="copy">Kopieer</button><pre>git clone https://github.com/GreenUtilityLog/GreenUtilityLog
-cd GreenUtilityLog/bridge
-GUL_TOKEN=JOUW_TOKEN node index.js</pre></div>
+      <li><p class="steptitle">Plak één regel, druk op Enter</p>
+      <p>Die haalt de helper op en start hem. De eerste keer vraagt hij om je token — plak dat en druk op Enter. Hij onthoudt het, dus daarna start je hem met alleen <span class="k">node gul.js</span>. Laat het venster openstaan.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieer</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieer</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js</pre></div>
       </li>
       <li><p class="steptitle">Controleer of hij de meter vond</p>
       <p>Je hoort te zien dat de meter gevonden en verstuurd wordt.</p>
@@ -386,10 +384,9 @@ GUL_TOKEN=JOUW_TOKEN node index.js</pre></div>
       <p>Open de webpagina van je reader en zoek het adres dat ruwe JSON teruggeeft (vaak zoiets als <span class="k">/api/v1/data</span> of <span class="k">/api/v2/sm/actual</span>). Exacte paden verschillen per merk — kijk in de documentatie van je reader.</p>
       </li>
       <li><p class="steptitle">Start het hulpprogramma met die URL</p>
-      <p>Vervang de URL en je token. Wordt de stand niet automatisch gevonden, zet er dan <span class="k">READ_FIELD=</span> bij met het pad naar de kWh-waarde in die JSON.</p>
-      <div class="code"><span class="cap">Elke HTTP/JSON-reader</span><button class="copy">Kopieer</button><pre>git clone https://github.com/GreenUtilityLog/GreenUtilityLog
-cd GreenUtilityLog/bridge
-GUL_TOKEN=JOUW_TOKEN READ_URL=http://192.168.1.60/api/v1/data node index.js</pre></div>
+      <p>Zet je eigen adres op de plek van het voorbeeld; om je token vraagt hij zelf. Wordt de stand niet automatisch gevonden, zet er dan <span class="k">--field=</span> bij met het pad naar de kWh-waarde in die JSON.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieer</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieer</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">Controleer of het werkte</p>
       <p>Het hulpprogramma laat zien wat het verstuurd heeft.</p>
@@ -408,8 +405,9 @@ GUL_TOKEN=JOUW_TOKEN READ_URL=http://192.168.1.60/api/v1/data node index.js</pre
   <div class="note flag"><b>🇧🇪 België (Fluvius-meters)</b>Digitale Fluvius-meters sturen versleutelde data. Vraag bij Fluvius je gratis decryptiesleutel op en voer die één keer in de app van je reader in — daarna werkt alles hetzelfde.</div>
   <h2>Als er iets niet werkt</h2>
   <div class="scroll"><table><tr><th>Je ziet</th><th>Wat te doen</th></tr>
-    <tr><td>No HomeWizard found</td><td>Je netwerk blokkeert auto-detectie. Zoek het IP van je P1 in de HomeWizard-app en vul <span class="k">hw_ip</span> in (add-on) of zet <span class="k">HW_IP=192.168.1.50</span> vóór het commando.</td></tr>
-    <tr><td>couldn&#x27;t find a total import kWh</td><td>De reader gaf JSON terug die het hulpprogramma niet herkende. Zet <span class="k">READ_FIELD</span> op het pad naar de cumulatieve kWh-waarde.</td></tr>
+    <tr><td>&#x27;node&#x27; is not recognized</td><td>Node.js staat er niet op, of het venster stond al open toen je het installeerde. Haal het van <span class="k">nodejs.org</span>, open daarna een <strong>nieuw</strong> venster en plak de regel opnieuw. Git heb je niet nodig.</td></tr>
+    <tr><td>No HomeWizard found</td><td>Je netwerk blokkeert auto-detectie. Zoek het IP van je P1 in de HomeWizard-app en vul <span class="k">hw_ip</span> in (add-on) of zet <span class="k">--ip=192.168.1.50</span> achter het commando.</td></tr>
+    <tr><td>couldn&#x27;t find a total import kWh</td><td>De reader gaf JSON terug die het hulpprogramma niet herkende. Zet <span class="k">--field=</span> op het pad naar de cumulatieve kWh-waarde.</td></tr>
     <tr><td>Niets onder “Auto-received”</td><td>Controleer of de token goed geplakt is en of het hulpprogramma nog draait op hetzelfde netwerk als de meter.</td></tr>
     <tr><td>the automatic reading is stale</td><td>Een stand moet jonger dan 48 uur zijn om uit te betalen — zorg dat de add-on of terminal nog draait.</td></tr>
     <tr><td>submit one photo reading first</td><td>Je hebt het startpunt overgeslagen. Doe één gewone foto-inzending en probeer opnieuw.</td></tr>
@@ -491,11 +489,10 @@ GUL_TOKEN=JOUW_TOKEN READ_URL=http://192.168.1.60/api/v1/data node index.js</pre
       <p><strong>Windows:</strong> Start drücken, <em>PowerShell</em> tippen. <strong>Mac:</strong> <em>Terminal</em> öffnen. <strong>Pi / NAS:</strong> dessen Terminal oder per SSH.</p>
       <div class="see"><b>Du brauchst Node.js 18+</b>Nicht installiert? Erst von nodejs.org holen, sonst läuft der Befehl nicht.</div>
       </li>
-      <li><p class="steptitle">Das hier einfügen, mit deinem Token</p>
-      <p>Ersetze <span class="k">DEIN_TOKEN</span>, drücke Enter und lass das Fenster offen.</p>
-      <div class="code"><span class="cap">Einmalige Einrichtung</span><button class="copy">Kopieren</button><pre>git clone https://github.com/GreenUtilityLog/GreenUtilityLog
-cd GreenUtilityLog/bridge
-GUL_TOKEN=DEIN_TOKEN node index.js</pre></div>
+      <li><p class="steptitle">Eine Zeile einfügen, Enter drücken</p>
+      <p>Sie lädt das Hilfsprogramm und startet es. Beim ersten Mal fragt es nach deinem Token — einfügen und Enter. Es merkt es sich, danach genügt <span class="k">node gul.js</span>. Lass das Fenster offen.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieren</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieren</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js</pre></div>
       </li>
       <li><p class="steptitle">Prüfen, ob er den Zähler fand</p>
       <p>Du solltest sehen, wie der Zähler gefunden und gesendet wird.</p>
@@ -509,10 +506,9 @@ GUL_TOKEN=DEIN_TOKEN node index.js</pre></div>
       <p>Öffne die Weboberfläche deines Readers und such die Adresse, die rohes JSON zurückgibt (oft etwas wie <span class="k">/api/v1/data</span> oder <span class="k">/api/v2/sm/actual</span>). Die genauen Pfade unterscheiden sich je Marke — schau in die Doku deines Readers.</p>
       </li>
       <li><p class="steptitle">Hilfsprogramm mit dieser URL starten</p>
-      <p>Ersetze URL und Token. Wird der Stand nicht automatisch gefunden, ergänze <span class="k">READ_FIELD=</span> mit dem Pfad zum kWh-Wert in diesem JSON.</p>
-      <div class="code"><span class="cap">Jeder HTTP/JSON-Reader</span><button class="copy">Kopieren</button><pre>git clone https://github.com/GreenUtilityLog/GreenUtilityLog
-cd GreenUtilityLog/bridge
-GUL_TOKEN=DEIN_TOKEN READ_URL=http://192.168.1.60/api/v1/data node index.js</pre></div>
+      <p>Setz deine eigene Adresse anstelle der Beispiel-URL; nach dem Token fragt es selbst. Wird der Stand nicht automatisch gefunden, ergänze <span class="k">--field=</span> mit dem Pfad zum kWh-Wert in diesem JSON.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieren</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieren</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">Prüfen, ob es klappte</p>
       <p>Das Hilfsprogramm zeigt, was es gesendet hat.</p>
@@ -531,8 +527,9 @@ GUL_TOKEN=DEIN_TOKEN READ_URL=http://192.168.1.60/api/v1/data node index.js</pre
   <div class="note flag"><b>🇧🇪 Belgien (Fluvius-Zähler)</b>Digitale Fluvius-Zähler senden verschlüsselt. Frag bei Fluvius deinen kostenlosen Entschlüsselungscode an und gib ihn einmal in der App deines Readers ein — danach läuft alles gleich.</div>
   <h2>Wenn etwas nicht klappt</h2>
   <div class="scroll"><table><tr><th>Du siehst</th><th>Was tun</th></tr>
-    <tr><td>No HomeWizard found</td><td>Dein Netzwerk blockiert die Erkennung. IP deines P1 in der HomeWizard-App suchen und <span class="k">hw_ip</span> setzen (Add-on) oder <span class="k">HW_IP=192.168.1.50</span> vor den Befehl.</td></tr>
-    <tr><td>couldn&#x27;t find a total import kWh</td><td>Der Reader lieferte JSON, das nicht erkannt wurde. Setz <span class="k">READ_FIELD</span> auf den Pfad zum kumulativen kWh-Wert.</td></tr>
+    <tr><td>&#x27;node&#x27; is not recognized</td><td>Node.js fehlt, oder das Fenster war schon offen, als du es installiert hast. Hol es von <span class="k">nodejs.org</span>, öffne dann ein <strong>neues</strong> Fenster und füg die Zeile erneut ein. Git brauchst du nicht.</td></tr>
+    <tr><td>No HomeWizard found</td><td>Dein Netzwerk blockiert die Erkennung. IP deines P1 in der HomeWizard-App suchen und <span class="k">hw_ip</span> setzen (Add-on) oder <span class="k">--ip=192.168.1.50</span> ans Ende des Befehls.</td></tr>
+    <tr><td>couldn&#x27;t find a total import kWh</td><td>Der Reader lieferte JSON, das nicht erkannt wurde. Setz <span class="k">--field=</span> auf den Pfad zum kumulativen kWh-Wert.</td></tr>
     <tr><td>Nichts unter „Auto-received“</td><td>Prüfe, ob der Token korrekt eingefügt ist und das Hilfsprogramm noch im selben Netzwerk wie der Zähler läuft.</td></tr>
     <tr><td>the automatic reading is stale</td><td>Ein Stand muss jünger als 48 Stunden sein — Add-on bzw. Terminal muss laufen.</td></tr>
     <tr><td>submit one photo reading first</td><td>Der Startpunkt fehlt. Mach eine normale Foto-Einreichung und versuch es erneut.</td></tr>
@@ -614,11 +611,10 @@ GUL_TOKEN=DEIN_TOKEN READ_URL=http://192.168.1.60/api/v1/data node index.js</pre
       <p><strong>Windows :</strong> Démarrer, tapez <em>PowerShell</em>. <strong>Mac :</strong> ouvrez <em>Terminal</em>. <strong>Pi / NAS :</strong> son terminal, ou en SSH.</p>
       <div class="see"><b>Il vous faut Node.js 18+</b>Pas installé ? Prenez-le sur nodejs.org, sinon la commande ne marchera pas.</div>
       </li>
-      <li><p class="steptitle">Collez ceci, avec votre jeton</p>
-      <p>Remplacez <span class="k">VOTRE_JETON</span>, appuyez sur Entrée et laissez la fenêtre ouverte.</p>
-      <div class="code"><span class="cap">Configuration unique</span><button class="copy">Copier</button><pre>git clone https://github.com/GreenUtilityLog/GreenUtilityLog
-cd GreenUtilityLog/bridge
-GUL_TOKEN=VOTRE_JETON node index.js</pre></div>
+      <li><p class="steptitle">Collez une ligne, appuyez sur Entrée</p>
+      <p>Elle télécharge l'utilitaire et le lance. La première fois, il demande votre jeton — collez-le et appuyez sur Entrée. Il le retient : ensuite, <span class="k">node gul.js</span> suffit. Laissez la fenêtre ouverte.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copier</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copier</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js</pre></div>
       </li>
       <li><p class="steptitle">Vérifiez qu'il a trouvé le compteur</p>
       <p>Vous devriez voir le compteur détecté puis envoyé.</p>
@@ -632,10 +628,9 @@ GUL_TOKEN=VOTRE_JETON node index.js</pre></div>
       <p>Ouvrez la page web de votre lecteur et cherchez l'adresse qui renvoie du JSON brut (souvent <span class="k">/api/v1/data</span> ou <span class="k">/api/v2/sm/actual</span>). Les chemins exacts diffèrent selon la marque — consultez la doc de votre lecteur.</p>
       </li>
       <li><p class="steptitle">Lancez l'utilitaire avec cette URL</p>
-      <p>Remplacez l'URL et votre jeton. Si le relevé n'est pas trouvé automatiquement, ajoutez <span class="k">READ_FIELD=</span> avec le chemin vers la valeur kWh dans ce JSON.</p>
-      <div class="code"><span class="cap">Tout lecteur HTTP/JSON</span><button class="copy">Copier</button><pre>git clone https://github.com/GreenUtilityLog/GreenUtilityLog
-cd GreenUtilityLog/bridge
-GUL_TOKEN=VOTRE_JETON READ_URL=http://192.168.1.60/api/v1/data node index.js</pre></div>
+      <p>Mettez votre propre adresse à la place de l'exemple ; il demande votre jeton lui-même. Si le relevé n'est pas trouvé automatiquement, ajoutez <span class="k">--field=</span> avec le chemin vers la valeur kWh dans ce JSON.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copier</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copier</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">Vérifiez que ça a marché</p>
       <p>L'utilitaire affiche ce qu'il a envoyé.</p>
@@ -654,8 +649,9 @@ GUL_TOKEN=VOTRE_JETON READ_URL=http://192.168.1.60/api/v1/data node index.js</pr
   <div class="note flag"><b>🇧🇪 Belgique (compteurs Fluvius)</b>Les compteurs Fluvius numériques envoient des données chiffrées. Demandez votre clé gratuite à Fluvius et saisissez-la une fois dans l'app de votre lecteur — ensuite tout fonctionne pareil.</div>
   <h2>Si ça ne marche pas</h2>
   <div class="scroll"><table><tr><th>Vous voyez</th><th>Que faire</th></tr>
-    <tr><td>No HomeWizard found</td><td>Votre réseau bloque la détection. Trouvez l'IP de votre P1 dans l'app HomeWizard et renseignez <span class="k">hw_ip</span> (add-on) ou <span class="k">HW_IP=192.168.1.50</span> avant la commande.</td></tr>
-    <tr><td>couldn&#x27;t find a total import kWh</td><td>Le lecteur a renvoyé du JSON non reconnu. Réglez <span class="k">READ_FIELD</span> sur le chemin de la valeur kWh cumulée.</td></tr>
+    <tr><td>&#x27;node&#x27; is not recognized</td><td>Node.js n'est pas installé, ou la fenêtre était déjà ouverte quand vous l'avez installé. Prenez-le sur <span class="k">nodejs.org</span>, puis ouvrez une <strong>nouvelle</strong> fenêtre et recollez la ligne. Git n'est pas nécessaire.</td></tr>
+    <tr><td>No HomeWizard found</td><td>Votre réseau bloque la détection. Trouvez l'IP de votre P1 dans l'app HomeWizard et renseignez <span class="k">hw_ip</span> (add-on) ou <span class="k">--ip=192.168.1.50</span> à la fin de la commande.</td></tr>
+    <tr><td>couldn&#x27;t find a total import kWh</td><td>Le lecteur a renvoyé du JSON non reconnu. Réglez <span class="k">--field=</span> sur le chemin de la valeur kWh cumulée.</td></tr>
     <tr><td>Rien sous « Auto-received »</td><td>Vérifiez que le jeton est bien collé et que l'utilitaire tourne toujours sur le même réseau que le compteur.</td></tr>
     <tr><td>the automatic reading is stale</td><td>Un relevé doit avoir moins de 48 h — l'add-on ou le terminal doit tourner.</td></tr>
     <tr><td>submit one photo reading first</td><td>Le point de départ manque. Faites une soumission photo normale, puis réessayez.</td></tr>
@@ -737,11 +733,10 @@ GUL_TOKEN=VOTRE_JETON READ_URL=http://192.168.1.60/api/v1/data node index.js</pr
       <p><strong>Windows:</strong> Inicio, escribe <em>PowerShell</em>. <strong>Mac:</strong> abre <em>Terminal</em>. <strong>Pi / NAS:</strong> su terminal, o por SSH.</p>
       <div class="see"><b>Necesitas Node.js 18+</b>¿No lo tienes? Descárgalo de nodejs.org, si no el comando no funcionará.</div>
       </li>
-      <li><p class="steptitle">Pega esto, con tu token</p>
-      <p>Sustituye <span class="k">TU_TOKEN</span>, pulsa Enter y deja la ventana abierta.</p>
-      <div class="code"><span class="cap">Configuración única</span><button class="copy">Copiar</button><pre>git clone https://github.com/GreenUtilityLog/GreenUtilityLog
-cd GreenUtilityLog/bridge
-GUL_TOKEN=TU_TOKEN node index.js</pre></div>
+      <li><p class="steptitle">Pega una línea y pulsa Enter</p>
+      <p>Descarga el programa y lo arranca. La primera vez te pide tu token — pégalo y pulsa Enter. Lo recuerda, así que a partir de ahí basta con <span class="k">node gul.js</span>. Deja la ventana abierta.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiar</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js</pre></div>
       </li>
       <li><p class="steptitle">Comprueba que encontró el contador</p>
       <p>Deberías ver el contador detectado y enviado.</p>
@@ -755,10 +750,9 @@ GUL_TOKEN=TU_TOKEN node index.js</pre></div>
       <p>Abre la página web de tu lector y busca la dirección que devuelve JSON en bruto (a menudo <span class="k">/api/v1/data</span> o <span class="k">/api/v2/sm/actual</span>). Las rutas exactas varían por marca — consulta la documentación de tu lector.</p>
       </li>
       <li><p class="steptitle">Inicia el programa con esa URL</p>
-      <p>Sustituye la URL y tu token. Si la lectura no se encuentra automáticamente, añade <span class="k">READ_FIELD=</span> con la ruta al valor kWh en ese JSON.</p>
-      <div class="code"><span class="cap">Cualquier lector HTTP/JSON</span><button class="copy">Copiar</button><pre>git clone https://github.com/GreenUtilityLog/GreenUtilityLog
-cd GreenUtilityLog/bridge
-GUL_TOKEN=TU_TOKEN READ_URL=http://192.168.1.60/api/v1/data node index.js</pre></div>
+      <p>Pon tu propia dirección en lugar del ejemplo; el token te lo pide él mismo. Si la lectura no se encuentra automáticamente, añade <span class="k">--field=</span> con la ruta al valor kWh en ese JSON.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiar</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">Comprueba que funcionó</p>
       <p>El programa muestra lo que ha enviado.</p>
@@ -777,8 +771,9 @@ GUL_TOKEN=TU_TOKEN READ_URL=http://192.168.1.60/api/v1/data node index.js</pre><
   <div class="note flag"><b>🇧🇪 Bélgica (contadores Fluvius)</b>Los contadores Fluvius digitales envían datos cifrados. Pide tu clave gratuita a Fluvius e introdúcela una vez en la app de tu lector — después todo funciona igual.</div>
   <h2>Si algo no funciona</h2>
   <div class="scroll"><table><tr><th>Ves</th><th>Qué hacer</th></tr>
-    <tr><td>No HomeWizard found</td><td>Tu red bloquea la detección. Busca la IP de tu P1 en la app HomeWizard y pon <span class="k">hw_ip</span> (add-on) o <span class="k">HW_IP=192.168.1.50</span> antes del comando.</td></tr>
-    <tr><td>couldn&#x27;t find a total import kWh</td><td>El lector devolvió JSON no reconocido. Pon <span class="k">READ_FIELD</span> con la ruta al valor kWh acumulado.</td></tr>
+    <tr><td>&#x27;node&#x27; is not recognized</td><td>Node.js no está instalado, o la ventana ya estaba abierta cuando lo instalaste. Descárgalo de <span class="k">nodejs.org</span>, abre una ventana <strong>nueva</strong> y vuelve a pegar la línea. No necesitas git.</td></tr>
+    <tr><td>No HomeWizard found</td><td>Tu red bloquea la detección. Busca la IP de tu P1 en la app HomeWizard y pon <span class="k">hw_ip</span> (add-on) o <span class="k">--ip=192.168.1.50</span> al final del comando.</td></tr>
+    <tr><td>couldn&#x27;t find a total import kWh</td><td>El lector devolvió JSON no reconocido. Pon <span class="k">--field=</span> con la ruta al valor kWh acumulado.</td></tr>
     <tr><td>Nada bajo «Auto-received»</td><td>Comprueba que el token está bien pegado y que el programa sigue en marcha en la misma red que el contador.</td></tr>
     <tr><td>the automatic reading is stale</td><td>Una lectura debe tener menos de 48 h — el add-on o la terminal debe estar en marcha.</td></tr>
     <tr><td>submit one photo reading first</td><td>Falta el punto de partida. Haz un envío con foto normal e inténtalo otra vez.</td></tr>

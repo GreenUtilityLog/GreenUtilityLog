@@ -10,6 +10,10 @@ state.json.tmp
 server/state.json
 server/state.json.tmp
 
+# The bridge saves the device token next to itself so nobody has to paste it twice.
+# Same secret, same rule: never commit it.
+.gul-bridge.json
+
 # Python bytecode / test caches — never ship these (HACS copies the whole
 # custom_components directory into the user's Home Assistant).
 __pycache__/
