@@ -159,6 +159,15 @@
     .route{grid-template-columns:1fr}
     .meter{padding-top:0}
     td:first-child{white-space:normal}
+    /* The troubleshooting table becomes a list: the message you saw, then what to do
+       about it. As two columns it needed horizontal dragging on a phone, because one
+       side holds a literal error string and the other holds commands. */
+    table.stack tr{display:block;border-bottom:1px solid var(--rule);padding:12px 0}
+    table.stack tr:last-child{border-bottom:0}
+    table.stack th{display:none}
+    table.stack td{display:block;padding:0;border:0}
+    table.stack td:first-child{font-family:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+      font-size:13px;color:var(--ink);font-weight:600;margin-bottom:6px}
   }
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -252,13 +261,13 @@
       <div class="see"><b>You need Node.js 18+</b>Not installed? On Windows paste <span class="k">winget install OpenJS.NodeJS.LTS</span> and then open a <strong>new</strong> PowerShell window. Anywhere else: nodejs.org. That is the only thing you need — git isn't.</div>
       </li>
       <li><p class="steptitle">Paste one line, press Enter</p>
-      <p>It downloads the helper and starts it. The first time it asks for your token — paste that and press Enter. It remembers it, so after this you only ever run <span class="k">node gul.js</span>. Leave the window open.</p>
+      <p>It downloads the helper and starts it. Leave the window open — that is the whole setup.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copy</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copy</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js</pre></div>
       </li>
-      <li><p class="steptitle">Check it found the meter</p>
-      <p>You should see the meter being discovered and then pushed.</p>
-      <div class="see"><b>Expected output</b><span class="k">found HomeWizard at 192.168.…</span> then <span class="k">pushed 8421.3 kWh ✓</span></div>
+      <li><p class="steptitle">Paste your token when it asks</p>
+      <p>It asks once and remembers it, so from then on you start it with just <span class="k">node gul.js</span>. Then it finds the meter and sends the reading.</p>
+      <div class="see"><b>What you should see, in order</b><span class="k">Paste your device token…</span> → <span class="k">found HomeWizard at 192.168.…</span> → <span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
   <h2>Route C — Another P1 reader</h2>
@@ -277,6 +286,7 @@
       <div class="see"><b>Expected output</b><span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
+  <div class="note"><b>No machine that stays on?</b>You don’t need one. Run <span class="k">node gul.js --once</span> whenever it suits you: it reads the meter, sends the reading and closes. Then claim it in the app — the only rule is that the reading is under 48 hours old when you claim. A laptop you open now and then is enough; leaving the helper running only saves you from having to think about it.</div>
   <h2>Finally: claim it in the app</h2>
   <ol class="steps">
       <li><p class="steptitle">Your reading appears by itself</p>
@@ -288,13 +298,16 @@
       </ol>
   <div class="note flag"><b>🇧🇪 Belgium (Fluvius meters)</b>Digital Fluvius meters send encrypted data. Ask Fluvius for your free decryption key and enter it once in your reader's app — after that everything works the same.</div>
   <h2>If something doesn't work</h2>
-  <div class="scroll"><table><tr><th>You see</th><th>What to do</th></tr>
-    <tr><td>&#x27;node&#x27; is not recognized</td><td>Node.js isn't installed, or that window was already open when you installed it. On Windows: <span class="k">winget install OpenJS.NodeJS.LTS</span>. Elsewhere: nodejs.org. Then open a <strong>new</strong> terminal and paste the line again. You do not need git.</td></tr>
-    <tr><td>No HomeWizard found</td><td>Your network blocks auto-discovery. Find your P1's IP in the HomeWizard app and set <span class="k">hw_ip</span> (add-on) or add <span class="k">--ip=192.168.1.50</span> to the end of the command.</td></tr>
-    <tr><td>couldn&#x27;t find a total import kWh</td><td>The reader returned JSON the helper didn't recognise. Set <span class="k">--field=</span> to the dot-path of the cumulative kWh value.</td></tr>
-    <tr><td>Nothing under “Auto-received”</td><td>Check the token is pasted correctly and the helper is still running on the same network as the meter.</td></tr>
-    <tr><td>the automatic reading is stale</td><td>A reading must be under 48 hours old to pay out — make sure the add-on or terminal is still running.</td></tr>
-    <tr><td>submit one photo reading first</td><td>You skipped the starting point. Do one normal photo submission, then try again.</td></tr>
+  <div class="scroll"><table class="stack"><tr><th>You see</th><th>What to do</th></tr>
+    <tr><td>&#x27;node&#x27; is not recognized</td><td>Node.js isn’t installed, or that window was already open when you installed it. On Windows: <span class="k">winget install OpenJS.NodeJS.LTS</span>. Elsewhere: nodejs.org. Then open a <strong>new</strong> terminal and paste the line again. You do not need git.</td></tr>
+    <tr><td>Nothing at all — no output, straight back to the prompt</td><td>An old copy of the helper, from before 19 September. It had a bug that made it exit on Windows without printing anything. Download it again with the line above; the new one asks for your token.</td></tr>
+    <tr><td>no HomeWizard found on the network</td><td>Your network blocks auto-discovery — common on guest Wi-Fi and with VLANs. Look up your P1’s IP in the HomeWizard app and run <span class="k">node gul.js --ip=192.168.1.50</span>. On the Home Assistant add-on, fill in <span class="k">hw_ip</span> instead.</td></tr>
+    <tr><td>couldn&#x27;t find a total import kWh</td><td>It reached the device but got nothing usable back: <strong>Local API is still off</strong> in the HomeWizard app, or this isn’t a P1 meter. For another brand of reader, use <span class="k">--url=</span>.</td></tr>
+    <tr><td>couldn&#x27;t find a kWh number at …</td><td>Your reader’s JSON doesn’t use a name the helper knows. Add <span class="k">--field=</span> with the dot-path to the value, e.g. <span class="k">--field=electricity.import_kwh</span>.</td></tr>
+    <tr><td>ingest 401</td><td>The token is wrong or incomplete. Copy it again from the app and run <span class="k">node gul.js --token=…</span> once to replace the saved one.</td></tr>
+    <tr><td>submit one photo reading first</td><td>Your meter has no starting point yet. Do one normal photo submission in the app — automatic readings never set the first value, so that a device cannot invent its own baseline. After that it pays out.</td></tr>
+    <tr><td>the automatic reading is stale</td><td>A reading has to be under 48 hours old at the moment you claim it. Run the helper again (or leave it running) and claim once it prints <span class="k">pushed … ✓</span>.</td></tr>
+    <tr><td>Nothing under “Auto-received”</td><td>The helper hasn’t pushed successfully yet. Look at its window: every cycle prints either <span class="k">pushed … ✓</span> or the reason it failed.</td></tr>
   </table></div>
   <div class="note">Still stuck? Send a message with what the Log tab (or terminal) shows — it usually says exactly what's missing.</div>
   <footer>GreenUtilityLog · Tester guide · Testnet beta — test tokens, no real-world value yet.</footer>
@@ -374,13 +387,13 @@
       <div class="see"><b>Je hebt Node.js 18+ nodig</b>Niet geïnstalleerd? Plak op Windows <span class="k">winget install OpenJS.NodeJS.LTS</span> en open daarna een <strong>nieuw</strong> PowerShell-venster. Elders: nodejs.org. Meer heb je niet nodig — git dus niet.</div>
       </li>
       <li><p class="steptitle">Plak één regel, druk op Enter</p>
-      <p>Die haalt de helper op en start hem. De eerste keer vraagt hij om je token — plak dat en druk op Enter. Hij onthoudt het, dus daarna start je hem met alleen <span class="k">node gul.js</span>. Laat het venster openstaan.</p>
+      <p>Die haalt de helper op en start hem. Laat het venster openstaan — meer is het niet.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieer</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieer</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js</pre></div>
       </li>
-      <li><p class="steptitle">Controleer of hij de meter vond</p>
-      <p>Je hoort te zien dat de meter gevonden en verstuurd wordt.</p>
-      <div class="see"><b>Dit hoor je te zien</b><span class="k">found HomeWizard at 192.168.…</span> en daarna <span class="k">pushed 8421.3 kWh ✓</span></div>
+      <li><p class="steptitle">Plak je token als hij erom vraagt</p>
+      <p>Hij vraagt het één keer en onthoudt het, dus daarna start je hem met alleen <span class="k">node gul.js</span>. Daarna zoekt hij de meter en stuurt hij de stand door.</p>
+      <div class="see"><b>Dit hoor je te zien, in deze volgorde</b><span class="k">Paste your device token…</span> → <span class="k">found HomeWizard at 192.168.…</span> → <span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
   <h2>Route C — Een andere P1-reader</h2>
@@ -399,6 +412,7 @@
       <div class="see"><b>Dit hoor je te zien</b><span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
+  <div class="note"><b>Geen apparaat dat aan blijft?</b>Hoeft ook niet. Draai <span class="k">node gul.js --once</span> wanneer het jou uitkomt: hij leest de meter, stuurt de stand door en sluit af. Daarna claim je in de app — de enige eis is dat de stand jonger dan 48 uur is op het moment dat je claimt. Een laptop die je af en toe openklapt is genoeg; continu laten draaien scheelt je alleen dat je eraan moet denken.</div>
   <h2>Tot slot: claimen in de app</h2>
   <ol class="steps">
       <li><p class="steptitle">Je stand verschijnt vanzelf</p>
@@ -410,13 +424,16 @@
       </ol>
   <div class="note flag"><b>🇧🇪 België (Fluvius-meters)</b>Digitale Fluvius-meters sturen versleutelde data. Vraag bij Fluvius je gratis decryptiesleutel op en voer die één keer in de app van je reader in — daarna werkt alles hetzelfde.</div>
   <h2>Als er iets niet werkt</h2>
-  <div class="scroll"><table><tr><th>Je ziet</th><th>Wat te doen</th></tr>
+  <div class="scroll"><table class="stack"><tr><th>Je ziet</th><th>Wat te doen</th></tr>
     <tr><td>&#x27;node&#x27; is not recognized</td><td>Node.js staat er niet op, of het venster stond al open toen je het installeerde. Op Windows: <span class="k">winget install OpenJS.NodeJS.LTS</span>. Elders: nodejs.org. Open daarna een <strong>nieuw</strong> venster en plak de regel opnieuw. Git heb je niet nodig.</td></tr>
-    <tr><td>No HomeWizard found</td><td>Je netwerk blokkeert auto-detectie. Zoek het IP van je P1 in de HomeWizard-app en vul <span class="k">hw_ip</span> in (add-on) of zet <span class="k">--ip=192.168.1.50</span> achter het commando.</td></tr>
-    <tr><td>couldn&#x27;t find a total import kWh</td><td>De reader gaf JSON terug die het hulpprogramma niet herkende. Zet <span class="k">--field=</span> op het pad naar de cumulatieve kWh-waarde.</td></tr>
-    <tr><td>Niets onder “Auto-received”</td><td>Controleer of de token goed geplakt is en of het hulpprogramma nog draait op hetzelfde netwerk als de meter.</td></tr>
-    <tr><td>the automatic reading is stale</td><td>Een stand moet jonger dan 48 uur zijn om uit te betalen — zorg dat de add-on of terminal nog draait.</td></tr>
-    <tr><td>submit one photo reading first</td><td>Je hebt het startpunt overgeslagen. Doe één gewone foto-inzending en probeer opnieuw.</td></tr>
+    <tr><td>Helemaal niets — geen uitvoer, meteen terug naar de prompt</td><td>Een oude kopie van de helper, van vóór 19 september. Die had een fout waardoor hij op Windows afsloot zonder iets te tonen. Haal hem opnieuw op met de regel hierboven; de nieuwe vraagt om je token.</td></tr>
+    <tr><td>no HomeWizard found on the network</td><td>Je netwerk blokkeert auto-detectie — gebruikelijk op gasten-wifi en met VLANs. Zoek het IP van je P1 in de HomeWizard-app en draai <span class="k">node gul.js --ip=192.168.1.50</span>. Bij de Home Assistant add-on vul je <span class="k">hw_ip</span> in.</td></tr>
+    <tr><td>couldn&#x27;t find a total import kWh</td><td>Hij bereikte het apparaat maar kreeg niets bruikbaars terug: <strong>Local API staat nog uit</strong> in de HomeWizard-app, of dit is geen P1-meter. Voor een ander merk reader: <span class="k">--url=</span>.</td></tr>
+    <tr><td>couldn&#x27;t find a kWh number at …</td><td>De JSON van je reader gebruikt geen naam die de helper kent. Zet er <span class="k">--field=</span> bij met het pad naar de waarde, bijvoorbeeld <span class="k">--field=electricity.import_kwh</span>.</td></tr>
+    <tr><td>ingest 401</td><td>De token klopt niet of is onvolledig. Kopieer hem opnieuw uit de app en draai één keer <span class="k">node gul.js --token=…</span> om de opgeslagen token te vervangen.</td></tr>
+    <tr><td>submit one photo reading first</td><td>Je meter heeft nog geen startpunt. Doe één gewone foto-inzending in de app — automatische standen zetten nooit de eerste waarde, zodat een apparaat zijn eigen beginstand niet kan verzinnen. Daarna betaalt het uit.</td></tr>
+    <tr><td>the automatic reading is stale</td><td>Een stand moet jonger dan 48 uur zijn op het moment dat je claimt. Start de helper opnieuw (of laat hem draaien) en claim zodra er <span class="k">pushed … ✓</span> staat.</td></tr>
+    <tr><td>Niets onder “Auto-received”</td><td>De helper heeft nog niets succesvol doorgestuurd. Kijk in zijn venster: elke ronde print hij óf <span class="k">pushed … ✓</span> óf de reden waarom het niet lukte.</td></tr>
   </table></div>
   <div class="note">Kom je er niet uit? Stuur een berichtje met wat er in het Log-tabblad (of de terminal) staat — daar staat meestal precies wat er mist.</div>
   <footer>GreenUtilityLog · Testershandleiding · Testnet-beta — test-tokens, nog geen echte waarde.</footer>
@@ -496,13 +513,13 @@
       <div class="see"><b>Du brauchst Node.js 18+</b>Nicht installiert? Unter Windows <span class="k">winget install OpenJS.NodeJS.LTS</span> einfügen und danach ein <strong>neues</strong> PowerShell-Fenster öffnen. Sonst: nodejs.org. Mehr brauchst du nicht — git nicht.</div>
       </li>
       <li><p class="steptitle">Eine Zeile einfügen, Enter drücken</p>
-      <p>Sie lädt das Hilfsprogramm und startet es. Beim ersten Mal fragt es nach deinem Token — einfügen und Enter. Es merkt es sich, danach genügt <span class="k">node gul.js</span>. Lass das Fenster offen.</p>
+      <p>Sie lädt das Hilfsprogramm und startet es. Lass das Fenster offen — mehr ist es nicht.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieren</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieren</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js</pre></div>
       </li>
-      <li><p class="steptitle">Prüfen, ob er den Zähler fand</p>
-      <p>Du solltest sehen, wie der Zähler gefunden und gesendet wird.</p>
-      <div class="see"><b>Erwartete Ausgabe</b><span class="k">found HomeWizard at 192.168.…</span> und danach <span class="k">pushed 8421.3 kWh ✓</span></div>
+      <li><p class="steptitle">Token einfügen, wenn er danach fragt</p>
+      <p>Er fragt einmal und merkt es sich, danach startest du ihn mit nur <span class="k">node gul.js</span>. Dann findet er den Zähler und sendet den Stand.</p>
+      <div class="see"><b>Das solltest du sehen, in dieser Reihenfolge</b><span class="k">Paste your device token…</span> → <span class="k">found HomeWizard at 192.168.…</span> → <span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
   <h2>Route C — Ein anderer P1-Reader</h2>
@@ -521,6 +538,7 @@
       <div class="see"><b>Erwartete Ausgabe</b><span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
+  <div class="note"><b>Kein Gerät, das durchläuft?</b>Brauchst du nicht. Führ <span class="k">node gul.js --once</span> aus, wann es dir passt: liest den Zähler, sendet den Stand und beendet sich. Danach claimst du in der App — die einzige Bedingung ist, dass der Stand beim Claimen jünger als 48 Stunden ist. Ein Laptop, den du ab und zu aufklappst, reicht; durchlaufen lassen erspart dir nur das Daran-denken.</div>
   <h2>Zum Schluss: in der App einlösen</h2>
   <ol class="steps">
       <li><p class="steptitle">Dein Stand erscheint von selbst</p>
@@ -532,13 +550,16 @@
       </ol>
   <div class="note flag"><b>🇧🇪 Belgien (Fluvius-Zähler)</b>Digitale Fluvius-Zähler senden verschlüsselt. Frag bei Fluvius deinen kostenlosen Entschlüsselungscode an und gib ihn einmal in der App deines Readers ein — danach läuft alles gleich.</div>
   <h2>Wenn etwas nicht klappt</h2>
-  <div class="scroll"><table><tr><th>Du siehst</th><th>Was tun</th></tr>
+  <div class="scroll"><table class="stack"><tr><th>Du siehst</th><th>Was tun</th></tr>
     <tr><td>&#x27;node&#x27; is not recognized</td><td>Node.js fehlt, oder das Fenster war schon offen, als du es installiert hast. Unter Windows: <span class="k">winget install OpenJS.NodeJS.LTS</span>. Sonst: nodejs.org. Öffne dann ein <strong>neues</strong> Fenster und füg die Zeile erneut ein. Git brauchst du nicht.</td></tr>
-    <tr><td>No HomeWizard found</td><td>Dein Netzwerk blockiert die Erkennung. IP deines P1 in der HomeWizard-App suchen und <span class="k">hw_ip</span> setzen (Add-on) oder <span class="k">--ip=192.168.1.50</span> ans Ende des Befehls.</td></tr>
-    <tr><td>couldn&#x27;t find a total import kWh</td><td>Der Reader lieferte JSON, das nicht erkannt wurde. Setz <span class="k">--field=</span> auf den Pfad zum kumulativen kWh-Wert.</td></tr>
-    <tr><td>Nichts unter „Auto-received“</td><td>Prüfe, ob der Token korrekt eingefügt ist und das Hilfsprogramm noch im selben Netzwerk wie der Zähler läuft.</td></tr>
-    <tr><td>the automatic reading is stale</td><td>Ein Stand muss jünger als 48 Stunden sein — Add-on bzw. Terminal muss laufen.</td></tr>
-    <tr><td>submit one photo reading first</td><td>Der Startpunkt fehlt. Mach eine normale Foto-Einreichung und versuch es erneut.</td></tr>
+    <tr><td>Gar nichts — keine Ausgabe, sofort zurück zur Eingabe</td><td>Eine alte Kopie des Hilfsprogramms, von vor dem 19. September. Sie hatte einen Fehler, durch den sie unter Windows ohne jede Ausgabe beendete. Lad sie mit der Zeile oben erneut; die neue fragt nach deinem Token.</td></tr>
+    <tr><td>no HomeWizard found on the network</td><td>Dein Netzwerk blockiert die Erkennung — häufig bei Gast-WLAN und VLANs. Such die IP deines P1 in der HomeWizard-App und führ <span class="k">node gul.js --ip=192.168.1.50</span> aus. Beim Home-Assistant-Add-on trägst du stattdessen <span class="k">hw_ip</span> ein.</td></tr>
+    <tr><td>couldn&#x27;t find a total import kWh</td><td>Er hat das Gerät erreicht, aber nichts Brauchbares bekommen: <strong>Local API ist noch aus</strong> in der HomeWizard-App, oder das ist kein P1-Zähler. Für eine andere Reader-Marke: <span class="k">--url=</span>.</td></tr>
+    <tr><td>couldn&#x27;t find a kWh number at …</td><td>Das JSON deines Readers benutzt keinen Namen, den das Hilfsprogramm kennt. Ergänze <span class="k">--field=</span> mit dem Pfad zum Wert, z. B. <span class="k">--field=electricity.import_kwh</span>.</td></tr>
+    <tr><td>ingest 401</td><td>Das Token stimmt nicht oder ist unvollständig. Kopier es erneut aus der App und führ einmal <span class="k">node gul.js --token=…</span> aus, um das gespeicherte zu ersetzen.</td></tr>
+    <tr><td>submit one photo reading first</td><td>Dein Zähler hat noch keinen Startpunkt. Mach eine normale Foto-Einreichung in der App — automatische Stände setzen nie den ersten Wert, damit ein Gerät sich seinen Anfangsstand nicht ausdenken kann. Danach wird ausgezahlt.</td></tr>
+    <tr><td>the automatic reading is stale</td><td>Ein Stand muss beim Claimen jünger als 48 Stunden sein. Starte das Hilfsprogramm erneut (oder lass es laufen) und claime, sobald <span class="k">pushed … ✓</span> erscheint.</td></tr>
+    <tr><td>Nichts unter „Auto-received“</td><td>Das Hilfsprogramm hat noch nichts erfolgreich gesendet. Schau in sein Fenster: jede Runde zeigt entweder <span class="k">pushed … ✓</span> oder den Grund für den Fehlschlag.</td></tr>
   </table></div>
   <div class="note">Kommst du nicht weiter? Schick eine Nachricht mit dem Inhalt des Protokoll-Tabs (oder Terminals) — dort steht meist genau, was fehlt.</div>
   <footer>GreenUtilityLog · Tester-Anleitung · Testnet-Beta — Test-Token, noch kein realer Wert.</footer>
@@ -618,13 +639,13 @@
       <div class="see"><b>Il vous faut Node.js 18+</b>Pas installé ? Sous Windows, collez <span class="k">winget install OpenJS.NodeJS.LTS</span> puis ouvrez une <strong>nouvelle</strong> fenêtre PowerShell. Ailleurs : nodejs.org. C'est tout ce qu'il faut — pas git.</div>
       </li>
       <li><p class="steptitle">Collez une ligne, appuyez sur Entrée</p>
-      <p>Elle télécharge l'utilitaire et le lance. La première fois, il demande votre jeton — collez-le et appuyez sur Entrée. Il le retient : ensuite, <span class="k">node gul.js</span> suffit. Laissez la fenêtre ouverte.</p>
+      <p>Elle télécharge l’utilitaire et le lance. Laissez la fenêtre ouverte — c’est toute l’installation.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copier</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copier</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js</pre></div>
       </li>
-      <li><p class="steptitle">Vérifiez qu'il a trouvé le compteur</p>
-      <p>Vous devriez voir le compteur détecté puis envoyé.</p>
-      <div class="see"><b>Sortie attendue</b><span class="k">found HomeWizard at 192.168.…</span> puis <span class="k">pushed 8421.3 kWh ✓</span></div>
+      <li><p class="steptitle">Collez votre jeton quand il le demande</p>
+      <p>Il ne le demande qu’une fois et le retient ; ensuite <span class="k">node gul.js</span> suffit. Il trouve alors le compteur et envoie le relevé.</p>
+      <div class="see"><b>Ce que vous devez voir, dans cet ordre</b><span class="k">Paste your device token…</span> → <span class="k">found HomeWizard at 192.168.…</span> → <span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
   <h2>Route C — Un autre lecteur P1</h2>
@@ -643,6 +664,7 @@
       <div class="see"><b>Sortie attendue</b><span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
+  <div class="note"><b>Pas d’appareil qui reste allumé ?</b>Ce n’est pas nécessaire. Lancez <span class="k">node gul.js --once</span> quand cela vous arrange : il lit le compteur, envoie le relevé et se ferme. Vous réclamez ensuite dans l’app — la seule règle est que le relevé ait moins de 48 heures au moment de la réclamation. Un ordinateur portable que vous ouvrez de temps en temps suffit ; le laisser tourner vous évite seulement d’y penser.</div>
   <h2>Enfin : réclamez dans l'app</h2>
   <ol class="steps">
       <li><p class="steptitle">Votre relevé apparaît tout seul</p>
@@ -654,13 +676,16 @@
       </ol>
   <div class="note flag"><b>🇧🇪 Belgique (compteurs Fluvius)</b>Les compteurs Fluvius numériques envoient des données chiffrées. Demandez votre clé gratuite à Fluvius et saisissez-la une fois dans l'app de votre lecteur — ensuite tout fonctionne pareil.</div>
   <h2>Si ça ne marche pas</h2>
-  <div class="scroll"><table><tr><th>Vous voyez</th><th>Que faire</th></tr>
-    <tr><td>&#x27;node&#x27; is not recognized</td><td>Node.js n'est pas installé, ou la fenêtre était déjà ouverte quand vous l'avez installé. Sous Windows : <span class="k">winget install OpenJS.NodeJS.LTS</span>. Ailleurs : nodejs.org. Puis ouvrez une <strong>nouvelle</strong> fenêtre et recollez la ligne. Git n'est pas nécessaire.</td></tr>
-    <tr><td>No HomeWizard found</td><td>Votre réseau bloque la détection. Trouvez l'IP de votre P1 dans l'app HomeWizard et renseignez <span class="k">hw_ip</span> (add-on) ou <span class="k">--ip=192.168.1.50</span> à la fin de la commande.</td></tr>
-    <tr><td>couldn&#x27;t find a total import kWh</td><td>Le lecteur a renvoyé du JSON non reconnu. Réglez <span class="k">--field=</span> sur le chemin de la valeur kWh cumulée.</td></tr>
-    <tr><td>Rien sous « Auto-received »</td><td>Vérifiez que le jeton est bien collé et que l'utilitaire tourne toujours sur le même réseau que le compteur.</td></tr>
-    <tr><td>the automatic reading is stale</td><td>Un relevé doit avoir moins de 48 h — l'add-on ou le terminal doit tourner.</td></tr>
-    <tr><td>submit one photo reading first</td><td>Le point de départ manque. Faites une soumission photo normale, puis réessayez.</td></tr>
+  <div class="scroll"><table class="stack"><tr><th>Vous voyez</th><th>Que faire</th></tr>
+    <tr><td>&#x27;node&#x27; is not recognized</td><td>Node.js n’est pas installé, ou la fenêtre était déjà ouverte quand vous l’avez installé. Sous Windows : <span class="k">winget install OpenJS.NodeJS.LTS</span>. Ailleurs : nodejs.org. Puis ouvrez une <strong>nouvelle</strong> fenêtre et recollez la ligne. Git n’est pas nécessaire.</td></tr>
+    <tr><td>Rien du tout — aucune sortie, retour immédiat à l’invite</td><td>Une ancienne copie de l’utilitaire, antérieure au 19 septembre. Elle avait un bug qui la faisait quitter sous Windows sans rien afficher. Retéléchargez-la avec la ligne ci-dessus ; la nouvelle demande votre jeton.</td></tr>
+    <tr><td>no HomeWizard found on the network</td><td>Votre réseau bloque la détection — fréquent en Wi-Fi invité et avec des VLAN. Trouvez l’IP de votre P1 dans l’app HomeWizard et lancez <span class="k">node gul.js --ip=192.168.1.50</span>. Avec l’add-on Home Assistant, renseignez plutôt <span class="k">hw_ip</span>.</td></tr>
+    <tr><td>couldn&#x27;t find a total import kWh</td><td>Il a joint l’appareil mais n’a rien reçu d’exploitable : <strong>l’API locale est encore désactivée</strong> dans l’app HomeWizard, ou ce n’est pas un compteur P1. Pour une autre marque de lecteur : <span class="k">--url=</span>.</td></tr>
+    <tr><td>couldn&#x27;t find a kWh number at …</td><td>Le JSON de votre lecteur n’utilise pas un nom connu de l’utilitaire. Ajoutez <span class="k">--field=</span> avec le chemin vers la valeur, p. ex. <span class="k">--field=electricity.import_kwh</span>.</td></tr>
+    <tr><td>ingest 401</td><td>Le jeton est incorrect ou incomplet. Recopiez-le depuis l’app et lancez une fois <span class="k">node gul.js --token=…</span> pour remplacer celui qui est enregistré.</td></tr>
+    <tr><td>submit one photo reading first</td><td>Votre compteur n’a pas encore de point de départ. Faites une soumission photo normale dans l’app — les relevés automatiques ne fixent jamais la première valeur, pour qu’un appareil ne puisse pas inventer son propre point de départ. Ensuite, ça paie.</td></tr>
+    <tr><td>the automatic reading is stale</td><td>Un relevé doit avoir moins de 48 heures au moment où vous le réclamez. Relancez l’utilitaire (ou laissez-le tourner) et réclamez dès qu’il affiche <span class="k">pushed … ✓</span>.</td></tr>
+    <tr><td>Rien sous « Auto-received »</td><td>L’utilitaire n’a encore rien envoyé avec succès. Regardez sa fenêtre : chaque cycle affiche soit <span class="k">pushed … ✓</span>, soit la raison de l’échec.</td></tr>
   </table></div>
   <div class="note">Toujours bloqué ? Envoyez un message avec le contenu de l'onglet Journal (ou du terminal) — il dit généralement exactement ce qui manque.</div>
   <footer>GreenUtilityLog · Guide testeur · Bêta testnet — jetons de test, sans valeur réelle.</footer>
@@ -740,13 +765,13 @@
       <div class="see"><b>Necesitas Node.js 18+</b>¿No lo tienes? En Windows pega <span class="k">winget install OpenJS.NodeJS.LTS</span> y abre después una ventana <strong>nueva</strong> de PowerShell. En otros sistemas: nodejs.org. No hace falta nada más — git tampoco.</div>
       </li>
       <li><p class="steptitle">Pega una línea y pulsa Enter</p>
-      <p>Descarga el programa y lo arranca. La primera vez te pide tu token — pégalo y pulsa Enter. Lo recuerda, así que a partir de ahí basta con <span class="k">node gul.js</span>. Deja la ventana abierta.</p>
+      <p>Descarga el programa y lo arranca. Deja la ventana abierta — eso es toda la instalación.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiar</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js</pre></div>
       </li>
-      <li><p class="steptitle">Comprueba que encontró el contador</p>
-      <p>Deberías ver el contador detectado y enviado.</p>
-      <div class="see"><b>Salida esperada</b><span class="k">found HomeWizard at 192.168.…</span> y luego <span class="k">pushed 8421.3 kWh ✓</span></div>
+      <li><p class="steptitle">Pega tu token cuando lo pida</p>
+      <p>Lo pide una sola vez y lo recuerda, así que después arrancas con solo <span class="k">node gul.js</span>. Entonces encuentra el contador y envía la lectura.</p>
+      <div class="see"><b>Lo que deberías ver, en este orden</b><span class="k">Paste your device token…</span> → <span class="k">found HomeWizard at 192.168.…</span> → <span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
   <h2>Ruta C — Otro lector P1</h2>
@@ -765,6 +790,7 @@
       <div class="see"><b>Salida esperada</b><span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
+  <div class="note"><b>¿No tienes un equipo que quede encendido?</b>No hace falta. Ejecuta <span class="k">node gul.js --once</span> cuando te venga bien: lee el contador, envía la lectura y se cierra. Luego reclamas en la app — la única condición es que la lectura tenga menos de 48 horas al reclamar. Un portátil que abres de vez en cuando basta; dejarlo en marcha solo te ahorra tener que acordarte.</div>
   <h2>Por último: reclama en la app</h2>
   <ol class="steps">
       <li><p class="steptitle">Tu lectura aparece sola</p>
@@ -776,13 +802,16 @@
       </ol>
   <div class="note flag"><b>🇧🇪 Bélgica (contadores Fluvius)</b>Los contadores Fluvius digitales envían datos cifrados. Pide tu clave gratuita a Fluvius e introdúcela una vez en la app de tu lector — después todo funciona igual.</div>
   <h2>Si algo no funciona</h2>
-  <div class="scroll"><table><tr><th>Ves</th><th>Qué hacer</th></tr>
-    <tr><td>&#x27;node&#x27; is not recognized</td><td>Node.js no está instalado, o la ventana ya estaba abierta cuando lo instalaste. En Windows: <span class="k">winget install OpenJS.NodeJS.LTS</span>. En otros sistemas: nodejs.org. Abre una ventana <strong>nueva</strong> y vuelve a pegar la línea. No necesitas git.</td></tr>
-    <tr><td>No HomeWizard found</td><td>Tu red bloquea la detección. Busca la IP de tu P1 en la app HomeWizard y pon <span class="k">hw_ip</span> (add-on) o <span class="k">--ip=192.168.1.50</span> al final del comando.</td></tr>
-    <tr><td>couldn&#x27;t find a total import kWh</td><td>El lector devolvió JSON no reconocido. Pon <span class="k">--field=</span> con la ruta al valor kWh acumulado.</td></tr>
-    <tr><td>Nada bajo «Auto-received»</td><td>Comprueba que el token está bien pegado y que el programa sigue en marcha en la misma red que el contador.</td></tr>
-    <tr><td>the automatic reading is stale</td><td>Una lectura debe tener menos de 48 h — el add-on o la terminal debe estar en marcha.</td></tr>
-    <tr><td>submit one photo reading first</td><td>Falta el punto de partida. Haz un envío con foto normal e inténtalo otra vez.</td></tr>
+  <div class="scroll"><table class="stack"><tr><th>Ves</th><th>Qué hacer</th></tr>
+    <tr><td>&#x27;node&#x27; is not recognized</td><td>Node.js no está instalado, o la ventana ya estaba abierta cuando lo instalaste. En Windows: <span class="k">winget install OpenJS.NodeJS.LTS</span>. En otros sistemas: nodejs.org. Abre después una ventana <strong>nueva</strong> y vuelve a pegar la línea. No necesitas git.</td></tr>
+    <tr><td>Nada en absoluto — sin salida, vuelve al indicador</td><td>Una copia antigua del programa, anterior al 19 de septiembre. Tenía un fallo por el que salía en Windows sin mostrar nada. Descárgalo otra vez con la línea de arriba; el nuevo te pide el token.</td></tr>
+    <tr><td>no HomeWizard found on the network</td><td>Tu red bloquea la detección automática — habitual en wifi de invitados y con VLAN. Busca la IP de tu P1 en la app HomeWizard y ejecuta <span class="k">node gul.js --ip=192.168.1.50</span>. Con el add-on de Home Assistant, rellena <span class="k">hw_ip</span>.</td></tr>
+    <tr><td>couldn&#x27;t find a total import kWh</td><td>Llegó al dispositivo pero no recibió nada aprovechable: <strong>la API local sigue desactivada</strong> en la app HomeWizard, o esto no es un contador P1. Para otra marca de lector: <span class="k">--url=</span>.</td></tr>
+    <tr><td>couldn&#x27;t find a kWh number at …</td><td>El JSON de tu lector no usa un nombre que el programa conozca. Añade <span class="k">--field=</span> con la ruta al valor, p. ej. <span class="k">--field=electricity.import_kwh</span>.</td></tr>
+    <tr><td>ingest 401</td><td>El token es incorrecto o está incompleto. Cópialo de nuevo desde la app y ejecuta una vez <span class="k">node gul.js --token=…</span> para reemplazar el guardado.</td></tr>
+    <tr><td>submit one photo reading first</td><td>Tu contador aún no tiene punto de partida. Haz un envío con foto normal en la app — las lecturas automáticas nunca fijan el primer valor, para que un dispositivo no pueda inventarse su propio punto de partida. Después sí paga.</td></tr>
+    <tr><td>the automatic reading is stale</td><td>Una lectura debe tener menos de 48 horas en el momento de reclamarla. Vuelve a ejecutar el programa (o déjalo en marcha) y reclama en cuanto muestre <span class="k">pushed … ✓</span>.</td></tr>
+    <tr><td>Nada en “Auto-received”</td><td>El programa aún no ha enviado nada con éxito. Mira su ventana: cada ciclo muestra o bien <span class="k">pushed … ✓</span> o el motivo del fallo.</td></tr>
   </table></div>
   <div class="note">¿Sigues atascado? Envía un mensaje con lo que muestra la pestaña Registro (o la terminal) — suele decir exactamente qué falta.</div>
   <footer>GreenUtilityLog · Guía para testers · Beta en testnet — tokens de prueba, sin valor real.</footer>

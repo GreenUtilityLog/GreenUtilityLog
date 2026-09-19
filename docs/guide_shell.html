@@ -159,6 +159,15 @@
     .route{grid-template-columns:1fr}
     .meter{padding-top:0}
     td:first-child{white-space:normal}
+    /* The troubleshooting table becomes a list: the message you saw, then what to do
+       about it. As two columns it needed horizontal dragging on a phone, because one
+       side holds a literal error string and the other holds commands. */
+    table.stack tr{display:block;border-bottom:1px solid var(--rule);padding:12px 0}
+    table.stack tr:last-child{border-bottom:0}
+    table.stack th{display:none}
+    table.stack td{display:block;padding:0;border:0}
+    table.stack td:first-child{font-family:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+      font-size:13px;color:var(--ink);font-weight:600;margin-bottom:6px}
   }
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
