@@ -132,6 +132,10 @@ const TESTNET_FAUCET = "https://faucet.vecha.in";
 // phone mid-submission. The app keeps only help that's useful in the moment and
 // links here for the rest. One constant so the destination is easy to move.
 const GUIDE_URL = "https://greenutilitylog.github.io/GreenUtilityLog/guide.html";
+// The bridge helper, served as a single file so setup is "download and run" rather
+// than "install git, clone a repo, find the right folder". docs/gul.js is generated
+// from bridge/index.js by docs/build_guide.py, so the two cannot drift apart.
+const BRIDGE_JS_URL = "https://greenutilitylog.github.io/GreenUtilityLog/gul.js";
 
 // Indicative B3TR→USD rate for display only (not a live price feed).
 const B3TR_USD = 0.014;
@@ -2138,6 +2142,15 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
   const [open, setOpen]       = useState(!!embedded); // embedded → always expanded (no toggle)
   const [advOpen, setAdvOpen] = useState(false);
   const [device, setDevice]   = useState("homewizard"); // which setup snippet to show
+  // Which shell the command is written for. Guessed from the browser, but only as a
+  // starting point: most people open this app on a phone and set the bridge up on a
+  // different machine, so the guess is worthless without a way to change it. It
+  // matters because the two commands are not interchangeable — a bash line pasted
+  // into PowerShell fails to parse, which is exactly how testers got stuck.
+  const [os, setOs] = useState(() => {
+    const ua = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
+    return /Mac|iPhone|iPad|Linux|Android/i.test(ua) && !/Windows/i.test(ua) ? "unix" : "win";
+  });
 
   const signCert = async () => {
     const content = `Green Utility Log — link smart meter\nWallet: ${wallet}\nTime: ${new Date().toISOString()}`;
@@ -2317,15 +2330,22 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
                       { id: "ha",         label: "Home Assistant" },
                       { id: "curl",       label: "Any other reader" },
                     ];
-                    const bridgeCmd = `# Easiest: the bridge finds your HomeWizard on the network and pushes
-# automatically. Run it once on an always-on machine (Pi / NAS / PC), Node 18+:
+                    // One file, no git, no cd, no install: the helper has no dependencies, so
+                    // downloading and running it IS the setup. Written for one shell at a
+                    // time — `VAR=x cmd` and `&&` are bash, and PowerShell answers "The term
+                    // 'GUL_TOKEN=…' is not recognized" rather than doing anything useful.
+                    const fetchCmd = (args) => os === "win"
+                      ? `iwr ${BRIDGE_JS_URL} -OutFile gul.js; node gul.js ${args}`
+                      : `curl -fsSL ${BRIDGE_JS_URL} -o gul.js && node gul.js ${args}`;
+                    const bridgeCmd = `# The bridge finds your HomeWizard on the network by itself and keeps
+# pushing. Run it on a machine that stays on (PC / Pi / NAS). Needs Node 18+
+# from nodejs.org — nothing else to install. Leave the window open.
 
-git clone https://github.com/GreenUtilityLog/GreenUtilityLog
-cd GreenUtilityLog/bridge
-GUL_TOKEN=${token} node index.js
+${fetchCmd(`--token=${token}`)}
 
-# Prefer Docker?
-# docker build -t gul-bridge ./bridge
+# It remembers your token, so from then on: node gul.js
+# Network blocks auto-discovery? Add --ip=<your P1 IP>
+# Docker instead: docker build -t gul-bridge ./bridge
 # docker run -d --network host -e GUL_TOKEN=${token} gul-bridge`;
                     const haYaml = `# EASIEST: install our integration instead — no YAML at all.
 #   HACS → ⋮ → Custom repositories → add (type: Integration):
@@ -2355,14 +2375,14 @@ curl -X POST ${ingestUrl} \\
   -H "Content-Type: application/json" \\
   -d '{"token":"${token}","reading":12345.6}'
 
-# Or let the bridge read any HTTP/JSON reader for you:
-# READ_URL=http://<reader-ip>/... GUL_TOKEN=${token} node GreenUtilityLog/bridge/index.js`;
+# Or let the bridge read any HTTP/JSON reader for you — one file, no install:
+${fetchCmd(`--token=${token} --url=http://<reader-ip>/api/v1/data`)}`;
                     const snip = device === "ha" ? haYaml : device === "curl" ? curlSnippet : bridgeCmd;
                     const hint = device === "homewizard"
-                      ? 'Turn on "Local API" in the HomeWizard app first. The bridge auto-discovers your P1 — if your network blocks mDNS, add HW_IP=<your P1 IP>. Needs Node 18+ or Docker.'
+                      ? 'Turn on "Local API" in the HomeWizard app first (Settings → Meters → your P1). The bridge finds your P1 itself — if your network blocks mDNS, add --ip=<your P1 IP>. Needs Node 18+ or Docker; no git, no install.'
                       : device === "ha"
                       ? "The easiest route: install our integration via HACS (no YAML at all) — the first lines below show how. Or wire it yourself with the YAML; entity IDs differ per install, so find yours under Developer tools → States (filter “import”, pick the kWh one that counts up)."
-                      : "For any other setup. POST your cumulative kWh total from any device, or use the bridge’s generic mode (READ_URL) to read any HTTP/JSON reader.";
+                      : "For any other setup. POST your cumulative kWh total from any device, or let the bridge read any HTTP/JSON reader for you with --url=.";
                     return (
                       <div>
                         {/* Live connection status */}
@@ -2381,6 +2401,20 @@ curl -X POST ${ingestUrl} \\
                             </button>
                           ))}
                         </div>
+
+                        {/* Which shell the command is for. Only shown where there IS a
+                            command — the Home Assistant route is YAML, same everywhere. */}
+                        {device !== "ha" && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
+                            <span style={{ fontSize:10, color: T.textSoft, fontWeight: 700 }}>Running it on</span>
+                            {[{ id: "win", label: "Windows" }, { id: "unix", label: "Mac · Linux · Pi" }].map((o) => (
+                              <button key={o.id} onClick={() => setOs(o.id)}
+                                style={{ padding: "5px 9px", fontSize:10, fontWeight: 700, borderRadius: 6, cursor: "pointer", border: `1px solid ${os === o.id ? (T.eco || T.electric) : (T.border || T.waterBorder)}`, background: os === o.id ? (T.eco || T.electric) : "transparent", color: os === o.id ? "#fff" : T.textMid }}>
+                                {o.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
 
                         {/* Pre-filled, one-tap-copy setup */}
                         <div style={{ position: "relative" }}>

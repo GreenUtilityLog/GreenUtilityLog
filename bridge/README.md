@@ -8,7 +8,7 @@ Two modes:
 - **HomeWizard P1** (default) — it **finds your HomeWizard on the network by itself**
   (mDNS) and reads it. No IP to look up.
 - **Any other reader** — point it at any device that returns your kWh total as JSON
-  over HTTP (dsmr-reader, Shelly, a custom endpoint…) with `READ_URL`.
+  over HTTP (dsmr-reader, Shelly, a custom endpoint…) with `--url=`.
 
 Zero dependencies — just Node ≥ 18 (or Docker).
 
@@ -18,12 +18,22 @@ Zero dependencies — just Node ≥ 18 (or Docker).
 
 ## Run it — pick one
 
-**Node (no Docker):**
-```bash
-git clone https://github.com/GreenUtilityLog/GreenUtilityLog
-cd GreenUtilityLog/bridge
-GUL_TOKEN=your-device-token node index.js
+It's a single file with no dependencies, so there is nothing to clone or install:
+download it and run it. It asks for your token the first time and remembers it, so
+every run after that is just `node gul.js`.
+
+**Windows (PowerShell):**
+```powershell
+iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js
 ```
+
+**Mac · Linux · Raspberry Pi:**
+```bash
+curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js
+```
+
+> Use the line for your own shell. `VAR=value command` and `&&` are bash syntax;
+> PowerShell answers *"The term 'GUL_TOKEN=…' is not recognized"* and does nothing.
 
 **Docker:**
 ```bash
@@ -35,28 +45,36 @@ docker run -d --name gul-bridge --network host -e GUL_TOKEN=your-device-token gu
 Leave it running. It pushes your meter total every hour. Your reading shows up in
 the app under **“Auto-received”** → tap **Submit — no photo** to claim.
 
-## Options (environment variables)
-| Var | Default | What it does |
-|---|---|---|
-| `GUL_TOKEN` | — (required) | Your device token from the app |
-| `HW_IP` | auto-discover | Set your HomeWizard’s IP to skip mDNS discovery |
-| `INTERVAL_SEC` | `3600` | Seconds between pushes (min 60) |
-| `GUL_INGEST_URL` | public backend | Override the ingest endpoint |
-| `READ_URL` | — | Generic mode: read your kWh total from this HTTP/JSON endpoint (skips HomeWizard discovery) |
-| `READ_FIELD` | auto-detect | Dot-path to the number in that JSON (e.g. `data.total_kwh`) |
-| `ONCE` | — | Set `ONCE=1` to push a single reading and exit (for a cron/systemd timer) |
+## Options
+
+Every setting can be given as a **flag** (works in any shell) or as an **environment
+variable** (handy for Docker and the Home Assistant add-on). Flags win; then env vars;
+then the token saved by a previous run.
+
+| Flag | Env var | Default | What it does |
+|---|---|---|---|
+| `--token=` | `GUL_TOKEN` | asked for, then saved | Your device token from the app |
+| `--ip=` | `HW_IP` | auto-discover | Your HomeWizard’s IP, to skip mDNS discovery |
+| `--interval=` | `INTERVAL_SEC` | `3600` | Seconds between pushes (min 60) |
+| `--ingest=` | `GUL_INGEST_URL` | public backend | Override the ingest endpoint |
+| `--url=` | `READ_URL` | — | Generic mode: read your kWh total from this HTTP/JSON endpoint (skips HomeWizard discovery) |
+| `--field=` | `READ_FIELD` | auto-detect | Dot-path to the number in that JSON (e.g. `data.total_kwh`) |
+| `--once` | `ONCE=1` | — | Push a single reading and exit (for a cron/systemd timer) |
+
+The token is saved to `.gul-bridge.json` next to the script, so it is never needed on
+the command line twice. Anyone who can read that file can submit readings as you.
 
 **Generic example** (any reader that serves JSON):
 ```bash
-GUL_TOKEN=your-token \
-READ_URL=http://192.168.1.60/api/readings \
-READ_FIELD=electricity.import_kwh \
-node index.js
+node gul.js --url=http://192.168.1.60/api/readings --field=electricity.import_kwh
 ```
 
 ## Notes
-- **Discovery not finding it?** Some networks block mDNS (VLANs, guest Wi-Fi). Just
-  set `HW_IP=192.168.1.50` (see the IP in the HomeWizard app) and it skips discovery.
+- **`node` is not recognized?** Node isn't installed, or the window was already open
+  when you installed it. Get it from [nodejs.org](https://nodejs.org), then open a
+  **new** terminal. Nothing else is needed — not git, not a package manager.
+- **Discovery not finding it?** Some networks block mDNS (VLANs, guest Wi-Fi). Add
+  `--ip=192.168.1.50` (the IP is in the HomeWizard app) and it skips discovery.
 - Readings must be < 48h old to pay out; the usual cooldown / plausibility limits
   still apply. Testnet beta — test tokens, no real-world value yet.
 - Only your token can submit for your wallet, so keep it private.

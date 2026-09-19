@@ -4,7 +4,23 @@
 import io, os, html
 
 REPO = "https://github.com/GreenUtilityLog/GreenUtilityLog"
-CLONE = "git clone https://github.com/GreenUtilityLog/GreenUtilityLog\ncd GreenUtilityLog/bridge"
+
+# The helper is ONE file with no dependencies, so it is downloaded and run directly.
+# It used to be `git clone … && cd … && GUL_TOKEN=x node index.js`, which asked three
+# things of a Windows user that Windows doesn't give you: git (not installed by
+# default), a working directory, and VAR=value prefix syntax — that last one is bash
+# and PowerShell answers "The term 'GUL_TOKEN=…' is not recognized". Testers hit
+# exactly that. Hence: platform-correct one-liners, and the token is asked for by the
+# script instead of being pasted into a command line.
+GUL_JS = "https://greenutilitylog.github.io/GreenUtilityLog/gul.js"
+def dl(args=""):
+    """(windows_command, unix_command) — download the helper and run it."""
+    tail = f" {args}" if args else ""
+    return (f"iwr {GUL_JS} -OutFile gul.js; node gul.js{tail}",
+            f"curl -fsSL {GUL_JS} -o gul.js && node gul.js{tail}")
+RUN = dl()
+RUN_URL = dl("--url=http://192.168.1.60/api/v1/data")
+CAPS = ("Windows — PowerShell", "Mac · Linux · Raspberry Pi")  # platform names, untranslated
 
 L = {}
 
@@ -48,14 +64,13 @@ L["en"] = dict(
   b=[
     ("Turn on the Local API", 'In the <strong>HomeWizard Energy</strong> app: <span class="k">Settings → Meters → your P1 → Local API → ON</span>. This lets your own network read the meter.', None, None, None),
     ("Open a terminal on a device that stays on", '<strong>Windows:</strong> press Start, type <em>PowerShell</em>. <strong>Mac:</strong> open <em>Terminal</em>. <strong>Pi / NAS:</strong> its terminal, or over SSH.', "see", "You need Node.js 18+", 'Not installed? Get it from nodejs.org first, or the command below won\'t run.'),
-    ("Paste this, with your own token", 'Replace <span class="k">YOUR_TOKEN</span>, press Enter, and leave the window open.', "code", CLONE + "\nGUL_TOKEN=YOUR_TOKEN node index.js", "One-off setup"),
+    ("Paste one line, press Enter", 'It downloads the helper and starts it. The first time it asks for your token — paste that and press Enter. It remembers it, so after this you only ever run <span class="k">node gul.js</span>. Leave the window open.', "code2", RUN, CAPS),
     ("Check it found the meter", 'You should see the meter being discovered and then pushed.', "see", "Expected output", '<span class="k">found HomeWizard at 192.168.…</span> then <span class="k">pushed 8421.3 kWh ✓</span>'),
   ],
   c_intro="The same helper reads any device that serves its data as JSON over HTTP — you just tell it where.",
   c=[
     ("Find your reader's data URL", 'Open your reader\'s web page and look for the address that returns raw JSON (often something like <span class="k">/api/v1/data</span> or <span class="k">/api/v2/sm/actual</span>). Exact paths differ per brand — check your reader\'s own documentation.', None, None, None),
-    ("Start the helper with that URL", 'Replace the URL and your token. If the reading isn\'t found automatically, add <span class="k">READ_FIELD=</span> with the dot-path to the kWh value in that JSON.', "code",
-     CLONE + "\nGUL_TOKEN=YOUR_TOKEN READ_URL=http://192.168.1.60/api/v1/data node index.js", "Any HTTP/JSON reader"),
+    ("Start the helper with that URL", 'Put your own address in place of the example one; it asks for your token itself. If the reading isn\'t found automatically, add <span class="k">--field=</span> with the dot-path to the kWh value in that JSON.', "code2", RUN_URL, CAPS),
     ("Check it worked", 'The helper prints what it pushed.', "see", "Expected output", '<span class="k">pushed 8421.3 kWh ✓</span>'),
   ],
   claim=[
@@ -71,8 +86,9 @@ L["en"] = dict(
   be_b="Digital Fluvius meters send encrypted data. Ask Fluvius for your free decryption key and enter it once in your reader's app — after that everything works the same.",
   th=("You see", "What to do"),
   trouble=[
-    ("No HomeWizard found", 'Your network blocks auto-discovery. Find your P1\'s IP in the HomeWizard app and set <span class="k">hw_ip</span> (add-on) or add <span class="k">HW_IP=192.168.1.50</span> before the command.'),
-    ("couldn't find a total import kWh", 'The reader returned JSON the helper didn\'t recognise. Set <span class="k">READ_FIELD</span> to the dot-path of the cumulative kWh value.'),
+    ("'node' is not recognized", 'Node.js isn\'t installed, or that window was already open when you installed it. Get it from <span class="k">nodejs.org</span>, then open a <strong>new</strong> terminal and paste the line again. You do not need git.'),
+    ("No HomeWizard found", 'Your network blocks auto-discovery. Find your P1\'s IP in the HomeWizard app and set <span class="k">hw_ip</span> (add-on) or add <span class="k">--ip=192.168.1.50</span> to the end of the command.'),
+    ("couldn't find a total import kWh", 'The reader returned JSON the helper didn\'t recognise. Set <span class="k">--field=</span> to the dot-path of the cumulative kWh value.'),
     ("Nothing under “Auto-received”", 'Check the token is pasted correctly and the helper is still running on the same network as the meter.'),
     ("the automatic reading is stale", 'A reading must be under 48 hours old to pay out — make sure the add-on or terminal is still running.'),
     ("submit one photo reading first", 'You skipped the starting point. Do one normal photo submission, then try again.'),
@@ -121,14 +137,13 @@ L["nl"] = dict(
   b=[
     ("Zet de Local API aan", 'In de <strong>HomeWizard Energy</strong>-app: <span class="k">Instellingen → Meters → je P1 → Local API → AAN</span>. Hiermee mag je eigen netwerk de meter uitlezen.', None, None, None),
     ("Open een terminal op een apparaat dat aan blijft", '<strong>Windows:</strong> druk op Start, typ <em>PowerShell</em>. <strong>Mac:</strong> open <em>Terminal</em>. <strong>Pi / NAS:</strong> de terminal daar, of via SSH.', "see", "Je hebt Node.js 18+ nodig", 'Niet geïnstalleerd? Haal het eerst van nodejs.org, anders werkt het commando niet.'),
-    ("Plak dit, met je eigen token", 'Vervang <span class="k">JOUW_TOKEN</span>, druk op Enter en laat het venster openstaan.', "code", CLONE + "\nGUL_TOKEN=JOUW_TOKEN node index.js", "Eenmalig instellen"),
+    ("Plak één regel, druk op Enter", 'Die haalt de helper op en start hem. De eerste keer vraagt hij om je token — plak dat en druk op Enter. Hij onthoudt het, dus daarna start je hem met alleen <span class="k">node gul.js</span>. Laat het venster openstaan.', "code2", RUN, CAPS),
     ("Controleer of hij de meter vond", 'Je hoort te zien dat de meter gevonden en verstuurd wordt.', "see", "Dit hoor je te zien", '<span class="k">found HomeWizard at 192.168.…</span> en daarna <span class="k">pushed 8421.3 kWh ✓</span>'),
   ],
   c_intro="Hetzelfde hulpprogramma leest elk apparaat dat z’n data als JSON via HTTP aanbiedt — je zegt alleen waar.",
   c=[
     ("Zoek de data-URL van je reader", 'Open de webpagina van je reader en zoek het adres dat ruwe JSON teruggeeft (vaak zoiets als <span class="k">/api/v1/data</span> of <span class="k">/api/v2/sm/actual</span>). Exacte paden verschillen per merk — kijk in de documentatie van je reader.', None, None, None),
-    ("Start het hulpprogramma met die URL", 'Vervang de URL en je token. Wordt de stand niet automatisch gevonden, zet er dan <span class="k">READ_FIELD=</span> bij met het pad naar de kWh-waarde in die JSON.', "code",
-     CLONE + "\nGUL_TOKEN=JOUW_TOKEN READ_URL=http://192.168.1.60/api/v1/data node index.js", "Elke HTTP/JSON-reader"),
+    ("Start het hulpprogramma met die URL", 'Zet je eigen adres op de plek van het voorbeeld; om je token vraagt hij zelf. Wordt de stand niet automatisch gevonden, zet er dan <span class="k">--field=</span> bij met het pad naar de kWh-waarde in die JSON.', "code2", RUN_URL, CAPS),
     ("Controleer of het werkte", 'Het hulpprogramma laat zien wat het verstuurd heeft.', "see", "Dit hoor je te zien", '<span class="k">pushed 8421.3 kWh ✓</span>'),
   ],
   claim=[
@@ -144,8 +159,9 @@ L["nl"] = dict(
   be_b="Digitale Fluvius-meters sturen versleutelde data. Vraag bij Fluvius je gratis decryptiesleutel op en voer die één keer in de app van je reader in — daarna werkt alles hetzelfde.",
   th=("Je ziet", "Wat te doen"),
   trouble=[
-    ("No HomeWizard found", 'Je netwerk blokkeert auto-detectie. Zoek het IP van je P1 in de HomeWizard-app en vul <span class="k">hw_ip</span> in (add-on) of zet <span class="k">HW_IP=192.168.1.50</span> vóór het commando.'),
-    ("couldn't find a total import kWh", 'De reader gaf JSON terug die het hulpprogramma niet herkende. Zet <span class="k">READ_FIELD</span> op het pad naar de cumulatieve kWh-waarde.'),
+    ("'node' is not recognized", 'Node.js staat er niet op, of het venster stond al open toen je het installeerde. Haal het van <span class="k">nodejs.org</span>, open daarna een <strong>nieuw</strong> venster en plak de regel opnieuw. Git heb je niet nodig.'),
+    ("No HomeWizard found", 'Je netwerk blokkeert auto-detectie. Zoek het IP van je P1 in de HomeWizard-app en vul <span class="k">hw_ip</span> in (add-on) of zet <span class="k">--ip=192.168.1.50</span> achter het commando.'),
+    ("couldn't find a total import kWh", 'De reader gaf JSON terug die het hulpprogramma niet herkende. Zet <span class="k">--field=</span> op het pad naar de cumulatieve kWh-waarde.'),
     ("Niets onder “Auto-received”", 'Controleer of de token goed geplakt is en of het hulpprogramma nog draait op hetzelfde netwerk als de meter.'),
     ("the automatic reading is stale", 'Een stand moet jonger dan 48 uur zijn om uit te betalen — zorg dat de add-on of terminal nog draait.'),
     ("submit one photo reading first", 'Je hebt het startpunt overgeslagen. Doe één gewone foto-inzending en probeer opnieuw.'),
@@ -194,14 +210,13 @@ L["de"] = dict(
   b=[
     ("Local API aktivieren", 'In der <strong>HomeWizard Energy</strong>-App: <span class="k">Einstellungen → Zähler → dein P1 → Local API → EIN</span>. Damit darf dein Netzwerk den Zähler auslesen.', None, None, None),
     ("Terminal auf einem Dauergerät öffnen", '<strong>Windows:</strong> Start drücken, <em>PowerShell</em> tippen. <strong>Mac:</strong> <em>Terminal</em> öffnen. <strong>Pi / NAS:</strong> dessen Terminal oder per SSH.', "see", "Du brauchst Node.js 18+", 'Nicht installiert? Erst von nodejs.org holen, sonst läuft der Befehl nicht.'),
-    ("Das hier einfügen, mit deinem Token", 'Ersetze <span class="k">DEIN_TOKEN</span>, drücke Enter und lass das Fenster offen.', "code", CLONE + "\nGUL_TOKEN=DEIN_TOKEN node index.js", "Einmalige Einrichtung"),
+    ("Eine Zeile einfügen, Enter drücken", 'Sie lädt das Hilfsprogramm und startet es. Beim ersten Mal fragt es nach deinem Token — einfügen und Enter. Es merkt es sich, danach genügt <span class="k">node gul.js</span>. Lass das Fenster offen.', "code2", RUN, CAPS),
     ("Prüfen, ob er den Zähler fand", 'Du solltest sehen, wie der Zähler gefunden und gesendet wird.', "see", "Erwartete Ausgabe", '<span class="k">found HomeWizard at 192.168.…</span> und danach <span class="k">pushed 8421.3 kWh ✓</span>'),
   ],
   c_intro="Dasselbe Hilfsprogramm liest jedes Gerät, das seine Daten als JSON über HTTP anbietet — du sagst ihm nur wo.",
   c=[
     ("Die Daten-URL deines Readers finden", 'Öffne die Weboberfläche deines Readers und such die Adresse, die rohes JSON zurückgibt (oft etwas wie <span class="k">/api/v1/data</span> oder <span class="k">/api/v2/sm/actual</span>). Die genauen Pfade unterscheiden sich je Marke — schau in die Doku deines Readers.', None, None, None),
-    ("Hilfsprogramm mit dieser URL starten", 'Ersetze URL und Token. Wird der Stand nicht automatisch gefunden, ergänze <span class="k">READ_FIELD=</span> mit dem Pfad zum kWh-Wert in diesem JSON.', "code",
-     CLONE + "\nGUL_TOKEN=DEIN_TOKEN READ_URL=http://192.168.1.60/api/v1/data node index.js", "Jeder HTTP/JSON-Reader"),
+    ("Hilfsprogramm mit dieser URL starten", 'Setz deine eigene Adresse anstelle der Beispiel-URL; nach dem Token fragt es selbst. Wird der Stand nicht automatisch gefunden, ergänze <span class="k">--field=</span> mit dem Pfad zum kWh-Wert in diesem JSON.', "code2", RUN_URL, CAPS),
     ("Prüfen, ob es klappte", 'Das Hilfsprogramm zeigt, was es gesendet hat.', "see", "Erwartete Ausgabe", '<span class="k">pushed 8421.3 kWh ✓</span>'),
   ],
   claim=[
@@ -217,8 +232,9 @@ L["de"] = dict(
   be_b="Digitale Fluvius-Zähler senden verschlüsselt. Frag bei Fluvius deinen kostenlosen Entschlüsselungscode an und gib ihn einmal in der App deines Readers ein — danach läuft alles gleich.",
   th=("Du siehst", "Was tun"),
   trouble=[
-    ("No HomeWizard found", 'Dein Netzwerk blockiert die Erkennung. IP deines P1 in der HomeWizard-App suchen und <span class="k">hw_ip</span> setzen (Add-on) oder <span class="k">HW_IP=192.168.1.50</span> vor den Befehl.'),
-    ("couldn't find a total import kWh", 'Der Reader lieferte JSON, das nicht erkannt wurde. Setz <span class="k">READ_FIELD</span> auf den Pfad zum kumulativen kWh-Wert.'),
+    ("'node' is not recognized", 'Node.js fehlt, oder das Fenster war schon offen, als du es installiert hast. Hol es von <span class="k">nodejs.org</span>, öffne dann ein <strong>neues</strong> Fenster und füg die Zeile erneut ein. Git brauchst du nicht.'),
+    ("No HomeWizard found", 'Dein Netzwerk blockiert die Erkennung. IP deines P1 in der HomeWizard-App suchen und <span class="k">hw_ip</span> setzen (Add-on) oder <span class="k">--ip=192.168.1.50</span> ans Ende des Befehls.'),
+    ("couldn't find a total import kWh", 'Der Reader lieferte JSON, das nicht erkannt wurde. Setz <span class="k">--field=</span> auf den Pfad zum kumulativen kWh-Wert.'),
     ("Nichts unter „Auto-received“", 'Prüfe, ob der Token korrekt eingefügt ist und das Hilfsprogramm noch im selben Netzwerk wie der Zähler läuft.'),
     ("the automatic reading is stale", 'Ein Stand muss jünger als 48 Stunden sein — Add-on bzw. Terminal muss laufen.'),
     ("submit one photo reading first", 'Der Startpunkt fehlt. Mach eine normale Foto-Einreichung und versuch es erneut.'),
@@ -267,14 +283,13 @@ L["fr"] = dict(
   b=[
     ("Activez l'API locale", 'Dans l\'app <strong>HomeWizard Energy</strong> : <span class="k">Réglages → Compteurs → votre P1 → Local API → ON</span>. Votre réseau peut alors lire le compteur.', None, None, None),
     ("Ouvrez un terminal sur un appareil qui reste allumé", '<strong>Windows :</strong> Démarrer, tapez <em>PowerShell</em>. <strong>Mac :</strong> ouvrez <em>Terminal</em>. <strong>Pi / NAS :</strong> son terminal, ou en SSH.', "see", "Il vous faut Node.js 18+", 'Pas installé ? Prenez-le sur nodejs.org, sinon la commande ne marchera pas.'),
-    ("Collez ceci, avec votre jeton", 'Remplacez <span class="k">VOTRE_JETON</span>, appuyez sur Entrée et laissez la fenêtre ouverte.', "code", CLONE + "\nGUL_TOKEN=VOTRE_JETON node index.js", "Configuration unique"),
+    ("Collez une ligne, appuyez sur Entrée", 'Elle télécharge l\'utilitaire et le lance. La première fois, il demande votre jeton — collez-le et appuyez sur Entrée. Il le retient : ensuite, <span class="k">node gul.js</span> suffit. Laissez la fenêtre ouverte.', "code2", RUN, CAPS),
     ("Vérifiez qu'il a trouvé le compteur", 'Vous devriez voir le compteur détecté puis envoyé.', "see", "Sortie attendue", '<span class="k">found HomeWizard at 192.168.…</span> puis <span class="k">pushed 8421.3 kWh ✓</span>'),
   ],
   c_intro="Le même utilitaire lit tout appareil qui expose ses données en JSON via HTTP — vous lui dites simplement où.",
   c=[
     ("Trouvez l'URL de données de votre lecteur", 'Ouvrez la page web de votre lecteur et cherchez l\'adresse qui renvoie du JSON brut (souvent <span class="k">/api/v1/data</span> ou <span class="k">/api/v2/sm/actual</span>). Les chemins exacts diffèrent selon la marque — consultez la doc de votre lecteur.', None, None, None),
-    ("Lancez l'utilitaire avec cette URL", 'Remplacez l\'URL et votre jeton. Si le relevé n\'est pas trouvé automatiquement, ajoutez <span class="k">READ_FIELD=</span> avec le chemin vers la valeur kWh dans ce JSON.', "code",
-     CLONE + "\nGUL_TOKEN=VOTRE_JETON READ_URL=http://192.168.1.60/api/v1/data node index.js", "Tout lecteur HTTP/JSON"),
+    ("Lancez l'utilitaire avec cette URL", 'Mettez votre propre adresse à la place de l\'exemple ; il demande votre jeton lui-même. Si le relevé n\'est pas trouvé automatiquement, ajoutez <span class="k">--field=</span> avec le chemin vers la valeur kWh dans ce JSON.', "code2", RUN_URL, CAPS),
     ("Vérifiez que ça a marché", 'L\'utilitaire affiche ce qu\'il a envoyé.', "see", "Sortie attendue", '<span class="k">pushed 8421.3 kWh ✓</span>'),
   ],
   claim=[
@@ -290,8 +305,9 @@ L["fr"] = dict(
   be_b="Les compteurs Fluvius numériques envoient des données chiffrées. Demandez votre clé gratuite à Fluvius et saisissez-la une fois dans l'app de votre lecteur — ensuite tout fonctionne pareil.",
   th=("Vous voyez", "Que faire"),
   trouble=[
-    ("No HomeWizard found", 'Votre réseau bloque la détection. Trouvez l\'IP de votre P1 dans l\'app HomeWizard et renseignez <span class="k">hw_ip</span> (add-on) ou <span class="k">HW_IP=192.168.1.50</span> avant la commande.'),
-    ("couldn't find a total import kWh", 'Le lecteur a renvoyé du JSON non reconnu. Réglez <span class="k">READ_FIELD</span> sur le chemin de la valeur kWh cumulée.'),
+    ("'node' is not recognized", 'Node.js n\'est pas installé, ou la fenêtre était déjà ouverte quand vous l\'avez installé. Prenez-le sur <span class="k">nodejs.org</span>, puis ouvrez une <strong>nouvelle</strong> fenêtre et recollez la ligne. Git n\'est pas nécessaire.'),
+    ("No HomeWizard found", 'Votre réseau bloque la détection. Trouvez l\'IP de votre P1 dans l\'app HomeWizard et renseignez <span class="k">hw_ip</span> (add-on) ou <span class="k">--ip=192.168.1.50</span> à la fin de la commande.'),
+    ("couldn't find a total import kWh", 'Le lecteur a renvoyé du JSON non reconnu. Réglez <span class="k">--field=</span> sur le chemin de la valeur kWh cumulée.'),
     ("Rien sous « Auto-received »", 'Vérifiez que le jeton est bien collé et que l\'utilitaire tourne toujours sur le même réseau que le compteur.'),
     ("the automatic reading is stale", 'Un relevé doit avoir moins de 48 h — l\'add-on ou le terminal doit tourner.'),
     ("submit one photo reading first", 'Le point de départ manque. Faites une soumission photo normale, puis réessayez.'),
@@ -340,14 +356,13 @@ L["es"] = dict(
   b=[
     ("Activa la API local", 'En la app <strong>HomeWizard Energy</strong>: <span class="k">Ajustes → Contadores → tu P1 → Local API → ON</span>. Así tu red puede leer el contador.', None, None, None),
     ("Abre una terminal en un dispositivo que quede encendido", '<strong>Windows:</strong> Inicio, escribe <em>PowerShell</em>. <strong>Mac:</strong> abre <em>Terminal</em>. <strong>Pi / NAS:</strong> su terminal, o por SSH.', "see", "Necesitas Node.js 18+", '¿No lo tienes? Descárgalo de nodejs.org, si no el comando no funcionará.'),
-    ("Pega esto, con tu token", 'Sustituye <span class="k">TU_TOKEN</span>, pulsa Enter y deja la ventana abierta.', "code", CLONE + "\nGUL_TOKEN=TU_TOKEN node index.js", "Configuración única"),
+    ("Pega una línea y pulsa Enter", 'Descarga el programa y lo arranca. La primera vez te pide tu token — pégalo y pulsa Enter. Lo recuerda, así que a partir de ahí basta con <span class="k">node gul.js</span>. Deja la ventana abierta.', "code2", RUN, CAPS),
     ("Comprueba que encontró el contador", 'Deberías ver el contador detectado y enviado.', "see", "Salida esperada", '<span class="k">found HomeWizard at 192.168.…</span> y luego <span class="k">pushed 8421.3 kWh ✓</span>'),
   ],
   c_intro="El mismo programa lee cualquier dispositivo que sirva sus datos en JSON por HTTP — solo le dices dónde.",
   c=[
     ("Encuentra la URL de datos de tu lector", 'Abre la página web de tu lector y busca la dirección que devuelve JSON en bruto (a menudo <span class="k">/api/v1/data</span> o <span class="k">/api/v2/sm/actual</span>). Las rutas exactas varían por marca — consulta la documentación de tu lector.', None, None, None),
-    ("Inicia el programa con esa URL", 'Sustituye la URL y tu token. Si la lectura no se encuentra automáticamente, añade <span class="k">READ_FIELD=</span> con la ruta al valor kWh en ese JSON.', "code",
-     CLONE + "\nGUL_TOKEN=TU_TOKEN READ_URL=http://192.168.1.60/api/v1/data node index.js", "Cualquier lector HTTP/JSON"),
+    ("Inicia el programa con esa URL", 'Pon tu propia dirección en lugar del ejemplo; el token te lo pide él mismo. Si la lectura no se encuentra automáticamente, añade <span class="k">--field=</span> con la ruta al valor kWh en ese JSON.', "code2", RUN_URL, CAPS),
     ("Comprueba que funcionó", 'El programa muestra lo que ha enviado.', "see", "Salida esperada", '<span class="k">pushed 8421.3 kWh ✓</span>'),
   ],
   claim=[
@@ -363,8 +378,9 @@ L["es"] = dict(
   be_b="Los contadores Fluvius digitales envían datos cifrados. Pide tu clave gratuita a Fluvius e introdúcela una vez en la app de tu lector — después todo funciona igual.",
   th=("Ves", "Qué hacer"),
   trouble=[
-    ("No HomeWizard found", 'Tu red bloquea la detección. Busca la IP de tu P1 en la app HomeWizard y pon <span class="k">hw_ip</span> (add-on) o <span class="k">HW_IP=192.168.1.50</span> antes del comando.'),
-    ("couldn't find a total import kWh", 'El lector devolvió JSON no reconocido. Pon <span class="k">READ_FIELD</span> con la ruta al valor kWh acumulado.'),
+    ("'node' is not recognized", 'Node.js no está instalado, o la ventana ya estaba abierta cuando lo instalaste. Descárgalo de <span class="k">nodejs.org</span>, abre una ventana <strong>nueva</strong> y vuelve a pegar la línea. No necesitas git.'),
+    ("No HomeWizard found", 'Tu red bloquea la detección. Busca la IP de tu P1 en la app HomeWizard y pon <span class="k">hw_ip</span> (add-on) o <span class="k">--ip=192.168.1.50</span> al final del comando.'),
+    ("couldn't find a total import kWh", 'El lector devolvió JSON no reconocido. Pon <span class="k">--field=</span> con la ruta al valor kWh acumulado.'),
     ("Nada bajo «Auto-received»", 'Comprueba que el token está bien pegado y que el programa sigue en marcha en la misma red que el contador.'),
     ("the automatic reading is stale", 'Una lectura debe tener menos de 48 h — el add-on o la terminal debe estar en marcha.'),
     ("submit one photo reading first", 'Falta el punto de partida. Haz un envío con foto normal e inténtalo otra vez.'),
@@ -385,6 +401,13 @@ def steps(items, code_label_default=""):
             code, cap = it[3], it[4]
             out.append(f'<div class="code"><span class="cap">{html.escape(cap)}</span>'
                        f'<button class="copy">{{COPY}}</button><pre>{html.escape(code)}</pre></div>')
+        elif extra_kind == "code2":
+            # Two boxes, because the one command that works on Windows is not the one
+            # that works everywhere else. Showing a single line and hoping is how you
+            # get a tester staring at "'git' is not recognized".
+            for cap, code in zip(it[4], it[3]):
+                out.append(f'<div class="code"><span class="cap">{html.escape(cap)}</span>'
+                           f'<button class="copy">{{COPY}}</button><pre>{html.escape(code)}</pre></div>')
         elif extra_kind == "see":
             lab, txt = it[3], it[4]
             out.append(f'<div class="see"><b>{lab}</b>{txt}</div>')
@@ -490,6 +513,13 @@ script = """<script>
 HERE = os.path.dirname(os.path.abspath(__file__))
 shell_path = os.path.join(HERE, "guide_shell.html")
 out_path = os.path.join(HERE, "guide.html")
+
+# The guide tells people to download gul.js from the Pages site, so the Pages site has
+# to actually serve it. Copying it here — rather than committing a second hand-kept
+# copy — means the file testers download can never drift from bridge/index.js.
+bridge_src = os.path.join(HERE, os.pardir, "bridge", "index.js")
+io.open(os.path.join(HERE, "gul.js"), "w", encoding="utf8").write(
+    io.open(bridge_src, encoding="utf8").read())
 
 shell = io.open(shell_path, encoding="utf8").read()
 if "<!--CONTENT-->" not in shell:

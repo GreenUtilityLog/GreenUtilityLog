@@ -36,6 +36,15 @@ jobs:
       # and it was never published — every share of that link 404'd for the crawler,
       # so the preview card came out blank.
       - run: cp docs/og-image.png dist/og-image.png
+      # The bridge helper itself. Setup is now "download this one file and run it"
+      # — no git, no clone — so the guide's and the app's commands both point here.
+      # Regenerated from bridge/index.js by build_guide.py; verified below so a stale
+      # copy can never be published.
+      - run: |
+          python3 docs/build_guide.py
+          git diff --exit-code docs/gul.js docs/guide.html \
+            || (echo "docs/gul.js or docs/guide.html is out of date — run docs/build_guide.py and commit" && exit 1)
+          cp docs/gul.js dist/gul.js
       - uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
