@@ -514,11 +514,18 @@ app.post("/reward", async (req, res) => {
     // was possible. These checks intentionally don't hold a payout (they
     // false-positive on genuine phone photos), but they are worth keeping so an
     // admin can look afterwards. Best-effort: never let it affect the response.
-    if (req.body.clientFlagged) {
-      try { store.addFlag(txid, req.body.address, req.body.flagReason || "client checks were inconclusive"); }
+    // A photo with no EXIF date at all is worth recording too. It is NOT grounds to
+    // refuse — share sheets strip EXIF and PNG has no such field, so honest uploads
+    // land here — but a wallet whose photos never carry one is a pattern an admin
+    // should be able to see.
+    const reasons = [];
+    if (req.body.clientFlagged) reasons.push(req.body.flagReason || "client checks were inconclusive");
+    if (photo?.exif && !photo.exif.hasExif) reasons.push("photo carried no EXIF capture date");
+    if (reasons.length) {
+      try { store.addFlag(txid, req.body.address, reasons.join(" · ")); }
       catch (e) { console.error("[/reward] could not record flag:", e?.message || e); }
     }
-    res.json({ txid, amount: v.amount, flagged: !!req.body.clientFlagged });
+    res.json({ txid, amount: v.amount, flagged: reasons.length > 0 });
   } catch (e) {
     console.error("[/reward]", e?.message || e);
     res.status(502).json({ error: e?.message || "distribution failed" });
