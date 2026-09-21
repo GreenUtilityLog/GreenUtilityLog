@@ -245,9 +245,9 @@
     content_type: &quot;application/json&quot;
     payload: &#x27;{&quot;token&quot;:&quot;YOUR_TOKEN&quot;,&quot;reading&quot;:{{ states(&quot;sensor.YOUR_ENTITY&quot;) | float }}}&#x27;
 
-# automations.yaml — send once an hour
+# automations.yaml — twice a day (you can claim once per 20h)
 - alias: Push meter to GreenUtilityLog
-  trigger: { platform: time_pattern, hours: &quot;/1&quot; }
+  trigger: { platform: time_pattern, hours: &quot;/12&quot; }
   action: { service: rest_command.gul_push }</pre></div>
       </li>
       </ol>
@@ -300,7 +300,7 @@
       <p>In the app open <strong>Submit</strong>. Under <strong>“Auto-received”</strong> you'll see your meter total and when it arrived.</p>
       </li>
       <li><p class="steptitle">Tap “Submit — no photo”</p>
-      <p>That's it. From now on your meter sends its reading every hour and you only claim it.</p>
+      <p>That's it. From now on your meter sends its reading by itself and you only claim it.</p>
       </li>
       </ol>
   <div class="note flag"><b>🇧🇪 Belgium (Fluvius meters)</b>Digital Fluvius meters send encrypted data. Ask Fluvius for your free decryption key and enter it once in your reader's app — after that everything works the same.</div>
@@ -379,9 +379,9 @@
     content_type: &quot;application/json&quot;
     payload: &#x27;{&quot;token&quot;:&quot;JOUW_TOKEN&quot;,&quot;reading&quot;:{{ states(&quot;sensor.JOUW_ENTITY&quot;) | float }}}&#x27;
 
-# automations.yaml — stuur elk uur
+# automations.yaml — twee keer per dag (claimen kan 1x per 20 uur)
 - alias: Push meter to GreenUtilityLog
-  trigger: { platform: time_pattern, hours: &quot;/1&quot; }
+  trigger: { platform: time_pattern, hours: &quot;/12&quot; }
   action: { service: rest_command.gul_push }</pre></div>
       </li>
       </ol>
@@ -434,7 +434,7 @@
       <p>Ga in de app naar <strong>Submit</strong>. Onder <strong>“Auto-received”</strong> zie je je meterstand en hoe laat die binnenkwam.</p>
       </li>
       <li><p class="steptitle">Tik op “Submit — no photo”</p>
-      <p>Klaar. Vanaf nu stuurt je meter elk uur z'n stand en hoef jij alleen te claimen.</p>
+      <p>Klaar. Vanaf nu stuurt je meter vanzelf z'n stand door en hoef jij alleen te claimen.</p>
       </li>
       </ol>
   <div class="note flag"><b>🇧🇪 België (Fluvius-meters)</b>Digitale Fluvius-meters sturen versleutelde data. Vraag bij Fluvius je gratis decryptiesleutel op en voer die één keer in de app van je reader in — daarna werkt alles hetzelfde.</div>
@@ -513,9 +513,9 @@
     content_type: &quot;application/json&quot;
     payload: &#x27;{&quot;token&quot;:&quot;DEIN_TOKEN&quot;,&quot;reading&quot;:{{ states(&quot;sensor.DEINE_ENTITY&quot;) | float }}}&#x27;
 
-# automations.yaml — stündlich senden
+# automations.yaml — zweimal am Tag (einlösen geht alle 20 h)
 - alias: Push meter to GreenUtilityLog
-  trigger: { platform: time_pattern, hours: &quot;/1&quot; }
+  trigger: { platform: time_pattern, hours: &quot;/12&quot; }
   action: { service: rest_command.gul_push }</pre></div>
       </li>
       </ol>
@@ -568,7 +568,7 @@
       <p>Geh in der App auf <strong>Submit</strong>. Unter <strong>„Auto-received“</strong> siehst du deinen Zählerstand und wann er ankam.</p>
       </li>
       <li><p class="steptitle">Auf „Submit — no photo“ tippen</p>
-      <p>Fertig. Ab jetzt sendet dein Zähler stündlich seinen Stand und du löst nur noch ein.</p>
+      <p>Fertig. Ab jetzt sendet dein Zähler seinen Stand von selbst und du löst nur noch ein.</p>
       </li>
       </ol>
   <div class="note flag"><b>🇧🇪 Belgien (Fluvius-Zähler)</b>Digitale Fluvius-Zähler senden verschlüsselt. Frag bei Fluvius deinen kostenlosen Entschlüsselungscode an und gib ihn einmal in der App deines Readers ein — danach läuft alles gleich.</div>
@@ -647,9 +647,9 @@
     content_type: &quot;application/json&quot;
     payload: &#x27;{&quot;token&quot;:&quot;VOTRE_JETON&quot;,&quot;reading&quot;:{{ states(&quot;sensor.VOTRE_ENTITE&quot;) | float }}}&#x27;
 
-# automations.yaml — envoyer chaque heure
+# automations.yaml — deux fois par jour (réclamation possible toutes les 20 h)
 - alias: Push meter to GreenUtilityLog
-  trigger: { platform: time_pattern, hours: &quot;/1&quot; }
+  trigger: { platform: time_pattern, hours: &quot;/12&quot; }
   action: { service: rest_command.gul_push }</pre></div>
       </li>
       </ol>
@@ -702,7 +702,7 @@
       <p>Dans l'app, allez sur <strong>Submit</strong>. Sous <strong>« Auto-received »</strong> vous voyez votre relevé et l'heure d'arrivée.</p>
       </li>
       <li><p class="steptitle">Touchez « Submit — no photo »</p>
-      <p>C'est tout. Votre compteur envoie son relevé chaque heure et vous n'avez plus qu'à réclamer.</p>
+      <p>C'est tout. Votre compteur envoie son relevé tout seul et vous n'avez plus qu'à réclamer.</p>
       </li>
       </ol>
   <div class="note flag"><b>🇧🇪 Belgique (compteurs Fluvius)</b>Les compteurs Fluvius numériques envoient des données chiffrées. Demandez votre clé gratuite à Fluvius et saisissez-la une fois dans l'app de votre lecteur — ensuite tout fonctionne pareil.</div>
@@ -781,9 +781,9 @@
     content_type: &quot;application/json&quot;
     payload: &#x27;{&quot;token&quot;:&quot;TU_TOKEN&quot;,&quot;reading&quot;:{{ states(&quot;sensor.TU_ENTIDAD&quot;) | float }}}&#x27;
 
-# automations.yaml — enviar cada hora
+# automations.yaml — dos veces al día (puedes reclamar cada 20 h)
 - alias: Push meter to GreenUtilityLog
-  trigger: { platform: time_pattern, hours: &quot;/1&quot; }
+  trigger: { platform: time_pattern, hours: &quot;/12&quot; }
   action: { service: rest_command.gul_push }</pre></div>
       </li>
       </ol>
@@ -836,7 +836,7 @@
       <p>En la app abre <strong>Submit</strong>. Bajo <strong>«Auto-received»</strong> verás tu lectura y cuándo llegó.</p>
       </li>
       <li><p class="steptitle">Toca «Submit — no photo»</p>
-      <p>Listo. Desde ahora tu contador envía su lectura cada hora y tú solo reclamas.</p>
+      <p>Listo. Desde ahora tu contador envía su lectura sola y tú solo reclamas.</p>
       </li>
       </ol>
   <div class="note flag"><b>🇧🇪 Bélgica (contadores Fluvius)</b>Los contadores Fluvius digitales envían datos cifrados. Pide tu clave gratuita a Fluvius e introdúcela una vez en la app de tu lector — después todo funciona igual.</div>

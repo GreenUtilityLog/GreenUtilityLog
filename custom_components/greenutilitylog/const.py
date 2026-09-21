@@ -17,5 +17,9 @@ DEFAULT_INGEST_URL = "https://greenutilitylog-rewards.onrender.com/meter-ingest"
 
 # Hourly is plenty: the app pays out at most once per cooldown, and a meter total
 # barely moves within an hour. The minimum guards against pointless traffic.
-DEFAULT_INTERVAL_MINUTES = 60
+# Twelve hours, not one. A reading can only be claimed once per COOLDOWN_MS (20h)
+# and /meter-ingest keeps only the newest value, so 23 of 24 hourly pushes are
+# discarded. Two a day still leaves a wide margin against the 48h staleness rule,
+# and it lets a free-tier backend sleep instead of being woken every hour.
+DEFAULT_INTERVAL_MINUTES = 720
 MIN_INTERVAL_MINUTES = 5

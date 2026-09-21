@@ -55,7 +55,7 @@ then the token saved by a previous run.
 |---|---|---|---|
 | `--token=` | `GUL_TOKEN` | asked for, then saved | Your device token from the app |
 | `--ip=` | `HW_IP` | auto-discover | Your HomeWizard’s IP, to skip mDNS discovery |
-| `--interval=` | `INTERVAL_SEC` | `3600` | Seconds between pushes (min 60) |
+| `--interval=` | `INTERVAL_SEC` | `43200` | Seconds between pushes, min 60. Twice a day by default: a reading can only be claimed once per 20 h, and only the newest one is kept. |
 | `--ingest=` | `GUL_INGEST_URL` | public backend | Override the ingest endpoint |
 | `--url=` | `READ_URL` | — | Generic mode: read your kWh total from this HTTP/JSON endpoint (skips HomeWizard discovery) |
 | `--field=` | `READ_FIELD` | auto-detect | Dot-path to the number in that JSON (e.g. `data.total_kwh`) |
