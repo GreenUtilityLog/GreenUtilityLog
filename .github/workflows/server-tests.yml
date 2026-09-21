@@ -8,12 +8,15 @@
 # can be asserted. Nothing inside the server is mocked.
 name: Server tests
 
+# Deliberately NOT filtered by path. Render deploys this repository on every commit
+# to main, so if deploys are gated on CI passing, every commit needs a check to wait
+# for — including one that touches only the frontend. With a path filter such a
+# commit produces no check at all, and the gate either blocks forever or waves it
+# through. The job takes about a minute; certainty is worth more than that.
 on:
   push:
     branches: [main]
-    paths: ["server/**", ".github/workflows/server-tests.yml"]
   pull_request:
-    paths: ["server/**", ".github/workflows/server-tests.yml"]
 
 jobs:
   test:
