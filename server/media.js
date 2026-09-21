@@ -38,7 +38,12 @@ function sniffImage(buf) {
   return null;
 }
 
-export async function verifyPhoto({ imageBase64, reading, ocr = false, mime: clientMime = "" } = {}) {
+// `registers` holds the individual numbers the reading was built from, when there is
+// more than one. A double-tariff meter keeps two (1.8.1 low, 1.8.2 normal) and cycles
+// its display, so a photo shows ONE of them and their sum — the figure that is
+// actually the consumption — appears nowhere on the meter. Matching the photo against
+// the sum was therefore unsatisfiable by design; it is matched against the parts too.
+export async function verifyPhoto({ imageBase64, reading, registers = [], ocr = false, mime: clientMime = "" } = {}) {
   if (!imageBase64 || typeof imageBase64 !== "string") return { ok: false, error: "photo is required" };
 
   let buf;
@@ -88,32 +93,45 @@ export async function verifyPhoto({ imageBase64, reading, ocr = false, mime: cli
   store.addHash(hash);
   const unreserve = () => store.delHash(hash);
 
+  let ocrMatched = null;
   if (ocr) {
-    const r = await runOcrCheck(buf, reading).catch(() => ({ ok: true, soft: true }));
+    const r = await runOcrCheck(buf, reading, registers).catch(() => ({ ok: true, soft: true }));
     if (!r.ok) { unreserve(); return { ok: false, error: r.error || "the reading was not found in the photo" }; }
+    ocrMatched = r.matched ?? null;
   }
 
   // markUsed is now a no-op (the hash is already reserved) — kept for call-site
   // compatibility. unreserve() releases the reservation on a failed payout.
-  return { ok: true, hash, mime, exif, markUsed: () => {}, unreserve };
+  return { ok: true, hash, mime, exif, ocrMatched, markUsed: () => {}, unreserve };
 }
 
 // Best-effort OCR via tesseract.js (lazy-loaded so the service runs without it).
 // Lenient by design: only a confident mismatch rejects; OCR failures pass.
-async function runOcrCheck(buf, reading) {
+async function runOcrCheck(buf, reading, registers = []) {
   let createWorker;
   try { ({ createWorker } = await import("tesseract.js")); }
   catch { return { ok: true, soft: true }; } // dependency not installed -> skip
+
+  // The photo has to corroborate ONE of these. The total is checked first because on
+  // a single-register meter it is the only candidate and it is what the display
+  // shows; on a double-tariff meter the display never shows it, and one of the parts
+  // will match instead. Which one matched is reported so the caller can record that a
+  // submission was corroborated by a part rather than by the figure being paid on.
+  const candidates = [reading, ...(Array.isArray(registers) ? registers : [])]
+    .map((v) => String(v ?? "").replace(/[^0-9]/g, ""))
+    .filter((d) => d.length >= 3);
+  if (!candidates.length) return { ok: true }; // too short to match reliably
 
   const worker = await createWorker("eng");
   try {
     await worker.setParameters({ tessedit_char_whitelist: "0123456789." });
     const { data } = await worker.recognize(buf);
     const seen = (data.text || "").replace(/[^0-9]/g, "");
-    const target = String(reading ?? "").replace(/[^0-9]/g, "");
-    if (target.length < 3) return { ok: true }; // too short to match reliably
-    const needle = target.slice(0, Math.min(target.length, 6));
-    return seen.includes(needle) ? { ok: true } : { ok: false, error: "meter reading not found in photo" };
+    for (let i = 0; i < candidates.length; i++) {
+      const needle = candidates[i].slice(0, Math.min(candidates[i].length, 6));
+      if (seen.includes(needle)) return { ok: true, matched: i === 0 ? "total" : `register ${i}` };
+    }
+    return { ok: false, error: "meter reading not found in photo" };
   } finally {
     await worker.terminate();
   }

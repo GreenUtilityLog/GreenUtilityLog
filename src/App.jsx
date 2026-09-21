@@ -2525,7 +2525,9 @@ ${fetchCmd(`--token=${token} --url=http://<reader-ip>/api/v1/data`)}`;
   );
 }
 
-function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading, setReading, prevRead, setPrevRead, busy, usage, reward, days, handleSubmit, verifyKey, wallet, setShowWallet, subs, meters, T, setTab, onEcoSubmit, ecoBusy, ecoUsedThisWeek, ecoCooldownMs, onMeterAutoSubmit, meterAutoBusy, onRegisterMeter }) {
+function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading, setReading, prevRead, setPrevRead,
+  dualTariff, setDualTariff, regLow, setRegLow, regNormal, setRegNormal,
+  fixBasis, fixBusy, runFixBasis, dismissFixBasis, busy, usage, reward, days, handleSubmit, verifyKey, wallet, setShowWallet, subs, meters, T, setTab, onEcoSubmit, ecoBusy, ecoUsedThisWeek, ecoCooldownMs, onMeterAutoSubmit, meterAutoBusy, onRegisterMeter }) {
   const meterNo  = (meters?.[selUtil] || "").trim();
   // Submittable when current ≥ previous (equal = zero usage = valid, max reward).
   const _r = parseFloat(reading), _p = parseFloat(prevRead);
@@ -2647,6 +2649,78 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
         onReset={() => { setAiOk(false); setPhoto?.(null); }} />
 
       <div className="form-card" style={{"--uc":T[u.id]||T.electric,"--ubg":getColorBg(u.id, T),"--uborder":T[u.id+"Border"]||T.electricBorder,marginTop:14}}>
+        {/* A double-tariff meter — the normal case in the Netherlands and Belgium —
+            keeps two registers and CYCLES its display, so no photo can ever show
+            their sum. Telling people to "enter the total" was therefore asking for a
+            number that is nowhere on their meter. They enter each register instead
+            and the app adds them up; the photo only has to show one of the two. */}
+        {u.id === "electric" && (
+          <div style={{ margin: "2px 0 12px" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 11.5, fontWeight: 700, color: T.text }}>
+              <input type="checkbox" checked={!!dualTariff} onChange={e => { setDualTariff(e.target.checked); if (!e.target.checked) { setRegLow(""); setRegNormal(""); setReading(""); } }} />
+              My meter shows two readings (day and night tariff)
+            </label>
+            {dualTariff ? (
+              <>
+                <div className="irow" style={{ marginTop: 8 }}>
+                  <div className="igroup">
+                    <div className="ilabel">Low · night <span className="utag">1.8.1</span></div>
+                    <input className="ifield" type="number" step="0.001" inputMode="decimal" placeholder="3852.104"
+                      value={regLow} onChange={e => setRegLow(e.target.value)} />
+                  </div>
+                  <div className="igroup">
+                    <div className="ilabel">Normal · day <span className="utag">1.8.2</span></div>
+                    <input className="ifield" type="number" step="0.001" inputMode="decimal" placeholder="3853.410"
+                      value={regNormal} onChange={e => setRegNormal(e.target.value)} />
+                  </div>
+                </div>
+                <div style={{ marginTop: 6, fontSize: 11, color: T.textSoft }}>
+                  Total used for your reading:{" "}
+                  <b style={{ fontFamily: "'SF Mono',Menlo,monospace", color: T.text }}>{reading || "—"}</b> {u.unit}
+                  <span style={{ display: "block", marginTop: 3, fontSize: 10.5, lineHeight: 1.5 }}>
+                    Your display alternates between the two, so photograph either one — we check the photo against the
+                    register it shows, not against the total.
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div style={{ marginTop: 5, fontSize: 10.5, color: T.textSoft, lineHeight: 1.5 }}>
+                Tick this if your display cycles between two numbers marked{" "}
+                <span style={{ fontFamily: "'SF Mono',Menlo,monospace" }}>1.8.1</span> and{" "}
+                <span style={{ fontFamily: "'SF Mono',Menlo,monospace" }}>1.8.2</span>. Entering only one of them reports
+                about half your consumption.
+              </div>
+            )}
+          </div>
+        )}
+        {/* Shown only after a submission was refused specifically because the stored
+            starting point covers one tariff register and the reading covers both.
+            Not offered speculatively: it moves a baseline, and a baseline moved
+            without cause is earnings thrown away. */}
+        {fixBasis && (
+          <div style={{ marginBottom: 12, padding: "11px 13px", background: T.bgAlt, border: `1px dashed ${T.border}`, borderRadius: 6 }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: T.text, marginBottom: 5 }}>
+              Your starting point only covers one tariff
+            </div>
+            <div style={{ fontSize: 11, color: T.textSoft, lineHeight: 1.6 }}>
+              Earlier readings for this meter recorded a single register, and you are now entering both
+              ({fixBasis.registers.join(" + ")} = <b style={{ fontFamily: "'SF Mono',Menlo,monospace", color: T.text }}>
+              {+(fixBasis.registers[0] + fixBasis.registers[1]).toFixed(3)}</b> {u.unit}). Until those agree, every
+              submission is refused as impossible consumption. This sets the starting point to today’s two registers.
+              It pays nothing, uses the photo you just took as proof, and can be done once.
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 9, flexWrap: "wrap" }}>
+              <button disabled={fixBusy} onClick={runFixBasis}
+                style={{ padding: "9px 12px", fontSize: 12, fontWeight: 700, color: "#fff", background: T[u.id] || T.electric, border: "none", borderRadius: 6, cursor: "pointer", opacity: fixBusy ? .6 : 1 }}>
+                {fixBusy ? "Setting…" : "Set my starting point to these registers"}
+              </button>
+              <button disabled={fixBusy} onClick={() => dismissFixBasis?.()} style={{ background: "none", border: "none", color: T.textSoft, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                Not now
+              </button>
+            </div>
+          </div>
+        )}
+
         {knowPrev ? (
           <>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:12,padding:"8px 12px",background:T.bgAlt,border:`1px solid ${T.border}`,borderRadius:6}}>
@@ -2658,7 +2732,7 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
             </div>
             <div className="igroup">
               <div className="ilabel">Current reading <span className="utag">{u.unit}</span></div>
-              <input className="ifield" type="number" step="0.01" inputMode="decimal" placeholder={u.ph[1]} value={reading} onChange={e=>setReading(e.target.value)} style={{width:"100%",boxSizing:"border-box"}}/>
+              <input className="ifield" type="number" step="0.01" inputMode="decimal" placeholder={u.ph[1]} value={reading} onChange={e=>setReading(e.target.value)} disabled={!!dualTariff} style={{width:"100%",boxSizing:"border-box"}}/>
             </div>
           </>
         ) : (
@@ -2669,24 +2743,11 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
             </div>
             <div className="igroup">
               <div className="ilabel">Current <span className="utag">{u.unit}</span></div>
-              <input className="ifield" type="number" step="0.01" inputMode="decimal" placeholder={u.ph[1]} value={reading} onChange={e=>setReading(e.target.value)}/>
+              <input className="ifield" type="number" step="0.01" inputMode="decimal" placeholder={u.ph[1]} value={reading} onChange={e=>setReading(e.target.value)} disabled={!!dualTariff}/>
             </div>
           </div>
         )}
 
-        {/* A double-tariff meter — the normal case in the Netherlands and Belgium —
-            keeps two registers and shows them in turn, so a photo captures one of
-            them. Entering one register reports roughly half your consumption, which
-            the reward formula reads as saving and pays MORE for. It also makes the
-            reading incompatible with a P1 reader later, since a reader reports the
-            total of both. Say so at the field, where the decision is made. */}
-        {u.id === "electric" && (
-          <div style={{ margin: "2px 0 10px", fontSize: 10.5, color: T.textSoft, lineHeight: 1.55 }}>
-            Two numbers on the display (<span style={{ fontFamily: "'SF Mono',Menlo,monospace" }}>1.8.1</span> low and{" "}
-            <span style={{ fontFamily: "'SF Mono',Menlo,monospace" }}>1.8.2</span> normal)? Enter their <b>total</b> — that is
-            your actual consumption, and it is what a P1 reader reports if you automate this later.
-          </div>
-        )}
 
         {readingReady && (() => {
           const span  = Math.min(Math.max(Number(days) || 1, 1), MAX_SPAN_DAYS);
@@ -4788,6 +4849,49 @@ export default function App() {
   const [showFeedback, setShowFeedback] = useState(false);
   const [onChainAdmin, setOnChainAdmin] = useState(false); // app admin/moderator per the X2EarnApps contract
   const [photo, setPhoto]           = useState(null); // verified meter photo for backend submission
+  // A double-tariff meter keeps two registers (1.8.1 low, 1.8.2 normal) and cycles
+  // its display. Entering only one reports roughly half your consumption — which the
+  // reward formula reads as saving and pays MORE for — and makes the meter
+  // irreconcilable with a P1 reader later, since a reader always sends the total.
+  // So both are entered, `reading` stays the total everything downstream works on,
+  // and the parts ride along to the server, which re-derives the sum itself.
+  const [dualTariff, setDualTariff] = useState(false);
+  // Set when a submission is refused purely because the stored starting point covers
+  // one tariff register and the reading covers both. Holds what the one-time
+  // reconciliation needs, including the photo, which has to prove the meter again.
+  const [fixBasis, setFixBasis] = useState(null);
+  const [fixBusy, setFixBusy]   = useState(false);
+  const runFixBasis = async () => {
+    if (!fixBasis || !wallet) return;
+    setFixBusy(true);
+    try {
+      const content = `Green Utility Log — reconcile tariff registers\nWallet: ${wallet}\nMeter: ${fixBasis.meterNo}\nTime: ${new Date().toISOString()}`;
+      const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } });
+      const certificate = { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
+      const res = await fetch(`${REWARD_API.replace(/\/$/, "")}/meter/fix-basis`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          address: wallet, certificate, utility: fixBasis.utility, meterNo: fixBasis.meterNo,
+          registers: fixBasis.registers, photo: fixBasis.photo?.base64 || "", photoMime: fixBasis.photo?.mime || "",
+        }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || `could not reconcile (${res.status})`);
+      setFixBasis(null);
+      setPrevRead(String(d.to));
+      showToast(`✅ Starting point set to ${d.to} ${d.unit || ""} — submit again from your next reading`);
+    } catch (e) {
+      showToast(`❌ ${e?.message || "could not reconcile this meter"}`);
+    } finally { setFixBusy(false); }
+  };
+  const [regLow, setRegLow]         = useState("");
+  const [regNormal, setRegNormal]   = useState("");
+  const registers = (dualTariff && regLow !== "" && regNormal !== "")
+    ? [Number(regLow), Number(regNormal)] : null;
+  useEffect(() => {
+    if (!dualTariff) return;
+    setReading(registers ? String(+(registers[0] + registers[1]).toFixed(3)) : "");
+  }, [dualTariff, regLow, regNormal]);
 
   // The seed history/rewards are only a preview for the disconnected gate — they
   // never belong to a real account. Whenever a wallet connects, start it at zero;
@@ -5410,7 +5514,7 @@ export default function App() {
         const res = await fetch(`${REWARD_API.replace(/\/$/, "")}/reward`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ utility: selUtil, reading, prevRead, meterNo, address: wallet, photo: photo?.base64 || "", photoMime: photo?.mime || "", certificate, clientFlagged: !photoConfirmed, flagReason, ocrNums: photo?.ocrNums || [], meterNoConfirmed: photo?.meterNoConfirmed ?? null, avgUsage: anom.avg ?? null, captchaToken }),
+          body: JSON.stringify({ utility: selUtil, reading, prevRead, ...(registers ? { registers } : {}), meterNo, address: wallet, photo: photo?.base64 || "", photoMime: photo?.mime || "", certificate, clientFlagged: !photoConfirmed, flagReason, ocrNums: photo?.ocrNums || [], meterNoConfirmed: photo?.meterNoConfirmed ?? null, avgUsage: anom.avg ?? null, captchaToken }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || `Reward service error ${res.status}`);
@@ -5450,6 +5554,15 @@ export default function App() {
       setBusy(false);
     } catch (e) {
       setBusy(false);
+      // A meter whose starting point was set from a single tariff register can never
+      // be reconciled with the total of both — the step is thousands of kWh and this
+      // is the refusal it produces, every time, forever. Offer the one-time fix here
+      // rather than leaving the user to read a range they cannot influence.
+      if (registers && /outside the plausible range/i.test(String(e?.message || ""))) {
+        setFixBasis({ registers, meterNo, utility: selUtil, photo });
+        showToast("⚠️ Your starting point only covers one tariff — see below");
+        return;
+      }
       showToast(`❌ Submission failed: ${e?.message || "Transaction cancelled"}`);
     }
   };
@@ -5526,7 +5639,7 @@ export default function App() {
           )}
 
           {tab==="home"      && <HomeScreen b3tr={b3tr} streak={streak} subs={subs} setTab={setTab} T={T}/>}
-          {tab==="submit"    && <SubmitScreen u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} busy={busy} usage={usage} reward={reward} days={daysSinceLast()} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab} onEcoSubmit={handleEcoSubmit} ecoBusy={ecoBusy} ecoUsedThisWeek={ecoUsedThisWeek} ecoCooldownMs={ecoCooldownMs} onMeterAutoSubmit={handleMeterAutoSubmit} meterAutoBusy={meterAutoBusy} onRegisterMeter={(utils) => openRegistration(utils, true)}/>}
+          {tab==="submit"    && <SubmitScreen u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} dualTariff={dualTariff} fixBasis={fixBasis} fixBusy={fixBusy} runFixBasis={runFixBasis} dismissFixBasis={() => setFixBasis(null)} setDualTariff={setDualTariff} regLow={regLow} setRegLow={setRegLow} regNormal={regNormal} setRegNormal={setRegNormal} busy={busy} usage={usage} reward={reward} days={daysSinceLast()} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab} onEcoSubmit={handleEcoSubmit} ecoBusy={ecoBusy} ecoUsedThisWeek={ecoUsedThisWeek} ecoCooldownMs={ecoCooldownMs} onMeterAutoSubmit={handleMeterAutoSubmit} meterAutoBusy={meterAutoBusy} onRegisterMeter={(utils) => openRegistration(utils, true)}/>}
           {tab==="charts"    && <ChartsScreen subs={subs} T={T}/>}
           {tab==="leaderboard" && <LeaderboardScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}
