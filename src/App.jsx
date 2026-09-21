@@ -555,8 +555,8 @@ function useOnlineStatus() {
 
 const LIGHT = {
   bg:"#ede9e2", bgAlt:"#e4e0d8", white:"#f5f2ec",
-  green1:"#1a3326", green2:"#264d3a", green3:"#4a7a60", green4:"#90b8a2", green5:"#dce8e1",
-  text:"#0d1812", textMid:"#334a3e", textSoft:"#5e756a",
+  green1:"#1a3326", green2:"#264d3a", green3:"#3f6a52", green4:"#90b8a2", green5:"#dce8e1",
+  text:"#0d1812", textMid:"#334a3e", textSoft:"#54685e",
   border:"#cbc6bc", shadow:"rgba(13,24,18,0.05)", shadowMd:"rgba(13,24,18,0.10)",
   electric:"#8a4200", electricBg:"#f0e8de", electricBorder:"#b89070",
   gas:"#7a1c1c",      gasBg:"#ede0e0",    gasBorder:"#b88a8a",
@@ -1195,17 +1195,17 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .logo-mark{width:30px;height:30px;border-radius:4px;background:linear-gradient(135deg,${T.green1},${T.green2});display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;box-shadow:0 2px 8px ${T.shadow};font-weight:700;font-size:11px;}
 .logo-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;font-weight:800;color:${T.text};letter-spacing:-0.5px;line-height:1;}
 .hdr-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;}
-.dark-toggle{width:30px;height:30px;border-radius:3px;background:transparent;border:1px solid ${T.border};display:flex;align-items:center;justify-content:center;cursor:pointer;color:${T.textMid};transition:all .15s;flex-shrink:0;font-size:14px;}
+.dark-toggle{width:40px;height:40px;border-radius:3px;background:transparent;border:1px solid ${T.border};display:flex;align-items:center;justify-content:center;cursor:pointer;color:${T.textMid};transition:all .15s;flex-shrink:0;font-size:14px;}
 .dark-toggle:hover{border-color:${T.green3};color:${T.green3};}
 .wallet-pill{display:flex;align-items:center;gap:6px;background:transparent;border:1px solid ${T.border};border-radius:3px;padding:5px 9px;cursor:pointer;transition:all .15s;flex-shrink:0;font-size:11px;font-weight:600;}
 .wallet-pill:hover,.wallet-pill.connected{border-color:${T.green3};color:${T.green3};}
 .wdot{width:5px;height:5px;border-radius:50%;background:${T.green3};animation:wpulse 2.5s infinite;flex-shrink:0;}
 .wdot.off{background:${T.textSoft};animation:none;}
 @keyframes wpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.25;transform:scale(.65)}}
-.waddr{font-family:'SF Mono',Menlo,'Courier New',monospace;font-size:9px;color:${T.textMid};letter-spacing:0;}
+.waddr{font-family:'SF Mono',Menlo,'Courier New',monospace;font-size:10px;color:${T.textMid};letter-spacing:0;}
 
 .hero{margin:16px 14px 0;border-radius:5px;border:1px solid ${T.border};background:${T.card};padding:22px;position:relative;overflow:hidden;box-shadow:0 2px 6px ${T.shadow};}
-.hero-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:2.4px;color:${T.textSoft};margin-bottom:12px;}
+.hero-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2.4px;color:${T.textSoft};margin-bottom:12px;}
 .hero-amount{font-family:'SF Mono',Menlo,'Courier New',monospace;font-size:48px;font-weight:500;color:${T.text};line-height:1;letter-spacing:-1.5px;}
 .hero-amount span{font-size:14px;font-weight:400;color:${T.textSoft};margin-left:8px;letter-spacing:0;}
 .hero-usd{font-size:10px;color:${T.textSoft};margin-top:8px;}
@@ -1213,18 +1213,18 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .hchip{flex:1;padding-right:18px;margin-right:18px;border-right:1px solid ${T.border};}
 .hchip:last-child{border-right:none;margin-right:0;padding-right:0;}
 .hchip-val{font-size:20px;font-weight:600;color:${T.text};font-family:'SF Mono',Menlo,'Courier New',monospace;line-height:1;}
-.hchip-key{white-space:nowrap;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:${T.textSoft};margin-top:5px;}
+.hchip-key{white-space:nowrap;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:${T.textSoft};margin-top:5px;}
 
 .sec{display:flex;align-items:center;gap:12px;margin:24px 14px 14px;padding:0;}
 .sec-line{flex:1;height:1px;background:${T.border};}
-.sec-txt{font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:2.8px;color:${T.textSoft};}
+.sec-txt{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:2.8px;color:${T.textSoft};}
 
 .util-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 14px 16px;}
 .ucard{background:${T.card};border:1px solid ${T.border};border-radius:5px;padding:14px;transition:all .2s;cursor:pointer;box-shadow:0 1px 3px ${T.shadow};}
 .ucard:hover{border-color:${T.green3};box-shadow:0 4px 12px ${T.shadowMd};}
 .ucard-icon{width:32px;height:32px;border-radius:4px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;color:${T.green2};font-size:16px;}
 .ucard-name{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${T.text};}
-.ucard-reads{font-size:9px;color:${T.textSoft};margin-top:4px;font-weight:500;}
+.ucard-reads{font-size:10px;color:${T.textSoft};margin-top:4px;font-weight:500;}
 .ucard-b3tr{font-size:16px;font-weight:600;margin-top:9px;font-family:'SF Mono',Menlo,'Courier New',monospace;}
 
 .calendar{margin:0 14px 14px;background:${T.card};border:1px solid ${T.border};border-radius:4px;padding:16px;}
@@ -1233,9 +1233,9 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .cal-streak{font-size:11px;font-weight:600;color:${T.green3};display:flex;align-items:center;gap:5px;}
 .cal-streak svg{width:15px;height:15px;}
 .cal-days-hdr{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px;}
-.cal-day-name{text-align:center;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${T.textSoft};}
+.cal-day-name{text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${T.textSoft};}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
-.cal-cell{aspect-ratio:1;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:500;color:${T.textSoft};background:${T.bgAlt};}
+.cal-cell{aspect-ratio:1;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:${T.textSoft};background:${T.bgAlt};}
 .cal-cell.has-sub{background:${T.green1};color:#fff;font-weight:600;}
 .cal-cell.today{outline:1.5px solid ${T.green3};outline-offset:-1px;}
 .cal-cell.empty{opacity:0;}
@@ -1248,14 +1248,14 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .hdate{font-size:10px;color:${T.textSoft};font-family:'SF Mono',Menlo,'Courier New',monospace;margin-top:2px;}
 .hright{text-align:right;flex-shrink:0;}
 .hb3tr{font-size:14px;font-weight:500;color:${T.green1};font-family:'SF Mono',Menlo,'Courier New',monospace;}
-.hstatus{font-size:8px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;padding:1px 5px;border-radius:1px;margin-top:4px;display:inline-block;}
+.hstatus{font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;padding:1px 5px;border-radius:1px;margin-top:4px;display:inline-block;}
 .s-confirmed{background:${T.green5};color:${T.green2};border:1px solid ${T.green4};}
 
 .sub-header{padding:20px 18px 10px;}
 .sub-title{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:22px;font-weight:800;color:${T.text};letter-spacing:-0.4px;}
 .sub-sub{font-size:11px;color:${T.textSoft};margin-top:4px;text-transform:uppercase;letter-spacing:.8px;}
 .util-selector{display:grid;grid-template-columns:repeat(${UTILS.length},1fr);margin:0 14px 14px;border:1px solid ${T.border};border-radius:4px;overflow:hidden;}
-.utab{display:flex;flex-direction:column;align-items:center;gap:3px;background:${T.card};border-right:1px solid ${T.border};padding:10px 4px;cursor:pointer;transition:background .12s,color .12s;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${T.textSoft};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;border-radius:0;}
+.utab{display:flex;flex-direction:column;align-items:center;gap:3px;background:${T.card};border-right:1px solid ${T.border};padding:10px 4px;cursor:pointer;transition:background .12s,color .12s;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${T.textSoft};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;border-radius:0;}
 .utab:last-child{border-right:none;}
 .utab:hover,.utab.active{background:var(--ubg);color:var(--uc);}
 .utab-icon{font-size:18px;}
@@ -1279,26 +1279,26 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .ai-step-icon{font-size:10px;width:12px;text-align:center;}
 .vz-result{padding:14px 16px;}
 .vr-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
-.vr-badge{display:flex;align-items:center;gap:4px;background:transparent;border:1px solid ${T.green3};border-radius:2px;padding:3px 7px;font-size:9px;font-weight:700;color:${T.green3};text-transform:uppercase;letter-spacing:1px;}
+.vr-badge{display:flex;align-items:center;gap:4px;background:transparent;border:1px solid ${T.green3};border-radius:2px;padding:3px 7px;font-size:10px;font-weight:700;color:${T.green3};text-transform:uppercase;letter-spacing:1px;}
 .vr-confidence{font-size:10px;color:${T.textSoft};margin-left:auto;font-family:'SF Mono',Menlo,'Courier New',monospace;}
 .vr-summary{font-size:11px;color:${T.textMid};line-height:1.55;}
-.vr-retry{font-size:9px;font-weight:700;color:${T.green3};margin-top:7px;cursor:pointer;text-transform:uppercase;letter-spacing:.8px;}
+.vr-retry{font-size:10px;font-weight:700;color:${T.green3};margin-top:7px;cursor:pointer;text-transform:uppercase;letter-spacing:.8px;}
 .vz-photo{width:100%;max-height:160px;object-fit:cover;border-radius:3px;border:1px solid ${T.border};margin-bottom:10px;display:block;}
 .vz-photo.sm{max-height:90px;}
 
 .form-card{margin:0 14px 14px;background:${T.card};border:1px solid ${T.border};border-radius:5px;padding:16px;box-shadow:0 2px 6px ${T.shadow};}
 .irow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
 .igroup{display:flex;flex-direction:column;gap:4px;}
-.ilabel{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:${T.textSoft};display:flex;align-items:center;gap:6px;}
-.utag{border-radius:1px;padding:1px 4px;font-size:7px;font-weight:700;background:var(--ubg);color:var(--uc);border:1px solid var(--uborder);text-transform:uppercase;letter-spacing:.6px;}
+.ilabel{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:${T.textSoft};display:flex;align-items:center;gap:6px;}
+.utag{border-radius:1px;padding:1px 4px;font-size:9px;font-weight:700;background:var(--ubg);color:var(--uc);border:1px solid var(--uborder);text-transform:uppercase;letter-spacing:.6px;}
 .ifield{width:100%;background:${T.bg};border:1px solid ${T.border};border-radius:3px;padding:9px 10px;color:${T.text};font-family:'SF Mono',Menlo,'Courier New',monospace;font-size:15px;outline:none;transition:border-color .15s;}
 .ifield:focus{border-color:var(--uc,${T.green3});}
 .ifield::placeholder{color:${T.textSoft};opacity:.5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;}
 .reward-preview{background:${T.bgAlt};border:1px solid ${T.border};border-left:3px solid ${T.green3};border-radius:3px;padding:12px 13px;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
-.rp-label{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:${T.textSoft};}
+.rp-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:${T.textSoft};}
 .rp-rate{font-size:10px;color:${T.textSoft};margin-top:3px;font-family:'SF Mono',Menlo,'Courier New',monospace;}
 .rp-val{font-size:28px;font-weight:500;color:${T.text};font-family:'SF Mono',Menlo,'Courier New',monospace;letter-spacing:-0.5px;}
-.rp-b3tr{font-size:9px;color:${T.textSoft};text-transform:uppercase;letter-spacing:1.4px;}
+.rp-b3tr{font-size:10px;color:${T.textSoft};text-transform:uppercase;letter-spacing:1.4px;}
 .sbtn{width:100%;background:linear-gradient(135deg,${T.green1},${T.green2});border:none;border-radius:4px;padding:14px;color:${T.bg};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;letter-spacing:1px;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 12px rgba(26,51,38,0.2);}
 .sbtn:hover:not(:disabled){box-shadow:0 6px 20px rgba(26,51,38,0.3);transform:translateY(-1px);}
 .sbtn:disabled{opacity:.4;cursor:not-allowed;}
@@ -1311,8 +1311,8 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .chart-bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;}
 .chart-bar{width:100%;border-radius:1px 1px 0 0;min-height:3px;transition:all .3s;cursor:pointer;}
 .chart-bar:hover{filter:brightness(1.2);}
-.chart-val{font-size:8px;font-family:'SF Mono',Menlo,'Courier New',monospace;color:${T.textSoft};text-align:center;}
-.chart-lbl{font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:${T.textSoft};text-align:center;}
+.chart-val{font-size:10px;font-family:'SF Mono',Menlo,'Courier New',monospace;color:${T.textSoft};text-align:center;}
+.chart-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:${T.textSoft};text-align:center;}
 
 .lb-hero{margin:14px 14px 0;border-radius:4px;border:1px solid ${T.border};border-left:3px solid #7c3aed;background:${T.card};padding:20px;}
 .lb-hero-rank{font-family:'SF Mono',Menlo,'Courier New',monospace;font-size:52px;font-weight:500;color:${T.text};line-height:1;letter-spacing:-2px;}
@@ -1328,7 +1328,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .pstat-row{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin:0 14px 14px;}
 .pstat{background:${T.card};border:1px solid ${T.border};border-radius:4px;padding:13px;text-align:center;}
 .pstat-val{font-size:22px;font-weight:500;color:${T.text};font-family:'SF Mono',Menlo,'Courier New',monospace;letter-spacing:-0.5px;}
-.pstat-key{font-size:8px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:${T.textSoft};margin-top:3px;}
+.pstat-key{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:${T.textSoft};margin-top:3px;}
 .notif-card{margin:0 14px 9px;background:${T.card};border:1px solid ${T.border};border-radius:4px;padding:15px;}
 .notif-hdr{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:${T.text};margin-bottom:12px;}
 .notif-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid ${T.border};}
@@ -1352,7 +1352,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .nitem.active{color:${T.green2};}
 .nitem.active::before{content:'';position:absolute;top:-2px;left:50%;transform:translateX(-50%);width:20px;height:2px;background:${T.green3};border-radius:1px;}
 .nicon{font-size:17px;width:30px;height:26px;display:flex;align-items:center;justify-content:center;color:inherit;}
-.nlabel{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:1px;}
+.nlabel{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;}
 
 .toast{position:fixed;top:72px;left:50%;transform:translateX(-50%);background:${T.text};border-radius:3px;padding:8px 14px;font-size:11px;font-weight:700;letter-spacing:.3px;color:${T.bg};z-index:200;white-space:nowrap;animation:toastin .18s ease;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
 @keyframes toastin{from{opacity:0;transform:translateX(-50%) translateY(-5px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
@@ -1382,7 +1382,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 
 .spin-sm{width:13px;height:13px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block;}
 .filter-row{display:flex;gap:5px;padding:0 14px 13px;overflow-x:auto;}
-.fchip{flex-shrink:0;padding:4px 11px;border-radius:2px;font-size:9px;font-weight:700;cursor:pointer;border:1px solid ${T.border};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;transition:all .12s;text-transform:uppercase;letter-spacing:.8px;background:${T.card};color:${T.textSoft};}
+.fchip{flex-shrink:0;padding:4px 11px;border-radius:2px;font-size:10px;font-weight:700;cursor:pointer;border:1px solid ${T.border};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;transition:all .12s;text-transform:uppercase;letter-spacing:.8px;background:${T.card};color:${T.textSoft};}
 .fchip.active{background:${T.green1};color:#fff;border-color:${T.green1};}
 `;
 }
@@ -2079,7 +2079,7 @@ function HistItem({ s, T }) {
       title={txUrl ? "View this transaction on the VeChain explorer" : undefined}>
       <div className="hicon" style={{background: getColorBg(s.type, T), color: T[s.type] || T.electric}}>{UTIL_ICONS[s.type]}</div>
       <div className="hinfo">
-        <div className="htitle">{util.label}{s.meterNo ? <span style={{fontWeight:400,color:T.textSoft,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",fontSize:9}}> · #{s.meterNo}</span> : null}</div>
+        <div className="htitle">{util.label}{s.meterNo ? <span style={{fontWeight:400,color:T.textSoft,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",fontSize:10}}> · #{s.meterNo}</span> : null}</div>
         <div className="hdate">{s.date}{txUrl ? <span style={{color:T.textSoft}}> · tx ↗</span> : null}</div>
         <div style={{color: T[s.type] || T.electric, fontSize: isEco ? 12 : undefined}}>{delta}{util.unit ? ` ${util.unit}` : ""}</div>
       </div>
@@ -3053,8 +3053,8 @@ function ChartsScreen({ subs, T }) {
     <div className="pstat">
       <div style={{fontSize:16,marginBottom:2}}>{icon}</div>
       <div className="pstat-val" style={{fontSize:19}}>{val}<span style={{fontSize:11,fontWeight:600,color:T.textSoft}}> {unit}</span></div>
-      <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".6px",color:T.textSoft,marginTop:2}}>{label}</div>
-      {sub && <div style={{fontSize:9,color:T.textSoft,marginTop:1}}>{sub}</div>}
+      <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".6px",color:T.textSoft,marginTop:2}}>{label}</div>
+      {sub && <div style={{fontSize:10,color:T.textSoft,marginTop:1}}>{sub}</div>}
     </div>
   );
 
@@ -3113,7 +3113,7 @@ function ChartsScreen({ subs, T }) {
                   ))}
                 </div>
                 <div style={{display:"flex",gap:2,padding:"2px 2px 0"}}>
-                  {series.map((d, i) => <div key={i} style={{flex:1,textAlign:"center",fontSize:8.5,color:T.textSoft}}>{d.label}</div>)}
+                  {series.map((d, i) => <div key={i} style={{flex:1,textAlign:"center",fontSize:10,color:T.textSoft}}>{d.label}</div>)}
                 </div>
                 {saving && (
                 <div style={{display:"flex",gap:12,marginTop:8,fontSize:9.5,color:T.textMid}}>
@@ -3145,7 +3145,7 @@ function ChartsScreen({ subs, T }) {
           ))}
         </div>
         <div style={{display:"flex",gap:4,padding:"2px 2px 0"}}>
-          {weeks.map((w, i) => <div key={i} style={{flex:1,textAlign:"center",fontSize:8.5,color: w.start === thisWeek ? T.green3 : T.textSoft,fontWeight: w.start === thisWeek ? 700 : 400}}>{w.start === thisWeek ? "now" : wkLabel(w.start)}</div>)}
+          {weeks.map((w, i) => <div key={i} style={{flex:1,textAlign:"center",fontSize:10,color: w.start === thisWeek ? T.green3 : T.textSoft,fontWeight: w.start === thisWeek ? 700 : 400}}>{w.start === thisWeek ? "now" : wkLabel(w.start)}</div>)}
         </div>
       </div>
 
@@ -3260,7 +3260,7 @@ function LeaderboardScreen({ b3tr, streak, subs, wallet, T }) {
   return (
     <>
       <div className="lb-hero" style={{borderLeftColor:currentTier.color}}>
-        <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:"2.2px",color:T.textSoft,marginBottom:10}}>Your Rank & Tier</div>
+        <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"2.2px",color:T.textSoft,marginBottom:10}}>Your Rank & Tier</div>
         <div className="lb-hero-rank">#{myRank}</div>
         <div style={{fontSize:12,fontWeight:700,color:currentTier.color,marginTop:8}}>{currentTier.name} Tier ({currentTier.multiplier}x bonus)</div>
         <div style={{fontSize:11,color:T.textSoft,marginTop:5}}>{(isLive ? myBoardB3tr : b3tr).toFixed(2)} B3TR · {streak} day streak</div>
@@ -3271,11 +3271,11 @@ function LeaderboardScreen({ b3tr, streak, subs, wallet, T }) {
 
         {nextTier && (
           <div style={{marginTop:14,width:"100%"}}>
-            <div style={{fontSize:9,fontWeight:700,color:T.textMid,marginBottom:6}}>Progress to {nextTier.name} Tier</div>
+            <div style={{fontSize:10,fontWeight:700,color:T.textMid,marginBottom:6}}>Progress to {nextTier.name} Tier</div>
             <div style={{width:"100%",height:6,background:T.border,borderRadius:3,overflow:"hidden"}}>
               <div style={{width:`${progressPercent}%`,height:"100%",background:T.green3,transition:"width 0.3s"}}/>
             </div>
-            <div style={{fontSize:8,color:T.textSoft,marginTop:4,textAlign:"center"}}>{progressPercent}% • Need {b3trNeeded.toFixed(2)} more B3TR</div>
+            <div style={{fontSize:10,color:T.textSoft,marginTop:4,textAlign:"center"}}>{progressPercent}% • Need {b3trNeeded.toFixed(2)} more B3TR</div>
           </div>
         )}
       </div>
@@ -3307,7 +3307,7 @@ function LeaderboardScreen({ b3tr, streak, subs, wallet, T }) {
       <div style={{margin:"0 14px 14px",padding:14,background:T.card,border:`1px solid ${T.border}`,borderRadius:5}}>
         <div style={{fontSize:9,fontWeight:700,color:T.textSoft,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:8}}>Base Rate</div>
         <div style={{fontSize:11,fontWeight:700,color:T.text,marginBottom:12,fontFamily:"'SF Mono',monospace"}}>Ø {dailyAvg} B3TR/day</div>
-        <div style={{fontSize:9,fontWeight:700,color:T.textSoft,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:8}}>With {currentTier.name} Tier ({currentTier.multiplier}x)</div>
+        <div style={{fontSize:10,fontWeight:700,color:T.textSoft,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:8}}>With {currentTier.name} Tier ({currentTier.multiplier}x)</div>
         <div style={{fontSize:11,fontWeight:700,color:currentTier.color,marginBottom:12,fontFamily:"'SF Mono',monospace"}}>{withBonus} B3TR/day <span style={{color:T.green3}}>+{bonusExtra} bonus!</span></div>
         <div style={{fontSize:9,color:T.textSoft,lineHeight:1.6}}>
           📅 Monthly: {(dailyAvg * 30).toFixed(2)} B3TR<br/>
@@ -3320,7 +3320,7 @@ function LeaderboardScreen({ b3tr, streak, subs, wallet, T }) {
         {badges.map(b => (
           <div key={b.id} style={{padding:12,background:b.unlocked?T.card:T.bgAlt,border:`1px solid ${b.unlocked?T.border:T.textSoft}`,borderRadius:4,textAlign:"center",opacity:b.unlocked?1:0.5}}>
             <div style={{fontSize:24,marginBottom:4}}>{b.icon}</div>
-            <div style={{fontSize:8,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.8px",color:T.textSoft}}>{b.name}</div>
+            <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.8px",color:T.textSoft}}>{b.name}</div>
           </div>
         ))}
       </div>
@@ -4347,7 +4347,7 @@ function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, notif
         <div style={{fontSize:18}}>🌱</div>
         <div className="pname">My Account</div>
         <div style={{fontSize:10,color:T.textSoft,fontFamily:"'SF Mono',monospace",marginTop:3}}>{wallet ? shortAddr(wallet) : "Not connected"}</div>
-        <div style={{fontSize:8,fontWeight:700,background:T.bgAlt,color:tier.color,border:`1px solid ${T.border}`,borderRadius:2,padding:"3px 7px",marginTop:10,textTransform:"uppercase",letterSpacing:".8px"}}>{tier.name} Tier</div>
+        <div style={{fontSize:10,fontWeight:700,background:T.bgAlt,color:tier.color,border:`1px solid ${T.border}`,borderRadius:2,padding:"3px 7px",marginTop:10,textTransform:"uppercase",letterSpacing:".8px"}}>{tier.name} Tier</div>
       </div>
       
       <div className="pstat-row">
