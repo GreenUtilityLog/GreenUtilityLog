@@ -64,6 +64,10 @@ app.use("/ocr", photoJson);
 app.use("/meter/fix-basis", photoJson);
 app.use(express.json({ limit: "64kb" }));
 
+// When this process came up — with the commit above, that is enough to tell a
+// fresh deploy from a free-plan instance that merely woke from sleep.
+const STARTED_AT = new Date().toISOString();
+
 app.get("/health", async (req, res) => {
   // On-chain self-diagnosis: poolB3TR is the app's available reward funds;
   // distributorAuthorized says whether our wallet holds the reward-distributor
@@ -71,6 +75,13 @@ app.get("/health", async (req, res) => {
   const chain = await chainDiagnostics().catch(() => ({ poolB3TR: null, distributorAuthorized: null }));
   res.json({
     ok: true,
+    // Which commit is actually running. "Did my backend redeploy?" has come up after
+    // every backend change, and until now the only way to answer it was to poke an
+    // endpoint and infer the answer from a 404. Render sets RENDER_GIT_COMMIT itself;
+    // elsewhere set GIT_COMMIT, and where neither exists this reads "unknown" rather
+    // than claiming something it doesn't know.
+    commit: (process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT || "unknown").slice(0, 7),
+    startedAt: STARTED_AT,
     network: NETWORK,
     node: NODE_URL,
     appId: APP_ID,
