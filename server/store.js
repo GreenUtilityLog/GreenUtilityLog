@@ -20,7 +20,7 @@ const REDIS_KEY = process.env.STATE_KEY || "greenutilitylog:state";
 // `passes` is the access-pass registry (address → pass); `passesInit` records that the
 // one-time grandfathering has run, so turning REQUIRE_PASS on can't silently cut off
 // every existing tester — and can't re-grant a pass an admin has since revoked.
-const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {} };
+const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {} };
 
 // Cap the "seen wallets" roster so an open endpoint can't grow state without bound.
 // When exceeded we drop the least-recently-seen entries.
@@ -189,6 +189,17 @@ export const store = {
     if (mFallback(utility) && Object.prototype.hasOwnProperty.call(state.readingAts, meterNo)) return state.readingAts[meterNo];
     return null;
   },
+  // A meter whose baseline was set from ONE tariff register cannot be reconciled with
+  // a total that covers both: the step between them is thousands of kWh and every
+  // claim is refused as implausible. Correcting it is allowed once per meter, and
+  // that is recorded here — a bounded map keyed by meter, not a flag, because flags
+  // are evicted when they get old and a gate that forgets is not a gate.
+  basisFixedAt: (utility, meterNo) => state.basisFixed[mKey(utility, meterNo)] || null,
+  markBasisFixed: (utility, meterNo, info) => {
+    state.basisFixed[mKey(utility, meterNo)] = { at: Date.now(), ...info };
+    persist();
+  },
+
   // ── Seen wallets ────────────────────────────────────────────────────────────
   // The admin participant list is built from on-chain rewards, so a tester who has
   // connected (and maybe registered a meter locally) but not yet earned is invisible.

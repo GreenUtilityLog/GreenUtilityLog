@@ -58,6 +58,10 @@ const photoJson = express.json({ limit: "20mb" });
 app.use("/reward", photoJson);
 app.use("/eco-action", photoJson);
 app.use("/ocr", photoJson);
+// Also carries a photo: reconciling a meter's tariff registers demands the same
+// proof a payout does. Without this it would hit the 64 kB default and every
+// submission would fail on body size rather than on anything to do with the meter.
+app.use("/meter/fix-basis", photoJson);
 app.use(express.json({ limit: "64kb" }));
 
 app.get("/health", async (req, res) => {
@@ -458,6 +462,33 @@ app.post("/reward", async (req, res) => {
     if (!cap.ok) return res.status(403).json({ error: cap.error });
   }
 
+  // 0c) Tariff registers, when the meter has more than one.
+  // A double-tariff meter keeps 1.8.1 (low) and 1.8.2 (normal) and cycles its
+  // display, so no photo can ever show their sum — yet the sum is the consumption,
+  // and the figure a P1 reader reports. The app therefore sends the parts and the
+  // total it built from them, and the photo is corroborated against the parts.
+  //
+  // The sum MUST be re-derived here. Trusting the client's total while checking the
+  // photo against the parts would be the whole point of the photo check thrown away:
+  // send two numbers that are on the meter, plus any total you like, and the reading
+  // paid on would be unverified. Cheap to get right, fatal to skip.
+  const registers = Array.isArray(req.body.registers)
+    ? req.body.registers.map(Number).filter((n) => Number.isFinite(n) && n >= 0)
+    : [];
+  if (registers.length) {
+    if (registers.length > 4) return res.status(400).json({ error: "too many meter registers" });
+    if (registers.length !== req.body.registers.length) {
+      return res.status(400).json({ error: "every meter register must be a number of 0 or more" });
+    }
+    const sum = +registers.reduce((a, b) => a + b, 0).toFixed(3);
+    const claimed = Number(req.body.reading);
+    // A tolerance of 0.01 absorbs the rounding of a meter that shows three decimals
+    // while the field takes two; anything wider would let a register be padded.
+    if (!Number.isFinite(claimed) || Math.abs(sum - claimed) > 0.01) {
+      return res.status(400).json({ error: `the registers add up to ${sum}, not ${claimed}` });
+    }
+  }
+
   // 1) Structural checks + server-recomputed amount.
   const v = validateSubmission(req.body);
   if (!v.ok) return res.status(400).json({ error: v.error });
@@ -479,7 +510,7 @@ app.post("/reward", async (req, res) => {
   try {
     // 2) Photo check — real image, not a reused one (and optional OCR match). This
     // reserves the photo hash immediately; the finally rolls it back unless we pay.
-    photo = await verifyPhoto({ imageBase64: req.body.photo, reading: req.body.reading, ocr: OCR_ENABLED, mime: req.body.photoMime });
+    photo = await verifyPhoto({ imageBase64: req.body.photo, reading: req.body.reading, registers, ocr: OCR_ENABLED, mime: req.body.photoMime });
     if (!photo.ok) return res.status(400).json({ error: photo.error });
 
     // 2b) AI authenticity — reject doctored / screenshotted / watermarked / hand-drawn
@@ -521,6 +552,13 @@ app.post("/reward", async (req, res) => {
     const reasons = [];
     if (req.body.clientFlagged) reasons.push(req.body.flagReason || "client checks were inconclusive");
     if (photo?.exif && !photo.exif.hasExif) reasons.push("photo carried no EXIF capture date");
+    // Worth seeing: the figure paid on was a sum, and the photo could only vouch for
+    // one of its parts. Not a refusal — it is the normal shape of a double-tariff
+    // meter — but the part that is NOT in the photo rests on the submitter's word.
+    if (registers.length > 1) {
+      reasons.push(`total of ${registers.length} tariff registers (${registers.join(" + ")})`
+        + (photo?.ocrMatched ? `, photo matched ${photo.ocrMatched}` : ""));
+    }
     if (reasons.length) {
       try { store.addFlag(txid, req.body.address, reasons.join(" · ")); }
       catch (e) { console.error("[/reward] could not record flag:", e?.message || e); }
@@ -961,6 +999,88 @@ app.post("/meter/rebaseline", async (req, res) => {
   );
   await store.flush();
   res.json({ ok: true, from: prev, to: reading, utility, meterNo, unit: UNITS[utility] || "" });
+});
+
+// ── Correcting a photo baseline that only ever covered one tariff register ───
+// The same mismatch as /meter/rebaseline, reached from the other side. Someone who
+// has been photographing 1.8.1 has a baseline that counts one tariff; the moment they
+// start entering the total of both — which is their real consumption, and what a
+// reader reports — the step is thousands of kWh and every claim is refused.
+//
+// Kept OUT of /reward deliberately. That endpoint pays, and a non-paying branch
+// threaded through it is how a payout path acquires a way to skip validation. This
+// one runs the identical photo proof (real image, fresh, not reused, OCR must find a
+// register on it) and then only moves the starting point.
+//
+// Once per meter, ever. It cannot lower a baseline, it pays nothing, and it is
+// recorded both as durable state and as a flag.
+app.post("/meter/fix-basis", async (req, res) => {
+  if (banned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
+  if (!store.ready()) return res.status(503).json({ error: "service is warming up — please try again in a moment" });
+
+  const address = String(req.body.address || "");
+  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
+  if (REQUIRE_CERT) {
+    const c = verifyWalletCertificate({ certificate: req.body.certificate, address });
+    if (!c.ok) return res.status(401).json({ error: c.error });
+  }
+
+  const utility = RATES[String(req.body.utility || "").toLowerCase()] ? String(req.body.utility).toLowerCase() : "electric";
+  const meterNo = String(req.body.meterNo || "").trim();
+  if (!meterNo) return res.status(400).json({ error: "meter number is required" });
+  const meterKey = meterNo.toLowerCase();
+
+  // Same ownership rule as a payout: one physical meter belongs to one wallet.
+  const owner = store.meterOwner(utility, meterKey);
+  if (owner && owner !== address.toLowerCase()) {
+    return res.status(403).json({ error: "this meter is registered to another wallet" });
+  }
+  if (store.basisFixedAt(utility, meterKey)) {
+    return res.status(409).json({ error: "this meter's registers have already been reconciled once" });
+  }
+
+  const registers = Array.isArray(req.body.registers)
+    ? req.body.registers.map(Number).filter((n) => Number.isFinite(n) && n >= 0)
+    : [];
+  if (registers.length < 2 || registers.length > 4 || registers.length !== req.body.registers.length) {
+    return res.status(400).json({ error: "give the value of each tariff register on your meter" });
+  }
+  const total = +registers.reduce((a, b) => a + b, 0).toFixed(3);
+
+  const prev = store.lastReading(utility, meterKey);
+  if (prev == null) {
+    return res.status(400).json({ error: "this meter has no starting point yet — submit a normal photo reading instead" });
+  }
+  if (total <= prev) {
+    return res.status(400).json({ error: `the registers add up to ${total}, which is not above the current starting point of ${prev} — nothing to reconcile` });
+  }
+
+  let photo = null;
+  try {
+    // The photo carries the same weight as it does for a payout: it has to be a real,
+    // fresh, unused image, and OCR (when on) has to find one of these registers on it.
+    photo = await verifyPhoto({ imageBase64: req.body.photo, reading: total, registers, ocr: OCR_ENABLED, mime: req.body.photoMime });
+    if (!photo.ok) return res.status(400).json({ error: photo.error });
+    if (aiPhotoCheckEnabled()) {
+      const auth = await checkPhotoAuthenticity(req.body.photo);
+      if (!auth.ok) { photo.unreserve(); return res.status(400).json({ error: `photo rejected: ${auth.reason}` }); }
+    }
+
+    store.setLastReading(utility, meterKey, total);
+    store.bindMeter(utility, meterKey, address.toLowerCase());
+    store.markBasisFixed(utility, meterKey, { from: prev, to: total, registers, addr: address.toLowerCase() });
+    store.addFlag(
+      `basis-${address.toLowerCase().slice(2, 10)}-${Date.now()}`,
+      address,
+      `tariff registers reconciled ${prev} → ${total} ${UNITS[utility] || ""} (${registers.join(" + ")}, ${utility}, meter ${meterNo})`,
+    );
+    await store.flush();
+    res.json({ ok: true, from: prev, to: total, registers, utility, meterNo, unit: UNITS[utility] || "" });
+  } catch (e) {
+    if (photo?.ok) photo.unreserve();
+    console.error("[/meter/fix-basis]", e?.message || e);
+    res.status(500).json({ error: e?.message || "could not reconcile this meter" });
+  }
 });
 
 // ── Scheduled auto-submit (Step 3, opt-in) ───────────────────────────────────
