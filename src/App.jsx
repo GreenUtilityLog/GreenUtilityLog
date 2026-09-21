@@ -360,9 +360,13 @@ function mergeSubs(local, chain) {
 // ANTI-FARMING ENGINE
 // ────────────────────────────────────────────────────────────────────────────
 
+// Lifted out of checkPlausibility so other code can ask the same question without
+// restating the numbers — the smart-meter card needs to know when a jump is beyond
+// anything any span could ever allow. MUST match USAGE_BOUNDS on the server.
+const USAGE_RANGES = { electric: { min:0.1, max:80 }, gas: { min:0.01, max:20 }, water: { min:10, max:1000}, solar: { min:0.1, max:60 } };
+
 function checkPlausibility(utilId, usageVal) {
-  const RANGES = { electric: { min:0.1, max:80 }, gas: { min:0.01, max:20 }, water: { min:10, max:1000}, solar: { min:0.1, max:60 } };
-  const range = RANGES[utilId];
+  const range = USAGE_RANGES[utilId];
   if (!range) return { ok:true };
   // Zero usage (current == previous) is explicitly valid — the best conservation
   // outcome. Only a tiny-but-nonzero delta may be a typo, and high is abnormal.
@@ -2217,6 +2221,26 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
     }
   };
 
+  // A photo can only capture one of a double-tariff meter's two registers, while the
+  // reader reports their sum, so the stored starting point and everything the reader
+  // sends afterwards are on different scales and no claim can ever succeed. This asks
+  // the backend to take the reader's current value as the starting point instead.
+  // Allowed only until this pairing has been paid once; the backend enforces that.
+  const doRebaseline = async () => {
+    setErr(""); setBusy("rebase");
+    try {
+      const certificate = await signCert();
+      const r = await fetch(`${API}/meter/rebaseline`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: wallet, certificate, meterNo }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `couldn't update the starting point (${r.status})`);
+      await refreshLatest();
+    } catch (e) { setErr(e?.message || "updating the starting point failed"); }
+    finally { setBusy(""); }
+  };
+
   const doEnodeLink = async () => {
     setErr(""); setBusy("enode");
     try {
@@ -2255,6 +2279,14 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
 
   const enodeOn = !!health?.enode?.enabled;
   const rd = latest?.reading;
+  // A gap bigger than the maximum plausible usage over the longest span the backend
+  // will ever count isn't usage at all — it means the stored starting point and the
+  // reader are measuring different things. Derived from the same numbers the
+  // plausibility check uses, so it cannot drift away from what the server enforces.
+  const gapKwh = (rd && Number.isFinite(Number(latest?.baseline)))
+    ? +(Number(rd.reading) - Number(latest.baseline)).toFixed(3) : null;
+  const scaleMismatch = !!latest?.canRebaseline && gapKwh != null
+    && gapKwh > USAGE_RANGES.electric.max * MAX_SPAN_DAYS;
   const busyAny = sending || !!autoBusy;
   const box = { margin: "0 14px 12px", padding: 12, background: T.ecoBg || T.waterBg, border: `1px solid ${T.ecoBorder || T.waterBorder}`, borderRadius: 8 };
   const btn = (bg) => ({ padding: "9px 12px", fontSize: 12, fontWeight: 700, color: "#fff", background: bg, border: "none", borderRadius: 6, cursor: "pointer" });
@@ -2281,6 +2313,7 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
           ) : rd != null ? (
             /* A real reader (P1 / Enode) pushed a reading — claim it with one tap, no
                photo needed (the device token binds it to your wallet). */
+            <>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "10px 12px", background: T.bg, border: `1px solid ${T.border || T.waterBorder}`, borderRadius: 8 }}>
               <div>
                 <div style={{ fontSize:10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft }}>Auto-received</div>
@@ -2291,6 +2324,32 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
                 {busyAny ? "Submitting…" : "Submit — no photo"}
               </button>
             </div>
+            {/* Shown only when the gap is larger than ANY span could ever pay, which
+                is the signature of a starting point that isn't on the same scale as
+                the reader — almost always a double-tariff meter photographed on one
+                register. Below that threshold this is just normal usage and the
+                button would be an invitation to throw away earnings. */}
+            {scaleMismatch && (
+              <div style={{ marginTop: 10, padding: "10px 12px", background: T.bg, border: `1px dashed ${T.border || T.waterBorder}`, borderRadius: 8 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: T.text, marginBottom: 4 }}>
+                  Your starting point doesn’t match your reader
+                </div>
+                <div style={{ fontSize: 10.5, color: T.textSoft, lineHeight: 1.6 }}>
+                  Stored start <b style={mono}>{latest.baseline}</b> vs reader <b style={mono}>{rd.reading}</b> kWh — a gap of{" "}
+                  <b style={mono}>{gapKwh}</b> kWh, far more than anyone uses between readings. That happens when your
+                  meter keeps <b>two tariff registers</b> (low and normal) and your photo captured one of them, while
+                  your reader reports the total of both. Claiming will keep being refused until the two agree.
+                </div>
+                <button disabled={!!busy} onClick={doRebaseline}
+                  style={{ ...btn(T.electric), marginTop: 9, opacity: busy ? .6 : 1 }}>
+                  {busy === "rebase" ? "Updating…" : "Use this reading as my starting point"}
+                </button>
+                <div style={{ fontSize: 10, color: T.textSoft, marginTop: 6, lineHeight: 1.5 }}>
+                  Pays nothing — it only sets where counting begins. You can do this until your first automatic payout.
+                </div>
+              </div>
+            )}
+            </>
           ) : (
             <div style={{ fontSize: 11, color: T.textSoft, lineHeight: 1.6 }}>
               No automatic reading yet. Set up your <b>P1 reader</b> below — your meter total then shows up here to submit with one tap. To submit <b>by hand, use the 📸 Photo tab</b> (a photo is required for manual submissions).
@@ -2612,6 +2671,20 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
               <div className="ilabel">Current <span className="utag">{u.unit}</span></div>
               <input className="ifield" type="number" step="0.01" inputMode="decimal" placeholder={u.ph[1]} value={reading} onChange={e=>setReading(e.target.value)}/>
             </div>
+          </div>
+        )}
+
+        {/* A double-tariff meter — the normal case in the Netherlands and Belgium —
+            keeps two registers and shows them in turn, so a photo captures one of
+            them. Entering one register reports roughly half your consumption, which
+            the reward formula reads as saving and pays MORE for. It also makes the
+            reading incompatible with a P1 reader later, since a reader reports the
+            total of both. Say so at the field, where the decision is made. */}
+        {u.id === "electric" && (
+          <div style={{ margin: "2px 0 10px", fontSize: 10.5, color: T.textSoft, lineHeight: 1.55 }}>
+            Two numbers on the display (<span style={{ fontFamily: "'SF Mono',Menlo,monospace" }}>1.8.1</span> low and{" "}
+            <span style={{ fontFamily: "'SF Mono',Menlo,monospace" }}>1.8.2</span> normal)? Enter their <b>total</b> — that is
+            your actual consumption, and it is what a P1 reader reports if you automate this later.
           </div>
         )}
 

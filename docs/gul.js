@@ -191,6 +191,20 @@ function readTotal(data) {
   }
   return null;
 }
+// The number above is the total across BOTH tariff registers, which is what a meter
+// actually consumed. A double-tariff meter (the normal case in NL) shows them apart
+// as 1.8.1 and 1.8.2 and alternates between them, so the display never matches this
+// total and it looks like the reader is wrong. Print the split when the device offers
+// it, so the difference explains itself instead of becoming a support question.
+function tariffSplit(data) {
+  const n = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  const d = data || {};
+  for (const [k1, k2] of [["total_power_import_t1_kwh", "total_power_import_t2_kwh"], ["energy_import_t1_kwh", "energy_import_t2_kwh"]]) {
+    const a = n(d[k1]), b = n(d[k2]);
+    if (a != null && b != null) return ` (low ${a} + normal ${b})`;
+  }
+  return "";
+}
 // Generic reader: read a dot-path field, or auto-detect a common cumulative-kWh key.
 function readGeneric(data, field) {
   const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : (typeof v === "string" && v.trim() !== "" && Number.isFinite(+v) ? +v : null));
@@ -221,12 +235,15 @@ function push(reading) {
 let lastIp = FIXED_IP || null;
 async function cycle() {
   try {
-    let reading;
+    let reading, split = "";
     if (READ_URL) {
       // Generic mode — any HTTP/JSON reader.
       const data = await getJson(READ_URL);
       reading = readGeneric(data, READ_FIELD);
       if (reading == null) { log(`couldn't find a kWh number at ${READ_URL}${READ_FIELD ? ` (field "${READ_FIELD}")` : ""} — add --field=<dot.path>.`); return; }
+      // Also here: the guide's own "any reader" example points --url at a HomeWizard's
+      // /api/v1/data, so this path sees tariff registers just as often as the other.
+      if (!READ_FIELD) split = tariffSplit(data);
     } else {
       // HomeWizard mode — discover on the network, then read the local API.
       if (!lastIp) { lastIp = await discover(); if (lastIp) log(`found HomeWizard at ${lastIp}`); }
@@ -234,9 +251,10 @@ async function cycle() {
       const data = await getJson(`http://${lastIp}/api/v1/data`);
       reading = readTotal(data);
       if (reading == null) { log("couldn't find a total import kWh — is this a HomeWizard P1? (or use --url=)"); return; }
+      split = tariffSplit(data);
     }
     await push(reading);
-    log(`pushed ${reading} kWh ✓`);
+    log(`pushed ${reading} kWh ✓${split}`);
   } catch (e) {
     log("cycle failed:", e?.message || e);
     if (!READ_URL) lastIp = FIXED_IP || null; // re-discover next time in case the IP changed
