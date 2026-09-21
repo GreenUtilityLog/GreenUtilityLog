@@ -2763,7 +2763,26 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
                 ? `${base} base + ${saved.toFixed(1)} ${u.unit} saved × ${u.rate} B3TR (target ≤ ${bench} ${u.unit} per submission)`
                 : `Base only — used ${usage()} ${u.unit}, target is ≤ ${bench} ${u.unit} per submission`)
             : `${base} base + ${usage()} ${u.unit} produced × ${u.rate} B3TR`;
+          // Beyond this the submission cannot be paid under any span, so promising a
+          // reward for it is a lie the server will contradict a moment later. The
+          // usual cause is a starting point covering one tariff register against a
+          // reading covering both — say that here rather than after the photo.
+          const ceiling = (USAGE_RANGES[u.id]?.max ?? Infinity) * MAX_SPAN_DAYS;
+          const impossible = isSaving && usage() > ceiling;
           return (<>
+            {impossible ? (
+              <div className="reward-preview" style={{ borderColor: "#e0a800" }}>
+                <div>
+                  <div className="rp-label">This won’t be accepted</div>
+                  <div className="rp-rate">
+                    {usage()} {u.unit} between readings is more than anyone uses — the most that can ever be
+                    counted is {ceiling} {u.unit}. Usually this means your starting point covers one tariff
+                    register while this reading covers both. Take the photo and submit anyway: you’ll be
+                    offered a one-time correction that lines them up.
+                  </div>
+                </div>
+              </div>
+            ) : (
             <div className="reward-preview">
               <div>
                 <div className="rp-label">Estimated Reward</div>
@@ -2774,6 +2793,7 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
                 <div className="rp-b3tr">B3TR</div>
               </div>
             </div>
+            )}
             {/* Say the quiet part out loud: the target counts per submission, so a
                 reading that covers several days is measured against a one-day
                 target. Without this the maths looks broken to anyone who doesn't
