@@ -2658,18 +2658,18 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
           <div style={{ margin: "2px 0 12px" }}>
             <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 11.5, fontWeight: 700, color: T.text }}>
               <input type="checkbox" checked={!!dualTariff} onChange={e => { setDualTariff(e.target.checked); if (!e.target.checked) { setRegLow(""); setRegNormal(""); setReading(""); } }} />
-              My meter shows two readings (day and night tariff)
+              My meter shows two readings (low and normal tariff)
             </label>
             {dualTariff ? (
               <>
                 <div className="irow" style={{ marginTop: 8 }}>
                   <div className="igroup">
-                    <div className="ilabel">Low · night <span className="utag">1.8.1</span></div>
+                    <div className="ilabel">Reading <span className="utag">1.8.1</span></div>
                     <input className="ifield" type="number" step="0.001" inputMode="decimal" placeholder="3852.104"
                       value={regLow} onChange={e => setRegLow(e.target.value)} />
                   </div>
                   <div className="igroup">
-                    <div className="ilabel">Normal · day <span className="utag">1.8.2</span></div>
+                    <div className="ilabel">Reading <span className="utag">1.8.2</span></div>
                     <input className="ifield" type="number" step="0.001" inputMode="decimal" placeholder="3853.410"
                       value={regNormal} onChange={e => setRegNormal(e.target.value)} />
                   </div>
@@ -2678,17 +2678,18 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
                   Total used for your reading:{" "}
                   <b style={{ fontFamily: "'SF Mono',Menlo,monospace", color: T.text }}>{reading || "—"}</b> {u.unit}
                   <span style={{ display: "block", marginTop: 3, fontSize: 10.5, lineHeight: 1.5 }}>
-                    Your display alternates between the two, so photograph either one — we check the photo against the
-                    register it shows, not against the total.
+                    Your display alternates between the two, so photograph whichever one is showing — the photo is checked
+                    against the register it shows, not against the total. Which value goes in which field doesn’t
+                    matter; they are added together.
                   </span>
                 </div>
               </>
             ) : (
               <div style={{ marginTop: 5, fontSize: 10.5, color: T.textSoft, lineHeight: 1.5 }}>
-                Tick this if your display cycles between two numbers marked{" "}
+                Tick this if your display cycles between two readings, usually marked{" "}
                 <span style={{ fontFamily: "'SF Mono',Menlo,monospace" }}>1.8.1</span> and{" "}
-                <span style={{ fontFamily: "'SF Mono',Menlo,monospace" }}>1.8.2</span>. Entering only one of them reports
-                about half your consumption.
+                <span style={{ fontFamily: "'SF Mono',Menlo,monospace" }}>1.8.2</span> — the low and normal tariff.
+                Entering only one of them reports about half your consumption.
               </div>
             )}
           </div>
