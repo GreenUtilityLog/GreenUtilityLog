@@ -6,7 +6,7 @@ import "dotenv/config";
 import { randomBytes } from "node:crypto";
 import express from "express";
 import cors from "cors";
-import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, REQUIRE_PASS, ECO_REWARD, ECO_MAX_PER_WEEK, ECO_COOLDOWN_MS, ECO_APPLIANCES, ecoWeekKey, RATES } from "./config.js";
+import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, REQUIRE_PASS, ECO_REWARD, ECO_MAX_PER_WEEK, ECO_COOLDOWN_MS, ECO_APPLIANCES, ecoWeekKey, RATES, UNITS } from "./config.js";
 import { validateSubmission } from "./verify.js";
 import { verifyPhoto } from "./media.js";
 import { store } from "./store.js";
@@ -723,7 +723,18 @@ app.get("/meter/latest", (req, res) => {
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
   const r = store.getLinkReading(address);
   const link = store.getLinkByAddress(address);
-  res.json({ paired: !!link, reading: r || null });
+  // The app needs two more things to offer the "correct my starting point" button
+  // honestly: whether it is still allowed, and what the stored starting point is, so
+  // it can show the jump rather than ask people to trust a button.
+  const utility = link?.utility && RATES[link.utility] ? link.utility : "electric";
+  const baseline = link?.meterNo ? store.lastReading(utility, String(link.meterNo).toLowerCase()) : null;
+  res.json({
+    paired: !!link,
+    reading: r || null,
+    canRebaseline: !!link && !link.autoPaidAt,
+    baseline: baseline != null ? baseline : null,
+    rebasedAt: link?.rebasedAt || null,
+  });
 });
 
 // ── Enode source (optional) ──────────────────────────────────────────────────
@@ -841,6 +852,14 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
       receiver: addr,
     });
     v.markPaid();
+    // This pairing has now produced a real payout, which means its readings and the
+    // stored baseline are on the same scale. That closes /meter/rebaseline: the
+    // escape hatch exists for a starting point that was never comparable, not for
+    // one that has already been used to pay.
+    if (link?.token) {
+      const { token, ...rest } = link;
+      store.setMeterLink(token, { ...rest, autoPaidAt: Date.now() });
+    }
     await store.flush(); // durable before returning, so a crash can't replay this reading
     return { ok: true, txid, amount: v.amount, usage: v.usage, reading: Number(latest.reading), source: latest.source || "meter" };
   } finally {
@@ -870,6 +889,78 @@ app.post("/reward-from-meter", async (req, res) => {
     console.error("[/reward-from-meter]", e?.message || e);
     res.status(502).json({ error: e?.message || "distribution failed" });
   }
+});
+
+// ── Correcting a starting point that was never comparable ────────────────────
+// A Dutch double-tariff meter keeps two registers — 1.8.1 (low) and 1.8.2 (normal) —
+// and shows them in turn. A photo can only capture one of them; a P1 reader reports
+// their sum, which is the physically correct total. So the photo baseline and every
+// automatic reading after it are on different scales, the first claim looks like
+// thousands of kWh of usage, and it is refused as implausible. Correctly refused, and
+// permanently stuck: nothing the owner can do makes the two numbers comparable.
+//
+// This lets them say once: take what my reader reports now as the starting point.
+//
+// Deliberately NOT time-limited. The bound that means something is "before this
+// pairing has ever been paid", not a clock. A clock locks out exactly the person who
+// went away to find out what went wrong, and it buys no safety: the new baseline
+// always comes from the device itself, so it can never make a later delta smaller
+// than the truth. Anyone who wants smaller deltas has to make the device lie, which
+// this endpoint neither enables nor prevents. Pays nothing, and is recorded as a flag
+// so it stays reviewable afterwards.
+app.post("/meter/rebaseline", async (req, res) => {
+  if (banned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
+  if (!store.ready()) return res.status(503).json({ error: "service is warming up — please try again in a moment" });
+  const address = String(req.body.address || "");
+  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
+  if (REQUIRE_CERT) {
+    const c = verifyWalletCertificate({ certificate: req.body.certificate, address });
+    if (!c.ok) return res.status(401).json({ error: c.error });
+  }
+
+  const link = store.getLinkByAddress(address);
+  if (!link) return res.status(400).json({ error: "no reader paired — set up automatic readings first" });
+  if (link.autoPaidAt) {
+    return res.status(409).json({ error: "this reader has already paid out once, so its starting point is settled" });
+  }
+
+  const utility = link.utility && RATES[link.utility] ? link.utility : "electric";
+  const meterNo = String(link.meterNo || req.body.meterNo || "").trim();
+  if (!meterNo) return res.status(400).json({ error: "register your meter number first" });
+
+  const latest = store.getLinkReading(address);
+  const reading = Number(latest?.reading);
+  if (!Number.isFinite(reading)) {
+    return res.status(400).json({ error: "no automatic reading yet — start your reader first" });
+  }
+  if (Date.now() - (latest.at || 0) > METER_MAX_AGE_MS) {
+    return res.status(400).json({ error: "the automatic reading is stale — refresh your reader, then try again" });
+  }
+
+  const key = meterNo.toLowerCase();
+  const prev = store.lastReading(utility, key);
+  // The photo baseline stays required. The automatic path must never be able to
+  // invent a meter or a starting value out of nothing — only to correct the scale of
+  // a starting point a photo already established.
+  if (prev == null) {
+    return res.status(400).json({ error: "submit one photo reading first to set this meter's baseline" });
+  }
+  if (reading < prev) {
+    return res.status(400).json({ error: `your reader reports ${reading}, below the current starting point of ${prev} — a meter total cannot run backwards` });
+  }
+
+  // setLastReading also stamps the time, so the next submission's span is measured
+  // from now rather than from a photo that may be weeks old.
+  store.setLastReading(utility, key, reading);
+  const { token, ...rest } = link;
+  store.setMeterLink(token, { ...rest, rebasedAt: Date.now(), rebasedFrom: prev, rebasedTo: reading });
+  store.addFlag(
+    `rebase-${address.toLowerCase().slice(2, 10)}-${Date.now()}`,
+    address,
+    `starting point moved ${prev} → ${reading} ${UNITS[utility] || ""} (${utility}, meter ${meterNo}) at the owner's request`,
+  );
+  await store.flush();
+  res.json({ ok: true, from: prev, to: reading, utility, meterNo, unit: UNITS[utility] || "" });
 });
 
 // ── Scheduled auto-submit (Step 3, opt-in) ───────────────────────────────────
