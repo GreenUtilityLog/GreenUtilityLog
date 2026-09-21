@@ -2643,10 +2643,12 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
         );
       })()}
 
+      <div id="gul-photo-step">
       <VerifyZone key={verifyKey} utilId={selUtil} reading={reading} prevRead={prevRead} subs={subs} meterNo={meterNo} T={T}
         onOcrReading={(v) => { if (!String(reading).trim()) setReading(String(v)); }}
         onVerified={(res, img, mime) => { setAiOk(true); setPhoto?.(img ? { base64: img, mime, ocrNums: res?.ocrNums || [], ocrFailed: !!res?.ocrFailed, meterNoConfirmed: res?.meterNoConfirmed ?? null } : null); }}
         onReset={() => { setAiOk(false); setPhoto?.(null); }} />
+      </div>
 
       <div className="form-card" style={{"--uc":T[u.id]||T.electric,"--ubg":getColorBg(u.id, T),"--uborder":T[u.id+"Border"]||T.electricBorder,marginTop:14}}>
         {/* A double-tariff meter — the normal case in the Netherlands and Belgium —
@@ -2813,7 +2815,9 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
           : !meterNo
             ? <button className="sbtn" onClick={() => onRegisterMeter?.([selUtil])}>Register this meter →</button>
             : !aiOk
-              ? <button className="sbtn" disabled style={{opacity:.55}}>📸 Verify a meter photo to submit</button>
+              ? <button className="sbtn" onClick={() => document.getElementById("gul-photo-step")?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+                  📸 Take the meter photo →
+                </button>
               : readingLower
                 ? <button className="sbtn" disabled style={{opacity:.55}}>Current can't be lower than previous</button>
                 : !readingReady
