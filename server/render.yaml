@@ -63,6 +63,23 @@ services:
       # Per-payout sanity cap in B3TR (optional; defaults to 50).
       - key: MAX_REWARD
         sync: false
+      # Hands-off claiming (OPTIONAL). Milliseconds between sweeps; every sweep walks
+      # the paired meters and submits any reading that arrived after that wallet's
+      # last payout, so nobody has to open the app at all. Below 60000 it stays off.
+      # 900000 (15 min) is a sensible value.
+      #
+      # Nothing about the rules changes: baseline required, 48 h freshness, the 20 h
+      # cooldown, plausibility bounds and the per-payout cap are all still enforced by
+      # settleMeterReading. What it skips is the per-submission wallet signature — the
+      # device token, bound to the wallet when the reader was paired, stands in for it.
+      #
+      # On the free plan the instance sleeps after ~15 min idle and this timer sleeps
+      # with it, so sweeps happen when the service is awake rather than strictly on
+      # schedule. That works out: each push from a reader wakes the service, and a
+      # sweep follows shortly after. A paid instance is the only way to make the
+      # interval exact, and for testnet it isn't worth it.
+      - key: AUTO_SUBMIT_MS
+        sync: false
       # Photo archive (OPTIONAL — admin fraud review). Keeps a downscaled thumbnail
       # of each rewarded photo, shown per submission in admin. Two backends, first
       # configured wins:

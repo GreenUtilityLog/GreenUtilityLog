@@ -50,6 +50,28 @@ Koyeb, een VPS, enz.). Zet dezelfde env-vars als in `render.yaml`.
 
 ---
 
+## 2a. (Optioneel) Automatisch laten claimen
+
+Heeft iemand een P1-reader of Home Assistant gekoppeld, dan komt de meterstand
+vanzelf binnen — maar claimen doet hij standaard zelf in de app. Dat kan ook
+volledig automatisch:
+
+1. In Render: je service → **Environment** → voeg toe:
+   **`AUTO_SUBMIT_MS`** = `900000` (elk kwartier; onder 60000 blijft het uit).
+2. Controleer op `<server-url>/health` dat `"autoSubmit": true` staat.
+
+De server loopt dan periodiek alle gekoppelde meters langs en betaalt elke stand
+uit die **nieuwer is dan de laatste uitbetaling van die wallet** — dezelfde stand
+kan dus nooit twee keer betaald worden. Alle regels blijven gelden: baseline
+vereist, 48 uur versheid, de cooldown van 20 uur, plausibiliteitsgrenzen en het
+uitbetalingsplafond. Wat overgeslagen wordt is de handtekening per inzending; het
+device-token, bij het koppelen aan de wallet gebonden, is daar het bewijs.
+
+> 💤 Op het gratis plan slaapt je instance na ~15 minuten, en deze timer slaapt
+> mee. De sweeps lopen dus wanneer de service wakker is, niet strikt op schema.
+> In de praktijk werkt dat goed: elke push van een reader wekt de server en kort
+> daarna volgt een sweep. Alleen een betaald plan maakt het interval exact.
+
 ## 2b. (Aanrader) Betrouwbare meterstand-herkenning via Google Vision
 
 De in-browser OCR is wisselvallig op echte meters. Met **Google Cloud Vision**
