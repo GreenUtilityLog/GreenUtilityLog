@@ -23,7 +23,7 @@
 //
 //   --token=…     device token from the app → ⚙️ Automatic setup   (GUL_TOKEN)
 //   --ip=…        skip discovery, use this HomeWizard IP           (HW_IP)
-//   --interval=…  seconds between pushes, default 3600, min 60     (INTERVAL_SEC)
+//   --interval=…  seconds between pushes, default 43200, min 60    (INTERVAL_SEC)
 //   --url=…       read ANY reader that serves JSON over HTTP       (READ_URL)
 //   --field=…     dot-path to the kWh number in that JSON          (READ_FIELD)
 //   --ingest=…    override the backend                            (GUL_INGEST_URL)
@@ -67,7 +67,11 @@ const pick = (flag, env, fallback = "") =>
 let TOKEN = pick("token", "GUL_TOKEN", SAVED.token || "");
 const INGEST = pick("ingest", "GUL_INGEST_URL", "https://greenutilitylog-rewards.onrender.com/meter-ingest");
 const FIXED_IP = pick("ip", "HW_IP");
-const INTERVAL_MS = Math.max(60, Number(pick("interval", "INTERVAL_SEC", 3600))) * 1000;
+// Twelve hours, not one. A reading can only be claimed once per COOLDOWN_MS (20h)
+// and /meter-ingest keeps only the newest value, so 23 of 24 hourly pushes are
+// discarded. Two a day still leaves a wide margin against the 48h staleness rule,
+// and it lets a free-tier backend sleep instead of being woken every hour.
+const INTERVAL_MS = Math.max(60, Number(pick("interval", "INTERVAL_SEC", 43200))) * 1000;
 const ONCE = FLAGS.once === "1" || process.env.ONCE === "1";
 // Generic mode: point at ANY reader that returns JSON over HTTP (dsmr-reader,
 // Shelly, a custom endpoint…). READ_URL switches off HomeWizard discovery; READ_FIELD

@@ -2433,9 +2433,9 @@ rest_command:
     content_type: "application/json"
     payload: '{"token":"${token}","reading":{{ states("sensor.YOUR_IMPORT_KWH_ENTITY") | float }}}'
 
-# automations.yaml — send hourly
+# automations.yaml — twice a day; you can only claim once per 20h anyway
 - alias: Push meter to GreenUtilityLog
-  trigger: { platform: time_pattern, hours: "/1" }
+  trigger: { platform: time_pattern, hours: "/12" }
   action: { service: rest_command.gul_push }`;
                     const curlSnippet = `# Any reader/script that can POST JSON works — send your cumulative kWh total:
 curl -X POST ${ingestUrl} \\

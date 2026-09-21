@@ -59,7 +59,7 @@ L["en"] = dict(
   a2=[
     ("Find your meter sensor", 'In Home Assistant: <span class="k">Developer tools → States</span>. Filter on <em>import</em> and pick the one in kWh whose value keeps counting up — that is your total. Entity ids differ per install, so use yours.', None, None, None),
     ("Add these lines", 'Put this in <span class="k">configuration.yaml</span>, replacing the entity and your token, then restart Home Assistant.', "code",
-     'rest_command:\n  gul_push:\n    url: "https://greenutilitylog-rewards.onrender.com/meter-ingest"\n    method: POST\n    content_type: "application/json"\n    payload: \'{"token":"YOUR_TOKEN","reading":{{ states("sensor.YOUR_ENTITY") | float }}}\'\n\n# automations.yaml — send once an hour\n- alias: Push meter to GreenUtilityLog\n  trigger: { platform: time_pattern, hours: "/1" }\n  action: { service: rest_command.gul_push }', "configuration.yaml + automations.yaml"),
+     'rest_command:\n  gul_push:\n    url: "https://greenutilitylog-rewards.onrender.com/meter-ingest"\n    method: POST\n    content_type: "application/json"\n    payload: \'{"token":"YOUR_TOKEN","reading":{{ states("sensor.YOUR_ENTITY") | float }}}\'\n\n# automations.yaml — twice a day (you can claim once per 20h)\n- alias: Push meter to GreenUtilityLog\n  trigger: { platform: time_pattern, hours: "/12" }\n  action: { service: rest_command.gul_push }', "configuration.yaml + automations.yaml"),
   ],
   b=[
     ("Turn on the Local API", 'In the <strong>HomeWizard Energy</strong> app: <span class="k">Settings → Meters → your P1 → Local API → ON</span>. This lets your own network read the meter.', None, None, None),
@@ -77,7 +77,7 @@ L["en"] = dict(
   ],
   claim=[
     ("Your reading appears by itself", 'In the app open <strong>Submit</strong>. Under <strong>“Auto-received”</strong> you\'ll see your meter total and when it arrived.', None, None, None),
-    ("Tap “Submit — no photo”", 'That\'s it. From now on your meter sends its reading every hour and you only claim it.', None, None, None),
+    ("Tap “Submit — no photo”", 'That\'s it. From now on your meter sends its reading by itself and you only claim it.', None, None, None),
   ],
   s_country='Does this work where you live?',
   country_intro="The socket on your meter differs per country, so not every reader works everywhere. What always works: <strong>if Home Assistant already shows your meter's total, Route A works</strong> — whatever country you're in.",
@@ -140,7 +140,7 @@ L["nl"] = dict(
   a2=[
     ("Zoek je meter-sensor op", 'In Home Assistant: <span class="k">Ontwikkelhulpmiddelen → Statussen</span>. Filter op <em>import</em> en pak degene in kWh waarvan de waarde blijft oplopen — dat is je totaalstand. Entity-ID’s verschillen per installatie, dus gebruik die van jou.', None, None, None),
     ("Voeg deze regels toe", 'Zet dit in <span class="k">configuration.yaml</span>, vervang de entity en je token, en herstart Home Assistant.', "code",
-     'rest_command:\n  gul_push:\n    url: "https://greenutilitylog-rewards.onrender.com/meter-ingest"\n    method: POST\n    content_type: "application/json"\n    payload: \'{"token":"JOUW_TOKEN","reading":{{ states("sensor.JOUW_ENTITY") | float }}}\'\n\n# automations.yaml — stuur elk uur\n- alias: Push meter to GreenUtilityLog\n  trigger: { platform: time_pattern, hours: "/1" }\n  action: { service: rest_command.gul_push }', "configuration.yaml + automations.yaml"),
+     'rest_command:\n  gul_push:\n    url: "https://greenutilitylog-rewards.onrender.com/meter-ingest"\n    method: POST\n    content_type: "application/json"\n    payload: \'{"token":"JOUW_TOKEN","reading":{{ states("sensor.JOUW_ENTITY") | float }}}\'\n\n# automations.yaml — twee keer per dag (claimen kan 1x per 20 uur)\n- alias: Push meter to GreenUtilityLog\n  trigger: { platform: time_pattern, hours: "/12" }\n  action: { service: rest_command.gul_push }', "configuration.yaml + automations.yaml"),
   ],
   b=[
     ("Zet de Local API aan", 'In de <strong>HomeWizard Energy</strong>-app: <span class="k">Instellingen → Meters → je P1 → Local API → AAN</span>. Hiermee mag je eigen netwerk de meter uitlezen.', None, None, None),
@@ -158,7 +158,7 @@ L["nl"] = dict(
   ],
   claim=[
     ("Je stand verschijnt vanzelf", 'Ga in de app naar <strong>Submit</strong>. Onder <strong>“Auto-received”</strong> zie je je meterstand en hoe laat die binnenkwam.', None, None, None),
-    ("Tik op “Submit — no photo”", 'Klaar. Vanaf nu stuurt je meter elk uur z\'n stand en hoef jij alleen te claimen.', None, None, None),
+    ("Tik op “Submit — no photo”", 'Klaar. Vanaf nu stuurt je meter vanzelf z\'n stand door en hoef jij alleen te claimen.', None, None, None),
   ],
   s_country='Werkt dit ook in jouw land?',
   country_intro='De aansluiting op je meter verschilt per land, dus niet elke reader werkt overal. Wat altijd werkt: <strong>toont Home Assistant je meterstand al, dan werkt Route A</strong> — in welk land je ook zit.',
@@ -221,7 +221,7 @@ L["de"] = dict(
   a2=[
     ("Deinen Zähler-Sensor finden", 'In Home Assistant: <span class="k">Entwicklerwerkzeuge → Zustände</span>. Nach <em>import</em> filtern und den in kWh nehmen, dessen Wert weiter hochzählt — das ist dein Gesamtstand. Entity-IDs unterscheiden sich pro Installation, nimm also deine.', None, None, None),
     ("Diese Zeilen hinzufügen", 'Trag das in <span class="k">configuration.yaml</span> ein, ersetze Entity und Token, und starte Home Assistant neu.', "code",
-     'rest_command:\n  gul_push:\n    url: "https://greenutilitylog-rewards.onrender.com/meter-ingest"\n    method: POST\n    content_type: "application/json"\n    payload: \'{"token":"DEIN_TOKEN","reading":{{ states("sensor.DEINE_ENTITY") | float }}}\'\n\n# automations.yaml — stündlich senden\n- alias: Push meter to GreenUtilityLog\n  trigger: { platform: time_pattern, hours: "/1" }\n  action: { service: rest_command.gul_push }', "configuration.yaml + automations.yaml"),
+     'rest_command:\n  gul_push:\n    url: "https://greenutilitylog-rewards.onrender.com/meter-ingest"\n    method: POST\n    content_type: "application/json"\n    payload: \'{"token":"DEIN_TOKEN","reading":{{ states("sensor.DEINE_ENTITY") | float }}}\'\n\n# automations.yaml — zweimal am Tag (einlösen geht alle 20 h)\n- alias: Push meter to GreenUtilityLog\n  trigger: { platform: time_pattern, hours: "/12" }\n  action: { service: rest_command.gul_push }', "configuration.yaml + automations.yaml"),
   ],
   b=[
     ("Local API aktivieren", 'In der <strong>HomeWizard Energy</strong>-App: <span class="k">Einstellungen → Zähler → dein P1 → Local API → EIN</span>. Damit darf dein Netzwerk den Zähler auslesen.', None, None, None),
@@ -239,7 +239,7 @@ L["de"] = dict(
   ],
   claim=[
     ("Dein Stand erscheint von selbst", 'Geh in der App auf <strong>Submit</strong>. Unter <strong>„Auto-received“</strong> siehst du deinen Zählerstand und wann er ankam.', None, None, None),
-    ("Auf „Submit — no photo“ tippen", 'Fertig. Ab jetzt sendet dein Zähler stündlich seinen Stand und du löst nur noch ein.', None, None, None),
+    ("Auf „Submit — no photo“ tippen", 'Fertig. Ab jetzt sendet dein Zähler seinen Stand von selbst und du löst nur noch ein.', None, None, None),
   ],
   s_country='Funktioniert das in deinem Land?',
   country_intro='Der Anschluss am Zähler unterscheidet sich je Land, nicht jeder Reader passt überall. Was immer geht: <strong>zeigt Home Assistant deinen Zählerstand bereits, funktioniert Route A</strong> — egal in welchem Land.',
@@ -302,7 +302,7 @@ L["fr"] = dict(
   a2=[
     ("Trouvez le capteur de votre compteur", 'Dans Home Assistant : <span class="k">Outils de développement → États</span>. Filtrez sur <em>import</em> et prenez celui en kWh dont la valeur continue de monter — c\'est votre total. Les identifiants diffèrent par installation, utilisez le vôtre.', None, None, None),
     ("Ajoutez ces lignes", 'Mettez ceci dans <span class="k">configuration.yaml</span>, remplacez l\'entité et votre jeton, puis redémarrez Home Assistant.', "code",
-     'rest_command:\n  gul_push:\n    url: "https://greenutilitylog-rewards.onrender.com/meter-ingest"\n    method: POST\n    content_type: "application/json"\n    payload: \'{"token":"VOTRE_JETON","reading":{{ states("sensor.VOTRE_ENTITE") | float }}}\'\n\n# automations.yaml — envoyer chaque heure\n- alias: Push meter to GreenUtilityLog\n  trigger: { platform: time_pattern, hours: "/1" }\n  action: { service: rest_command.gul_push }', "configuration.yaml + automations.yaml"),
+     'rest_command:\n  gul_push:\n    url: "https://greenutilitylog-rewards.onrender.com/meter-ingest"\n    method: POST\n    content_type: "application/json"\n    payload: \'{"token":"VOTRE_JETON","reading":{{ states("sensor.VOTRE_ENTITE") | float }}}\'\n\n# automations.yaml — deux fois par jour (réclamation possible toutes les 20 h)\n- alias: Push meter to GreenUtilityLog\n  trigger: { platform: time_pattern, hours: "/12" }\n  action: { service: rest_command.gul_push }', "configuration.yaml + automations.yaml"),
   ],
   b=[
     ("Activez l'API locale", 'Dans l\'app <strong>HomeWizard Energy</strong> : <span class="k">Réglages → Compteurs → votre P1 → Local API → ON</span>. Votre réseau peut alors lire le compteur.', None, None, None),
@@ -320,7 +320,7 @@ L["fr"] = dict(
   ],
   claim=[
     ("Votre relevé apparaît tout seul", 'Dans l\'app, allez sur <strong>Submit</strong>. Sous <strong>« Auto-received »</strong> vous voyez votre relevé et l\'heure d\'arrivée.', None, None, None),
-    ("Touchez « Submit — no photo »", 'C\'est tout. Votre compteur envoie son relevé chaque heure et vous n\'avez plus qu\'à réclamer.', None, None, None),
+    ("Touchez « Submit — no photo »", 'C\'est tout. Votre compteur envoie son relevé tout seul et vous n\'avez plus qu\'à réclamer.', None, None, None),
   ],
   s_country='Est-ce que ça marche chez vous ?',
   country_intro='La prise de votre compteur diffère selon le pays, donc tous les lecteurs ne fonctionnent pas partout. Ce qui marche toujours : <strong>si Home Assistant affiche déjà votre relevé, la Route A fonctionne</strong> — quel que soit le pays.',
@@ -383,7 +383,7 @@ L["es"] = dict(
   a2=[
     ("Encuentra el sensor de tu contador", 'En Home Assistant: <span class="k">Herramientas para desarrolladores → Estados</span>. Filtra por <em>import</em> y coge el de kWh cuyo valor sigue subiendo — ese es tu total. Los identificadores varían por instalación, usa el tuyo.', None, None, None),
     ("Añade estas líneas", 'Pon esto en <span class="k">configuration.yaml</span>, sustituye la entidad y tu token, y reinicia Home Assistant.', "code",
-     'rest_command:\n  gul_push:\n    url: "https://greenutilitylog-rewards.onrender.com/meter-ingest"\n    method: POST\n    content_type: "application/json"\n    payload: \'{"token":"TU_TOKEN","reading":{{ states("sensor.TU_ENTIDAD") | float }}}\'\n\n# automations.yaml — enviar cada hora\n- alias: Push meter to GreenUtilityLog\n  trigger: { platform: time_pattern, hours: "/1" }\n  action: { service: rest_command.gul_push }', "configuration.yaml + automations.yaml"),
+     'rest_command:\n  gul_push:\n    url: "https://greenutilitylog-rewards.onrender.com/meter-ingest"\n    method: POST\n    content_type: "application/json"\n    payload: \'{"token":"TU_TOKEN","reading":{{ states("sensor.TU_ENTIDAD") | float }}}\'\n\n# automations.yaml — dos veces al día (puedes reclamar cada 20 h)\n- alias: Push meter to GreenUtilityLog\n  trigger: { platform: time_pattern, hours: "/12" }\n  action: { service: rest_command.gul_push }', "configuration.yaml + automations.yaml"),
   ],
   b=[
     ("Activa la API local", 'En la app <strong>HomeWizard Energy</strong>: <span class="k">Ajustes → Contadores → tu P1 → Local API → ON</span>. Así tu red puede leer el contador.', None, None, None),
@@ -401,7 +401,7 @@ L["es"] = dict(
   ],
   claim=[
     ("Tu lectura aparece sola", 'En la app abre <strong>Submit</strong>. Bajo <strong>«Auto-received»</strong> verás tu lectura y cuándo llegó.', None, None, None),
-    ("Toca «Submit — no photo»", 'Listo. Desde ahora tu contador envía su lectura cada hora y tú solo reclamas.', None, None, None),
+    ("Toca «Submit — no photo»", 'Listo. Desde ahora tu contador envía su lectura sola y tú solo reclamas.', None, None, None),
   ],
   s_country='¿Funciona en tu país?',
   country_intro='La toma de tu contador varía según el país, así que no todos los lectores sirven en todas partes. Lo que siempre funciona: <strong>si Home Assistant ya muestra tu lectura, la Ruta A funciona</strong> — estés donde estés.',
