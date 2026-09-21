@@ -45,6 +45,16 @@ const EXPLORER = NETWORK === "mainnet" ? "https://explore.vechain.org" : "https:
 // blocked entirely, and a freshness gate rejects photos not taken just now —
 // gallery picks and downloaded/AI-generated images are minutes-to-years old.
 // iPadOS 13+ reports a Macintosh UA — detect it via multi-touch support.
+// A file input must stay IN the layout to be reliably activatable. `display:none`
+// removes it from the accessibility tree, and several in-app browsers (VeWorld's
+// WebView among them) then refuse to open the camera for it — silently, which is
+// exactly how "the photo button does nothing" looks from the outside. Hidden this
+// way it is still a real, focusable control that a <label> can drive natively.
+const HIDDEN_FILE_INPUT = {
+  position: "absolute", width: 1, height: 1, opacity: 0, padding: 0, margin: -1,
+  border: 0, overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap",
+};
+
 const IS_MOBILE = typeof navigator !== "undefined" && (
   /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || "") ||
   ((navigator.maxTouchPoints || 0) > 1 && /Macintosh/i.test(navigator.userAgent || ""))
@@ -1919,17 +1929,26 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
     </div>
   );
 
-  if (phase === "idle") return (
-    <div className="verify-zone" onClick={() => cooldownMs === 0 && fileInputRef.current?.click()}>
+  if (phase === "idle") {
+    const body = (
       <div className="vz-idle">
-        <div className="vz-icon">📸</div>
+        <div className="vz-icon">{cooldownMs > 0 ? "⏳" : "📸"}</div>
         <div className="vz-title">Verify Meter</div>
         {meterNo && <div className="vz-meter">Meter #{meterNo}</div>}
         <div className="vz-sub">{cooldownMs > 0 ? `Next submission in ${fmtCooldown(cooldownMs)}` : "Tap to photograph with your camera"}</div>
       </div>
-      <input type="file" ref={fileInputRef} onChange={handleFile} accept="image/*" style={{display:"none"}} capture="environment" />
-    </div>
-  );
+    );
+    // During the cooldown there is nothing to open, so this is a plain box that says
+    // so — rather than a control that looks tappable and then does nothing at all.
+    if (cooldownMs > 0) return <div className="verify-zone" style={{cursor:"default"}}>{body}</div>;
+    return (
+      <label className="verify-zone" htmlFor="gul-meter-photo" style={{display:"block"}}>
+        {body}
+        <input id="gul-meter-photo" type="file" ref={fileInputRef} onChange={handleFile}
+          accept="image/*" capture="environment" style={HIDDEN_FILE_INPUT} />
+      </label>
+    );
+  }
 
   if (phase === "crop" && photoUrl) return (
     <>
@@ -2957,23 +2976,25 @@ function EcoBonusCard({ T, wallet, setShowWallet, onSubmit, busy, usedThisWeek, 
               onClick={() => { const f = preview.file; clearPreview(); onSubmit(f, appliance); }}>
               {busy ? <><span className="spin-sm"/> Submitting…</> : "✅ Submit for bonus"}
             </button>
-            <button disabled={busy} onClick={() => { clearPreview(); fileRef.current?.click(); }}
-              style={{background:"transparent",color:T.textMid,border:`1px solid ${T.border}`,borderRadius:4,padding:"0 16px",fontWeight:700,fontSize:12,cursor:"pointer"}}>↻ Retake</button>
+            <label htmlFor="gul-eco-photo" onClick={() => clearPreview()}
+              style={{background:"transparent",color:T.textMid,border:`1px solid ${T.border}`,borderRadius:4,padding:"0 16px",fontWeight:700,fontSize:12,cursor:"pointer",display:"flex",alignItems:"center"}}>↻ Retake</label>
           </div>
         </div>
       ) : !IS_MOBILE
         ? <button className="sbtn" disabled style={{opacity:.55}}>📵 Phone camera required — open on your phone</button>
         : !wallet
         ? <button className="sbtn" onClick={() => setShowWallet(true)}>Connect Wallet</button>
-        : <button className="sbtn" disabled={busy || !canClaim} style={!canClaim ? {opacity:.55} : undefined}
-            onClick={() => canClaim && fileRef.current?.click()}>
+        : !canClaim || busy
+        ? <button className="sbtn" disabled style={{opacity:.55}}>
             {busy ? <><span className="spin-sm"/> Submitting…</>
               : !left ? "Weekly limit reached — resets Monday"
-              : coolingDown ? `Next eco bonus in ~${hours}h`
-              : "📸 Photograph eco mode"}
+              : `Next eco bonus in ~${hours}h`}
           </button>
+        : <label className="sbtn" htmlFor="gul-eco-photo" style={{display:"block",textAlign:"center"}}>
+            📸 Photograph eco mode
+          </label>
       }
-      <input type="file" ref={fileRef} accept="image/*" capture="environment" style={{display:"none"}}
+      <input id="gul-eco-photo" type="file" ref={fileRef} accept="image/*" capture="environment" style={HIDDEN_FILE_INPUT}
         onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) setPreview({ file: f, url: URL.createObjectURL(f) }); }} />
     </div>
   );
