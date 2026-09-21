@@ -280,7 +280,26 @@ const sendClause = (abi, args, comment) =>
 // proxy predates it — we automatically retry once via the legacy distributeReward
 // with a self-built proof JSON, so a payout succeeds on whichever path the
 // deployed contract supports. Only a mined, non-reverted tx counts as success.
+// Every reward — meter and eco alike — reaches the chain through this one function,
+// so this is the only place a test harness needs to stop. Without it the payout path
+// could never be exercised end to end: validation could be tested, the effects of a
+// successful payout (cooldown started, baseline advanced, pairing marked as paid)
+// could not, and those are exactly the rules that decide what a wallet earns next.
+//
+// Must be set to an explicit true, is shouted about at startup, and is reported by
+// /health, so it cannot sit unnoticed in a deployment that is handing out real B3TR.
+export const DRY_RUN = /^(1|true|yes)$/i.test(process.env.DISTRIBUTOR_DRY_RUN || "");
+if (DRY_RUN) {
+  console.warn("[reward] DISTRIBUTOR_DRY_RUN is on — rewards are NOT sent on-chain.");
+}
+
 async function sendProofReward({ amount, receiver, proofText, impacts, description, metadata, comment }) {
+  if (DRY_RUN) {
+    // Shaped like a real txid so callers, logs and stored history need no special case.
+    const fake = "0xdry" + Buffer.from(`${receiver}:${amount}:${Date.now()}`).toString("hex").slice(0, 61);
+    console.warn(`[reward] DRY RUN — would send ${amount} B3TR to ${receiver} (${fake})`);
+    return fake;
+  }
   if (!signer) throw new Error("distributor key not configured");
   const caller = await signer.getAddress();
   const impactCodes = [], impactValues = [], impactObj = {};
