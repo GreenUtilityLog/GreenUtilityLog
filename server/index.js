@@ -177,6 +177,34 @@ function canonicalAdminAction(path, body) {
 // Shared gate for every /admin/* action. Unlike /reward, admin ALWAYS requires a
 // valid, fresh, action-bound, single-use certificate — never gated by REQUIRE_CERT
 // (that dev flag must not be able to disable privileged auth).
+// A signature proves WHO is asking. On its own it says nothing about WHAT was
+// asked, and it can be presented again. Admin has bound both since it was written —
+// the endpoints that actually move B3TR bound neither, so inside the 15-minute
+// freshness window a captured certificate could be presented for a different
+// submission, or for the same one twice.
+//
+// `mustContain` are fragments of the text the wallet signed. Each endpoint asserts
+// its own purpose line, so a certificate signed for one action cannot be spent on
+// another, plus the values that decide the payout.
+function requireBoundCert(req, mustContain = []) {
+  if (!REQUIRE_CERT) return { ok: true };
+  const cert = req.body.certificate;
+  const c = verifyWalletCertificate({ certificate: cert, address: req.body.address });
+  if (!c.ok) return { ok: false, code: 401, error: c.error };
+  const content = String(cert?.payload?.content || "");
+  for (const needle of mustContain) {
+    if (needle && !content.includes(needle)) {
+      return { ok: false, code: 401, error: "this signature does not authorise this request — please sign again" };
+    }
+  }
+  // Single use, for the certificate's whole lifetime: consumeCert only evicts
+  // entries older than the freshness window, so a replay inside it always loses.
+  if (!store.consumeCert(cert?.signature)) {
+    return { ok: false, code: 401, error: "signature already used — please sign again" };
+  }
+  return { ok: true };
+}
+
 function verifyAdmin(req, path) {
   const addr = String(req.body.address || "").toLowerCase();
   if (!/^0x[0-9a-f]{40}$/.test(addr) || !ADMIN_USER_WALLETS.includes(addr)) {
@@ -507,11 +535,14 @@ app.post("/reward", async (req, res) => {
   const v = validateSubmission(req.body);
   if (!v.ok) return res.status(400).json({ error: v.error });
 
-  // 1b) Wallet ownership proof — the signer of the certificate must be the address
-  // we're about to reward. Stops rewards being issued to an arbitrary address.
-  if (REQUIRE_CERT) {
-    const c = verifyWalletCertificate({ certificate: req.body.certificate, address: req.body.address });
-    if (!c.ok) return res.status(401).json({ error: c.error });
+  // 1b) Wallet ownership proof, bound to THIS submission and spendable once.
+  {
+    const c = requireBoundCert(req, [
+      "confirm submission",
+      `Utility: ${req.body.utility}`,
+      `Reading: ${req.body.reading}`,
+    ]);
+    if (!c.ok) return res.status(c.code).json({ error: c.error });
   }
 
   // Claim the in-flight lock SYNCHRONOUSLY, before any await, or two concurrent
@@ -610,9 +641,9 @@ app.post("/eco-action", async (req, res) => {
   const appliance = String(req.body.appliance || "").toLowerCase();
   if (!ECO_APPLIANCES.has(appliance)) return res.status(400).json({ error: "unknown appliance" });
 
-  if (REQUIRE_CERT) {
-    const c = verifyWalletCertificate({ certificate: req.body.certificate, address: req.body.address });
-    if (!c.ok) return res.status(401).json({ error: c.error });
+  {
+    const c = requireBoundCert(req, ["confirm eco-mode bonus", `Appliance: ${appliance}`]);
+    if (!c.ok) return res.status(c.code).json({ error: c.error });
   }
 
   // Two limits: max ECO_MAX_PER_WEEK per CALENDAR week (Mon–Sun, resets Monday
@@ -929,9 +960,9 @@ app.post("/reward-from-meter", async (req, res) => {
   }
   const address = String(req.body.address || "");
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
-  if (REQUIRE_CERT) {
-    const c = verifyWalletCertificate({ certificate: req.body.certificate, address });
-    if (!c.ok) return res.status(401).json({ error: c.error });
+  {
+    const c = requireBoundCert(req, ["confirm automatic meter submission"]);
+    if (!c.ok) return res.status(c.code).json({ error: c.error });
   }
   try {
     const r = await settleMeterReading({ address, utility: String(req.body.utility || "electric"), meterNo: req.body.meterNo });
@@ -965,9 +996,9 @@ app.post("/meter/rebaseline", async (req, res) => {
   if (!store.ready()) return res.status(503).json({ error: "service is warming up — please try again in a moment" });
   const address = String(req.body.address || "");
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
-  if (REQUIRE_CERT) {
-    const c = verifyWalletCertificate({ certificate: req.body.certificate, address });
-    if (!c.ok) return res.status(401).json({ error: c.error });
+  {
+    const c = requireBoundCert(req, ["confirm starting point correction"]);
+    if (!c.ok) return res.status(c.code).json({ error: c.error });
   }
 
   const link = store.getLinkByAddress(address);
@@ -1034,9 +1065,9 @@ app.post("/meter/fix-basis", async (req, res) => {
 
   const address = String(req.body.address || "");
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
-  if (REQUIRE_CERT) {
-    const c = verifyWalletCertificate({ certificate: req.body.certificate, address });
-    if (!c.ok) return res.status(401).json({ error: c.error });
+  {
+    const c = requireBoundCert(req, ["reconcile tariff registers", `Meter: ${req.body.meterNo}`]);
+    if (!c.ok) return res.status(c.code).json({ error: c.error });
   }
 
   const utility = RATES[String(req.body.utility || "").toLowerCase()] ? String(req.body.utility).toLowerCase() : "electric";
