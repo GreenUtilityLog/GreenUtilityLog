@@ -1,0 +1,31 @@
+# The reward backend had no tests and nothing in CI touched it, so every rule that
+# decides what a wallet is paid — cooldown, monotonicity, plausible bounds, photo
+# dedupe, the tariff-register sum, the two baseline corrections — was verified only
+# by hand, if at all. That is why testers kept finding these first.
+#
+# These boot the real server against a throwaway state file with the chain stubbed
+# at its one chokepoint (DISTRIBUTOR_DRY_RUN), so a payout completes and its effects
+# can be asserted. Nothing inside the server is mocked.
+name: Server tests
+
+on:
+  push:
+    branches: [main]
+    paths: ["server/**", ".github/workflows/server-tests.yml"]
+  pull_request:
+    paths: ["server/**", ".github/workflows/server-tests.yml"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # npm install, not ci: the server's optional deps (tesseract, sharp) don't all
+      # build on every runner and none of them are needed for these tests.
+      - run: npm install --omit=optional
+        working-directory: server
+      - run: npm test
+        working-directory: server

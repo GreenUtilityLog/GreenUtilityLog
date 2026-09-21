@@ -11,7 +11,7 @@ import { validateSubmission } from "./verify.js";
 import { verifyPhoto } from "./media.js";
 import { store } from "./store.js";
 import { putPhoto, getPhotoDataUrl, deletePhoto, photoStoreEnabled } from "./photostore.js";
-import { distributeReward, distributeEcoReward, distributorAddress, chainDiagnostics, moveToRewardsPool } from "./reward.js";
+import { distributeReward, distributeEcoReward, distributorAddress, chainDiagnostics, moveToRewardsPool, DRY_RUN } from "./reward.js";
 import { signalStatus, passportFor, signalUser } from "./passport.js";
 import { ocrImage, ocrEnabled, ocrProviders } from "./ocr.js";
 import { verifyWalletCertificate, REQUIRE_CERT } from "./auth.js";
@@ -82,6 +82,9 @@ app.get("/health", async (req, res) => {
     // than claiming something it doesn't know.
     commit: (process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT || "unknown").slice(0, 7),
     startedAt: STARTED_AT,
+    // Loud on purpose: a deployment that thinks it is paying but is not should be
+    // obvious from the one endpoint everybody checks.
+    dryRun: DRY_RUN,
     network: NETWORK,
     node: NODE_URL,
     appId: APP_ID,
