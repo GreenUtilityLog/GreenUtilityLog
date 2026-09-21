@@ -2248,7 +2248,12 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
   const doRebaseline = async () => {
     setErr(""); setBusy("rebase");
     try {
-      const certificate = await signCert();
+      // Its own purpose line, not the pairing one it used to borrow: the server
+      // binds each signature to the action it was signed for, so a signature made
+      // to pair a reader cannot be spent on moving a baseline.
+      const content = `Green Utility Log — confirm starting point correction\nWallet: ${wallet}\nMeter: ${meterNo || ""}\nTime: ${new Date().toISOString()}`;
+      const c = await requestCertificate({ purpose: "identification", payload: { type: "text", content } });
+      const certificate = { purpose: "identification", payload: { type: "text", content }, domain: c.annex.domain, timestamp: c.annex.timestamp, signer: c.annex.signer, signature: c.signature };
       const r = await fetch(`${API}/meter/rebaseline`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address: wallet, certificate, meterNo }),
