@@ -375,13 +375,19 @@ function mergeSubs(local, chain) {
 // anything any span could ever allow. MUST match USAGE_BOUNDS on the server.
 const USAGE_RANGES = { electric: { min:0.1, max:80 }, gas: { min:0.01, max:20 }, water: { min:10, max:1000}, solar: { min:0.1, max:60 } };
 
-function checkPlausibility(utilId, usageVal) {
+function checkPlausibility(utilId, usageVal, days = 1) {
   const range = USAGE_RANGES[utilId];
   if (!range) return { ok:true };
+  // The ceiling stretches with the span, exactly as usageBoundsFor does on the
+  // server: eight kWh a day over a week is 56, not 8. Without this the app was the
+  // stricter of the two and refused readings the backend would have paid — anyone
+  // who doesn't submit daily was blocked by their own client.
+  const span = Math.min(Math.max(Number(days) || 1, 1), MAX_SPAN_DAYS);
+  const ceiling = +(range.max * span).toFixed(2);
   // Zero usage (current == previous) is explicitly valid — the best conservation
   // outcome. Only a tiny-but-nonzero delta may be a typo, and high is abnormal.
   if (usageVal > 0 && usageVal < range.min) return { ok:false, reason:`Usage too low (${usageVal} < ${range.min})` };
-  if (usageVal > range.max) return { ok:false, reason:`Abnormally high (${usageVal} > ${range.max})` };
+  if (usageVal > ceiling) return { ok:false, reason:`Abnormally high (${usageVal} > ${ceiling})`, tooHigh:true };
   return { ok:true };
 }
 
@@ -5471,14 +5477,20 @@ export default function App() {
     // to the verified photo, so a reading edited after the green "verified" badge
     // can no longer pass unchecked.
     const usageVal = usage();
-    const plaus = checkPlausibility(selUtil, usageVal);
-    if (!plaus.ok) {
+    const plaus = checkPlausibility(selUtil, usageVal, daysSinceLast());
+    // One exception: a gap too big for ANY span, with both tariff registers filled
+    // in, is the double-tariff mismatch. The app already says so above the button
+    // and tells the user to submit anyway — and it has to, because the correction
+    // is offered in response to the SERVER's refusal. Blocking here would make the
+    // app's own instruction unfollowable.
+    const scaleMismatch = !!registers && plaus.tooHigh;
+    if (!plaus.ok && !scaleMismatch) {
       setBusy(false);
       showToast(`⚠️ ${plaus.reason || "That reading looks implausible"}`);
       return;
     }
     const anom = checkAnomaly(selUtil, usageVal, subs);
-    if (anom.anomaly) {
+    if (anom.anomaly && !scaleMismatch) {
       setBusy(false);
       showToast(`⚠️ ${anom.reason || "Usage far above your average"} — retake or correct`);
       return;
