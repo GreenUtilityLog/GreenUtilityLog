@@ -619,7 +619,7 @@ const UTIL_ICONS = {
 const UTILS = [
   { id:"electric", label:"Electric", unit:"kWh", rate:0.61, ph:["3834.8","3847.2"], hint:"Lights, appliances, boiler" },
   // Hidden for now — testing electricity first. Uncomment a line to bring that meter back.
-  // Before re-enabling SOLAR: DAILY_REWARD_CAP (6 B3TR per day covered) applies to
+  // Before re-enabling SOLAR: MAX_PAYOUT_PER_SUBMISSION (4 B3TR per submission) applies to
   // production meters too, and solar is rewarded for producing MORE, not less. A good
   // day used to pay around 43; under the cap it pays 6. Decide that deliberately.
   // { id:"gas",      label:"Gas",      unit:"m³",  rate:0.84, ph:["521.4","523.1"],   hint:"Heating & cooking" },
@@ -653,7 +653,9 @@ const SAVING_UTILS    = new Set(["electric", "gas", "water"]); // solar rewards 
 // MUST mirror server/config.js — the preview here and the payout there have to
 // agree, or the app promises a number it doesn't deliver.
 const MAX_SPAN_DAYS    = 7;
-const DAILY_REWARD_CAP = 6;
+// Flat, NOT multiplied by the span: claiming daily should beat saving a week and
+// claiming once. Must match MAX_PAYOUT_PER_SUBMISSION on the server.
+const MAX_PAYOUT_PER_SUBMISSION = 4;
 
 // Days this reading covers, clamped to [1, MAX_SPAN_DAYS]. The target stretches with
 // it, so a reading taken after five days is judged against five days of allowance
@@ -676,7 +678,7 @@ function computeReward(utilId, usage, days = 1) {
   } else {
     amount = base + Math.max(0, usage) * rate;
   }
-  return parseFloat(Math.min(amount, DAILY_REWARD_CAP * span).toFixed(2));
+  return parseFloat(Math.min(amount, MAX_PAYOUT_PER_SUBMISSION).toFixed(2));
 }
 
 const HISTORY_SEED = [
