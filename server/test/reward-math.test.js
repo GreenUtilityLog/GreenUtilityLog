@@ -9,14 +9,21 @@ import assert from "node:assert/strict";
 
 import {
   computeReward, spanDays, usageBoundsFor,
-  USAGE_BENCHMARK, REWARD_BASE, RATES, DAILY_REWARD_CAP, MAX_SPAN_DAYS,
+  USAGE_BENCHMARK, REWARD_BASE, RATES, MAX_PAYOUT_PER_SUBMISSION, MAX_SPAN_DAYS,
 } from "../config.js";
 
 const DAY = 86_400_000;
 
-test("a day of zero consumption earns the base plus the whole benchmark", () => {
-  const expected = REWARD_BASE.electric + USAGE_BENCHMARK.electric * RATES.electric;
-  assert.equal(computeReward("electric", 0, 1), +expected.toFixed(2));
+test("a perfect day is capped, not paid in full", () => {
+  // Worth pinning because the ceiling now binds on a GOOD day, not only an absurd
+  // one: base plus the whole benchmark comes to 5.08 for electricity, above the
+  // 4 cap. Everything from roughly 1.8 kWh of consumption downward therefore pays
+  // the same. That is the deliberate consequence of a flat per-submission ceiling;
+  // if the gradient matters more than the ceiling, lower RATES rather than raise
+  // this cap.
+  const uncapped = REWARD_BASE.electric + USAGE_BENCHMARK.electric * RATES.electric;
+  assert.ok(uncapped > MAX_PAYOUT_PER_SUBMISSION, "this test is pointless if the cap is above the best case");
+  assert.equal(computeReward("electric", 0, 1), MAX_PAYOUT_PER_SUBMISSION);
 });
 
 test("using exactly the benchmark earns the base and nothing more", () => {
@@ -34,15 +41,36 @@ test("the target stretches with the span, so waiting is not punished", () => {
   assert.equal(computeReward("electric", sevenDaysOfBenchmark, 7), REWARD_BASE.electric);
 });
 
-test("the per-payout ceiling scales with the span and is never exceeded", () => {
+test("the per-payout ceiling is flat, so waiting never pays more in one go", () => {
+  // The point of the flat cap: a week of perfect saving claimed at once is worth
+  // the same as one day of it. Daily claiming is the only way to earn more.
   for (const days of [1, 2, 5, 7]) {
-    assert.ok(computeReward("electric", 0, days) <= DAILY_REWARD_CAP * days + 1e-9,
+    assert.ok(computeReward("electric", 0, days) <= MAX_PAYOUT_PER_SUBMISSION + 1e-9,
       `span ${days} exceeded the cap`);
   }
+  assert.equal(computeReward("electric", 0, 7), computeReward("electric", 0, 1),
+    "seven days at once must not pay more than one day");
+});
+
+test("a daily claimer out-earns a weekly one for the same saving", () => {
+  const weekly = computeReward("electric", 0, 7);
+  const daily = 7 * computeReward("electric", 0, 1);
+  assert.ok(daily > weekly * 6, `daily ${daily} should far exceed weekly ${weekly}`);
 });
 
 test("a span longer than MAX_SPAN_DAYS is clamped, so a year of waiting is not a jackpot", () => {
   assert.equal(computeReward("electric", 0, 365), computeReward("electric", 0, MAX_SPAN_DAYS));
+});
+
+test("nothing any utility can do pays more than the ceiling", () => {
+  for (const u of ["electric", "gas", "water", "solar"]) {
+    for (const days of [1, 7]) {
+      for (const usage of [0, 1, 1000]) {
+        assert.ok(computeReward(u, usage, days) <= MAX_PAYOUT_PER_SUBMISSION + 1e-9,
+          `${u} usage ${usage} span ${days} paid over the cap`);
+      }
+    }
+  }
 });
 
 test("solar is paid for what it produces, not for what it saves", () => {
@@ -57,8 +85,8 @@ test("a big solar day is capped, not paid in full", () => {
   // Worth pinning: at 0.72 B3TR/kWh the ceiling binds from about 8 kWh a day, so
   // the uncapped formula and the payout stop agreeing well inside normal output.
   const uncapped = REWARD_BASE.solar + 10 * RATES.solar;  // 7.40
-  assert.ok(uncapped > DAILY_REWARD_CAP);
-  assert.equal(computeReward("solar", 10, 1), DAILY_REWARD_CAP);
+  assert.ok(uncapped > MAX_PAYOUT_PER_SUBMISSION);
+  assert.equal(computeReward("solar", 10, 1), MAX_PAYOUT_PER_SUBMISSION);
 });
 
 test("spanDays counts whole days, floors at one and caps at MAX_SPAN_DAYS", () => {

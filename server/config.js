@@ -67,7 +67,7 @@ export const MAX_REWARD = Number(process.env.MAX_REWARD || 50);
 // CALENDAR week (Monday 00:00 – Sunday 23:59 in ECO_TZ) and at least
 // ECO_COOLDOWN_MS between claims. An eco photo has no meter reading to anchor
 // it, so these caps (plus photo-hash dedupe + the optional AI check) are the guard.
-export const ECO_REWARD       = Number(process.env.ECO_REWARD || 8);     // B3TR per approved eco photo
+export const ECO_REWARD       = Number(process.env.ECO_REWARD || 4);     // B3TR per approved eco photo
 export const ECO_MAX_PER_WEEK = Number(process.env.ECO_MAX_PER_WEEK || 4);
 export const ECO_COOLDOWN_MS  = Number(process.env.ECO_COOLDOWN_MS || 24 * 60 * 60 * 1000); // 24h between claims
 export const ECO_TZ           = process.env.ECO_TZ || "Europe/Amsterdam";
@@ -93,9 +93,19 @@ export function ecoWeekKey(ts = Date.now()) {
 // and paid the floor, while the same consumption submitted daily paid 99x more.
 //
 // MAX_SPAN_DAYS bounds how far the target can stretch, so a long silence can't mint a
-// huge payout, and DAILY_REWARD_CAP puts a ceiling on B3TR per day covered.
+// huge payout.
 export const MAX_SPAN_DAYS     = Number(process.env.MAX_SPAN_DAYS || 7);
-export const DAILY_REWARD_CAP  = Number(process.env.DAILY_REWARD_CAP || 6);
+
+// The most a single submission can ever pay, whatever span it covers. Deliberately
+// NOT multiplied by the span, unlike the target: saving the same amount and claiming
+// it once a week should be worth less than claiming it every day. With the 20-hour
+// cooldown that makes daily the best anyone can do, and worth about seven times a
+// weekly claim.
+//
+// The TARGET still stretches with the span, so nobody is judged against a one-day
+// benchmark for a week of consumption — that was a real complaint and the fix stands.
+// Only the ceiling on what comes out is flat.
+export const MAX_PAYOUT_PER_SUBMISSION = Number(process.env.MAX_PAYOUT_PER_SUBMISSION || 4);
 
 // Days a submission covers, clamped to [1, MAX_SPAN_DAYS]. Anything under a day (or
 // an unknown gap — a first submission, or a meter whose last reading predates this
@@ -118,9 +128,10 @@ export function computeReward(utility, usage, days = 1) {
     // solar / production meters: reward the clean energy produced
     amount = base + Math.max(0, usage) * rate;
   }
-  // Ceiling scales with the span too, so it means the same thing however often
-  // someone submits: at most DAILY_REWARD_CAP B3TR per day covered.
-  return +Math.min(amount, DAILY_REWARD_CAP * span).toFixed(2);
+  // Flat ceiling, not scaled by the span: see MAX_PAYOUT_PER_SUBMISSION. Capped
+  // rather than refused, so a week's honest saving still pays the maximum instead
+  // of erroring out.
+  return +Math.min(amount, MAX_PAYOUT_PER_SUBMISSION).toFixed(2);
 }
 
 // Plausible usage grows with the span as well — otherwise a perfectly normal
