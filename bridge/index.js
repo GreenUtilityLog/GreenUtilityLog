@@ -28,6 +28,8 @@
 //   --field=…     dot-path to the kWh number in that JSON          (READ_FIELD)
 //   --ingest=…    override the backend                            (GUL_INGEST_URL)
 //   --once        push one reading and exit                       (ONCE=1)
+//   --install     Windows: run twice a day by itself, no window open
+//   --uninstall   remove that scheduled task again
 
 import http from "node:http";
 import https from "node:https";
@@ -36,6 +38,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { basename, dirname, join } from "node:path";
+import { spawnSync } from "node:child_process";
 
 // --name=value, or a bare --flag. Unknown flags are ignored rather than fatal: a
 // stray argument shouldn't stop someone's meter from reporting.
@@ -265,7 +268,54 @@ async function cycle() {
   }
 }
 
+// ── Running without a window open ────────────────────────────────────────────
+// Until now the only way to keep pushing was to leave a PowerShell window open on a
+// machine that never sleeps. That is a poor thing to ask of someone, and it is the
+// most common way this quietly stops working: the window gets closed, no reading
+// arrives, and nothing anywhere says so.
+//
+// Windows has Task Scheduler for exactly this. One task running `--once` twice a day
+// needs no window, survives a reboot, and needs no admin rights. The schedule matches
+// the push interval for the same reason it was chosen: a reading only has to be under
+// 48 hours old, so twice a day leaves room for two missed runs.
+function taskCommand(action) {
+  const node = process.execPath;                 // the node that is running us
+  const script = process.argv[1];                // this file, wherever it was saved
+  const name = "GreenUtilityLog";
+  if (action === "uninstall") return ["schtasks", ["/Delete", "/TN", name, "/F"]];
+  // schtasks wants the whole command as ONE argument, with inner quotes doubled.
+  const run = `"${node}" "${script}" --once`;
+  return ["schtasks", ["/Create", "/TN", name, "/TR", run, "/SC", "HOURLY", "/MO", "12", "/F"]];
+}
+
+function manageTask(action) {
+  if (process.platform !== "win32") {
+    log(`--${action} is a Windows feature (Task Scheduler).`);
+    log(`On Linux/macOS use cron or a systemd timer, running:  ${process.execPath} ${process.argv[1]} --once`);
+    return 1;
+  }
+  const [cmd, args] = taskCommand(action);
+  const r = spawnSync(cmd, args, { encoding: "utf8" });
+  const out = `${r.stdout || ""}${r.stderr || ""}`.trim();
+  if (r.status === 0) {
+    log(action === "install"
+      ? "Scheduled. Your meter now reports twice a day on its own — you can close this window."
+      : "Removed. Nothing is scheduled any more.");
+    return 0;
+  }
+  // Never leave someone stuck: show what failed AND what to run by hand.
+  log(`could not ${action} the scheduled task${out ? `: ${out}` : ""}`);
+  log(`Run this yourself in PowerShell:\n  ${cmd} ${args.map((a) => (/[ "]/.test(a) ? `'${a}'` : a)).join(" ")}`);
+  return 1;
+}
+
 async function main() {
+  if (FLAGS.uninstall === "1") process.exit(manageTask("uninstall"));
+  if (FLAGS.install === "1") {
+    // A task is useless without a token: it runs unattended and cannot ask.
+    if (!(await ensureToken())) process.exit(1);
+    process.exit(manageTask("install"));
+  }
   if (!(await ensureToken())) process.exit(1);
   const src = READ_URL ? `reader ${READ_URL}` : (FIXED_IP ? `HomeWizard ${FIXED_IP}` : "HomeWizard (auto-discover)");
   if (!/^https:/i.test(INGEST)) log("WARNING: GUL_INGEST_URL is not https — your token would be sent in cleartext. Use the default https endpoint.");

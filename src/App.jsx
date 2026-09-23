@@ -2470,6 +2470,8 @@ ${needNode}
 ${fetchCmd(`--token=${token}`)}
 
 # It remembers your token, so from then on: node gul.js
+# Rather not keep this window open? node gul.js --install
+#   (Windows: reports twice a day by itself, survives a reboot, no window)
 # Network blocks auto-discovery? Add --ip=<your P1 IP>
 # Docker instead: docker build -t gul-bridge ./bridge
 # docker run -d --network host -e GUL_TOKEN=${token} gul-bridge`;
