@@ -3902,7 +3902,11 @@ function SubmissionRow({ r, T, onAdminApi, onToast, archiveOn }) {
           ? `📭 This photo was archived but is past the ${d.retentionDays}-day retention window, so storage has dropped it`
           : d.enabled === false
             ? "📭 Photo archiving is switched off in the backend"
-            : "📭 No photo was ever archived for this submission — it predates the photo archive being switched on");
+            // Two causes, and the backend cannot tell them apart: both paths write the
+            // same on-chain metadata. Naming only one of them told an admin something
+            // false — usually about an automatic submission, which never has a photo
+            // because no camera was ever involved.
+            : "📭 No photo for this submission. Automatic (reader) submissions never carry one. A photo submission would only be missing if it predates the archive being switched on.");
       }
     } catch (err) { setPhoto({ status: "idle", dataUrl: null }); onToast?.(`⚠️ ${err.message}`); }
   };
