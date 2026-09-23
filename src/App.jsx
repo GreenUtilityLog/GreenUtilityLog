@@ -2173,6 +2173,7 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
   const [open, setOpen]       = useState(!!embedded); // embedded → always expanded (no toggle)
   const [advOpen, setAdvOpen] = useState(false);
   const [device, setDevice]   = useState("homewizard"); // which setup snippet to show
+  const [relinked, setRelinked] = useState(""); // "" | "same" | "new" after a re-link
   // Which shell the command is written for. Guessed from the browser, but only as a
   // starting point: most people open this app on a phone and set the bridge up on a
   // different machine, so the guess is worthless without a way to change it. It
@@ -2226,6 +2227,32 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
     setToken(d.token);
     try { localStorage.setItem(tkKey, d.token); } catch { /* no storage */ }
     return d.token;
+  };
+
+  // The token on screen comes out of localStorage and was never checked against the
+  // server, so a browser holding a token the backend has forgotten shows it forever
+  // — and every reader using it is told "unknown device token", which reads like the
+  // device's fault. The backend forgets one whenever its state starts fresh: a new
+  // durable store, a pairing whose write was lost, a different backend.
+  //
+  // Pairing again is the repair. It returns the SAME token when the server still
+  // knows this wallet, so pressing this when nothing is wrong changes nothing.
+  const relinkDevice = async () => {
+    setErr(""); setBusy("relink");
+    try {
+      const certificate = await signCert();
+      const r = await fetch(`${API}/meter/pair`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: wallet, meterNo: meterNo || "", certificate }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `pairing failed (${r.status})`);
+      const changed = d.token && d.token !== token;
+      setToken(d.token);
+      try { localStorage.setItem(tkKey, d.token); } catch { /* no storage */ }
+      setRelinked(changed ? "new" : "same");
+    } catch (e) { setErr(e?.message || "could not re-link this device"); }
+    finally { setBusy(""); }
   };
 
   // The one-tap path: send the typed reading to the backend, then pay it out.
@@ -2523,6 +2550,28 @@ ${fetchCmd(`--token=${token} --url=http://<reader-ip>/api/v1/data`)}`;
                           <pre style={{ ...mono, fontSize:10, lineHeight: 1.5, color: T.text, background: T.bg, border: `1px dashed ${T.border || T.waterBorder}`, padding: "10px 10px 10px", borderRadius: 6, overflowX: "auto", margin: 0, whiteSpace: "pre" }}>{snip}</pre>
                         </div>
                         <div style={{ fontSize:10, color: T.textSoft, lineHeight: 1.5, margin: "6px 2px 0" }}>{hint}</div>
+
+                        {/* The one thing a user cannot otherwise do: find out that the
+                            token on their screen is one the backend has forgotten. The
+                            reader just keeps saying "unknown device token". */}
+                        <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${T.border || T.waterBorder}` }}>
+                          <div style={{ fontSize: 10.5, color: T.textSoft, lineHeight: 1.6, marginBottom: 7 }}>
+                            Does your reader say <span style={{ fontFamily: "'SF Mono',Menlo,monospace" }}>unknown device token</span>?
+                            This token is remembered by your browser, and the server can have started fresh since.
+                            Re-linking fixes that — and gives back the same token when nothing is wrong.
+                          </div>
+                          <button disabled={!!busy} onClick={relinkDevice}
+                            style={{ padding: "8px 11px", fontSize: 11, fontWeight: 700, borderRadius: 6, cursor: "pointer", border: `1px solid ${T.border || T.waterBorder}`, background: "transparent", color: T.textMid, opacity: busy ? .6 : 1 }}>
+                            {busy === "relink" ? "Re-linking…" : "↻ Re-link this device"}
+                          </button>
+                          {relinked && (
+                            <div style={{ marginTop: 7, fontSize: 10.5, fontWeight: 700, color: relinked === "new" ? (T.eco || T.electric) : T.textSoft }}>
+                              {relinked === "new"
+                                ? "✅ Your saved token was out of date. Copy the setup above again — the old one will never work."
+                                : "✓ Already linked — the server has this exact token, so the problem is elsewhere."}
+                            </div>
+                          )}
+                        </div>
 
                         {/* One line, not a manual: the detail lives in the guide. */}
                         {device !== "ha" && (
