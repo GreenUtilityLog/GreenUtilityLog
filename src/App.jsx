@@ -3889,7 +3889,11 @@ function SubmissionRow({ r, T, onAdminApi, onToast, archiveOn }) {
   const usage = (Number.isFinite(p) && Number.isFinite(c)) ? +(c - p).toFixed(2) : null;
   const unit = (UTILS.find((x) => x.id === r.type)?.unit) || "kWh";
   const txUrl = r.txHash ? `${EXPLORER}/transactions/${r.txHash}` : null;
-  const canPhoto = archiveOn && !!r.txHash;
+  // A reader-sourced payout has no photo by design, so the camera would only ever
+  // report its absence. Empty source means a payout from before this was recorded:
+  // unknown, so the button stays and the message keeps naming both possibilities.
+  const fromReader = r.source === "push" || r.source === "enode" || r.source === "reader";
+  const canPhoto = archiveOn && !!r.txHash && !fromReader;
   const [photo, setPhoto] = useState({ status: "idle", dataUrl: null }); // idle|loading|shown|none|deleted|busy
 
   const loadPhoto = async (e) => {
@@ -3909,7 +3913,7 @@ function SubmissionRow({ r, T, onAdminApi, onToast, archiveOn }) {
             // same on-chain metadata. Naming only one of them told an admin something
             // false — usually about an automatic submission, which never has a photo
             // because no camera was ever involved.
-            : "📭 No photo for this submission. Automatic (reader) submissions never carry one. A photo submission would only be missing if it predates the archive being switched on.");
+            : "📭 No photo found. This payout predates the archive being switched on, or came from a reader — payouts made since carry their source, so newer rows say which.");
       }
     } catch (err) { setPhoto({ status: "idle", dataUrl: null }); onToast?.(`⚠️ ${err.message}`); }
   };
@@ -3938,6 +3942,14 @@ function SubmissionRow({ r, T, onAdminApi, onToast, archiveOn }) {
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:12,fontWeight:700,color:T.text}}>
             {isEco ? "Eco bonus" : "Meter reading"}
+            {/* Say which payouts nobody looked at. A reader-sourced reading was never
+                seen by a human and has no photo to check, so it is the row an admin
+                most needs to recognise at a glance. */}
+            {fromReader && (
+              <span style={{marginLeft:6,fontSize:9,fontWeight:800,letterSpacing:".6px",textTransform:"uppercase",color:T.eco||T.electric,border:`1px solid ${T.ecoBorder||T.border}`,background:T.ecoBg||T.bgAlt,borderRadius:3,padding:"1px 5px"}}>
+                ⚡ Automatic · no photo
+              </span>
+            )}
             {!isEco && r.meterNo ? <span style={{fontWeight:400,color:T.textSoft,fontFamily:MONO,fontSize:10}}> · #{r.meterNo}</span> : null}
           </div>
           <div style={{fontSize:10,color:T.textSoft,fontFamily:MONO}}>

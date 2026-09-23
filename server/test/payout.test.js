@@ -189,3 +189,29 @@ describe("a backend that could not read its own state", () => {
     assert.equal(r.status, 503);
   });
 });
+
+describe("a payout records where its reading came from", () => {
+  let srv, token;
+  before(async () => {
+    srv = await startServer({ state: stateWithBaseline(), env: { COOLDOWN_MS: "0" } });
+    const pair = await srv.post("/meter/pair", { address: WALLET, meterNo: METER });
+    token = pair.body.token;
+  });
+  after(async () => { await srv.stop(); });
+
+  test("a photographed reading is marked as one", async () => {
+    const r = await submit(srv, { reading: 1008 });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.match(srv.logs(), /"source":"photo"/);
+  });
+
+  test("a reader's reading is marked as automatic, so an admin can tell", async () => {
+    // Nobody ever looked at this one, and there is no photo to look at — which is
+    // exactly why the row has to say so.
+    await srv.post("/meter-ingest", { token, reading: 1016 });
+    const r = await srv.post("/reward-from-meter", { address: WALLET, meterNo: METER });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.match(srv.logs(), /"source":"push"/);
+    assert.doesNotMatch(srv.logs().split("source").pop(), /photo/);
+  });
+});
