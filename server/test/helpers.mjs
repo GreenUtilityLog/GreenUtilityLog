@@ -5,6 +5,7 @@
 // does, over HTTP, so a test passing means the deployed thing behaves.
 
 import { spawn } from "node:child_process";
+import { createServer } from "node:net";
 import { mkdtempSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -12,14 +13,28 @@ import { fileURLToPath } from "node:url";
 
 const SERVER_DIR = join(fileURLToPath(new URL(".", import.meta.url)), "..");
 
-// Ports are taken from a wide range so parallel test files don't collide.
-let nextPort = 8700 + Math.floor(Math.random() * 400);
+// Ask the OS for a free port instead of guessing one. Guessing was the bug: each
+// test FILE is its own process, so each picked its own random base and two of them
+// could land on the same port. The loser failed to bind and died — and the startup
+// wait only checked that /health answered, which the WINNER happily did. The test
+// then drove a stranger's server, with a different state file, and only noticed
+// when a result depended on state. Intermittently, which is the worst kind.
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const s = createServer();
+    s.on("error", reject);
+    s.listen(0, "127.0.0.1", () => {
+      const { port } = s.address();
+      s.close(() => resolve(port));
+    });
+  });
+}
 
 export async function startServer({ state = {}, env = {} } = {}) {
   const dir = mkdtempSync(join(tmpdir(), "gul-test-"));
   const stateFile = join(dir, "state.json");
   writeFileSync(stateFile, JSON.stringify(state));
-  const port = nextPort++;
+  const port = await freePort();
 
   const child = spawn(process.execPath, ["index.js"], {
     cwd: SERVER_DIR,
@@ -41,9 +56,18 @@ export async function startServer({ state = {}, env = {} } = {}) {
   child.stdout.on("data", (d) => logs.push(String(d)));
   child.stderr.on("data", (d) => logs.push(String(d)));
 
+  // If OUR child dies, stop. A healthy /health on this port then means somebody
+  // else's server is answering, and attaching to it is how a passing test ends up
+  // proving nothing about the code under test.
+  let exited = null;
+  child.on("exit", (code, signal) => { exited = { code, signal }; });
+
   const base = `http://127.0.0.1:${port}`;
   const deadline = Date.now() + 20_000;
   for (;;) {
+    if (exited) {
+      throw new Error(`server process exited during startup (code ${exited.code}, signal ${exited.signal}) on port ${port}\n${logs.join("")}`);
+    }
     try {
       const r = await fetch(`${base}/health`);
       if (r.ok) break;
