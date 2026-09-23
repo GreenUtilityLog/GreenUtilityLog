@@ -314,7 +314,17 @@ async function main() {
   if (FLAGS.install === "1") {
     // A task is useless without a token: it runs unattended and cannot ask.
     if (!(await ensureToken())) process.exit(1);
-    process.exit(manageTask("install"));
+    const code = manageTask("install");
+    // And push once, right now. Scheduling alone sends nothing: the task first runs
+    // at its next slot, which can be hours away, so someone who has just done
+    // everything asked of them still sees no reading arrive and no way to tell
+    // whether any of it worked. One cycle here makes the setup verifiable the
+    // moment it finishes.
+    if (code === 0) {
+      log("sending one reading now, so you can see it arrive…");
+      await cycle();
+    }
+    process.exit(code);
   }
   if (!(await ensureToken())) process.exit(1);
   const src = READ_URL ? `reader ${READ_URL}` : (FIXED_IP ? `HomeWizard ${FIXED_IP}` : "HomeWizard (auto-discover)");
