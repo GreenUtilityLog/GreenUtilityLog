@@ -140,3 +140,37 @@ describe("tariff registers", () => {
     assert.match(reasons, /tariff registers \(400 \+ 108\)/);
   });
 });
+
+describe("a backend that could not read its own state", () => {
+  let srv;
+  before(async () => {
+    // Redis configured but unreachable: loadState fails closed, so the store holds
+    // nothing. Every device token is then unknown through no fault of the device.
+    srv = await startServer({
+      state: stateWithBaseline(),
+      env: {
+        UPSTASH_REDIS_REST_URL: "http://127.0.0.1:1",
+        UPSTASH_REDIS_REST_TOKEN: "nonsense",
+      },
+    });
+  });
+  after(async () => { await srv.stop(); });
+
+  test("says so on /health instead of looking merely empty", async () => {
+    const r = await srv.get("/health");
+    assert.equal(r.body.durableState, true, "Redis IS configured");
+    assert.equal(r.body.storeReady, false, "…but it was never read");
+  });
+
+  test("tells a reader to come back, rather than blaming its token", async () => {
+    const r = await srv.post("/meter-ingest", { token: "whatever", reading: 1234 });
+    assert.equal(r.status, 503);
+    assert.match(r.body.error, /warming up/i);
+    assert.doesNotMatch(r.body.error, /unknown device token/i);
+  });
+
+  test("and refuses to pay from an empty slate", async () => {
+    const r = await submit(srv);
+    assert.equal(r.status, 503);
+  });
+});

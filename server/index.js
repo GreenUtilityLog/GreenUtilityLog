@@ -106,6 +106,10 @@ app.get("/health", async (req, res) => {
     // bundle) — surfaced so admin access is easy to verify.
     adminWallets: ADMIN_USER_WALLETS,
     durableState: store.isDurable(),
+    // isDurable only says Redis is CONFIGURED. This says it was actually read: on a
+    // load failure the store holds nothing, refuses payouts and writes nothing, and
+    // from the outside that is indistinguishable from a quiet, empty service.
+    storeReady: store.ready(),
     distributor: await distributorAddress().catch(() => null),
     poolB3TR: chain.poolB3TR,
     distributorAuthorized: chain.distributorAuthorized,
@@ -755,6 +759,13 @@ app.post("/meter/unpair", (req, res) => {
 // The endpoint a reader posts to. Token-authed (the token IS the secret binding to
 // a wallet) — deliberately no wallet cert, since an unattended device can't sign.
 app.post("/meter-ingest", (req, res) => {
+  // Before anything else. A store that failed to load its durable state looks
+  // exactly like a store with no devices in it, so without this check every reader
+  // on earth is told "unknown device token" — the one message that sends its owner
+  // off to re-pair a device that was never the problem.
+  if (!store.ready()) {
+    return res.status(503).json({ error: "service is warming up — please try again in a moment" });
+  }
   const token = String(req.body.token || "");
   const link = store.getMeterLink(token);
   if (!link) return res.status(401).json({ error: "unknown device token" });
