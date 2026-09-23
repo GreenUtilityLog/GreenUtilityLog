@@ -35,6 +35,19 @@ curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &&
 > Use the line for your own shell. `VAR=value command` and `&&` are bash syntax;
 > PowerShell answers *"The term 'GUL_TOKEN=…' is not recognized"* and does nothing.
 
+**Don't want to leave a window open?**
+
+```powershell
+node gul.js --install
+```
+
+Registers a Windows scheduled task that runs `--once` twice a day: no window, no
+admin rights, and it survives a reboot. `node gul.js --uninstall` removes it again.
+On Linux and macOS it prints the command to put in cron or a systemd timer instead.
+
+Nothing needs to stay running between those two runs — a reading only has to be
+under 48 hours old when you claim it, so twice a day leaves room for two missed runs.
+
 **Docker:**
 ```bash
 docker build -t gul-bridge ./bridge
@@ -42,7 +55,8 @@ docker run -d --name gul-bridge --network host -e GUL_TOKEN=your-device-token gu
 ```
 > `--network host` lets the container discover your HomeWizard via mDNS.
 
-Leave it running. It pushes your meter total every hour. Your reading shows up in
+Leave it running, or schedule it as above. It pushes your meter total twice a day.
+Your reading shows up in
 the app under **“Auto-received”** → tap **Submit — no photo** to claim.
 
 ## Options
