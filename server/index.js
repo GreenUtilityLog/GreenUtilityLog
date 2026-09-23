@@ -595,6 +595,7 @@ app.post("/reward", async (req, res) => {
       usage:    v.usage,   // server-validated usage
       amount:   v.amount,
       receiver: req.body.address,
+      source:   "photo",
     });
     v.markPaid();
     committed = true; // payout landed — keep the reserved photo hash + committed cooldown
@@ -961,6 +962,8 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
       usage:    v.usage,
       amount:   v.amount,
       receiver: addr,
+      // "push" for a reader, "enode" for the API route; either way no photo exists.
+      source:   latest.source || "reader",
     });
     v.markPaid();
     // This pairing has now produced a real payout, which means its readings and the

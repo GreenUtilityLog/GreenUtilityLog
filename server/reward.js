@@ -297,7 +297,9 @@ async function sendProofReward({ amount, receiver, proofText, impacts, descripti
   if (DRY_RUN) {
     // Shaped like a real txid so callers, logs and stored history need no special case.
     const fake = "0xdry" + Buffer.from(`${receiver}:${amount}:${Date.now()}`).toString("hex").slice(0, 61);
-    console.warn(`[reward] DRY RUN — would send ${amount} B3TR to ${receiver} (${fake})`);
+    // The metadata too: it is what an admin later reads off the chain, and the only
+    // way a test can check what would have been written without a chain to write to.
+    console.warn(`[reward] DRY RUN — would send ${amount} B3TR to ${receiver} (${fake}) metadata=${metadata || ""}`);
     return fake;
   }
   if (!signer) throw new Error("distributor key not configured");
@@ -354,7 +356,7 @@ async function sendProofReward({ amount, receiver, proofText, impacts, descripti
 
 // Returns the broadcast transaction id. `usage` and `prevRead` are the
 // server-validated values from validateSubmission, not the raw client body.
-export async function distributeReward({ utility, meterNo, reading, prevRead, usage, amount, receiver }) {
+export async function distributeReward({ utility, meterNo, reading, prevRead, usage, amount, receiver, source }) {
   const label = UTILITY_LABELS[utility] || utility;
   const u = Math.max(0, Number(usage) || 0);
   const impact = computeImpact({ utility, usage: u }); // { carbon: grams } or {}
@@ -374,6 +376,12 @@ export async function distributeReward({ utility, meterNo, reading, prevRead, us
     action: "meter_reading", utility,
     meterNo: meterNo || "", reading: String(reading), prevRead: String(prevRead),
     usage: u, b3tr: amount, timestamp: new Date().toISOString(), appVersion: APP_VERSION,
+    // Where the number came from. An admin reviewing a payout could not tell a
+    // photographed reading from one a reader pushed, which matters: only the first
+    // has a photo to check, and only the second was never seen by a human. Written
+    // into the on-chain metadata rather than kept server-side, so the record travels
+    // with the payout and cannot drift from it.
+    source: source || "photo",
   });
   return sendProofReward({
     amount, receiver,
