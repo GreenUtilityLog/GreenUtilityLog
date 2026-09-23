@@ -173,4 +173,19 @@ describe("a backend that could not read its own state", () => {
     const r = await submit(srv);
     assert.equal(r.status, 503);
   });
+
+  test("never hands out a device token it cannot store", async () => {
+    // The quiet one. Pairing wrote through a persist() that silently skips while the
+    // store is unread, so the user walked away with a token that was never saved and
+    // would be "unknown" forever — looking, from the outside, like their mistake.
+    const r = await srv.post("/meter/pair", { address: WALLET, meterNo: METER });
+    assert.equal(r.status, 503);
+    assert.equal(r.body.token, undefined, "a token handed out here can never be honoured");
+  });
+
+  test("refuses admin writes too, rather than losing them", async () => {
+    // An admin sees "banned", the ban is dropped, and the wallet claims again.
+    const r = await srv.post("/admin/ban", { address: WALLET, target: OTHER, ban: true });
+    assert.equal(r.status, 503);
+  });
 });

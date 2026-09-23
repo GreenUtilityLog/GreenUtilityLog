@@ -64,6 +64,23 @@ app.use("/ocr", photoJson);
 app.use("/meter/fix-basis", photoJson);
 app.use(express.json({ limit: "64kb" }));
 
+// Nothing may change state until the durable state has actually been read.
+//
+// When the load fails the store holds nothing and silently drops every write, so a
+// request still "succeeds": /meter/pair hands out a token that is never stored and
+// is therefore unknown forever; an admin bans a wallet, sees it work, and the ban
+// evaporates on the next restart. Twenty-one endpoints were missing this check, and
+// the two that had it had it because someone remembered. A gate per endpoint is a
+// gate that gets forgotten, so this one covers every write there is and every write
+// there will be.
+//
+// GETs are left alone: they only read, and /health in particular has to stay
+// reachable — storeReady in its response is how anyone finds out this is happening.
+app.use((req, res, next) => {
+  if (req.method !== "POST" || store.ready()) return next();
+  res.status(503).json({ error: "service is warming up — please try again in a moment" });
+});
+
 // When this process came up — with the commit above, that is enough to tell a
 // fresh deploy from a free-plan instance that merely woke from sleep.
 const STARTED_AT = new Date().toISOString();
