@@ -8,13 +8,13 @@ import express from "express";
 import cors from "cors";
 import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, REQUIRE_PASS, ECO_REWARD, ECO_MAX_PER_WEEK, ECO_COOLDOWN_MS, ECO_APPLIANCES, ecoWeekKey, RATES, UNITS } from "./config.js";
 import { validateSubmission } from "./verify.js";
-import { verifyPhoto } from "./media.js";
+import { verifyPhoto, checkReadingOnPhoto, readingCheckMode } from "./media.js";
 import { store } from "./store.js";
 import { putPhoto, getPhotoDataUrl, deletePhoto, photoStoreEnabled } from "./photostore.js";
 import { distributeReward, distributeEcoReward, distributorAddress, chainDiagnostics, moveToRewardsPool, DRY_RUN } from "./reward.js";
 import { signalStatus, passportFor, signalUser } from "./passport.js";
 import { ocrImage, ocrEnabled, ocrProviders } from "./ocr.js";
-import { verifyWalletCertificate, REQUIRE_CERT, CERT_MAX_AGE_MS } from "./auth.js";
+import { verifyWalletCertificate, REQUIRE_CERT, CERT_MAX_AGE_MS, certDomainsSeen } from "./auth.js";
 import { checkPhotoAuthenticity, aiPhotoCheckEnabled } from "./authenticity.js";
 import { verifyCaptcha, captchaEnabled } from "./captcha.js";
 import { enodeEnabled, enodeInfo, createMeterLink, fetchLatestReading } from "./enode.js";
@@ -107,6 +107,10 @@ app.get("/health", async (req, res) => {
     appId: APP_ID,
     ocr: OCR_ENABLED,
     ocrProviders: ocrProviders(),
+    // Whether the typed reading must be on the photo (off without an OCR provider).
+    readingCheck: readingCheckMode(ocrEnabled()),
+    // Which site names signatures arrive with, to fill CERT_DOMAINS from.
+    certDomains: certDomainsSeen(),
     requireCert: REQUIRE_CERT,
     aiPhotoCheck: aiPhotoCheckEnabled(),
     photoArchive: photoStoreEnabled(),
@@ -509,6 +513,9 @@ app.post("/admin/photo-delete", async (req, res) => {
 // provider that recognises it (Roboflow → custom → Vision). Keys/URLs stay on the
 // server. Returns 503 when no provider is configured, so the app falls back to
 // in-browser OCR.
+const OCR_DAILY_MAX = Number(process.env.OCR_DAILY_MAX || 1000);
+const OCR_DAILY_PER_IP = Number(process.env.OCR_DAILY_PER_IP || 40);
+const ocrQuota = { day: "", total: 0, byIp: new Map() };
 app.post("/ocr", async (req, res) => {
   if (!ocrEnabled()) return res.status(503).json({ ok: false, error: "ocr not configured" });
   // This forwards to PAID providers (Vision/Roboflow/Claude), so guard the cost:
@@ -522,6 +529,15 @@ app.post("/ocr", async (req, res) => {
     const c = verifyWalletCertificate({ certificate: req.body?.certificate, address: req.body?.address });
     if (!c.ok) return res.status(401).json({ ok: false, error: c.error });
   }
+  // Every call here costs money at a paid provider and needs no signature, so cap
+  // the damage a script can do: per IP and in total, per UTC day.
+  const day = new Date().toISOString().slice(0, 10);
+  if (ocrQuota.day !== day) { ocrQuota.day = day; ocrQuota.total = 0; ocrQuota.byIp.clear(); }
+  const ipCount = ocrQuota.byIp.get(req.clientIp) || 0;
+  if (ocrQuota.total >= OCR_DAILY_MAX || ipCount >= OCR_DAILY_PER_IP) {
+    return res.status(429).json({ ok: false, error: "photo reading limit reached for today — type the reading in yourself" });
+  }
+  ocrQuota.total++; ocrQuota.byIp.set(req.clientIp, ipCount + 1);
   const { text, numbers, provider } = await ocrImage(image);
   res.json({ ok: true, text, numbers, provider });
 });
@@ -606,6 +622,17 @@ app.post("/reward", async (req, res) => {
       if (!auth.ok) return res.status(auth.unavailable ? 503 : 400).json({ error: auth.unavailable ? auth.reason : `photo rejected: ${auth.reason}` });
     }
 
+    // 2c) The typed reading has to be the one on the photo (see media.js).
+    let readingFlag = "";
+    const rcMode = readingCheckMode(ocrEnabled());
+    if (rcMode !== "off") {
+      const rc = await checkReadingOnPhoto({ imageBase64: req.body.photo, reading: req.body.reading, registers, ocrImage });
+      if (!rc.ok && (rcMode === "strict" || rc.unavailable)) {
+        return res.status(rc.unavailable ? 503 : 400).json({ error: rc.error });
+      }
+      if (!rc.ok) readingFlag = `server OCR did not find ${req.body.reading} on the photo (read ${(rc.seen || []).join(", ") || "nothing"})`;
+    }
+
     // 3) Pay out, then commit cooldown + baseline (only on success).
     const txid = await distributeReward({
       utility:  req.body.utility,
@@ -637,6 +664,7 @@ app.post("/reward", async (req, res) => {
     // land here — but a wallet whose photos never carry one is a pattern an admin
     // should be able to see.
     const reasons = [];
+    if (readingFlag) reasons.push(readingFlag);
     if (req.body.clientFlagged) reasons.push(req.body.flagReason || "client checks were inconclusive");
     if (photo?.exif && !photo.exif.hasExif) reasons.push("photo carried no EXIF capture date");
     // Worth seeing: the figure paid on was a sum, and the photo could only vouch for
@@ -1192,6 +1220,12 @@ app.post("/meter/fix-basis", async (req, res) => {
     if (aiPhotoCheckEnabled()) {
       const auth = await checkPhotoAuthenticity(req.body.photo, photo.mime);
       if (!auth.ok) { photo.unreserve(); return res.status(auth.unavailable ? 503 : 400).json({ error: auth.unavailable ? auth.reason : `photo rejected: ${auth.reason}` }); }
+    }
+    // One of the registers has to be on the photo. Flag mode has nothing to flag
+    // here — this moves a baseline, it pays nothing — so anything but "off" enforces.
+    if (readingCheckMode(ocrEnabled()) !== "off") {
+      const rc = await checkReadingOnPhoto({ imageBase64: req.body.photo, reading: total, registers, ocrImage });
+      if (!rc.ok) { photo.unreserve(); return res.status(rc.unavailable ? 503 : 400).json({ error: rc.error }); }
     }
 
     store.setLastReading(utility, meterKey, total);

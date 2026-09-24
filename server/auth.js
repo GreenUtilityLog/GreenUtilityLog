@@ -14,6 +14,20 @@ const MAX_AGE_MS = CERT_MAX_AGE_MS;
 // Require a valid certificate by default; set REQUIRE_CERT=false only for local dev.
 export const REQUIRE_CERT = String(process.env.REQUIRE_CERT || "true").toLowerCase() !== "false";
 
+// The site a certificate was signed for. The wallet fills this in from the page
+// that asked, so a signature someone collected on another site says so here.
+// Enforced only when CERT_DOMAINS is set (comma-separated, e.g.
+// "greenutilitylog.github.io"): the exact value VeWorld and WalletConnect put here
+// has to be seen first, or every real user would be locked out. Until then the
+// domains that do arrive are counted and shown on /health, so the list can be
+// copied from there.
+const CERT_DOMAINS = String(process.env.CERT_DOMAINS || "")
+  .split(",").map((d) => d.trim().toLowerCase()).filter(Boolean);
+const seenDomains = new Map();
+export function certDomainsSeen() {
+  return { enforced: CERT_DOMAINS.length ? CERT_DOMAINS : null, seen: Object.fromEntries(seenDomains) };
+}
+
 export function verifyWalletCertificate({ certificate, address }) {
   if (!certificate || typeof certificate !== "object") {
     return { ok: false, error: "wallet signature (certificate) is required" };
@@ -28,6 +42,13 @@ export function verifyWalletCertificate({ certificate, address }) {
     Certificate.of({ purpose, payload, domain, timestamp, signer, signature }).verify();
   } catch {
     return { ok: false, error: "certificate signature is invalid" };
+  }
+
+  // 1b) Signed for this app (only once CERT_DOMAINS is configured).
+  const dom = String(domain || "").trim().toLowerCase();
+  if (seenDomains.size < 20 || seenDomains.has(dom)) seenDomains.set(dom, (seenDomains.get(dom) || 0) + 1);
+  if (CERT_DOMAINS.length && !CERT_DOMAINS.includes(dom)) {
+    return { ok: false, error: "this signature was made for a different site — please sign again in the app" };
   }
 
   // 2) The signer must be the wallet the reward goes to.

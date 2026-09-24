@@ -169,3 +169,22 @@ describe("a signature re-spelled to look new", () => {
     assert.equal(r.status, 401);
   });
 });
+
+describe("signatures from another site, once CERT_DOMAINS is set", () => {
+  let srv;
+  before(async () => {
+    await sign("warm up the key");
+    srv = await startServer({ state: stateWithBaseline({ wallet: WALLET }), env: { REQUIRE_CERT: "true", CERT_DOMAINS: "greenutilitylog.github.io" } });
+  });
+  after(async () => { await srv.stop(); });
+
+  test("are refused, and /health shows which site they came from", async () => {
+    // sign() uses domain "test.local", i.e. not this app.
+    const cert = await sign(`Green Utility Log — link smart meter\nWallet: ${WALLET}\nTime: ${new Date().toISOString()}`);
+    const r = await srv.post("/meter/pair", { address: WALLET, meterNo: METER, certificate: cert });
+    assert.equal(r.status, 401);
+    assert.match(r.body.error, /different site/);
+    const h = await srv.get("/health");
+    assert.equal(h.body.certDomains.seen["test.local"], 1);
+  });
+});

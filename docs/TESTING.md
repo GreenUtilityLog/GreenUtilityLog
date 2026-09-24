@@ -14,7 +14,9 @@ testtokens zonder echte waarde. Gewoon veilig uitproberen. 🙂
 1. **Een VeChain-wallet** — bij voorkeur **VeWorld** (telefoon-app of browser-extensie).
    - Download: https://www.veworld.net
 2. **VeWorld op "Testnet" gezet** (niet Mainnet) — zie stap 2 hieronder.
-3. **Een beetje testnet-VTHO** voor gas (gratis, zie stap 2).
+
+Gas (VTHO) heb je **niet** nodig: je zet alleen een handtekening, de uitbetaling
+doet de server.
 
 ---
 
@@ -25,10 +27,8 @@ testtokens zonder echte waarde. Gewoon veilig uitproberen. 🙂
 - Tik op **Connect** (rechtsboven) en kies **VeWorld** of **WalletConnect**.
 - Op de telefoon: open de link in de **VeWorld-browser** voor de soepelste koppeling.
 
-### 2. Zet VeWorld op Testnet + haal gratis VTHO
+### 2. Zet VeWorld op Testnet
 - In VeWorld: **Instellingen → Netwerk → Testnet**.
-- Haal gratis testnet-VTHO op bij de faucet: **https://faucet.vecha.in**
-  (plak je wallet-adres, vraag tokens aan). Je hebt maar een klein beetje nodig.
 
 ### 3. Registreer je meter
 - Op dit moment testen we **alleen elektriciteit** (gas/water/zon volgen later).
@@ -44,8 +44,10 @@ testtokens zonder echte waarde. Gewoon veilig uitproberen. 🙂
 
 ### 5. Verdien B3TR 🎉
 - Je verdient **meer naarmate je mínder verbruikt** dan de zuinig-benchmark
-  (≈8 kWh): `basis + max(0, benchmark − verbruik) × tarief`. Dit zijn **test-B3TR
-  zonder echte waarde**.
+  (≈8 kWh per dag): `0,2 + (8 − verbruik) × 0,61`, met een maximum van **4 B3TR**
+  per inzending. Dit zijn **test-B3TR zonder echte waarde**.
+- Je **eerste** inzending legt alleen je startpunt vast en levert de basis (0,2)
+  op. Vanaf de tweede wordt je besparing betaald.
 - Bekijk je totaal op **Home** en je positie op de **Leaderboard** (🏆).
 
 ---
@@ -54,15 +56,15 @@ testtokens zonder echte waarde. Gewoon veilig uitproberen. 🙂
 
 **Ik heb ingestuurd maar kreeg geen B3TR.**
 De meest voorkomende redenen:
-- De nieuwe stand is **niet hoger** dan je vorige stand.
+- De nieuwe stand is **lager** dan je vorige stand (een meter loopt nooit terug).
+- De stand die je intypte staat **niet op de foto** (de server leest de foto mee).
 - De **beloningspot is leeg** — vul 'm via het admin-paneel (🎁 Fund rewards pool).
-- Je zit nog in de **cooldown** (zie hieronder — staat tijdens deze testronde uit).
+- Je zit nog in de **cooldown** (zie hieronder).
 - De foto leek hergebruikt — maak een **verse foto** van een echte meter.
 
 **Wat is de cooldown?**
-In productie kun je per nutsvoorziening ongeveer **één keer per 20 uur** belonen — zo
-blijft het eerlijk. **Tijdens de huidige testronde staat de cooldown uit** zodat je
-meermaals achter elkaar kunt testen.
+Je kunt per meter ongeveer **één keer per 20 uur** een beloning krijgen — zo blijft
+het eerlijk. Wie de dag daarna iets later insturt, zit er dus niet aan vast.
 
 **Mijn foto wordt geweigerd.**
 Gebruik een **echte, scherpe foto** van je eigen meter (goed licht, cijfers in beeld). Geen screenshots of foto's van een scherm.

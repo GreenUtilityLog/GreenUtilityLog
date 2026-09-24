@@ -22,7 +22,7 @@ issues the payout. It's also your moderation point: you decide what gets paid.
 ```bash
 cd server
 npm install
-cp .env.example .env
+cp env.example .env
 # edit .env: set DISTRIBUTOR_PRIVATE_KEY (and NETWORK/APP_ID if different)
 npm start            # or: npm run dev
 ```

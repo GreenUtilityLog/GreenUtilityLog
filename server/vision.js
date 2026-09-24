@@ -11,7 +11,8 @@ export function visionEnabled() {
 
 // OCR an image (base64, with or without a data: prefix). Returns the full detected
 // text, or "" on any failure so the caller can fall back to in-browser OCR.
-export async function visionText(imageBase64) {
+// With { strict: true } an HTTP/network failure throws instead of returning "".
+export async function visionText(imageBase64, { strict = false } = {}) {
   if (!GOOGLE_VISION_API_KEY) return "";
   const content = String(imageBase64 || "").replace(/^data:[^,]+,/, "");
   if (!content) return "";
@@ -26,11 +27,12 @@ export async function visionText(imageBase64) {
         }),
       }
     );
-    if (!res.ok) return "";
+    if (!res.ok) { if (strict) throw new Error(`vision ${res.status}`); return ""; }
     const data = await res.json().catch(() => null);
     const r = data?.responses?.[0];
     return r?.fullTextAnnotation?.text || r?.textAnnotations?.[0]?.description || "";
-  } catch {
+  } catch (e) {
+    if (strict) throw e;
     return "";
   }
 }

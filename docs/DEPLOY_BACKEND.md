@@ -41,9 +41,10 @@ De makkelijkste route — er staat al een blueprint klaar (`server/render.yaml`)
 
 > 💤 De gratis Render-instantie valt in slaap bij inactiviteit; het eerste
 > verzoek daarna duurt ~30s. Voor een testronde prima. De staat (cooldowns,
-> foto-hashes, meter-eigenaarschap) staat in `./state.json` en kan resetten bij
-> een redeploy/slaap — voeg een Render **Persistent Disk** toe als je dat over
-> langere tijd wilt bewaren.
+> foto-hashes, meter-eigenaarschap) staat zonder verdere instelling in
+> `./state.json` en verdwijnt bij elke redeploy of slaap. Zet daarom
+> `UPSTASH_REDIS_REST_URL` en `UPSTASH_REDIS_REST_TOKEN` (gratis Upstash-database,
+> zie `server/env.example`): dan blijft alles bewaard.
 
 **Andere hosts:** er is ook een `server/Dockerfile` (werkt op Railway, Fly.io,
 Koyeb, een VPS, enz.). Zet dezelfde env-vars als in `render.yaml`.

@@ -104,3 +104,111 @@ describe("a durable store that stops accepting writes", () => {
     assert.equal(ready, true);
   });
 });
+
+// ── The typed reading has to be on the photo ─────────────────────────────────
+// A fake OCR service stands in for Claude/Vision: it "reads" whatever number the
+// test sets, which is all the server sees of any provider.
+function fakeOcr() {
+  const o = { reads: [1008], status: 200 };
+  o.srv = createServer((req, res) => {
+    req.resume();
+    req.on("end", () => {
+      res.statusCode = o.status;
+      res.end(JSON.stringify({ numbers: o.reads, text: o.reads.join(" ") }));
+    });
+  });
+  return new Promise((r) => o.srv.listen(0, "127.0.0.1", () => { o.url = `http://127.0.0.1:${o.srv.address().port}/ocr`; r(o); }));
+}
+const submitAt = (srv, reading, tag, over = {}) => srv.post("/reward", {
+  utility: "electric", meterNo: "E1000", address: WALLET,
+  reading, prevRead: 1000, photo: photo(tag), photoMime: "image/jpeg", ...over,
+});
+
+describe("reading check, strict (the default once a provider is configured)", () => {
+  let srv, ocr;
+  before(async () => {
+    ocr = await fakeOcr();
+    srv = await startServer({ state: stateWithBaseline(), env: { CUSTOM_OCR_URL: ocr.url, OCR_PROVIDER_ORDER: "custom", COOLDOWN_MS: "0" } });
+  });
+  after(async () => { await srv.stop(); ocr.srv.close(); });
+
+  test("yesterday's number again — 'zero usage', the maximum — is refused when the photo says otherwise", async () => {
+    ocr.reads = [1008];
+    const r = await submitAt(srv, 1000, "same-again");
+    assert.equal(r.status, 400);
+    assert.match(r.body.error, /not what the photo shows/);
+    assert.equal(srv.readState().readings["electric:e1000"], 1000);
+  });
+
+  test("the photo's own number is paid", async () => {
+    ocr.reads = [1008.4, 12345678];
+    const r = await submitAt(srv, 1008, "honest");
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+  });
+
+  test("a photo with no readable number is refused, and says what to do", async () => {
+    ocr.reads = [];
+    const r = await submitAt(srv, 1016, "blurry");
+    assert.equal(r.status, 400);
+    assert.match(r.body.error, /sharper photo/);
+  });
+
+  test("an OCR outage is 'try again', not a verdict on the photo — and pays nothing", async () => {
+    ocr.status = 500;
+    const r = await submitAt(srv, 1016, "outage");
+    assert.equal(r.status, 503);
+    assert.match(r.body.error, /try again/);
+    ocr.status = 200;
+  });
+
+  test("a double-tariff total passes when one register is on the photo", async () => {
+    ocr.reads = [612];
+    const r = await submitAt(srv, 1020, "tariff", { registers: [612, 408] });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+  });
+});
+
+describe("reading check, flag mode", () => {
+  let srv, ocr;
+  before(async () => {
+    ocr = await fakeOcr();
+    srv = await startServer({ state: stateWithBaseline(), env: { CUSTOM_OCR_URL: ocr.url, OCR_PROVIDER_ORDER: "custom", READING_CHECK: "flag" } });
+  });
+  after(async () => { await srv.stop(); ocr.srv.close(); });
+
+  test("pays, and records the mismatch for an admin", async () => {
+    ocr.reads = [1050];
+    const r = await submitAt(srv, 1008, "flagged");
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.equal(r.body.flagged, true);
+    const st = await srv.waitForState((s) => Object.keys(s.flags || {}).length > 0);
+    assert.match(Object.values(st.flags).map((f) => f.reason).join(" "), /server OCR did not find 1008/);
+  });
+});
+
+describe("no OCR provider configured", () => {
+  let srv;
+  before(async () => { srv = await startServer({ state: stateWithBaseline() }); });
+  after(async () => { await srv.stop(); });
+
+  test("behaves as before: nothing to read the photo with, so nothing is refused for it", async () => {
+    const r = await submitAt(srv, 1008, "no-provider");
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+  });
+});
+
+describe("the unsigned /ocr endpoint", () => {
+  let srv, ocr;
+  before(async () => {
+    ocr = await fakeOcr();
+    srv = await startServer({ env: { CUSTOM_OCR_URL: ocr.url, OCR_PROVIDER_ORDER: "custom", OCR_DAILY_PER_IP: "2" } });
+  });
+  after(async () => { await srv.stop(); ocr.srv.close(); });
+
+  test("stops forwarding to the paid provider after the daily limit", async () => {
+    const img = photo("ocr");
+    assert.equal((await srv.post("/ocr", { image: img })).status, 200);
+    assert.equal((await srv.post("/ocr", { image: img })).status, 200);
+    assert.equal((await srv.post("/ocr", { image: img })).status, 429);
+  });
+});
