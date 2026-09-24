@@ -18,6 +18,7 @@
   <meta property="og:type" content="website">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://greenutilitylog.github.io/GreenUtilityLog/og-image.png">
+  <link rel="icon" type="image/png" href="icon.png">
 </head>
 <body>
   <div id="root"></div>
@@ -27,10 +28,17 @@
   <script>
     (function () {
       function show(label, err) {
+        // Only for startup, which is what this is for: a blank screen with no clue.
+        // Once the app is on screen it has its own error handling, and a red box
+        // that covers the page and cannot be closed — for a clipboard copy that
+        // failed, say — is worse than the error it reports.
+        var root = document.getElementById('root');
+        if (root && root.dataset.appMounted) { try { console.error(label, err); } catch (x) {} return; }
         var detail = (err && (err.stack || err.message)) || String(err);
         var b = document.createElement('pre');
         b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;max-height:70vh;overflow:auto;margin:0;padding:12px;font:12px/1.4 monospace;white-space:pre-wrap;word-break:break-word;color:#fff;background:#b00020';
-        b.textContent = label + ' ' + detail;
+        b.textContent = label + ' ' + detail + '\n\n(tap to close)';
+        b.onclick = function () { b.remove(); };
         document.body.appendChild(b);
       }
       window.addEventListener('error', function (e) { show('JS error:', e.error || e.message); });

@@ -36,6 +36,9 @@ jobs:
       # and it was never published — every share of that link 404'd for the crawler,
       # so the preview card came out blank.
       - run: cp docs/og-image.png dist/og-image.png
+      # App icon: the browser tab and the WalletConnect prompt ("Green Utility Log
+      # wants to connect") both showed a broken image before this.
+      - run: cp brand/logo-256.png dist/icon.png
       # The bridge helper itself. Setup is now "download this one file and run it"
       # — no git, no clone — so the guide's and the app's commands both point here.
       # Regenerated from bridge/index.js by build_guide.py; verified below so a stale
