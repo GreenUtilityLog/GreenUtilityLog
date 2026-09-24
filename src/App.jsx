@@ -2465,16 +2465,15 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
                     const needNode = os === "win"
                       ? "# No Node yet? winget install OpenJS.NodeJS.LTS — then open a NEW window."
                       : "# No Node yet? Get it from nodejs.org (Pi/Debian: sudo apt install nodejs).";
-                    const bridgeCmd = `# The bridge finds your HomeWizard on the network by itself and keeps
-# pushing. Run it on a machine that stays on (PC / Pi / NAS).
-# Leave the window open — that is the whole setup.
+                    const bridgeCmd = `# The bridge finds your HomeWizard on the network by itself and sends
+# your meter reading. Run it on a PC / Pi / NAS on the same network.
 ${needNode}
 
-${fetchCmd(`--token=${token}`)}
+${fetchCmd(os === "win" ? `--token=${token} --install` : `--token=${token}`)}
 
-# It remembers your token, so from then on: node gul.js
-# Rather not keep this window open? node gul.js --install
-#   (Windows: reports twice a day by itself, survives a reboot, no window)
+${os === "win"
+  ? "# That sends your first reading AND schedules it twice a day, so you can\n# close this window — it keeps working, even after a restart."
+  : "# Leave the terminal open, or run  node gul.js --install  for the cron line."}
 # Network blocks auto-discovery? Add --ip=<your P1 IP>
 # Docker instead: docker build -t gul-bridge ./bridge
 # docker run -d --network host -e GUL_TOKEN=${token} gul-bridge`;
