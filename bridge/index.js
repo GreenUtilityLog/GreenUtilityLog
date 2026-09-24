@@ -278,20 +278,38 @@ async function cycle() {
 // needs no window, survives a reboot, and needs no admin rights. The schedule matches
 // the push interval for the same reason it was chosen: a reading only has to be under
 // 48 hours old, so twice a day leaves room for two missed runs.
+// The flags that say where to read and where to send. Only the token is saved to
+// disk, so anything scheduled has to be given these again or it quietly falls back
+// to auto-discovery — which is what fails for the people who needed --ip.
+function keptFlags() {
+  return ["ip", "url", "field", "ingest", "interval"]
+    .filter((k) => FLAGS[k] && FLAGS[k] !== "1")
+    .map((k) => `--${k}=${FLAGS[k]}`)
+    .join(" ");
+}
+
 function taskCommand(action) {
   const node = process.execPath;                 // the node that is running us
   const script = process.argv[1];                // this file, wherever it was saved
   const name = "GreenUtilityLog";
   if (action === "uninstall") return ["schtasks", ["/Delete", "/TN", name, "/F"]];
-  // schtasks wants the whole command as ONE argument, with inner quotes doubled.
-  const run = `"${node}" "${script}" --once`;
+  // Carry over whatever this run was told about WHERE to read and send. Only the
+  // token is saved to disk; --ip, --url, --field and --ingest are not, so a task
+  // without them would fall back to auto-discovery — which is exactly what fails
+  // for the people who needed --ip in the first place, and it would fail silently,
+  // twice a day, with nobody watching.
+  const keep = keptFlags();
+  // schtasks wants the whole command as ONE argument.
+  const run = `"${node}" "${script}" --once${keep ? " " + keep : ""}`;
   return ["schtasks", ["/Create", "/TN", name, "/TR", run, "/SC", "HOURLY", "/MO", "12", "/F"]];
 }
 
 function manageTask(action) {
   if (process.platform !== "win32") {
     log(`--${action} is a Windows feature (Task Scheduler).`);
-    log(`On Linux/macOS use cron or a systemd timer, running:  ${process.execPath} ${process.argv[1]} --once`);
+    const keep = keptFlags();
+    log(`On Linux/macOS use cron or a systemd timer, running:  ${process.execPath} ${process.argv[1]} --once${keep ? " " + keep : ""}`);
+    log(`e.g. crontab -e, then:  0 */12 * * * ${process.execPath} ${process.argv[1]} --once${keep ? " " + keep : ""}`);
     return 1;
   }
   const [cmd, args] = taskCommand(action);
