@@ -20,7 +20,7 @@ const REDIS_KEY = process.env.STATE_KEY || "greenutilitylog:state";
 // `passes` is the access-pass registry (address → pass); `passesInit` records that the
 // one-time grandfathering has run, so turning REQUIRE_PASS on can't silently cut off
 // every existing tester — and can't re-grant a pass an admin has since revoked.
-const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {} };
+const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {}, autoPaid: {} };
 
 // Cap the "seen wallets" roster so an open endpoint can't grow state without bound.
 // When exceeded we drop the least-recently-seen entries.
@@ -214,6 +214,11 @@ export const store = {
   // Same idea for /meter/rebaseline: once per meter, remembered by the meter and not
   // by the pairing, so unpairing and pairing again does not reopen it.
   rebasedAt: (utility, meterNo) => state.rebased[mKey(utility, meterNo)] || null,
+  // A reader's reading has been paid on this meter, so its baseline and the
+  // reader's numbers are on one scale: /meter/rebaseline is closed for good. Kept
+  // per meter — on the pairing it was lost by unpairing and pairing again.
+  autoPaidAt: (utility, meterNo) => state.autoPaid[mKey(utility, meterNo)] || null,
+  markAutoPaid: (utility, meterNo) => { state.autoPaid[mKey(utility, meterNo)] = Date.now(); persist(); },
   markRebased: (utility, meterNo, info) => {
     state.rebased[mKey(utility, meterNo)] = { at: Date.now(), ...info };
     persist();
@@ -261,6 +266,7 @@ export const store = {
     for (const owner of Object.values(state.meterOwners)) add(owner, { hasMeter: true });
     for (const l of Object.values(state.meterLinks)) add(l?.address, { paired: true });
     for (const a of Object.keys(state.bans)) add(a, { banned: true });
+    for (const [a, list] of Object.entries(state.ecoClaims)) if (Array.isArray(list) && list.length) add(a, { hasEco: true });
     return [...out.values()];
   },
 
@@ -479,6 +485,13 @@ export const store = {
 
   // False while a durable store failed to load at boot — callers must refuse payouts
   // until it recovers, so anti-farming state is never bypassed or overwritten.
+  // loaded: the durable state was read, so writing is safe. ready: also the last
+  // save landed — required to PAY, since a payout whose save is lost can be
+  // claimed again after a restart. Other writes (admin actions, pairing, ingest)
+  // only need loaded: they are lost at worst, and an admin must be able to act
+  // while saving is failing.
+  loaded: () => !loadError,
+  saveOk: () => !saveError,
   ready: () => !loadError && !saveError,
 
   // Single-use admin certificates: returns true the FIRST time a signature is seen,

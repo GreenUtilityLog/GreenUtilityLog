@@ -50,7 +50,9 @@ describe("the AI photo check, when it cannot run", () => {
   });
 
   test("and the photo is not used up by the failed attempt", async () => {
-    assert.equal(Object.keys(srv.readState().hashes || {}).length, 0);
+    // The release is written with the usual short debounce, so wait for it.
+    const st = await srv.waitForState((x) => Object.keys(x.hashes || {}).length === 0);
+    assert.equal(Object.keys(st.hashes || {}).length, 0);
   });
 });
 
@@ -92,6 +94,16 @@ describe("a durable store that stops accepting writes", () => {
       reading: 1016, prevRead: 1008, photo: photo("lost-write-2"), photoMime: "image/jpeg",
     });
     assert.equal(again.status, 503);
+  });
+
+  test("but does not shut out everything else — an admin still has to be able to act", async () => {
+    const r = await srv.post("/meter/pair", { address: WALLET, meterNo: "E1000" });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    const pay = await srv.post("/reward", {
+      utility: "electric", meterNo: "E1000", address: WALLET,
+      reading: 1016, prevRead: 1008, photo: photo("lost-write-3"), photoMime: "image/jpeg",
+    });
+    assert.match(pay.body.error, /can't save/);
   });
 
   test("and resumes by itself once saving works again", async () => {

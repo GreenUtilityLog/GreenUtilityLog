@@ -256,3 +256,24 @@ describe("pairing again keeps what the pairing has already been through", () => 
     assert.equal(r.status, 409);
   });
 });
+
+describe("a meter a reader has already been paid on", () => {
+  let srv;
+  before(async () => { srv = await startServer({ state: stateWithBaseline({ reading: 1000 }), env: { COOLDOWN_MS: "0" } }); });
+  after(async () => { await srv.stop(); });
+
+  test("stays closed to rebaseline after unpairing and pairing again", async () => {
+    let pair = await srv.post("/meter/pair", { address: WALLET, meterNo: METER });
+    await srv.post("/meter-ingest", { token: pair.body.token, reading: 1008 });
+    const paid = await srv.post("/reward-from-meter", { address: WALLET, meterNo: METER });
+    assert.equal(paid.status, 200, JSON.stringify(paid.body));
+    // The pairing that remembered the payout is thrown away...
+    await srv.post("/meter/unpair", { address: WALLET });
+    pair = await srv.post("/meter/pair", { address: WALLET, meterNo: METER });
+    await srv.post("/meter-ingest", { token: pair.body.token, reading: 1500 });
+    // ...but the meter remembers.
+    const r = await srv.post("/meter/rebaseline", { address: WALLET });
+    assert.equal(r.status, 409, JSON.stringify(r.body));
+    assert.equal(srv.readState().readings[KEY], 1008);
+  });
+});

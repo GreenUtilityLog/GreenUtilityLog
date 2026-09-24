@@ -969,6 +969,26 @@ function ocrBackendBase() {
   return b ? b.replace(/\/$/, "") : "";
 }
 
+// A photo in a format the server's photo check can't read (HEIC from a phone set
+// to "high efficiency", say) is refused there. Re-encode it to JPEG here when this
+// browser can decode it; JPEG/PNG/WebP/GIF go up untouched, so their EXIF date —
+// which the server uses to refuse old photos — survives.
+const UPLOADABLE = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+async function uploadablePhoto(file) {
+  if (!file || UPLOADABLE.has(file.type)) return file;
+  try {
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, 2400 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    const blob = await new Promise((res) => c.toBlob(res, "image/jpeg", 0.9));
+    return blob || file;
+  } catch {
+    return file; // can't decode it here either — send as is, the server will say so
+  }
+}
+
 function blobToBase64(file) {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -1780,16 +1800,17 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
 
   const runVerify = async (file, ocrSource) => {
     setPhase("verifying"); setAiStep(0);
-    const mime   = file.type;
-    let base64;
+    let mime, base64;
     try {
+      const upload = await uploadablePhoto(file);
+      mime = upload.type;
       // Reject on read errors too — without onerror a failed read leaves the promise
       // unsettled and the UI stuck on "verifying" with no way out but a reload.
       base64 = await new Promise((res, rej) => {
         const r = new FileReader();
         r.onload = () => res(r.result.split(",")[1]);
         r.onerror = () => rej(r.error || new Error("could not read the photo"));
-        r.readAsDataURL(file);
+        r.readAsDataURL(upload);
       });
     } catch {
       setResult({ summary: "Couldn't read that photo — please tap the camera and take it again." });
@@ -5468,7 +5489,8 @@ export default function App() {
     if (photoTooOld(file)) { showToast("📸 Take the photo live with your camera — saved images aren't accepted"); return; }
     setEcoBusy(true);
     try {
-      const base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] || ""); r.onerror = rej; r.readAsDataURL(file); });
+      const upload = await uploadablePhoto(file);
+      const base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] || ""); r.onerror = rej; r.readAsDataURL(upload); });
       let certificate = null;
       try {
         const content = `Green Utility Log — confirm eco-mode bonus\nWallet: ${wallet}\nAppliance: ${appliance}\nTime: ${new Date().toISOString()}`;
@@ -5481,7 +5503,7 @@ export default function App() {
       const res = await fetch(`${REWARD_API.replace(/\/$/, "")}/eco-action`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: wallet, appliance, photo: base64, photoMime: file.type || "", certificate, captchaToken }),
+        body: JSON.stringify({ address: wallet, appliance, photo: base64, photoMime: upload.type || "", certificate, captchaToken }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `eco service error ${res.status}`);
