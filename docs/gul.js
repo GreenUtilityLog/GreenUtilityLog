@@ -31,14 +31,18 @@
 //   --install     Windows: run twice a day by itself, no window open
 //   --uninstall   remove that scheduled task again
 
-import http from "node:http";
-import https from "node:https";
-import dgram from "node:dgram";
-import { readFileSync, writeFileSync } from "node:fs";
-import { createInterface } from "node:readline";
-import { fileURLToPath } from "node:url";
-import { basename, dirname, join } from "node:path";
-import { spawnSync } from "node:child_process";
+// CommonJS on purpose. People download this as one loose gul.js with no package.json
+// beside it, and Node before 20.19/22.12 treats such a file as CommonJS: `import`
+// there is a SyntaxError before a single line runs. Node 18 (Debian/Raspberry Pi OS
+// `apt install nodejs`) is exactly that case. require() works on every version.
+"use strict";
+const http = require("node:http");
+const https = require("node:https");
+const dgram = require("node:dgram");
+const { readFileSync, writeFileSync, appendFileSync, statSync, renameSync } = require("node:fs");
+const { createInterface } = require("node:readline");
+const { basename, join } = require("node:path");
+const { spawnSync } = require("node:child_process");
 
 // --name=value, or a bare --flag. Unknown flags are ignored rather than fatal: a
 // stray argument shouldn't stop someone's meter from reporting.
@@ -50,7 +54,7 @@ for (const a of process.argv.slice(2)) {
 
 // The token is remembered next to this file, so the second run needs no arguments at
 // all. Only the token: everything else is either discovered or has a sensible default.
-const HERE = dirname(fileURLToPath(import.meta.url));
+const HERE = __dirname;
 const SELF = basename(process.argv[1] || "index.js");
 const CONFIG_FILE = join(HERE, ".gul-bridge.json");
 function readSaved() {
@@ -74,7 +78,10 @@ const FIXED_IP = pick("ip", "HW_IP");
 // and /meter-ingest keeps only the newest value, so 23 of 24 hourly pushes are
 // discarded. Two a day still leaves a wide margin against the 48h staleness rule,
 // and it lets a free-tier backend sleep instead of being woken every hour.
-const INTERVAL_MS = Math.max(60, Number(pick("interval", "INTERVAL_SEC", 43200))) * 1000;
+// Seconds, as a plain number. Anything else ("12h", "") used to become NaN, and
+// setInterval(fn, NaN) fires as fast as it can — thousands of pushes a second.
+const INTERVAL_SEC = Number(pick("interval", "INTERVAL_SEC", 43200));
+const INTERVAL_MS = (Number.isFinite(INTERVAL_SEC) && INTERVAL_SEC > 0 ? Math.max(60, INTERVAL_SEC) : 43200) * 1000;
 const ONCE = FLAGS.once === "1" || process.env.ONCE === "1";
 // Generic mode: point at ANY reader that returns JSON over HTTP (dsmr-reader,
 // Shelly, a custom endpoint…). READ_URL switches off HomeWizard discovery; READ_FIELD
@@ -107,7 +114,22 @@ async function ensureToken() {
   return true;
 }
 
-const log = (...a) => console.log(new Date().toISOString(), ...a);
+// Everything is also appended to .gul-bridge.log next to this file. A scheduled task
+// runs with no window, so without a log there is nothing to look at when a reading
+// doesn't arrive. Kept small: rotated to .old at 256 KB. A read-only folder
+// (Docker) just means no log file, never a failure.
+const LOG_FILE = join(HERE, ".gul-bridge.log");
+function toFile(line) {
+  try {
+    try { if (statSync(LOG_FILE).size > 256 * 1024) renameSync(LOG_FILE, LOG_FILE + ".old"); } catch {}
+    appendFileSync(LOG_FILE, line + "\n");
+  } catch {}
+}
+const log = (...a) => {
+  const line = [new Date().toISOString(), ...a].join(" ");
+  console.log(line);
+  toFile(line);
+};
 
 // ── mDNS discovery ───────────────────────────────────────────────────────────
 // HomeWizard Energy devices advertise the `_hwenergy._tcp.local` service. We send
@@ -177,12 +199,21 @@ function getJson(url, timeoutMs = 8000) {
     const req = mod.get(url, { timeout: timeoutMs }, (res) => {
       let body = "";
       res.on("data", (c) => (body += c));
-      res.on("end", () => { try { resolve(JSON.parse(body)); } catch (e) { reject(e); } });
+      res.on("end", () => {
+        // A HomeWizard with its Local API switched off answers 403. Say that, rather
+        // than trying to parse the refusal and blaming the JSON field.
+        if (res.statusCode === 403) return reject(new Error(`${url} said 403 — switch on "Local API" for this meter in the HomeWizard Energy app`));
+        if (res.statusCode < 200 || res.statusCode >= 300) return reject(new Error(`${url} said ${res.statusCode}: ${short(body)}`));
+        try { resolve(JSON.parse(body)); } catch { reject(new Error(`${url} did not return JSON: ${short(body)}`)); }
+      });
     });
     req.on("timeout", () => req.destroy(new Error("timeout")));
     req.on("error", reject);
   });
 }
+// An error page can be a whole HTML document; one line of it is enough to recognise.
+const short = (body) => String(body || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 160);
+
 // HomeWizard ships TWO naming conventions for the same numbers depending on
 // firmware/model: the older `total_power_import_*` and the newer `energy_import_*`.
 // Handle both, single-total first, then tariff 1 + tariff 2.
@@ -224,19 +255,41 @@ function readGeneric(data, field) {
   for (const k of CANDIDATES) { const v = num(data?.[k]); if (v != null) return v; }
   return readTotal(data || {}); // fall back to HomeWizard-style t1+t2
 }
-function push(reading) {
+function pushOnce(reading) {
   return new Promise((resolve, reject) => {
     const payload = JSON.stringify({ token: TOKEN, reading });
     const u = new URL(INGEST);
     const mod = u.protocol === "https:" ? https : http;
-    const req = mod.request(u, { method: "POST", headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(payload) }, timeout: 10000 }, (res) => {
+    // 90 s: a free-tier backend asleep since the last push takes ~30-60 s to wake,
+    // and with two pushes a day nearly every push is the one that wakes it.
+    const req = mod.request(u, { method: "POST", headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(payload) }, timeout: PUSH_TIMEOUT_MS }, (res) => {
       let body = ""; res.on("data", (c) => (body += c));
-      res.on("end", () => (res.statusCode >= 200 && res.statusCode < 300 ? resolve(body) : reject(new Error(`ingest ${res.statusCode}: ${body}`))));
+      res.on("end", () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) return resolve(body);
+        const err = new Error(`server said ${res.statusCode}: ${short(body)}`);
+        err.retry = res.statusCode === 502 || res.statusCode === 503 || res.statusCode === 504 || res.statusCode === 429;
+        reject(err);
+      });
     });
-    req.on("timeout", () => req.destroy(new Error("timeout")));
-    req.on("error", reject);
+    req.on("timeout", () => { const e = new Error("no answer from the server (timeout)"); e.retry = true; req.destroy(e); });
+    req.on("error", (e) => { if (e.retry === undefined) e.retry = true; reject(e); }); // network errors: worth another try
     req.end(payload);
   });
+}
+const PUSH_TIMEOUT_MS = Number(process.env.GUL_PUSH_TIMEOUT_MS) || 90000;
+const RETRY_WAIT_MS = Number(process.env.GUL_RETRY_WAIT_MS) || 20000;
+// Three tries, 20 s apart, for the failures that pass on their own: a backend still
+// waking ("warming up" 503), a proxy 502, a dropped connection. A 401 (bad token)
+// or 400 (bad reading) will not improve by asking again, so those fail at once.
+async function push(reading) {
+  for (let attempt = 1; ; attempt++) {
+    try { return await pushOnce(reading); }
+    catch (e) {
+      if (!e.retry || attempt >= 3) throw e;
+      log(`${e.message} — trying again in ${RETRY_WAIT_MS / 1000}s (${attempt}/3)`);
+      await new Promise((r) => setTimeout(r, RETRY_WAIT_MS));
+    }
+  }
 }
 
 let lastIp = FIXED_IP || null;
@@ -247,24 +300,26 @@ async function cycle() {
       // Generic mode — any HTTP/JSON reader.
       const data = await getJson(READ_URL);
       reading = readGeneric(data, READ_FIELD);
-      if (reading == null) { log(`couldn't find a kWh number at ${READ_URL}${READ_FIELD ? ` (field "${READ_FIELD}")` : ""} — add --field=<dot.path>.`); return; }
+      if (reading == null) { log(`couldn't find a kWh number at ${READ_URL}${READ_FIELD ? ` (field "${READ_FIELD}")` : ""} — add --field=<dot.path>.`); return false; }
       // Also here: the guide's own "any reader" example points --url at a HomeWizard's
       // /api/v1/data, so this path sees tariff registers just as often as the other.
       if (!READ_FIELD) split = tariffSplit(data);
     } else {
       // HomeWizard mode — discover on the network, then read the local API.
       if (!lastIp) { lastIp = await discover(); if (lastIp) log(`found HomeWizard at ${lastIp}`); }
-      if (!lastIp) { log("no HomeWizard found on the network — add --ip=<ip>, or --url=<url> for another reader."); return; }
+      if (!lastIp) { log("no HomeWizard found on the network — add --ip=<ip>, or --url=<url> for another reader."); return false; }
       const data = await getJson(`http://${lastIp}/api/v1/data`);
       reading = readTotal(data);
-      if (reading == null) { log("couldn't find a total import kWh — is this a HomeWizard P1? (or use --url=)"); return; }
+      if (reading == null) { log("couldn't find a total import kWh — is this a HomeWizard P1? (or use --url=)"); return false; }
       split = tariffSplit(data);
     }
     await push(reading);
     log(`pushed ${reading} kWh ✓${split}`);
+    return true;
   } catch (e) {
     log("cycle failed:", e?.message || e);
     if (!READ_URL) lastIp = FIXED_IP || null; // re-discover next time in case the IP changed
+    return false;
   }
 }
 
@@ -304,18 +359,34 @@ function taskCommand(action) {
   return ["schtasks", ["/Create", "/TN", name, "/TR", run, "/SC", "HOURLY", "/MO", "12", "/F"]];
 }
 
+// A task made by schtasks /Create keeps Windows' defaults: it only starts on mains
+// power and a run missed while the PC slept is skipped. On a laptop that can mean
+// no reading for days. The ScheduledTasks PowerShell module (Windows 8+) can change
+// both. Best effort: the task already exists and works on mains power either way.
+function relaxPowerSettings() {
+  const ps = "Set-ScheduledTask -TaskName GreenUtilityLog -Settings (New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries) | Out-Null";
+  const r = spawnSync("powershell", ["-NoProfile", "-NonInteractive", "-Command", ps], { encoding: "utf8" });
+  if (r.status === 0) log("also set to run on battery, and to catch up a run missed while the PC was asleep.");
+  else log("note: could not allow the task on battery power — it runs when the PC is plugged in.");
+}
+
 function manageTask(action) {
   if (process.platform !== "win32") {
     log(`--${action} is a Windows feature (Task Scheduler).`);
-    const keep = keptFlags();
-    log(`On Linux/macOS use cron or a systemd timer, running:  ${process.execPath} ${process.argv[1]} --once${keep ? " " + keep : ""}`);
-    log(`e.g. crontab -e, then:  0 */12 * * * ${process.execPath} ${process.argv[1]} --once${keep ? " " + keep : ""}`);
+    // Single-quoted for sh: a space in a path or an & in --url would otherwise split
+    // or background the command. ' itself becomes '\''.
+    const q = (v) => `'${String(v).replace(/'/g, "'\\''")}'`;
+    const keep = ["ip", "url", "field", "ingest", "interval"].filter((k) => FLAGS[k] && FLAGS[k] !== "1").map((k) => q(`--${k}=${FLAGS[k]}`)).join(" ");
+    const cmd = `${q(process.execPath)} ${q(process.argv[1])} --once${keep ? " " + keep : ""}`;
+    log(`On Linux/macOS use cron or a systemd timer, running:  ${cmd}`);
+    log(`e.g. crontab -e, then:  0 */12 * * * ${cmd}`);
     return 1;
   }
   const [cmd, args] = taskCommand(action);
   const r = spawnSync(cmd, args, { encoding: "utf8" });
   const out = `${r.stdout || ""}${r.stderr || ""}`.trim();
   if (r.status === 0) {
+    if (action === "install") relaxPowerSettings();
     log(action === "install"
       ? "Scheduled. Your meter now reports twice a day on its own — you can close this window."
       : "Removed. Nothing is scheduled any more.");
@@ -323,7 +394,9 @@ function manageTask(action) {
   }
   // Never leave someone stuck: show what failed AND what to run by hand.
   log(`could not ${action} the scheduled task${out ? `: ${out}` : ""}`);
-  log(`Run this yourself in PowerShell:\n  ${cmd} ${args.map((a) => (/[ "]/.test(a) ? `'${a}'` : a)).join(" ")}`);
+  // cmd.exe syntax, not PowerShell: Windows PowerShell 5.1 mangles the " inside
+  // /TR when it passes them on, and cmd passes them through untouched.
+  log(`Run this yourself in a Command Prompt (cmd):\n  ${cmd} ${args.map((a) => (/[ "]/.test(a) ? `"${a.replace(/"/g, '\\"')}"` : a)).join(" ")}`);
   return 1;
 }
 
@@ -340,7 +413,7 @@ async function main() {
     // moment it finishes.
     if (code === 0) {
       log("sending one reading now, so you can see it arrive…");
-      await cycle();
+      if (!(await cycle())) log(`the schedule is set, but this first reading failed (see above). Details of every run: ${LOG_FILE}`);
     }
     process.exit(code);
   }
@@ -348,8 +421,10 @@ async function main() {
   const src = READ_URL ? `reader ${READ_URL}` : (FIXED_IP ? `HomeWizard ${FIXED_IP}` : "HomeWizard (auto-discover)");
   if (!/^https:/i.test(INGEST)) log("WARNING: GUL_INGEST_URL is not https — your token would be sent in cleartext. Use the default https endpoint.");
   log(`GreenUtilityLog bridge starting — ${src}, pushing every ${INTERVAL_MS / 1000}s to ${INGEST}`);
-  await cycle();
-  if (ONCE) return;
+  const ok = await cycle();
+  // Exit 1 on failure, so Task Scheduler / cron / Docker see a failed run instead of
+  // "completed successfully" while nothing arrived.
+  if (ONCE) process.exit(ok ? 0 : 1);
   setInterval(cycle, INTERVAL_MS);
 }
 
@@ -367,4 +442,4 @@ async function main() {
 // three platforms to avoid failing silently.
 if (!process.env.GUL_NO_MAIN) main();
 
-export { buildQuery, parseARecords, skipName, readTotal, readGeneric };
+module.exports = { buildQuery, parseARecords, skipName, readTotal, readGeneric };

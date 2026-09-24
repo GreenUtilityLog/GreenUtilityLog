@@ -32,3 +32,17 @@ jobs:
         working-directory: server
       - run: npm test
         working-directory: server
+
+  # The bridge is downloaded as one loose gul.js and run on whatever Node the user
+  # has — Debian/Raspberry Pi OS ship 18. It once failed to even start there.
+  bridge:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [18, 20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: node --test bridge/test.js
