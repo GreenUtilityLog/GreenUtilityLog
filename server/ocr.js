@@ -10,6 +10,7 @@ import {
   GOOGLE_VISION_API_KEY, OCR_PROVIDER_ORDER,
 } from "./config.js";
 import { visionText } from "./vision.js";
+import { toApiImage } from "./apiimage.js";
 
 // Claude vision as an OCR provider. Reads 7-segment/LCD meter displays far more
 // reliably than Tesseract, and needs only ANTHROPIC_API_KEY (the same key that
@@ -41,14 +42,17 @@ export function ocrEnabled() {
 
 // Roboflow hosted inference: object-detection of digits. Assemble the reading by
 // sorting the detected digits left-to-right and concatenating their class labels.
+// Providers THROW when they could not run (network, HTTP error) and return null
+// when they ran and found nothing. The payout check needs the difference: "the
+// service is down, try again" is not "your photo is unreadable".
 async function roboflowOcr(content) {
-  try {
+  {
     const res = await fetch(`https://serverless.roboflow.com/${ROBOFLOW_MODEL}?api_key=${ROBOFLOW_API_KEY}`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: content,
     });
-    if (!res.ok) return null;
+    if (!res.ok) throw new Error(`roboflow ${res.status}`);
     const data = await res.json().catch(() => null);
     const preds = data?.predictions;
     if (!Array.isArray(preds) || !preds.length) return null;
@@ -59,29 +63,29 @@ async function roboflowOcr(content) {
       .join("");
     if (!text) return null;
     return { text, numbers: numbersFromText(text) };
-  } catch { return null; }
+  }
 }
 
 // Self-hosted OCR service: POST { image } → { text } and/or { numbers }.
 async function customOcr(content) {
-  try {
+  {
     const res = await fetch(CUSTOM_OCR_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ image: content }),
     });
-    if (!res.ok) return null;
+    if (!res.ok) throw new Error(`custom ocr ${res.status}`);
     const data = await res.json().catch(() => null);
     if (!data) return null;
     const numbers = Array.isArray(data.numbers) ? data.numbers.map(Number).filter(Number.isFinite) : null;
     const text = data.text || data.reading || (numbers ? numbers.join(" ") : "");
     if (!text && !(numbers && numbers.length)) return null;
     return { text: String(text), numbers: numbers || numbersFromText(text) };
-  } catch { return null; }
+  }
 }
 
 async function visionOcr(content) {
-  const text = await visionText(content);
+  const text = await visionText(content, { strict: true });
   return text ? { text, numbers: numbersFromText(text) } : null;
 }
 
@@ -105,11 +109,10 @@ const CLAUDE_OCR_PROMPT = `This photo shows (part of) a utility meter — usuall
 
 async function claudeOcr(content) {
   if (!anthropicClient) return null;
-  const mediaType = content.startsWith("/9j/") ? "image/jpeg"
-    : content.startsWith("iVBOR") ? "image/png"
-    : content.startsWith("UklGR") ? "image/webp"
-    : content.startsWith("R0lGOD") ? "image/gif"
-    : "image/jpeg";
+  // Re-encoded when needed: a full-size phone photo is over the API's 5 MB limit,
+  // and a refused image reads as "no number found".
+  const img = await toApiImage(content);
+  if (!img) return null; // not an error: this photo simply cannot be sent
   const resp = await anthropicClient.messages.create({
     model: OCR_CLAUDE_MODEL,
     max_tokens: 2000,
@@ -119,7 +122,7 @@ async function claudeOcr(content) {
       {
         role: "user",
         content: [
-          { type: "image", source: { type: "base64", media_type: mediaType, data: content } },
+          { type: "image", source: { type: "base64", media_type: img.mediaType, data: img.data } },
           { type: "text", text: CLAUDE_OCR_PROMPT },
         ],
       },
@@ -138,12 +141,17 @@ async function claudeOcr(content) {
 const RUNNERS = { roboflow: roboflowOcr, custom: customOcr, vision: visionOcr, claude: claudeOcr };
 
 // Run the configured providers in order; return the first non-empty result.
+// `errored` is true when nothing was found AND every provider failed to run — the
+// difference between an unreadable photo and an outage.
 export async function ocrImage(imageBase64) {
   const content = String(imageBase64 || "").replace(/^data:[^,]+,/, "");
-  if (!content) return { text: "", numbers: [], provider: null };
+  if (!content) return { text: "", numbers: [], provider: null, errored: false };
+  let ran = 0;
   for (const p of ocrProviders()) {
-    const r = await RUNNERS[p](content).catch(() => null);
-    if (r && (r.text || (r.numbers && r.numbers.length))) return { ...r, provider: p };
+    let r = null;
+    try { r = await RUNNERS[p](content); ran++; }
+    catch (e) { console.warn(`[ocr] ${p} failed: ${e?.message || e}`); }
+    if (r && (r.text || (r.numbers && r.numbers.length))) return { ...r, provider: p, errored: false };
   }
-  return { text: "", numbers: [], provider: null };
+  return { text: "", numbers: [], provider: null, errored: ran === 0 && ocrProviders().length > 0 };
 }

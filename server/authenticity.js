@@ -12,6 +12,7 @@
 // paid and nothing is used up — the user is told to try again shortly.
 
 import Anthropic from "@anthropic-ai/sdk";
+import { toApiImage } from "./apiimage.js";
 
 const API_KEY = (process.env.ANTHROPIC_API_KEY || "").trim();
 // Default to the most capable model. Set AI_PHOTO_MODEL=claude-haiku-4-5 to trade
@@ -105,28 +106,6 @@ function sniff(b64) {
   return "image/jpeg";
 }
 
-// What the API takes: these four types, at most 5 MB each.
-const API_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
-const API_MAX_BYTES = 5 * 1024 * 1024;
-
-// A phone photo is often over 5 MB, or HEIC. Re-encode to a JPEG the API accepts
-// (1568 px is the size it scales to anyway). Without sharp, pass the original on
-// only when the API can take it as it is.
-async function forApi(img, detectedMime) {
-  const buf = Buffer.from(img.data, "base64");
-  try {
-    const sharp = (await import("sharp")).default;
-    const out = await sharp(buf).rotate()
-      .resize(1568, 1568, { fit: "inside", withoutEnlargement: true })
-      .jpeg({ quality: 85 })
-      .toBuffer();
-    return { mediaType: "image/jpeg", data: out.toString("base64") };
-  } catch { /* sharp missing, or a format it cannot decode */ }
-  const mediaType = detectedMime || img.mediaType;
-  if (API_TYPES.has(mediaType) && buf.length <= API_MAX_BYTES) return { mediaType, data: img.data };
-  return null;
-}
-
 // Returns { ok, verdict?, reason?, skipped?, unavailable? }. ok=false means no payout.
 // `detectedMime` is what the server sniffed from the bytes — never the label the
 // client sent, which is how a JPEG-labelled BMP used to reach the API.
@@ -134,7 +113,7 @@ export async function checkPhotoAuthenticity(imageBase64, detectedMime = "") {
   if (!client) return { ok: true, skipped: true };
   const raw = splitImage(imageBase64);
   if (!raw) return { ok: false, reason: "the photo could not be read" };
-  const img = await forApi(raw, detectedMime);
+  const img = await toApiImage(raw.data, detectedMime);
   if (!img) return { ok: false, reason: "this photo's format can't be checked — please take the photo again in the app" };
 
   let verdict;

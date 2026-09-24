@@ -141,3 +141,59 @@ async function runOcrCheck(buf, reading, registers = []) {
     await worker.terminate();
   }
 }
+
+// ── Is the reading that was typed actually on the photo? ──────────────────────
+// Without this the reading is whatever the submitter types, and the photo only
+// proves that SOME meter was photographed: type yesterday's number again and it is
+// "zero usage", the maximum payout, every day. With an OCR provider configured
+// (ANTHROPIC_API_KEY, Google Vision, Roboflow or a custom service) the server reads
+// the photo itself and the reading has to be there.
+//
+// READING_CHECK=strict (default when a provider is configured) refuses a mismatch;
+// =flag pays and records it for review; =off skips it.
+export function readingCheckMode(providersConfigured) {
+  const m = String(process.env.READING_CHECK || "").trim().toLowerCase();
+  if (m === "off" || m === "flag" || m === "strict") return providersConfigured ? m : "off";
+  return providersConfigured ? "strict" : "off";
+}
+
+// Does `claimed` appear among the numbers read off the photo? Tolerance is ONE
+// unit, not a percentage: a percentage of a meter total is hundreds of kWh, which
+// is exactly the room a lower-than-true reading needs. The second rule covers a
+// display whose decimal point the OCR did not see (12345.6 read as 123456): the
+// same leading digits with at most three more. That cannot be used to understate,
+// because the reading still has to be above the stored baseline.
+export function readingOnPhoto(claimed, numbers) {
+  const c = Number(claimed);
+  if (!Number.isFinite(c) || c < 0) return false;
+  const nums = (numbers || []).map(Number).filter(Number.isFinite);
+  if (nums.some((n) => Math.abs(n - c) <= 1)) return true;
+  const head = String(Math.floor(c));
+  if (head.length < 3) return false;
+  return nums.some((n) => {
+    const d = String(Math.floor(n));
+    return d.startsWith(head) && d.length > head.length && d.length - head.length <= 3;
+  });
+}
+
+// { ok, matched?, seen?, unavailable?, error? }. `registers` are the tariff parts of
+// a summed reading; the display shows one at a time, so any one of them counts.
+export async function checkReadingOnPhoto({ imageBase64, reading, registers = [], ocrImage }) {
+  const unavailable = { ok: false, unavailable: true, error: "the meter reading could not be checked right now — nothing was used up, please try again in a few minutes" };
+  let r;
+  try { r = await ocrImage(imageBase64); }
+  catch { return unavailable; }
+  if (r?.errored) return unavailable;
+  const numbers = r?.numbers || [];
+  if (!numbers.length) {
+    return { ok: false, error: "the meter's numbers could not be read on this photo — take a sharper photo, straight on, with the display filling most of the picture" };
+  }
+  const candidates = [reading, ...(Array.isArray(registers) ? registers : [])];
+  const hit = candidates.findIndex((v) => readingOnPhoto(v, numbers));
+  if (hit >= 0) return { ok: true, matched: hit === 0 ? "total" : `register ${hit}`, seen: numbers.slice(0, 6) };
+  return {
+    ok: false,
+    seen: numbers.slice(0, 6),
+    error: `the reading you entered (${reading}) is not what the photo shows${numbers.length ? ` (it reads ${numbers.slice(0, 3).join(", ")})` : ""} — check the number and try again`,
+  };
+}
