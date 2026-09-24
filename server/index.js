@@ -77,7 +77,7 @@ app.use(express.json({ limit: "64kb" }));
 // GETs are left alone: they only read, and /health in particular has to stay
 // reachable — storeReady in its response is how anyone finds out this is happening.
 app.use((req, res, next) => {
-  if (req.method !== "POST" || store.ready()) return next();
+  if (req.method !== "POST" || store.loaded()) return next();
   res.status(503).json({ error: "service is warming up — please try again in a moment" });
 });
 
@@ -131,6 +131,8 @@ app.get("/health", async (req, res) => {
     // load failure the store holds nothing, refuses payouts and writes nothing, and
     // from the outside that is indistinguishable from a quiet, empty service.
     storeReady: store.ready(),
+    // false = the last save to durable storage failed: payouts pause until one lands.
+    storeSaving: store.saveOk(),
     distributor: await distributorAddress().catch(() => null),
     poolB3TR: chain.poolB3TR,
     distributorAuthorized: chain.distributorAuthorized,
@@ -172,20 +174,27 @@ function passBlock(addr) {
   return "this wallet has no access pass yet — ask an admin for one";
 }
 
+// Why a request that needs the store was turned away. "Warming up" is only true
+// for the first case; the second is a storage problem that needs looking at.
+function notReadyMessage() {
+  if (!store.loaded()) return "service is warming up — please try again in a moment";
+  return "payouts are paused while the server can't save its records — nothing was used up, please try again later";
+}
+
 // One-time grandfathering, so switching REQUIRE_PASS on never retroactively strands
 // testers who were already earning. Runs at boot, exactly once, and only when the
 // store is readable — grandfathering off a half-loaded state would issue passes we'd
 // then persist over the real data.
 function backfillPasses() {
-  if (!REQUIRE_PASS || !store.ready() || store.passesInitialised()) return;
+  if (!REQUIRE_PASS || !store.loaded() || store.passesInitialised()) return;
   const known = store.listKnownWallets();
   let granted = 0;
   for (const w of known) {
     if (w.banned) continue;   // a blocked wallet shouldn't be handed a pass on the way in
-    // Only wallets that actually did something: own a meter (were paid for one) or
-    // paired a reader. "Seen" alone is an unauthenticated POST anyone can make for
+    // Only wallets that actually did something: own a meter (were paid for one),
+    // paired a reader, or claimed an eco bonus. "Seen" alone is an unauthenticated POST anyone can make for
     // any address, so it would hand out passes to made-up wallets.
-    if (!w.hasMeter && !w.paired) continue;
+    if (!w.hasMeter && !w.paired && !w.hasEco) continue;
     store.grantPass(w.address, { tier: "tester", note: "grandfathered when passes were enabled" });
     granted++;
   }
@@ -553,7 +562,7 @@ app.post("/reward", async (req, res) => {
 
   // 0a) Durable store must be loaded — otherwise cooldowns/hashes/baselines are blank
   // and a payout can't be recorded. Refuse rather than farm on an empty slate.
-  if (!store.ready()) return res.status(503).json({ error: "service is warming up — please try again in a moment" });
+  if (!store.ready()) return res.status(503).json({ error: notReadyMessage() });
 
   // 0b) Captcha — proves the request came from a real browser, not a bot/script.
   if (captchaEnabled()) {
@@ -699,7 +708,7 @@ app.post("/reward", async (req, res) => {
 app.post("/eco-action", async (req, res) => {
   if (banned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
   { const pb = passBlock(req.body.address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
-  if (!store.ready()) return res.status(503).json({ error: "service is warming up — please try again in a moment" });
+  if (!store.ready()) return res.status(503).json({ error: notReadyMessage() });
 
   if (captchaEnabled()) {
     const cap = await verifyCaptcha(req.body.captchaToken, req.clientIp);
@@ -846,7 +855,7 @@ app.post("/meter-ingest", (req, res) => {
   // exactly like a store with no devices in it, so without this check every reader
   // on earth is told "unknown device token" — the one message that sends its owner
   // off to re-pair a device that was never the problem.
-  if (!store.ready()) {
+  if (!store.loaded()) {
     return res.status(503).json({ error: "service is warming up — please try again in a moment" });
   }
   const token = String(req.body.token || "");
@@ -908,7 +917,7 @@ app.get("/meter/latest", (req, res) => {
   res.json({
     paired: !!link,
     reading: r || null,
-    canRebaseline: !!link && !link.autoPaidAt && !(link.meterNo && store.rebasedAt(utility, String(link.meterNo).toLowerCase())),
+    canRebaseline: !!link && !link.autoPaidAt && !(link.meterNo && (store.rebasedAt(utility, String(link.meterNo).toLowerCase()) || store.autoPaidAt(utility, String(link.meterNo).toLowerCase()))),
     baseline: baseline != null ? baseline : null,
     rebasedAt: link?.rebasedAt || null,
   });
@@ -1039,6 +1048,7 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
     // stored baseline are on the same scale. That closes /meter/rebaseline: the
     // escape hatch exists for a starting point that was never comparable, not for
     // one that has already been used to pay.
+    store.markAutoPaid(utility, meterNo.toLowerCase());
     if (link?.token) {
       const { token, ...rest } = link;
       store.setMeterLink(token, { ...rest, autoPaidAt: Date.now() });
@@ -1053,7 +1063,7 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
 app.post("/reward-from-meter", async (req, res) => {
   if (banned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
   { const pb = passBlock(req.body.address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
-  if (!store.ready()) return res.status(503).json({ error: "service is warming up — please try again in a moment" });
+  if (!store.ready()) return res.status(503).json({ error: notReadyMessage() });
   if (captchaEnabled()) {
     const cap = await verifyCaptcha(req.body.captchaToken, req.clientIp);
     if (!cap.ok) return res.status(403).json({ error: cap.error });
@@ -1093,7 +1103,7 @@ app.post("/reward-from-meter", async (req, res) => {
 // so it stays reviewable afterwards.
 app.post("/meter/rebaseline", async (req, res) => {
   if (banned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
-  if (!store.ready()) return res.status(503).json({ error: "service is warming up — please try again in a moment" });
+  if (!store.loaded()) return res.status(503).json({ error: notReadyMessage() });
   const address = String(req.body.address || "");
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
   {
@@ -1128,6 +1138,9 @@ app.post("/meter/rebaseline", async (req, res) => {
   }
   // Once per meter. Each rebaseline wipes the usage since the last payout, so an
   // unlimited one turns every photo after it into a near-zero-usage maximum payout.
+  if (store.autoPaidAt(utility, key)) {
+    return res.status(409).json({ error: "this reader has already paid out once, so its starting point is settled" });
+  }
   if (store.rebasedAt(utility, key)) {
     return res.status(409).json({ error: "this meter's starting point has already been corrected once — ask an admin if it is wrong again" });
   }
@@ -1172,7 +1185,7 @@ app.post("/meter/rebaseline", async (req, res) => {
 // recorded both as durable state and as a flag.
 app.post("/meter/fix-basis", async (req, res) => {
   if (banned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
-  if (!store.ready()) return res.status(503).json({ error: "service is warming up — please try again in a moment" });
+  if (!store.loaded()) return res.status(503).json({ error: notReadyMessage() });
 
   const address = String(req.body.address || "");
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });

@@ -839,7 +839,9 @@ async function loadTesseract() {
   if (_tesseractReady) return _tesseractReady;
   _tesseractReady = new Promise((resolve, reject) => {
     const s = document.createElement("script");
-    s.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+    // Exact versions, not "@5" and "@master": this code runs inside the page that
+    // asks for wallet signatures, so what it loads should not change underneath us.
+    s.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
     s.onload  = () => resolve(window.Tesseract);
     s.onerror = reject;
     document.head.appendChild(s);
@@ -910,7 +912,7 @@ async function preprocessForOCR(file, invert = false, binarize = true) {
 // them far better than generic "eng". Water is a mechanical rolling counter →
 // plain "eng" handles those printed digits.
 const OCR_MODEL = { electric: "ssd", gas: "ssd", solar: "ssd", water: "eng" };
-const SSD_LANG_PATH = "https://cdn.jsdelivr.net/gh/Shreeshrii/tessdata_ssd@master";
+const SSD_LANG_PATH = "https://cdn.jsdelivr.net/gh/Shreeshrii/tessdata_ssd@e493a10a4bf81632506cf24ba99d83854afff9f6"; // pinned commit of master
 
 async function makeWorker(Tesseract, model) {
   const worker = model === "ssd"
@@ -965,6 +967,26 @@ async function recognizeAll(Tesseract, model, sources) {
 function ocrBackendBase() {
   const b = (OCR_API || REWARD_API || "").trim();
   return b ? b.replace(/\/$/, "") : "";
+}
+
+// A photo in a format the server's photo check can't read (HEIC from a phone set
+// to "high efficiency", say) is refused there. Re-encode it to JPEG here when this
+// browser can decode it; JPEG/PNG/WebP/GIF go up untouched, so their EXIF date —
+// which the server uses to refuse old photos — survives.
+const UPLOADABLE = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+async function uploadablePhoto(file) {
+  if (!file || UPLOADABLE.has(file.type)) return file;
+  try {
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, 2400 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    const blob = await new Promise((res) => c.toBlob(res, "image/jpeg", 0.9));
+    return blob || file;
+  } catch {
+    return file; // can't decode it here either — send as is, the server will say so
+  }
 }
 
 function blobToBase64(file) {
@@ -1664,7 +1686,7 @@ function Onboarding({ onDone }) {
       <p className="ob-sub">{s.sub}</p>
       <div className="ob-dots">
         {ONBOARD_SLIDES.map((_, i) => (
-          <div key={i} className={`ob-dot ${i === slide ? 'active' : ''}`} onClick={() => setSlide(i)} />
+          <div role="button" tabIndex={0} key={i} className={`ob-dot ${i === slide ? 'active' : ''}`} onClick={() => setSlide(i)} />
         ))}
       </div>
       <button className="ob-btn" onClick={() => isLast ? onDone() : setSlide(slide + 1)}>
@@ -1778,16 +1800,17 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
 
   const runVerify = async (file, ocrSource) => {
     setPhase("verifying"); setAiStep(0);
-    const mime   = file.type;
-    let base64;
+    let mime, base64;
     try {
+      const upload = await uploadablePhoto(file);
+      mime = upload.type;
       // Reject on read errors too — without onerror a failed read leaves the promise
       // unsettled and the UI stuck on "verifying" with no way out but a reload.
       base64 = await new Promise((res, rej) => {
         const r = new FileReader();
         r.onload = () => res(r.result.split(",")[1]);
         r.onerror = () => rej(r.error || new Error("could not read the photo"));
-        r.readAsDataURL(file);
+        r.readAsDataURL(upload);
       });
     } catch {
       setResult({ summary: "Couldn't read that photo — please tap the camera and take it again." });
@@ -1977,7 +2000,7 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
         {photoUrl && <img className="vz-photo" src={photoUrl} alt="Captured meter" />}
         <div style={{fontSize:12,fontWeight:700,color:T?.gas||"#7a1c1c",marginBottom:8}}>⚠️ Verification failed</div>
         <div style={{fontSize:11,color:T?.textMid||"#666",marginBottom:12}}>{result.summary}</div>
-        <div className="vr-retry" onClick={reset}>Try again</div>
+        <div role="button" tabIndex={0} className="vr-retry" onClick={reset}>Try again</div>
       </div>
     </div>
   );
@@ -1998,7 +2021,7 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
             <div style={{fontSize:10,color:T?.electric||"#E65100",marginTop:4,fontWeight:600}}>Allow anyway? Tap Submit to continue.</div>
           </div>
         )}
-        <div className="vr-retry" onClick={reset}>Retake photo</div>
+        <div role="button" tabIndex={0} className="vr-retry" onClick={reset}>Retake photo</div>
       </div>
     </div>
   );
@@ -2065,7 +2088,7 @@ function HistItem({ s, T }) {
   // the user's wallet never signs the payout; the distributor does).
   const txUrl = s.txHash ? `${EXPLORER}/transactions/${s.txHash}` : null;
   return (
-    <div className="hitem" onClick={() => { if (txUrl) window.open(txUrl, "_blank", "noopener"); }}
+    <div role="button" tabIndex={0} className="hitem" onClick={() => { if (txUrl) window.open(txUrl, "_blank", "noopener"); }}
       style={txUrl ? { cursor: "pointer" } : undefined}
       title={txUrl ? "View this transaction on the VeChain explorer" : undefined}>
       <div className="hicon" style={{background: getColorBg(s.type, T), color: T[s.type] || T.electric}}>{UTIL_ICONS[s.type]}</div>
@@ -2112,7 +2135,7 @@ function HomeScreen({ b3tr, walletB3tr, streak, subs, setTab, T }) {
           const myS = subs.filter(s => s.type === u.id);
           const tot = myS.reduce((a,s) => a+(parseFloat(s.b3tr)||0), 0);
           return (
-            <div key={u.id} className="ucard" onClick={() => setTab("charts")}>
+            <div role="button" tabIndex={0} key={u.id} className="ucard" onClick={() => setTab("charts")}>
               <div className="ucard-icon" style={{background:getColorBg(u.id, T),border:`1px solid ${T[u.id+"Border"]||T.green4}`,color:T[u.id]||T.green2}}>{UTIL_ICONS[u.id]}</div>
               <div className="ucard-name">{u.label}</div>
               <div className="ucard-reads">{myS.length} readings logged</div>
@@ -2672,7 +2695,7 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
         </div>
       )}
 
-      <div onClick={() => { if (!meterNo) onRegisterMeter?.([selUtil]); }}
+      <div role="button" tabIndex={0} onClick={() => { if (!meterNo) onRegisterMeter?.([selUtil]); }}
         style={{margin:"0 14px 12px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"9px 12px",background:meterNo?getColorBg(selUtil,T):T.gasBg,border:`1px solid ${meterNo?(T[selUtil+"Border"]||T.electricBorder):T.gasBorder}`,borderRadius:6,cursor:meterNo?"default":"pointer"}}>
         <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft}}>Registered meter</div>
         <div style={{fontSize:12,fontWeight:700,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:meterNo?(T[selUtil]||T.text):T.gas}}>{meterNo || "Tap to register →"}</div>
@@ -2926,7 +2949,7 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
       {/* Eco bonus lives here as its own card rather than a sub-tab competing with the
           meter flow: a separate earning action, clearly labelled, one tap away. */}
       {onEcoSubmit && (
-        <div onClick={() => setSubTab("eco")} style={{margin:"14px 14px 0",display:"flex",alignItems:"center",gap:12,padding:"14px 15px",background:T.ecoBg||T.bgAlt,border:`1px solid ${T.ecoBorder||T.border}`,borderRadius:10,cursor:"pointer"}}>
+        <div role="button" tabIndex={0} onClick={() => setSubTab("eco")} style={{margin:"14px 14px 0",display:"flex",alignItems:"center",gap:12,padding:"14px 15px",background:T.ecoBg||T.bgAlt,border:`1px solid ${T.ecoBorder||T.border}`,borderRadius:10,cursor:"pointer"}}>
           <span style={{fontSize:26,lineHeight:1}}>🌿</span>
           <div style={{flex:1,minWidth:0}}>
             <div style={{fontSize:13.5,fontWeight:800,color:T.text}}>Eco Bonus</div>
@@ -3920,7 +3943,7 @@ function SubmissionRow({ r, T, onAdminApi, onToast, archiveOn }) {
 
   return (
     <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:8,marginBottom:6,overflow:"hidden"}}>
-      <div onClick={() => txUrl && window.open(txUrl, "_blank", "noopener")}
+      <div role="button" tabIndex={0} onClick={() => txUrl && window.open(txUrl, "_blank", "noopener")}
         title={txUrl ? "View this transaction on the VeChain explorer" : undefined}
         style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",cursor:txUrl?"pointer":"default"}}>
         <span style={{fontSize:16}}>{isEco ? "🌿" : (UTIL_ICONS[r.type] || "⚡")}</span>
@@ -4377,7 +4400,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
         )}
 
         {isFullAddr && !filtered.some(r => r.addr.toLowerCase() === q) && (
-          <div onClick={() => setSelected(q)} style={{cursor:"pointer",background:T.green5||T.bgAlt,border:`1px solid ${T.green4||T.border}`,borderRadius:6,padding:"11px 12px",marginBottom:10,fontSize:11,fontWeight:700,color:T.green3}}>
+          <div role="button" tabIndex={0} onClick={() => setSelected(q)} style={{cursor:"pointer",background:T.green5||T.bgAlt,border:`1px solid ${T.green4||T.border}`,borderRadius:6,padding:"11px 12px",marginBottom:10,fontSize:11,fontWeight:700,color:T.green3}}>
             Look up this wallet → {shortAddr(q)} (no rewards yet, view its meters/history)
           </div>
         )}
@@ -4396,7 +4419,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
           <div style={{textAlign:"center",color:T.textSoft,fontSize:11,padding:18}}>No participant matches “{query}”.</div>
         )}
         {filtered.map((r, i) => (
-          <div key={r.addr} className="lb-item" style={{cursor:"pointer"}} onClick={() => setSelected(r.addr)}>
+          <div role="button" tabIndex={0} key={r.addr} className="lb-item" style={{cursor:"pointer"}} onClick={() => setSelected(r.addr)}>
             <div className="lb-rank">{q || r.isNew ? "•" : i + 1}</div>
             <div style={{flex:1}}>
               <div className="lb-name" style={{fontFamily:"'SF Mono',monospace",fontSize:11}}>
@@ -4438,14 +4461,14 @@ function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, setOn
       </div>
 
       <div className="sec"><div className="sec-line"/><div className="sec-txt">Settings</div><div className="sec-line"/></div>
-      <div className="setting-row" onClick={()=>setDark(d=>!d)}>
+      <div role="button" tabIndex={0} className="setting-row" onClick={()=>setDark(d=>!d)}>
         <div className="sr-left">
           <div className="sr-icon">🌙</div>
           <div><div className="sr-label">Dark Mode</div><div className="sr-sub">{dark ? "On" : "Off"}</div></div>
         </div>
         <div className="sr-right"><Toggle on={dark} onToggle={(e)=>{ e?.stopPropagation?.(); setDark(d=>!d); }}/></div>
       </div>
-      <div className="setting-row" onClick={onEditMeters}>
+      <div role="button" tabIndex={0} className="setting-row" onClick={onEditMeters}>
         <div className="sr-left">
           <div className="sr-icon">🔢</div>
           <div><div className="sr-label">Meters & Baselines</div><div className="sr-sub">{UTILS.map(u => u.label).join(", ")}</div></div>
@@ -4455,7 +4478,7 @@ function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, setOn
       {SOLAR_UTILS.length > 0 && (() => {
         const solarNo = (meters?.solar || "").trim();
         return (
-          <div className="setting-row" onClick={onEditSolar}>
+          <div role="button" tabIndex={0} className="setting-row" onClick={onEditSolar}>
             <div className="sr-left">
               <div className="sr-icon">☀️</div>
               <div><div className="sr-label">Solar Panels</div><div className="sr-sub">{solarNo ? `Meter #${solarNo}` : "Add solar panels (optional)"}</div></div>
@@ -4466,7 +4489,7 @@ function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, setOn
       })()}
 
       <div className="sec"><div className="sec-line"/><div className="sec-txt">Export</div><div className="sec-line"/></div>
-      <div className="setting-row" onClick={async () => { const ok = await generateMonthlyPDF(b3tr, subs); onToast?.(ok ? "📄 Report downloaded" : "❌ Couldn't generate the report"); }}>
+      <div role="button" tabIndex={0} className="setting-row" onClick={async () => { const ok = await generateMonthlyPDF(b3tr, subs); onToast?.(ok ? "📄 Report downloaded" : "❌ Couldn't generate the report"); }}>
         <div className="sr-left">
           <div className="sr-icon">📄</div>
           <div><div className="sr-label">Download Monthly Report</div><div className="sr-sub">PDF with stats, trends, and proof</div></div>
@@ -4475,14 +4498,14 @@ function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, setOn
       </div>
 
       <div className="sec" style={{marginTop:20}}><div className="sec-line"/><div className="sec-txt">Support</div><div className="sec-line"/></div>
-      <div className="setting-row" onClick={onOpenHelp}>
+      <div role="button" tabIndex={0} className="setting-row" onClick={onOpenHelp}>
         <div className="sr-left">
           <div className="sr-icon">❓</div>
           <div><div className="sr-label">Help &amp; FAQ</div><div className="sr-sub">How to test, earn B3TR &amp; troubleshoot</div></div>
         </div>
         <div className="sr-right" style={{fontSize:11,color:T.textSoft}}>→</div>
       </div>
-      <div className="setting-row" onClick={onOpenFeedback}>
+      <div role="button" tabIndex={0} className="setting-row" onClick={onOpenFeedback}>
         <div className="sr-left">
           <div className="sr-icon">✉️</div>
           <div><div className="sr-label">Send Feedback</div><div className="sr-sub">Report a bug or share an idea</div></div>
@@ -4491,14 +4514,14 @@ function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, setOn
       </div>
 
       <div className="sec" style={{marginTop:20}}><div className="sec-line"/><div className="sec-txt">Account</div><div className="sec-line"/></div>
-      <div className="setting-row" onClick={() => setShowWallet(true)}>
+      <div role="button" tabIndex={0} className="setting-row" onClick={() => setShowWallet(true)}>
         <div className="sr-left">
           <div className="sr-icon">💼</div>
           <div><div className="sr-label">Wallet</div><div className="sr-sub">{wallet || "Not connected"}</div></div>
         </div>
         <div className="sr-right" style={{fontSize:10,color:T.green3}}>Connect</div>
       </div>
-      <div className="setting-row" style={{marginBottom:isAdmin?5:14}} onClick={() => setOnboarded(false)}>
+      <div role="button" tabIndex={0} className="setting-row" style={{marginBottom:isAdmin?5:14}} onClick={() => setOnboarded(false)}>
         <div className="sr-left">
           <div className="sr-icon">🎓</div>
           <div><div className="sr-label">View Tutorial</div><div className="sr-sub">Re-watch the onboarding guide</div></div>
@@ -4506,7 +4529,7 @@ function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, setOn
         <div className="sr-right" style={{fontSize:11,color:T.textSoft}}>→</div>
       </div>
       {isAdmin && (
-        <div className="setting-row" style={{marginBottom:5,borderColor:T.green4}} onClick={onOpenAdmin}>
+        <div role="button" tabIndex={0} className="setting-row" style={{marginBottom:5,borderColor:T.green4}} onClick={onOpenAdmin}>
           <div className="sr-left">
             <div className="sr-icon">🛡️</div>
             <div><div className="sr-label">Admin · Participants</div><div className="sr-sub">Read-only on-chain monitor</div></div>
@@ -4515,7 +4538,7 @@ function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, setOn
         </div>
       )}
       {isAdmin && (
-        <div className="setting-row" style={{marginBottom:14,borderColor:T.gasBorder}} onClick={() => { if (window.confirm("Reset all app data and disconnect? This clears local meters, baselines and history for a fresh test. (On-chain rewards stay on the blockchain.)")) onReset?.(); }}>
+        <div role="button" tabIndex={0} className="setting-row" style={{marginBottom:14,borderColor:T.gasBorder}} onClick={() => { if (window.confirm("Reset all app data and disconnect? This clears local meters, baselines and history for a fresh test. (On-chain rewards stay on the blockchain.)")) onReset?.(); }}>
           <div className="sr-left">
             <div className="sr-icon">🔄</div>
             <div><div className="sr-label">Reset app data</div><div className="sr-sub">Admin/testing — clears local data &amp; disconnects</div></div>
@@ -4800,6 +4823,19 @@ function getInitialDark() {
     if (saved === "light") return false;
   } catch {}
   return systemPrefersDark();
+}
+
+// Tappable rows are divs (for layout), marked role="button" + tabIndex so screen
+// readers announce them and Tab reaches them. This makes Enter/Space press them,
+// as it would a real button.
+if (typeof document !== "undefined") {
+  document.addEventListener("keydown", (e) => {
+    const el = e.target;
+    if ((e.key === "Enter" || e.key === " ") && el instanceof HTMLElement && el.getAttribute("role") === "button" && el.tagName !== "BUTTON") {
+      e.preventDefault();
+      el.click();
+    }
+  });
 }
 
 export default function App() {
@@ -5453,7 +5489,8 @@ export default function App() {
     if (photoTooOld(file)) { showToast("📸 Take the photo live with your camera — saved images aren't accepted"); return; }
     setEcoBusy(true);
     try {
-      const base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] || ""); r.onerror = rej; r.readAsDataURL(file); });
+      const upload = await uploadablePhoto(file);
+      const base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] || ""); r.onerror = rej; r.readAsDataURL(upload); });
       let certificate = null;
       try {
         const content = `Green Utility Log — confirm eco-mode bonus\nWallet: ${wallet}\nAppliance: ${appliance}\nTime: ${new Date().toISOString()}`;
@@ -5466,7 +5503,7 @@ export default function App() {
       const res = await fetch(`${REWARD_API.replace(/\/$/, "")}/eco-action`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: wallet, appliance, photo: base64, photoMime: file.type || "", certificate, captchaToken }),
+        body: JSON.stringify({ address: wallet, appliance, photo: base64, photoMime: upload.type || "", certificate, captchaToken }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `eco service error ${res.status}`);
