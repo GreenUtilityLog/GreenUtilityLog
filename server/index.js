@@ -133,6 +133,7 @@ app.get("/health", async (req, res) => {
     rewardsPoolEnabled: chain.rewardsPoolEnabled,
     rewardsPoolB3TR: chain.rewardsPoolB3TR,
     appAdmin: chain.appAdmin,
+    distributionPaused: chain.distributionPaused,
     // Gas sponsorship (VIP-191): when set, the distributor needs no VTHO of its own.
     delegation: !!(process.env.DELEGATION_URL || "").trim(),
     // Smart-meter sources: the free push path is always on; enode only when configured.
@@ -404,8 +405,8 @@ app.post("/admin/passport", async (req, res) => {
 });
 
 // File a bot signal against a wallet. This is an ecosystem-wide accusation, not a
-// local block — /admin/ban is the local one. Requires SIGNALER_ROLE, which only
-// VeBetterDAO can grant; without it the simulation fails and we return the
+// local block — /admin/ban is the local one. Requires SIGNALER_ROLE, which the app
+// admin grants from the admin panel (passport.js); without it the simulation fails and we return the
 // contract's own reason rather than spending gas.
 app.post("/admin/signal", async (req, res) => {
   const a = verifyAdmin(req, "/admin/signal");

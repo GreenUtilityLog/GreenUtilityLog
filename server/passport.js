@@ -9,11 +9,11 @@
 //   READING works for anyone, no role and no key. That is the useful half today:
 //   who is already signalled, and whom does the passport not consider a person.
 //
-//   SIGNALLING needs SIGNALER_ROLE on the passport contract. It is granted by
-//   `assignSignalerToApp(app, wallet)`, which is `onlyRoleOrAdmin(ROLE_GRANTER)` —
-//   VeBetterDAO, not the app admin. We cannot grant it to ourselves; it has to be
-//   requested. Until then signalStatus() reports authorized:false and the endpoint
-//   refuses rather than burning gas on a call that would revert.
+//   SIGNALLING needs SIGNALER_ROLE on the passport contract. The app's own admin
+//   can grant it with `assignSignalerToAppByAppAdmin(app, wallet)` (the contract
+//   checks x2EarnApps.isAppAdmin) — the admin panel does that as one signed
+//   transaction. Until then signalStatus() reports authorized:false and the
+//   endpoint refuses rather than burning gas on a call that would revert.
 //
 // Resetting a wallet's signals is deliberately NOT implemented: it sits behind
 // RESET_SIGNALER_ROLE, which is VeBetterDAO's own moderation path. A wallet

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, Fragment } from "react";
 import { useWallet, useWalletModal } from "@vechain/dapp-kit-react";
 import { Clause, Address, ABIFunction } from "@vechain/sdk-core";
-import { fetchOnChainLeaderboard, fetchWalletHistory, fetchIsAppAdmin, fetchPoolBalance, fetchDiagnostics } from "./leaderboard.js";
+import { fetchOnChainLeaderboard, fetchWalletHistory, fetchIsAppAdmin, fetchPoolBalance, fetchDiagnostics, fetchTokenBalance } from "./leaderboard.js";
 
 // ════════════════════════════════════════════════════════════════════════════
 // APP VERSION & VECHAIN KIT
@@ -151,9 +151,6 @@ const BRIDGE_JS_URL = "https://greenutilitylog.github.io/GreenUtilityLog/gul.js"
 const B3TR_USD = 0.014;
 
 // ── ABI fragments needed ───────────────────────────────────────────────────
-const B3TR_ABI = [
-  { name:"balanceOf", type:"function", inputs:[{name:"account",type:"address"}], outputs:[{name:"",type:"uint256"}], stateMutability:"view" },
-];
 const X2EARN_ABI = [
   { name:"distributeReward", type:"function",
     inputs:[
@@ -2102,7 +2099,7 @@ function HistItem({ s, T }) {
   );
 }
 
-function HomeScreen({ b3tr, streak, subs, setTab, T }) {
+function HomeScreen({ b3tr, walletB3tr, streak, subs, setTab, T }) {
   return (
     <>
       <div className="sub-header">
@@ -2113,7 +2110,7 @@ function HomeScreen({ b3tr, streak, subs, setTab, T }) {
       <div className="hero">
         <div className="hero-label">Total B3TR Earned</div>
         <div className="hero-amount">{b3tr.toFixed(2)}<span>B3TR</span></div>
-        <div className="hero-usd">Testnet beta · test tokens · Powered by VeChain</div>
+        <div className="hero-usd">{walletB3tr != null ? `In your wallet: ${walletB3tr.toFixed(2)} B3TR · ` : ""}Testnet beta · test tokens</div>
         <div className="hero-chips">
           <div className="hchip"><div className="hchip-val">{streak}</div><div className="hchip-key">Day Streak</div></div>
           <div className="hchip"><div className="hchip-val">{subs.length}</div><div className="hchip-key">Submissions</div></div>
@@ -3690,7 +3687,7 @@ function AccessPassPanel({ T, address, onAdminApi, onToast }) {
 // Signalling is the other half and is a genuine accusation — it costs the wallet
 // standing across every VeBetter app, not just this one. Blocking someone locally
 // is /admin/ban; this is not that, and the UI says so.
-function PassportPanel({ T, address, onAdminApi, onToast }) {
+function PassportPanel({ T, address, onAdminApi, onAssignSignaler, onToast }) {
   const [state, setState] = useState({ status: "idle" });
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -3797,9 +3794,16 @@ function PassportPanel({ T, address, onAdminApi, onToast }) {
         </>
       ) : (
         <div style={{ background: T.gasBg, border: `1px solid ${T.gasBorder}`, borderRadius: 6, padding: "10px 12px", fontSize:10.5, color: T.textMid, lineHeight: 1.6 }}>
-          ℹ️ <b>Signalling is not enabled for this app.</b> It needs <span style={{ fontFamily: mono }}>SIGNALER_ROLE</span> on the passport contract, which only VeBetterDAO can grant via{" "}
-          <span style={{ fontFamily: mono }}>assignSignalerToApp</span>. Ask them to assign{" "}
-          <span style={{ fontFamily: mono, wordBreak: "break-all" }}>{st.signaler || "your distributor wallet"}</span> as signaler for this app. Reading the passport above works regardless.
+          ℹ️ <b>Signalling is not enabled yet.</b> The app admin can enable it: this lets the server's distributor wallet{" "}
+          <span style={{ fontFamily: mono, wordBreak: "break-all" }}>{st.signaler || "(unknown)"}</span> file signals. You sign one transaction with the app-admin wallet.
+          {onAssignSignaler && st.contract && st.signaler && (
+            <div style={{ marginTop: 8 }}>
+              <button disabled={busy} style={btn(T.green3 || "#2e7d5b", "#fff", busy)}
+                onClick={async () => { setBusy(true); try { const tx = await onAssignSignaler({ passport: st.contract, signaler: st.signaler }); if (tx) await load(); } finally { setBusy(false); } }}>
+                {busy ? "…" : "Enable signalling"}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -3978,7 +3982,7 @@ function SubmissionRow({ r, T, onAdminApi, onToast, archiveOn }) {
   );
 }
 
-function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDisableRewardsPool, onClaimB3TR, onAdminApi, onToast }) {
+function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDisableRewardsPool, onSetDistributionPaused, onAssignSignaler, onClaimB3TR, onAdminApi, onToast }) {
   const [chain, setChain] = useState({ status: "loading", rows: [], reason: null });
   const [knownWallets, setKnownWallets] = useState(null); // backend-known wallets (not yet on-chain)
   const [loadingWallets, setLoadingWallets] = useState(false);
@@ -3998,6 +4002,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
   // Setup/diagnostics (System check + Fund pool) are collapsed by default so the
   // day-to-day view (participants + search) stays uncluttered.
   const [opsOpen, setOpsOpen] = useState(false);
+  const [pausing, setPausing] = useState(false);
 
   async function runDiagnostics(signal) {
     const d = { status: "done", backend: null, health: null, chain: null };
@@ -4182,7 +4187,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
                 <WalletAdminActions T={T} address={selected} meters={meters} onAdminApi={onAdminApi} onToast={onToast} />
                 <FlaggedPanel T={T} address={selected} onAdminApi={onAdminApi} />
                 <AccessPassPanel T={T} address={selected} onAdminApi={onAdminApi} onToast={onToast} />
-                <PassportPanel T={T} address={selected} onAdminApi={onAdminApi} onToast={onToast} />
+                <PassportPanel T={T} address={selected} onAdminApi={onAdminApi} onAssignSignaler={onAssignSignaler} onToast={onToast} />
               </>
             : (
               <div style={{marginTop:16,padding:"10px 12px",background:T.gasBg,border:`1px solid ${T.gasBorder}`,borderRadius:6,fontSize:10.5,color:T.textMid,lineHeight:1.6}}>
@@ -4284,6 +4289,18 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
                     fix={`Send free testnet VTHO to ${h?.distributor || "the distributor wallet"} via faucet.vecha.in.`} />
                   <Row ok={payouts === null ? null : payouts > 0} label={payouts != null ? `${payouts >= 20 ? "20+" : payouts} payout${payouts === 1 ? "" : "s"} recorded on-chain${c?.lastPayoutAt ? ` — last ${new Date(c.lastPayoutAt).toLocaleString()}` : ""}` : "Payouts recorded on-chain"}
                     fix="No payout has EVER landed on-chain for this app id. Fix the failing checks above, submit a reading, then re-run this check." />
+                  <Row ok={c?.distributionPaused == null ? null : !c.distributionPaused}
+                    label={c?.distributionPaused === true ? "Payouts are PAUSED (emergency stop)" : c?.distributionPaused === false ? "Payouts are running (not paused)" : "Emergency stop: status unknown"}
+                    fix="Every claim fails while payouts are paused. Press Resume payouts below once the problem is fixed." />
+                  {onSetDistributionPaused && c?.distributionPaused != null && (
+                    <div style={{paddingTop:10}}>
+                      <button disabled={pausing}
+                        onClick={async () => { setPausing(true); try { const tx = await onSetDistributionPaused(!c.distributionPaused); if (tx) { setDiag({ status: "loading" }); runDiagnostics().catch(() => {}); } } finally { setPausing(false); } }}
+                        style={{background: c.distributionPaused ? T.green3 : "transparent", color: c.distributionPaused ? "#fff" : T.gas, border: c.distributionPaused ? "none" : `1px solid ${T.gasBorder}`, borderRadius:6, padding:"8px 12px", fontSize:11, fontWeight:700, cursor: pausing ? "default" : "pointer", opacity: pausing ? 0.6 : 1}}>
+                        {pausing ? "…" : c.distributionPaused ? "▶ Resume payouts" : "⏸ Pause all payouts"}
+                      </button>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -4966,6 +4983,9 @@ export default function App() {
   const [busy, setBusy]             = useState(false);
   const [toast, setToast]           = useState(null);
   const [b3tr, setB3tr]             = useState(0);     // real balance loads from chain/local on connect
+  // What the wallet actually holds (B3TR.balanceOf) — shown beside "earned here",
+  // which only counts this app's payouts. null = not read (yet).
+  const [walletB3tr, setWalletB3tr] = useState(null);
   const [subs, setSubs]             = useState([]);    // no demo data — start empty until hydrated
   const streak = computeStreak(subs); // derived from real submission dates
   const [verifyKey, setVerifyKey]   = useState(0);
@@ -5086,6 +5106,19 @@ export default function App() {
       .catch(() => {});
     return () => { cancelled = true; };
   }, [account]);
+
+  // Read the wallet's real B3TR balance on connect and whenever a payout lands.
+  // The payout is reported as soon as it is sent, before the block includes it,
+  // so read once now and once more after a block or two.
+  useEffect(() => {
+    if (!account) { setWalletB3tr(null); return; }
+    const ctrl = new AbortController();
+    const read = () => fetchTokenBalance({ node: ACTIVE_NODE, token: CONTRACTS.B3TR, address: account, signal: ctrl.signal })
+      .then(v => { if (!ctrl.signal.aborted && v != null) setWalletB3tr(v); });
+    read();
+    const t = setTimeout(read, 25000);
+    return () => { ctrl.abort(); clearTimeout(t); };
+  }, [account, b3tr]);
 
   // Persist this wallet's submissions on every change, so recorded (not-yet-paid)
   // submissions survive a reload instead of resetting to an empty/seed state.
@@ -5280,9 +5313,9 @@ export default function App() {
   // Run an admin transaction HONESTLY: simulate first (so a doomed call shows
   // the contract's own revert reason BEFORE signing), then broadcast and wait
   // for the receipt — success is only reported when the tx actually landed.
-  const runAdminTx = async ({ fn, args, label }) => {
+  const runAdminTx = async ({ fn, args, label, to = CONTRACTS.X2EarnRewardsPool }) => {
     if (!wallet) { openConnectModal(); return; }
-    const clause = Clause.callFunction(Address.of(CONTRACTS.X2EarnRewardsPool), new ABIFunction(fn), args);
+    const clause = Clause.callFunction(Address.of(to), new ABIFunction(fn), args);
     try {
       const sim = await simulateAsCaller(clause, wallet);
       if (sim.reverted) { showToast(`❌ ${label} would revert: ${sim.reason}`); return; }
@@ -5384,6 +5417,31 @@ export default function App() {
       fn: { name: "toggleRewardsPoolBalance", type: "function", stateMutability: "nonpayable", inputs: [{ name: "appId", type: "bytes32" }, { name: "enable", type: "bool" }], outputs: [] },
       args: [VEBETTER_APP_ID, false],
       label: "Disable rewards-pool feature",
+    });
+  };
+
+  // Admin emergency stop: while paused, every payout for this app reverts on-chain
+  // — photo, reader and eco alike. For a leaked distributor key or a hole in the
+  // checks. Only the on-chain app admin can flip it; the simulation says so first.
+  const handleSetDistributionPaused = async (pause) => {
+    if (pause && !window.confirm("Pause ALL payouts for this app?\n\nEvery claim will fail until you resume. Use this for an emergency, such as a leaked key or abuse.")) return;
+    return runAdminTx({
+      fn: { name: pause ? "pauseDistribution" : "unpauseDistribution", type: "function", stateMutability: "nonpayable", inputs: [{ name: "appId", type: "bytes32" }], outputs: [] },
+      args: [VEBETTER_APP_ID],
+      label: pause ? "Pause payouts" : "Resume payouts",
+    });
+  };
+
+  // Admin: let the distributor wallet file bot signals. The passport lets the
+  // app's own admin grant this (assignSignalerToAppByAppAdmin) — no request to
+  // VeBetterDAO needed.
+  const handleAssignSignaler = async ({ passport, signaler }) => {
+    if (!passport || !/^0x[0-9a-fA-F]{40}$/.test(signaler || "")) { showToast("⚠️ Distributor wallet unknown. Is the backend online?"); return; }
+    return runAdminTx({
+      to: passport,
+      fn: { name: "assignSignalerToAppByAppAdmin", type: "function", stateMutability: "nonpayable", inputs: [{ name: "app", type: "bytes32" }, { name: "user", type: "address" }], outputs: [] },
+      args: [VEBETTER_APP_ID, signaler],
+      label: "Enable bot signalling",
     });
   };
 
@@ -5708,7 +5766,7 @@ export default function App() {
       {!showIntro && !wallet && <WalletGate onConnect={openConnectModal} online={online} />}
       {needsBaselines && <BaselineOnboarding onDone={(bl, mtrs) => { setBaselines(bl); setMeters(mtrs); closeRegistration(); }} utils={regUtils} editMode={regEdit} existingBaselines={baselines} existingMeters={meters} T={T} />}
       {!onboarded && <Onboarding onDone={() => setOnboarded(true)} />}
-      {showAdmin && isAdmin && <AdminScreen onClose={() => setShowAdmin(false)} T={T} wallet={wallet} onFundPool={handleFundPool} onMoveToRewardsPool={handleMoveToRewardsPool} onDisableRewardsPool={handleDisableRewardsPool} onClaimB3TR={FAUCET_ENABLED ? handleClaimB3TR : null} onAdminApi={adminApi} onToast={showToast} />}
+      {showAdmin && isAdmin && <AdminScreen onClose={() => setShowAdmin(false)} T={T} wallet={wallet} onFundPool={handleFundPool} onMoveToRewardsPool={handleMoveToRewardsPool} onDisableRewardsPool={handleDisableRewardsPool} onSetDistributionPaused={handleSetDistributionPaused} onAssignSignaler={handleAssignSignaler} onClaimB3TR={FAUCET_ENABLED ? handleClaimB3TR : null} onAdminApi={adminApi} onToast={showToast} />}
       {showHelp && <HelpScreen onClose={() => setShowHelp(false)} onFeedback={() => { setShowHelp(false); setShowFeedback(true); }} T={T} />}
       {showFeedback && <FeedbackScreen onClose={() => setShowFeedback(false)} onToast={showToast} wallet={wallet} tab={tab} T={T} />}
       {toast && (toast.sticky ? (
@@ -5772,7 +5830,7 @@ export default function App() {
             </div>
           )}
 
-          {tab==="home"      && <HomeScreen b3tr={b3tr} streak={streak} subs={subs} setTab={setTab} T={T}/>}
+          {tab==="home"      && <HomeScreen b3tr={b3tr} walletB3tr={walletB3tr} streak={streak} subs={subs} setTab={setTab} T={T}/>}
           {tab==="submit"    && <SubmitScreen u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} dualTariff={dualTariff} fixBasis={fixBasis} fixBusy={fixBusy} runFixBasis={runFixBasis} dismissFixBasis={() => setFixBasis(null)} setDualTariff={setDualTariff} regLow={regLow} setRegLow={setRegLow} regNormal={regNormal} setRegNormal={setRegNormal} busy={busy} usage={usage} reward={reward} days={daysSinceLast()} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab} onEcoSubmit={handleEcoSubmit} ecoBusy={ecoBusy} ecoUsedThisWeek={ecoUsedThisWeek} ecoCooldownMs={ecoCooldownMs} onMeterAutoSubmit={handleMeterAutoSubmit} meterAutoBusy={meterAutoBusy} onRegisterMeter={(utils) => openRegistration(utils, true)}/>}
           {tab==="charts"    && <ChartsScreen subs={subs} T={T}/>}
           {tab==="leaderboard" && <LeaderboardScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}

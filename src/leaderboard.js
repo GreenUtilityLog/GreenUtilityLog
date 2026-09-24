@@ -258,6 +258,23 @@ export async function fetchPoolBalance({ node, contract, appId, signal } = {}) {
   }
 }
 
+// ── A wallet's actual B3TR balance ───────────────────────────────────────────
+// What the wallet holds right now (all apps, minus anything spent) — distinct from
+// "earned here", which is summed from this app's payout history.
+const BALANCE_OF_FN = { name: "balanceOf", type: "function", stateMutability: "view", inputs: [{ name: "account", type: "address" }], outputs: [{ name: "", type: "uint256" }] };
+
+export async function fetchTokenBalance({ node, token, address, signal } = {}) {
+  if (!node || !token || !/^0x[0-9a-fA-F]{40}$/.test(address || "")) return null;
+  try {
+    const out = await callView(node, token, BALANCE_OF_FN, [address], signal);
+    if (out == null) return null;
+    const v = Array.isArray(out) ? out[0] : (typeof out === "object" ? Object.values(out)[0] : out);
+    return Number(BigInt(v) / 10n ** 14n) / 1e4;
+  } catch {
+    return null;
+  }
+}
+
 // ── Full payout self-diagnosis (runs in the ADMIN's browser) ─────────────────
 // Checks every classic reason a payout fails, straight from the chain:
 //   1. pool funds for this appId          → distributeReward reverts when 0
@@ -270,10 +287,13 @@ const IS_DISTRIBUTOR_FN = { name: "isRewardDistributor", type: "function", state
 // deposits land in availableFunds and must be moved over by the app admin.
 const REWARDS_POOL_ENABLED_FN = { name: "isRewardsPoolEnabled", type: "function", stateMutability: "view", inputs: [{ name: "appId", type: "bytes32" }], outputs: [{ name: "", type: "bool" }] };
 const REWARDS_POOL_BALANCE_FN = { name: "rewardsPoolBalance", type: "function", stateMutability: "view", inputs: [{ name: "appId", type: "bytes32" }], outputs: [{ name: "", type: "uint256" }] };
+// Emergency stop (X2EarnRewardsPool v7+): while paused every payout reverts.
+// Older pools lack the function; the call then reverts and reads as null ("unknown").
+const IS_DISTRIBUTION_PAUSED_FN = { name: "isDistributionPaused", type: "function", stateMutability: "view", inputs: [{ name: "appId", type: "bytes32" }], outputs: [{ name: "", type: "bool" }] };
 const firstVal = (v) => (Array.isArray(v) ? v[0] : (v && typeof v === "object" ? Object.values(v)[0] : v));
 
 export async function fetchDiagnostics({ node, poolContract, appsContract, appId, distributor, signal } = {}) {
-  const out = { poolB3TR: null, distributorAuthorized: null, distributorVTHO: null, payoutCount: null, lastPayoutAt: null, rewardsPoolEnabled: null, rewardsPoolB3TR: null, appAdmin: null };
+  const out = { poolB3TR: null, distributorAuthorized: null, distributorVTHO: null, payoutCount: null, lastPayoutAt: null, rewardsPoolEnabled: null, rewardsPoolB3TR: null, appAdmin: null, distributionPaused: null };
   if (!node || isUnsetAppId(appId)) return out;
   // 0. who is the on-chain APP ADMIN (the only wallet the contract lets manage
   //    the rewards-pool buckets)
@@ -294,6 +314,10 @@ export async function fetchDiagnostics({ node, poolContract, appsContract, appId
   try {
     const bal = firstVal(await callView(node, poolContract, REWARDS_POOL_BALANCE_FN, [appId], signal));
     if (bal != null) { let wei = 0n; try { wei = BigInt(bal); } catch {} out.rewardsPoolB3TR = Number(wei / 10n ** 14n) / 1e4; }
+  } catch {}
+  try {
+    const p = firstVal(await callView(node, poolContract, IS_DISTRIBUTION_PAUSED_FN, [appId], signal));
+    if (p != null) out.distributionPaused = p === true;
   } catch {}
   // 2. distributor role
   try {
