@@ -101,7 +101,7 @@ try {
             name: 'Green Utility Log',
             description: 'Track utilities and earn B3TR on VeChain',
             url: APP_ORIGIN,
-            icons: [`${APP_ORIGIN}/favicon.ico`],
+            icons: ['https://greenutilitylog.github.io/GreenUtilityLog/icon.png'],
           },
         }}
         language="en"

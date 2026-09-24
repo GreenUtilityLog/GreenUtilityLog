@@ -133,9 +133,6 @@ const ROBOFLOW_API_KEY = "";
 // address you want bug reports and testing feedback to land in.
 const FEEDBACK_EMAIL = "greenutilitylog@gmail.com";
 
-// Free VeChain testnet faucet — testers need a little VTHO to pay gas. Shown in
-// the in-app Help so nobody gets stuck on "insufficient energy".
-const TESTNET_FAUCET = "https://faucet.vecha.in";
 
 // Long-form setup documentation (P1 readers, Home Assistant, the bridge) lives
 // outside the app: those are read on a laptop while wiring up hardware, not on a
@@ -273,7 +270,7 @@ async function generateMonthlyPDF(b3tr, subs) {
     const { jsPDF } = window.jspdf || await new Promise((resolve, reject) => {
       const script = document.createElement('script');
       script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-      script.onload = () => resolve(window);
+      script.onload = () => resolve(window.jspdf); // the UMD build defines window.jspdf.jsPDF, not window.jsPDF
       script.onerror = reject;
       document.head.appendChild(script);
     });
@@ -388,7 +385,11 @@ function checkPlausibility(utilId, usageVal, days = 1) {
   return { ok:true };
 }
 
-function checkAnomaly(utilId, usageVal, subs) {
+// Compares usage PER DAY with the usual per-submission usage (normally a day's).
+// Comparing a 5-day total with a 1-day average called every reading after a few days
+// away "5x your average" — and each later reading was bigger still. `days` is the
+// span this reading covers.
+function checkAnomaly(utilId, usageVal, subs, days = 1) {
   const recent = subs.filter(s=>s.type===utilId).slice(0,14);
   // Only rows with a real prev→cur delta count. Photoless/auto-submit rows store an
   // empty prev, so parseFloat("") = NaN; without this filter a single such row makes
@@ -396,7 +397,8 @@ function checkAnomaly(utilId, usageVal, subs) {
   const deltas = recent.map(s=>parseFloat(s.cur)-parseFloat(s.prev)).filter(Number.isFinite);
   if (deltas.length < 3) return { ok:true, anomaly:false };
   const avg = deltas.reduce((a,d)=>a+d,0)/deltas.length;
-  if (avg > 0 && usageVal > avg * 3.5) return { ok:false, anomaly:true, reason:`Usage is ${(usageVal/avg).toFixed(1)}x your average`, avg };
+  const perDay = usageVal / Math.max(1, Number(days) || 1);
+  if (avg > 0 && perDay > avg * 3.5) return { ok:false, anomaly:true, reason:`Usage is ${(perDay/avg).toFixed(1)}x your daily average`, avg };
   return { ok:true, anomaly:false, avg:parseFloat(avg.toFixed(2)) };
 }
 
@@ -691,28 +693,17 @@ const HISTORY_SEED = [
   { id:10, type:"water",    cur:"12195",  prev:"12060",  date:"2026-04-25", b3tr:16.20, status:"confirmed" },
 ];
 
-const LEADERBOARD_DATA = [
-  { rank:1,  name:"GreenPioneer",  addr:"0x1a2b…c3d4", b3tr:312.4, streak:28, tier:"Platinum" },
-  { rank:2,  name:"EcoWarrior_NL", addr:"0x5e6f…g7h8", b3tr:287.1, streak:21, tier:"Gold" },
-  { rank:3,  name:"SolarKing",     addr:"0x9i0j…k1l2", b3tr:265.8, streak:19, tier:"Silver" },
-  { rank:5,  name:"WaterWarden",   addr:"0x3m4n…o5p6", b3tr:201.3, streak:15, tier:"Star" },
-  { rank:6,  name:"NatureFirst",   addr:"0x7q8r…s9t0", b3tr:188.7, streak:13, tier:"Star" },
-  { rank:7,  name:"CleanEnergy99", addr:"0xu1v2…w3x4", b3tr:174.2, streak:11, tier:"Sun" },
-  { rank:8,  name:"ZeroCarbon",    addr:"0xy5z6…a7b8", b3tr:162.9, streak:10, tier:"Sun" },
-  { rank:9,  name:"GreenGrid_EU",  addr:"0xc9d0…e1f2", b3tr:149.5, streak:9,  tier:"Sun" },
-  { rank:10, name:"LeafLogger",    addr:"0xg3h4…i5j6", b3tr:138.1, streak:8,  tier:"Moon" },
-];
-
 // Shorten a wallet address for display: 0x1234…abcd
 function shortAddr(a){ return a ? `${a.slice(0,6)}…${a.slice(-4)}` : "—"; }
 
-// Reward tiers, keyed off lifetime B3TR. Shared by the leaderboard and profile.
+// Tiers, keyed off lifetime B3TR. A badge only: the server pays the same rules at
+// every tier, so the old "1.25x–2.5x bonus" labels promised money that never came.
 const TIERS = [
-  { name: "Moon",     min: 0,   max: 99,       multiplier: 1.25, color: "#10386a" },
-  { name: "Sun",      min: 100, max: 199,      multiplier: 1.5,  color: "#8a4200" },
-  { name: "Star",     min: 200, max: 299,      multiplier: 1.75, color: "#7c3aed" },
-  { name: "Gold",     min: 300, max: 499,      multiplier: 2.0,  color: "#f59e0b" },
-  { name: "Platinum", min: 500, max: Infinity, multiplier: 2.5,  color: "#c0c0c0" },
+  { name: "Moon",     min: 0,   max: 99, color: "#10386a" },
+  { name: "Sun",      min: 100, max: 199, color: "#8a4200" },
+  { name: "Star",     min: 200, max: 299, color: "#7c3aed" },
+  { name: "Gold",     min: 300, max: 499, color: "#f59e0b" },
+  { name: "Platinum", min: 500, max: Infinity, color: "#c0c0c0" },
 ];
 function getTier(b3tr){ return TIERS.find(t => b3tr >= t.min && b3tr <= t.max) || TIERS[0]; }
 
@@ -734,11 +725,8 @@ function computeStreak(subs){
 const ONBOARD_SLIDES = [
   { icon:"🌍", title:"Welcome to Green Utility Log", sub:"Track your home utilities, reduce your footprint, and earn B3TR rewards on VeChain.", color:"#1a3326" },
   { icon:"📸", title:"How to Photograph", sub:"Meter must be clear, readable and unobstructed. Take a fresh photo each time.", color:"#10386a" },
-  { icon:"⚡", title:"Electric Meter", sub:"LCD display showing kWh. Usually 3000–4000 range. Earn 0.61 B3TR/kWh", color:"#8a4200" },
-  { icon:"🔥", title:"Gas Meter", sub:"Rotating dials or LCD in m³. Earn 0.84 B3TR/m³", color:"#7a1c1c" },
-  { icon:"💧", title:"Water Meter", sub:"Shows litres or m³. Often on outside wall. Earn 0.12 B3TR/L", color:"#10386a" },
-  { icon:"☀️", title:"Solar Output", sub:"If you have panels, log your export in kWh. Earn 0.72 B3TR/kWh", color:"#264d3a" },
-  { icon:"🏆", title:"Earn & Compete", sub:"Daily submissions build your streak. Climb the leaderboard and earn real B3TR.", color:"#3a1a6e" },
+  { icon:"⚡", title:"Electric Meter", sub:"The total in kWh on the meter's display. Up to 4 B3TR per reading, once a day — the less you use, the more you earn.", color:"#8a4200" },
+  { icon:"🏆", title:"Earn & Compete", sub:"Daily submissions build your streak and move you up the leaderboard. Testnet: B3TR here are test tokens.", color:"#3a1a6e" },
 ];
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -1188,7 +1176,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .intro-dots{display:flex;gap:6px;margin-top:32px;}
 .intro-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.3);transition:all .3s;cursor:pointer;}
 .intro-dot.active{width:24px;background:#4CAF50;border-radius:3px;}
-.intro-btn{margin-top:40px;width:100%;max-width:280px;background:#4CAF50;border:none;border-radius:6px;padding:16px;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;font-weight:800;cursor:pointer;transition:all .2s;text-transform:uppercase;letter-spacing:1.2px;box-shadow:0 8px 24px rgba(76,175,80,0.3);}
+.intro-btn{margin-top:40px;width:100%;max-width:280px;background:#2E7D32;border:none;border-radius:6px;padding:16px;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;font-weight:800;cursor:pointer;transition:all .2s;text-transform:uppercase;letter-spacing:1.2px;box-shadow:0 8px 24px rgba(76,175,80,0.3);}
 .intro-btn:hover{background:#45a049;box-shadow:0 12px 32px rgba(76,175,80,0.4);transform:translateY(-2px);}
 .intro-skip{margin-top:14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.6);cursor:pointer;background:none;border:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
 .intro-skip:hover{color:rgba(255,255,255,0.9);}
@@ -1334,12 +1322,6 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .pstat{background:${T.card};border:1px solid ${T.border};border-radius:4px;padding:13px;text-align:center;}
 .pstat-val{font-size:22px;font-weight:500;color:${T.text};font-family:'SF Mono',Menlo,'Courier New',monospace;letter-spacing:-0.5px;}
 .pstat-key{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:${T.textSoft};margin-top:3px;}
-.notif-card{margin:0 14px 9px;background:${T.card};border:1px solid ${T.border};border-radius:4px;padding:15px;}
-.notif-hdr{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:${T.text};margin-bottom:12px;}
-.notif-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid ${T.border};}
-.notif-row:last-child{border-bottom:none;padding-bottom:0;}
-.notif-label{font-size:12px;font-weight:600;color:${T.text};}
-.notif-sub{font-size:10px;color:${T.textSoft};margin-top:1px;}
 .toggle{width:34px;height:19px;border-radius:10px;background:${T.border};border:none;cursor:pointer;position:relative;transition:background .18s;flex-shrink:0;}
 .toggle.on{background:${T.green3};}
 .toggle-dot{position:absolute;top:3px;left:3px;width:13px;height:13px;border-radius:50%;background:#fff;transition:transform .16s;box-shadow:0 1px 2px rgba(0,0,0,.2);}
@@ -1457,7 +1439,7 @@ function LogoTile({ size = 30, shadow = true }) {
 
 function IntroScreen({ onStart }) {
   const slides = [
-    { icon: 'logo', title: 'Welcome to Green Utility Log', sub: `Track ${UTILS_PHRASE}. Earn real B3TR rewards on VeChain.` },
+    { icon: 'logo', title: 'Welcome to Green Utility Log', sub: `Track ${UTILS_PHRASE}. Earn B3TR rewards on VeChain.` },
     { icon: '📸', title: 'Verify Your Meters', sub: 'Take a photo of your meter. AI-powered OCR verifies readings instantly.' },
     { icon: '💰', title: 'Earn B3TR Rewards', sub: 'Earn B3TR for logging your meter and saving energy. Testnet beta — test tokens, no real-world value yet.' },
     { icon: '🏆', title: 'Climb the Leaderboard', sub: 'Compete globally. Unlock achievement badges. Build your sustainability streak.' },
@@ -1506,7 +1488,7 @@ function IntroScreen({ onStart }) {
           onClick={() => isLast ? onStart() : setSlide(s => s + 1)}
           style={{
             width: "100%",
-            background: "#4CAF50",
+            background: "#2E7D32", // white on #4CAF50 was 2.8:1 contrast; this is 5.1:1
             border: "none",
             borderRadius: 6,
             padding: 14,
@@ -1520,12 +1502,12 @@ function IntroScreen({ onStart }) {
             boxShadow: "0 8px 24px rgba(76,175,80,0.3)"
           }}
           onMouseEnter={e => {
-            e.target.style.background = "#45a049";
+            e.target.style.background = "#1B5E20";
             e.target.style.boxShadow = "0 12px 32px rgba(76,175,80,0.4)";
             e.target.style.transform = "translateY(-2px)";
           }}
           onMouseLeave={e => {
-            e.target.style.background = "#4CAF50";
+            e.target.style.background = "#2E7D32";
             e.target.style.boxShadow = "0 8px 24px rgba(76,175,80,0.3)";
             e.target.style.transform = "translateY(0)";
           }}
@@ -1774,7 +1756,7 @@ function MeterCropper({ imgUrl, onCancel, onConfirm }) {
       </div>
       <div style={{display:"flex",gap:10,marginTop:20,width:"100%",maxWidth:340}}>
         <button onClick={()=>onConfirm(null)} style={{...btn,border:"1px solid rgba(255,255,255,0.3)",background:"transparent",color:"#fff"}}>Whole photo</button>
-        <button onClick={scan} style={{...btn,flex:2,border:"none",background:"#4CAF50",color:"#fff"}}>Scan this area</button>
+        <button onClick={scan} style={{...btn,flex:2,border:"none",background:"#2E7D32",color:"#fff"}}>Scan this area</button>
       </div>
       <button onClick={onCancel} style={{marginTop:12,background:"transparent",border:"none",color:"rgba(255,255,255,0.7)",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"1px",cursor:"pointer"}}>Retake</button>
     </div>
@@ -1866,7 +1848,8 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
     const r = parseFloat(reading), p = parseFloat(prevRead);
     const usageVal   = (Number.isFinite(r) && Number.isFinite(p) && r >= p) ? +(r - p).toFixed(2) : null;
     const plausCheck = usageVal != null ? checkPlausibility(utilId, usageVal) : { ok:true };
-    const anomCheck  = usageVal != null ? checkAnomaly(utilId, usageVal, subs) : { ok:true, anomaly:false };
+    const lastOfUtil = subs.filter(s => s.type === utilId && s.submittedAt).reduce((m, s) => Math.max(m, s.submittedAt), 0);
+    const anomCheck  = usageVal != null ? checkAnomaly(utilId, usageVal, subs, lastOfUtil ? spanDays(Date.now() - lastOfUtil) : 1) : { ok:true, anomaly:false };
     if (!plausCheck.ok) { fraudFlags.push("implausible_reading"); fraudReason = fraudReason || plausCheck.reason; }
     if (anomCheck.anomaly) { fraudFlags.push("anomaly"); fraudReason = fraudReason || anomCheck.reason; }
 
@@ -2030,7 +2013,7 @@ function StreakCalendar({ subs }) {
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
   const startDate = new Date(firstDay);
-  startDate.setDate(startDate.getDate() - firstDay.getDay());
+  startDate.setDate(startDate.getDate() - ((firstDay.getDay() + 6) % 7)); // weeks start on Monday, like the header
 
   const dates = [];
   for (let i = 0; i < 42; i++) {
@@ -2145,6 +2128,12 @@ function HomeScreen({ b3tr, walletB3tr, streak, subs, setTab, T }) {
 
       <div className="sec"><div className="sec-line"/><div className="sec-txt">Recent</div><div className="sec-line"/></div>
       {subs.slice(0,3).map(s => <HistItem key={s.id} s={s} T={T} />)}
+      {/* The full history had no way in: no nav item or link opened it. */}
+      {subs.length > 3 && (
+        <button onClick={() => setTab("history")} style={{display:"block",margin:"4px auto 12px",background:"transparent",border:"none",color:T.green3,fontSize:12,fontWeight:700,cursor:"pointer",padding:"10px 16px"}}>
+          See all {subs.length} →
+        </button>
+      )}
     </>
   );
 }
@@ -2332,8 +2321,16 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
     try { await ensureToken(); } catch (e) { setErr(e?.message || "pairing failed"); }
   };
 
-  const copy = (text, tag) => {
-    try { navigator.clipboard?.writeText(text); setCopied(tag); setTimeout(() => setCopied(""), 1500); } catch { /* no clipboard */ }
+  // writeText returns a promise; unawaited, a refusal (in-app browsers often have
+  // no clipboard permission) surfaced as an uncaught error while the button said
+  // "Copied". Only say so when it actually was.
+  const copy = async (text, tag) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(tag); setTimeout(() => setCopied(""), 1500);
+    } catch {
+      setErr("Couldn't copy here — select the text and copy it by hand.");
+    }
   };
 
   const enodeOn = !!health?.enode?.enabled;
@@ -2868,7 +2865,9 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
             <div className="reward-preview">
               <div>
                 <div className="rp-label">Estimated Reward</div>
-                <div className="rp-rate">Use less, earn more · {rateText}</div>
+                <div className="rp-rate">{subs.some(x => x.type === selUtil && x.status === "confirmed")
+                  ? <>Use less, earn more · {rateText}</>
+                  : <>First reading sets your starting point · savings pay from the next one</>}</div>
               </div>
               <div style={{textAlign:"right"}}>
                 <div className="rp-val">+{reward()}</div>
@@ -3253,9 +3252,6 @@ function LeaderboardScreen({ b3tr, streak, subs, wallet, T }) {
   // The "100 B3TR Achievement" goal is a fixed 100, NOT the gap to the next tier —
   // reusing b3trNeeded showed a wrong number for anyone already past 100.
   const to100 = Math.max(0, 100 - b3tr);
-  const dailyAvg = subs.length > 0 ? (b3tr / subs.length).toFixed(2) : "0.00";
-  const withBonus = (parseFloat(dailyAvg) * currentTier.multiplier).toFixed(2);
-  const bonusExtra = (withBonus - dailyAvg).toFixed(2);
 
   // ── Real participant field ────────────────────────────────────────────────
   // Pull the ranked field straight from chain (aggregated RewardDistributed
@@ -3292,10 +3288,10 @@ function LeaderboardScreen({ b3tr, streak, subs, wallet, T }) {
     }
     board = rows.sort((a, b) => b.b3tr - a.b3tr).map((d, i) => ({ ...d, rank: i + 1 }));
   } else {
-    // Sample field — splice the connected wallet in and rank by B3TR.
-    const competitors = LEADERBOARD_DATA.filter(d => !d.isMe);
-    const me = { name: "You", addr: shortAddr(wallet), b3tr: +b3tr.toFixed(2), streak, tier: currentTier.name, isMe: true };
-    board = [...competitors, me].sort((a, b) => b.b3tr - a.b3tr).map((d, i) => ({ ...d, rank: i + 1 }));
+    // No on-chain field (yet, or the node is unreachable): show only you. This used
+    // to rank you against made-up players — "#10, 127.60 B3TR to reach #9" — which
+    // is a claim about other people that isn't true.
+    board = [{ name: "You", addr: shortAddr(wallet), b3tr: +b3tr.toFixed(2), streak, tier: currentTier.name, isMe: true, rank: 1 }];
   }
 
   const myIndex = board.findIndex(d => d.isMe);
@@ -3322,12 +3318,12 @@ function LeaderboardScreen({ b3tr, streak, subs, wallet, T }) {
     <>
       <div className="lb-hero" style={{borderLeftColor:currentTier.color}}>
         <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"2.2px",color:T.textSoft,marginBottom:10}}>Your Rank & Tier</div>
-        <div className="lb-hero-rank">#{myRank}</div>
-        <div style={{fontSize:12,fontWeight:700,color:currentTier.color,marginTop:8}}>{currentTier.name} Tier ({currentTier.multiplier}x bonus)</div>
+        <div className="lb-hero-rank">{isLive ? `#${myRank}` : "#–"}</div>
+        <div style={{fontSize:12,fontWeight:700,color:currentTier.color,marginTop:8}}>{currentTier.name} Tier</div>
         <div style={{fontSize:11,color:T.textSoft,marginTop:5}}>{(isLive ? myBoardB3tr : b3tr).toFixed(2)} B3TR · {streak} day streak</div>
 
         <div style={{fontSize:10,fontWeight:700,color:T.green3,marginTop:10,display:"flex",alignItems:"center",gap:6}}>
-          {myRank === 1 ? "🏆 Top of the leaderboard" : `↑ ${gapToNext.toFixed(2)} B3TR to reach #${myRank - 1}`}
+          {!isLive ? "Rankings appear once the on-chain leaderboard loads" : myRank === 1 ? "🏆 Top of the leaderboard" : `↑ ${gapToNext.toFixed(2)} B3TR to reach #${myRank - 1}`}
         </div>
 
         {nextTier && (
@@ -3349,7 +3345,7 @@ function LeaderboardScreen({ b3tr, streak, subs, wallet, T }) {
         </div>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
           <div style={{fontSize:11,fontWeight:700,color:T.text}}>#1 Global Rank</div>
-          <div style={{fontSize:10,fontWeight:700,color:T.green3,fontFamily:"'SF Mono',monospace"}}>{myRank === 1 ? "You're #1!" : `${myRank - 1} spots away`}</div>
+          <div style={{fontSize:10,fontWeight:700,color:T.green3,fontFamily:"'SF Mono',monospace"}}>{!isLive ? "—" : myRank === 1 ? "You're #1!" : `${myRank - 1} spots away`}</div>
         </div>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div style={{fontSize:11,fontWeight:700,color:T.text}}>30-Day Streak</div>
@@ -3362,18 +3358,6 @@ function LeaderboardScreen({ b3tr, streak, subs, wallet, T }) {
         <div style={{fontSize:10,fontWeight:700,color:T.green3,marginBottom:8}}>✓ +{weekB3tr} B3TR</div>
         <div style={{fontSize:10,fontWeight:700,color:T.green3,marginBottom:8}}>✓ +{weekSubs.length} submissions</div>
         <div style={{fontSize:10,fontWeight:700,color:T.green3}}>✓ Avg: {(weekB3tr/7).toFixed(2)} B3TR/day</div>
-      </div>
-
-      <div className="sec"><div className="sec-line"/><div className="sec-txt">💰 Earning Power</div><div className="sec-line"/></div>
-      <div style={{margin:"0 14px 14px",padding:14,background:T.card,border:`1px solid ${T.border}`,borderRadius:5}}>
-        <div style={{fontSize:9,fontWeight:700,color:T.textSoft,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:8}}>Base Rate</div>
-        <div style={{fontSize:11,fontWeight:700,color:T.text,marginBottom:12,fontFamily:"'SF Mono',monospace"}}>Ø {dailyAvg} B3TR/day</div>
-        <div style={{fontSize:10,fontWeight:700,color:T.textSoft,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:8}}>With {currentTier.name} Tier ({currentTier.multiplier}x)</div>
-        <div style={{fontSize:11,fontWeight:700,color:currentTier.color,marginBottom:12,fontFamily:"'SF Mono',monospace"}}>{withBonus} B3TR/day <span style={{color:T.green3}}>+{bonusExtra} bonus!</span></div>
-        <div style={{fontSize:9,color:T.textSoft,lineHeight:1.6}}>
-          📅 Monthly: {(dailyAvg * 30).toFixed(2)} B3TR<br/>
-          📅 Yearly: {(dailyAvg * 365).toFixed(2)} B3TR
-        </div>
       </div>
 
       <div className="sec"><div className="sec-line"/><div className="sec-txt">🏅 Achievements</div><div className="sec-line"/></div>
@@ -3392,7 +3376,7 @@ function LeaderboardScreen({ b3tr, streak, subs, wallet, T }) {
           ? <><span className="spin-sm" style={{width:9,height:9,borderColor:`${T.border}`,borderTopColor:T.green3}}/> Loading on-chain rankings…</>
           : chain.status==="live"
             ? <><span style={{width:6,height:6,borderRadius:"50%",background:T.green3,animation:"pulse 2.5s infinite"}}/> Live · {board.length} on-chain participants{chain.truncated ? " (top, more exist)" : ""}</>
-            : <>● Sample field — {chain.reason==="unset_appid" ? "set your VeBetterDAO App ID for live data" : "live rankings load once submissions are on-chain"}</>
+            : <>● Only you for now — {chain.reason==="unset_appid" ? "set your VeBetterDAO App ID for live data" : "live rankings load once submissions are on-chain"}</>
         }
       </div>
       {board.slice(0, 25).map(item => (
@@ -4104,7 +4088,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
           <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:6,padding:"12px 14px",marginBottom:14}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
               <div style={{fontSize:13,fontWeight:700,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:T.text}}>{shortAddr(selected)}</div>
-              <button onClick={() => { try { navigator.clipboard.writeText(selected); } catch {} }} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:4,padding:"4px 8px",fontSize:10,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Copy</button>
+              <button onClick={() => { navigator.clipboard?.writeText(selected).catch(() => {}); }} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:4,padding:"4px 8px",fontSize:10,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Copy</button>
             </div>
             <div style={{fontSize:9,color:T.textSoft,wordBreak:"break-all",marginTop:4,fontFamily:"'SF Mono',Menlo,'Courier New',monospace"}}>{selected}</div>
             <div style={{display:"flex",gap:16,marginTop:10}}>
@@ -4436,7 +4420,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
   );
 }
 
-function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, notifs, setNotifs, setOnboarded, onEditMeters, onEditSolar, meters, isAdmin, onOpenAdmin, onOpenHelp, onOpenFeedback, onToast, onReset, T }) {
+function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, setOnboarded, onEditMeters, onEditSolar, meters, isAdmin, onOpenAdmin, onOpenHelp, onOpenFeedback, onToast, onReset, T }) {
   const tier = getTier(b3tr);
   return (
     <>
@@ -4488,25 +4472,6 @@ function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, notif
           <div><div className="sr-label">Download Monthly Report</div><div className="sr-sub">PDF with stats, trends, and proof</div></div>
         </div>
         <div className="sr-right"><span style={{fontSize:11,fontWeight:700,color:T.green3}}>Export</span></div>
-      </div>
-
-      <div className="sec"><div className="sec-line"/><div className="sec-txt">Notifications</div><div className="sec-line"/></div>
-      <div className="notif-card">
-        <div className="notif-hdr">Daily Reminders</div>
-        {[
-          {id:"daily",   label:"Daily submission",  sub:"08:00 AM reminder to log your meters"},
-          {id:"streak",  label:"Streak alert",      sub:"Get warned before losing your streak"},
-          {id:"rewards", label:"Reward updates",    sub:"B3TR payouts and VeChain confirmations"},
-          {id:"lb",      label:"Leaderboard",       sub:"Get notified when you climb the ranks"},
-        ].map(n => (
-          <div key={n.id} className="notif-row">
-            <div>
-              <div className="notif-label">{n.label}</div>
-              <div className="notif-sub">{n.sub}</div>
-            </div>
-            <div className="sr-right"><Toggle on={notifs[n.id]} onToggle={()=>setNotifs(x=>({...x,[n.id]:!x[n.id]}))} /></div>
-          </div>
-        ))}
       </div>
 
       <div className="sec" style={{marginTop:20}}><div className="sec-line"/><div className="sec-txt">Support</div><div className="sec-line"/></div>
@@ -4579,8 +4544,7 @@ const HELP_I18N = {
   en: { name:"English", subtitle:"Getting started", quick:"Quick start", faqLabel:"Frequently asked", close:"Close", feedback:"✉️ Send Feedback",
     steps:[
       { t:"Connect your wallet", d:"Tap Connect and open VeWorld (set to Testnet) or WalletConnect. This is a test app — no real funds are used." },
-      { t:"Get free test gas (VTHO)", d:"Transactions cost a tiny bit of VTHO. Grab some free testnet VTHO from the faucet, then come back." },
-      { t:"Register your meters", d:"Enter the meter number and the current reading (baseline) for electricity, gas and water. Solar is optional." },
+      { t:"Register your meters", d:"Enter your electricity meter number and its current reading (the starting point)." },
       { t:"Submit a reading", d:"Go to Submit, pick a utility, photograph the meter (the app reads the number for you), check it, and send." },
       { t:"Earn B3TR", d:"A valid reading rewards you with B3TR on testnet. Track your total on Home and your position on the Leaderboard." },
     ], faqs:[
@@ -4599,8 +4563,7 @@ const HELP_I18N = {
   nl: { name:"Nederlands", subtitle:"Aan de slag", quick:"Snel starten", faqLabel:"Veelgestelde vragen", close:"Sluiten", feedback:"✉️ Feedback sturen",
     steps:[
       { t:"Verbind je wallet", d:"Tik op Connect en open VeWorld (op Testnet) of WalletConnect. Dit is een test-app — er wordt geen echt geld gebruikt." },
-      { t:"Haal gratis test-gas (VTHO)", d:"Transacties kosten een beetje VTHO. Haal gratis testnet-VTHO bij de faucet en kom terug." },
-      { t:"Registreer je meters", d:"Voer het meternummer en de huidige stand (baseline) in voor stroom, gas en water. Zon is optioneel." },
+      { t:"Registreer je meters", d:"Voer het nummer van je stroommeter en de huidige stand (het startpunt) in." },
       { t:"Doe een inzending", d:"Ga naar Submit, kies een meter, fotografeer 'm (de app leest het nummer), controleer en verstuur." },
       { t:"Verdien B3TR", d:"Een geldige stand levert B3TR op testnet op. Zie je totaal op Home en je positie in het klassement." },
     ], faqs:[
@@ -4619,8 +4582,7 @@ const HELP_I18N = {
   de: { name:"Deutsch", subtitle:"Erste Schritte", quick:"Schnellstart", faqLabel:"Häufige Fragen", close:"Schließen", feedback:"✉️ Feedback senden",
     steps:[
       { t:"Wallet verbinden", d:"Tippe auf Connect und öffne VeWorld (auf Testnet) oder WalletConnect. Dies ist eine Test-App — es wird kein echtes Geld verwendet." },
-      { t:"Kostenloses Test-Gas (VTHO)", d:"Transaktionen kosten etwas VTHO. Hol dir kostenloses Testnet-VTHO vom Faucet und komm zurück." },
-      { t:"Zähler registrieren", d:"Gib die Zählernummer und den aktuellen Stand (Basiswert) für Strom, Gas und Wasser ein. Solar ist optional." },
+      { t:"Zähler registrieren", d:"Gib die Nummer deines Stromzählers und den aktuellen Stand (den Startwert) ein." },
       { t:"Stand einreichen", d:"Geh zu Submit, wähle einen Zähler, fotografiere ihn (die App liest die Nummer), prüfe und sende." },
       { t:"B3TR verdienen", d:"Ein gültiger Stand belohnt dich mit B3TR im Testnet. Sieh dein Gesamt auf Home und deine Position in der Rangliste." },
     ], faqs:[
@@ -4639,8 +4601,7 @@ const HELP_I18N = {
   fr: { name:"Français", subtitle:"Démarrer", quick:"Démarrage rapide", faqLabel:"Questions fréquentes", close:"Fermer", feedback:"✉️ Envoyer un retour",
     steps:[
       { t:"Connectez votre wallet", d:"Touchez Connect et ouvrez VeWorld (sur Testnet) ou WalletConnect. C'est une app de test — aucun fonds réel n'est utilisé." },
-      { t:"Obtenez du gaz de test (VTHO)", d:"Les transactions coûtent un peu de VTHO. Récupérez du VTHO testnet gratuit au faucet, puis revenez." },
-      { t:"Enregistrez vos compteurs", d:"Saisissez le numéro et le relevé actuel (base) pour l'électricité, le gaz et l'eau. Le solaire est optionnel." },
+      { t:"Enregistrez vos compteurs", d:"Saisissez le numéro de votre compteur d'électricité et son relevé actuel (le point de départ)." },
       { t:"Envoyez un relevé", d:"Allez dans Submit, choisissez un compteur, photographiez-le (l'app lit le numéro), vérifiez et envoyez." },
       { t:"Gagnez des B3TR", d:"Un relevé valide vous récompense en B3TR sur testnet. Suivez votre total sur Home et votre place au classement." },
     ], faqs:[
@@ -4659,8 +4620,7 @@ const HELP_I18N = {
   es: { name:"Español", subtitle:"Empezar", quick:"Inicio rápido", faqLabel:"Preguntas frecuentes", close:"Cerrar", feedback:"✉️ Enviar comentarios",
     steps:[
       { t:"Conecta tu wallet", d:"Toca Connect y abre VeWorld (en Testnet) o WalletConnect. Es una app de prueba — no se usa dinero real." },
-      { t:"Consigue gas de prueba (VTHO)", d:"Las transacciones cuestan algo de VTHO. Consigue VTHO de testnet gratis en el faucet y vuelve." },
-      { t:"Registra tus contadores", d:"Introduce el número y la lectura actual (base) de luz, gas y agua. La solar es opcional." },
+      { t:"Registra tus contadores", d:"Introduce el número de tu contador de luz y su lectura actual (el punto de partida)." },
       { t:"Envía una lectura", d:"Ve a Submit, elige un contador, fotografíalo (la app lee el número), revísalo y envía." },
       { t:"Gana B3TR", d:"Una lectura válida te premia con B3TR en testnet. Mira tu total en Home y tu puesto en la clasificación." },
     ], faqs:[
@@ -4715,9 +4675,6 @@ function HelpScreen({ onClose, onFeedback, T }) {
             <div>
               <div style={{fontSize:13,fontWeight:700,color:T.text,marginBottom:3}}>{s.t}</div>
               <div style={{fontSize:12,color:T.textMid,lineHeight:1.55}}>{s.d}</div>
-              {s.n === 2 && (
-                <a href={TESTNET_FAUCET} target="_blank" rel="noopener noreferrer" style={{display:"inline-block",marginTop:8,fontSize:11,fontWeight:800,color:T.green3,textDecoration:"none",border:`1px solid ${T.green4||T.border}`,borderRadius:4,padding:"6px 10px"}}>💧 Open testnet faucet →</a>
-              )}
             </div>
           </div>
         ))}
@@ -4848,8 +4805,9 @@ function getInitialDark() {
 export default function App() {
   // Check if user has seen intro before
   const [showIntro, setShowIntro] = useState(() => {
-    const seen = localStorage.getItem('greenlog_seen_intro');
-    return !seen; // Show intro if NOT seen before
+    // Blocked storage (private mode, some in-app browsers) throws here, and this
+    // runs before anything else renders — so it must not throw.
+    try { return !localStorage.getItem('greenlog_seen_intro'); } catch { return true; }
   });
   const [onboarded, setOnboarded]   = useState(true);
   const [needsBaselines, setNeedsBaselines] = useState(false);
@@ -4989,7 +4947,6 @@ export default function App() {
   const [verifyKey, setVerifyKey]   = useState(0);
   const [captchaToken, setCaptchaToken] = useState(""); // Cloudflare Turnstile token (when enabled)
   const turnstileId = useRef(null);
-  const [notifs, setNotifs]         = useState({ daily:true, streak:true, rewards:false, lb:false });
   const [showAdmin, setShowAdmin]   = useState(false);
   const [showHelp, setShowHelp]       = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -5469,7 +5426,13 @@ export default function App() {
     const last = subs.find(x => x.type === selUtil && x.submittedAt);
     return last ? spanDays(Date.now() - last.submittedAt) : 1;
   };
-  const reward = () => (readingReady() ? computeReward(selUtil, usage(), daysSinceLast()) : 0);
+  // A meter's first paid reading earns the base amount only (the server can't vouch
+  // for a starting point it never recorded); the saving is paid from the next one.
+  // Paid rows come back from chain on connect, so "none yet" is a fair signal here.
+  const firstForUtil = () => !subs.some(x => x.type === selUtil && x.status === "confirmed");
+  const reward = () => (readingReady()
+    ? (firstForUtil() ? Math.min(REWARD_BASE[selUtil] ?? 0, computeReward(selUtil, usage(), daysSinceLast())) : computeReward(selUtil, usage(), daysSinceLast()))
+    : 0);
 
   // ── Eco-mode bonus ──────────────────────────────────────────────────────────
   // Photo of an appliance running in eco mode → fixed bonus via the backend.
@@ -5616,34 +5579,41 @@ export default function App() {
       showToast(`⚠️ ${plaus.reason || "That reading looks implausible"}`);
       return;
     }
-    const anom = checkAnomaly(selUtil, usageVal, subs);
-    if (anom.anomaly && !scaleMismatch) {
-      setBusy(false);
-      showToast(`⚠️ ${anom.reason || "Usage far above your average"} — retake or correct`);
-      return;
-    }
+    // High compared with your own history: flagged for review, never blocked. The
+    // screen after the photo says "Allow anyway? Tap Submit to continue", and the
+    // server enforces the real plausibility bounds anyway.
+    const anom = checkAnomaly(selUtil, usageVal, subs, daysSinceLast());
     // Not auto-blocked, but recorded for review when the photo can't back it up:
     // either the reading isn't visible on the photo, or the registered meter number
     // couldn't be confirmed on it (lenient — a miss flags, it never blocks).
     const readingConfirmed = !photo?.ocrFailed && readingMatchesPhoto(reading, photo?.ocrNums);
     const meterUnconfirmed = photo?.meterNoConfirmed === false;
     const photoConfirmed = readingConfirmed && !meterUnconfirmed;
-    const flagReason = !readingConfirmed
-      ? (photo?.ocrFailed ? "photo_unreadable" : "reading_not_in_photo")
-      : (meterUnconfirmed ? "meter_not_confirmed" : "");
+    const flagReason = [
+      !readingConfirmed ? (photo?.ocrFailed ? "photo_unreadable" : "reading_not_in_photo") : (meterUnconfirmed ? "meter_not_confirmed" : ""),
+      anom.anomaly ? "high_usage" : "",
+    ].filter(Boolean).join(",");
 
     if (!online) {
       // Store the photo + OCR metadata too, so on reconnect we can submit through
       // the reward backend exactly like an online submission (the backend needs the
       // photo and issues the payout). Without this, an offline item could never be
       // paid. captchaToken can't be captured offline — fine while captcha is off.
-      await saveOfflineSubmission({
-        type:selUtil, meterNo, cur:reading, prev:prevRead, b3tr:earned,
-        flagged: !photoConfirmed, flagReason,
-        photo: photo?.base64 || "", photoMime: photo?.mime || "",
-        ocrNums: photo?.ocrNums || [], meterNoConfirmed: photo?.meterNoConfirmed ?? null,
-        avgUsage: anom.avg ?? null,
-      });
+      // A full or blocked IndexedDB throws here. Uncaught, that left the button on
+      // "Submitting…" for good and put up the red startup-error box.
+      try {
+        await saveOfflineSubmission({
+          type:selUtil, meterNo, cur:reading, prev:prevRead, b3tr:earned,
+          flagged: !photoConfirmed || anom.anomaly, flagReason,
+          photo: photo?.base64 || "", photoMime: photo?.mime || "",
+          ocrNums: photo?.ocrNums || [], meterNoConfirmed: photo?.meterNoConfirmed ?? null,
+          avgUsage: anom.avg ?? null,
+        });
+      } catch {
+        setBusy(false);
+        showToast("⚠️ Couldn't save this offline on this device — try again when you're back online");
+        return;
+      }
       setAiOk(false); setPhoto(null); setReading(""); setPrevRead(""); prevReadEdited.current = false; setVerifyKey(k=>k+1);
       setBusy(false);
       showToast("💾 Saved offline — will submit when you're back online");
@@ -5704,7 +5674,7 @@ export default function App() {
         const res = await fetch(`${REWARD_API.replace(/\/$/, "")}/reward`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ utility: selUtil, reading, prevRead, ...(registers ? { registers } : {}), meterNo, address: wallet, photo: photo?.base64 || "", photoMime: photo?.mime || "", certificate, clientFlagged: !photoConfirmed, flagReason, ocrNums: photo?.ocrNums || [], meterNoConfirmed: photo?.meterNoConfirmed ?? null, avgUsage: anom.avg ?? null, captchaToken }),
+          body: JSON.stringify({ utility: selUtil, reading, prevRead, ...(registers ? { registers } : {}), meterNo, address: wallet, photo: photo?.base64 || "", photoMime: photo?.mime || "", certificate, clientFlagged: !photoConfirmed || anom.anomaly, flagReason, ocrNums: photo?.ocrNums || [], meterNoConfirmed: photo?.meterNoConfirmed ?? null, avgUsage: anom.avg ?? null, captchaToken }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || `Reward service error ${res.status}`);
@@ -5771,7 +5741,7 @@ export default function App() {
         <div className="toast" style={{whiteSpace:"pre-wrap",maxWidth:"88vw",textAlign:"left",lineHeight:1.5,background:T.gasBg,color:T.gas,border:`1px solid ${T.gasBorder}`,padding:"12px 14px"}}>
           <div style={{wordBreak:"break-word"}}>{toast.msg}</div>
           <div style={{display:"flex",gap:8,marginTop:10}}>
-            <button onClick={() => { try { navigator.clipboard?.writeText(toast.msg); } catch {} }}
+            <button onClick={() => { navigator.clipboard?.writeText(toast.msg).catch(() => {}); }}
               style={{flex:1,background:T.gas,color:T.bg,border:0,borderRadius:5,padding:"8px 10px",fontSize:11,fontWeight:800,cursor:"pointer"}}>📋 Copy error</button>
             <button onClick={() => setToast(null)}
               style={{background:"transparent",color:T.gas,border:`1px solid ${T.gasBorder}`,borderRadius:5,padding:"8px 12px",fontSize:11,fontWeight:800,cursor:"pointer"}}>✕ Close</button>
@@ -5833,7 +5803,7 @@ export default function App() {
           {tab==="charts"    && <ChartsScreen subs={subs} T={T}/>}
           {tab==="leaderboard" && <LeaderboardScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}
-          {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} setShowWallet={openConnectModal} dark={dark} setDark={toggleDark} notifs={notifs} setNotifs={setNotifs} setOnboarded={setOnboarded} onEditMeters={()=>openRegistration(REQUIRED_UTILS, true)} onEditSolar={()=>openRegistration(SOLAR_UTILS, true)} meters={meters} isAdmin={isAdmin} onOpenAdmin={()=>setShowAdmin(true)} onOpenHelp={()=>setShowHelp(true)} onOpenFeedback={()=>setShowFeedback(true)} onToast={showToast} onReset={resetApp} T={T}/>}
+          {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} setShowWallet={openConnectModal} dark={dark} setDark={toggleDark} setOnboarded={setOnboarded} onEditMeters={()=>openRegistration(REQUIRED_UTILS, true)} onEditSolar={()=>openRegistration(SOLAR_UTILS, true)} meters={meters} isAdmin={isAdmin} onOpenAdmin={()=>setShowAdmin(true)} onOpenHelp={()=>setShowHelp(true)} onOpenFeedback={()=>setShowFeedback(true)} onToast={showToast} onReset={resetApp} T={T}/>}
         </div>
 
         <div className="bnav">
