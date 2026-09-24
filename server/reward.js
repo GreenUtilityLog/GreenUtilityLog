@@ -129,10 +129,14 @@ const REWARDS_POOL_BALANCE_ABI = { name: "rewardsPoolBalance", type: "function",
 
 const APP_ADMIN_ABI = { name: "appAdmin", type: "function", stateMutability: "view", inputs: [{ name: "appId", type: "bytes32" }], outputs: [{ name: "", type: "address" }] };
 
+// Emergency stop (pool v7+). While true every distributeReward reverts. Older pools
+// lack the function, the call reverts, and this reads as null ("unknown").
+const IS_DISTRIBUTION_PAUSED_ABI = { name: "isDistributionPaused", type: "function", stateMutability: "view", inputs: [{ name: "appId", type: "bytes32" }], outputs: [{ name: "", type: "bool" }] };
+
 const first = (v) => (Array.isArray(v) ? v[0] : (v && typeof v === "object" ? Object.values(v)[0] : v));
 
 export async function chainDiagnostics() {
-  const out = { poolB3TR: null, distributorAuthorized: null, rewardsPoolEnabled: null, rewardsPoolB3TR: null, appAdmin: null };
+  const out = { poolB3TR: null, distributorAuthorized: null, rewardsPoolEnabled: null, rewardsPoolB3TR: null, appAdmin: null, distributionPaused: null };
   try {
     if (CONTRACTS.X2EarnApps) {
       const a = first(await callView(CONTRACTS.X2EarnApps, APP_ADMIN_ABI, [APP_ID]));
@@ -150,6 +154,10 @@ export async function chainDiagnostics() {
   try {
     const bal = first(await callView(CONTRACTS.X2EarnRewardsPool, REWARDS_POOL_BALANCE_ABI, [APP_ID]));
     if (bal != null) out.rewardsPoolB3TR = Number(BigInt(bal) / 10n ** 14n) / 1e4;
+  } catch {}
+  try {
+    const p = first(await callView(CONTRACTS.X2EarnRewardsPool, IS_DISTRIBUTION_PAUSED_ABI, [APP_ID]));
+    if (p != null) out.distributionPaused = p === true;
   } catch {}
   try {
     const addr = signer ? await signer.getAddress() : null;
@@ -335,6 +343,11 @@ async function sendProofReward({ amount, receiver, proofText, impacts, descripti
     if (legacyReason) {
       const reason = modernReason || legacyReason;
       console.error(`[reward] payout would revert — modern: "${modernReason}" · legacy: "${legacyReason}"`);
+      // The admin's emergency stop. Say so in words a user can act on ("try later"),
+      // not as a contract error that reads like something they did wrong.
+      if (/distribution is paused/i.test(`${modernReason} ${legacyReason}`)) {
+        throw new Error("payouts are paused by the app admin — nothing was used up, try again later");
+      }
       throw new Error(`payout would revert: ${reason}`);
     }
     console.warn(`[reward] modern variant reverts ("${modernReason}") — using legacy distributeReward`);
