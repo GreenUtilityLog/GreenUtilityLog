@@ -2471,9 +2471,7 @@ ${fetchCmd(os === "win" ? `--token=${token} --install` : `--token=${token}`)}
 ${os === "win"
   ? "# That sends your first reading AND schedules it twice a day, so you can\n# close this window — it keeps working, even after a restart."
   : "# Leave the terminal open, or run  node gul.js --install  for the cron line."}
-# Network blocks auto-discovery? Add --ip=<your P1 IP>
-# Docker instead: docker build -t gul-bridge ./bridge
-# docker run -d --network host -e GUL_TOKEN=${token} gul-bridge`;
+# Network blocks auto-discovery? Add --ip=<your P1 IP>`;
                     const haYaml = `# EASIEST: install our integration instead — no YAML at all.
 #   HACS → ⋮ → Custom repositories → add (type: Integration):
 #   https://github.com/GreenUtilityLog/GreenUtilityLog
