@@ -120,9 +120,14 @@ async function runOcrCheck(buf, reading, registers = []) {
   const candidates = [reading, ...(Array.isArray(registers) ? registers : [])]
     .map((v) => String(v ?? "").replace(/[^0-9]/g, ""))
     .filter((d) => d.length >= 3);
-  if (!candidates.length) return { ok: true }; // too short to match reliably
+  // Nothing long enough to look for. This used to PASS — which made "type a reading
+  // of 2 digits" a way round the check. When OCR is on, a reading it cannot check is
+  // refused instead; real meter totals have more digits than this.
+  if (!candidates.length) return { ok: false, error: "that reading is too short to check against the photo — enter the full meter total" };
 
-  const worker = await createWorker("eng");
+  // errorHandler: without one, tesseract re-throws a failed job (e.g. language data
+  // that cannot be downloaded) as an uncaught error and takes the whole server down.
+  const worker = await createWorker("eng", 1, { errorHandler: (e) => console.error("[ocr] tesseract:", e?.message || e) });
   try {
     await worker.setParameters({ tessedit_char_whitelist: "0123456789." });
     const { data } = await worker.recognize(buf);

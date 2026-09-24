@@ -139,3 +139,33 @@ describe("a signature on a real submission", () => {
     assert.match(r.body.error, /signature is invalid/i);
   });
 });
+
+describe("a signature re-spelled to look new", () => {
+  let srv;
+  before(async () => {
+    await sign("warm up the key");
+    srv = await startServer({
+      state: stateWithBaseline({ wallet: WALLET }),
+      env: { REQUIRE_CERT: "true" },
+    });
+  });
+  after(async () => { await srv.stop(); });
+
+  test("is still the same signature, and is refused the second time", async () => {
+    // The same signature verifies in upper case too. Spent-ness used to be keyed on
+    // the raw text, so re-spelling it passed as unused.
+    const cert = await sign(`Green Utility Log — link smart meter\nWallet: ${WALLET}\nTime: ${new Date().toISOString()}`);
+    const first = await srv.post("/meter/pair", { address: WALLET, meterNo: METER, certificate: cert });
+    assert.equal(first.status, 200, JSON.stringify(first.body));
+    const respelled = { ...cert, signature: "0x" + cert.signature.replace(/^0x/, "").toUpperCase() };
+    const again = await srv.post("/meter/pair", { address: WALLET, meterNo: METER, certificate: respelled });
+    assert.equal(again.status, 401);
+    assert.match(again.body.error, /already used/i);
+  });
+
+  test("a signature made for something else cannot link a meter", async () => {
+    const cert = await sign("Some other dApp — log in");
+    const r = await srv.post("/meter/pair", { address: WALLET, meterNo: METER, certificate: cert });
+    assert.equal(r.status, 401);
+  });
+});
