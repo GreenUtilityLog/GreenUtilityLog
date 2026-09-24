@@ -56,11 +56,11 @@ describe("correcting a paired reader's starting point", () => {
     assert.match(reasons, /starting point moved 3852\.104 → 7705\.514/);
   });
 
-  test("it cannot pull a baseline downward", async () => {
+  test("a second correction is refused, so the baseline cannot be pulled back down", async () => {
     await srv.post("/meter-ingest", { token, reading: 7000 });
     const r = await srv.post("/meter/rebaseline", { address: WALLET });
-    assert.equal(r.status, 400);
-    assert.match(r.body.error, /cannot run backwards/i);
+    assert.equal(r.status, 409);
+    assert.equal(srv.readState().readings[KEY], TOTAL);
   });
 
   test("and the claim works afterwards", async () => {
@@ -182,5 +182,77 @@ describe("a meter with no starting point at all", () => {
     });
     assert.equal(r.status, 400);
     assert.match(r.body.error, /no starting point yet/i);
+  });
+});
+
+// ── Audit findings: whose meter, and how often ───────────────────────────────
+describe("a starting point belongs to the meter's owner, and moves once", () => {
+  let srv, token;
+  before(async () => {
+    srv = await startServer({ state: stateWithBaseline({ reading: 1000 }) });
+    const pair = await srv.post("/meter/pair", { address: WALLET, meterNo: METER });
+    token = pair.body.token;
+  });
+  after(async () => { await srv.stop(); });
+
+  test("another wallet cannot pair a reader to someone else's meter", async () => {
+    // The attack: pair to the victim's meter, push a huge number, rebaseline, and
+    // every honest reading after that is "lower than the starting point".
+    const r = await srv.post("/meter/pair", { address: OTHER, meterNo: METER });
+    assert.equal(r.status, 403);
+    assert.match(r.body.error, /registered to another wallet/i);
+    assert.equal(r.body.token, undefined);
+  });
+
+  test("a correction never pulls a baseline downward", async () => {
+    await srv.post("/meter-ingest", { token, reading: 900 });
+    const r = await srv.post("/meter/rebaseline", { address: WALLET });
+    assert.equal(r.status, 400);
+    assert.match(r.body.error, /cannot run backwards/i);
+  });
+
+  test("the owner can correct it once", async () => {
+    await srv.post("/meter-ingest", { token, reading: 1500 });
+    const r = await srv.post("/meter/rebaseline", { address: WALLET });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.equal(srv.readState().readings[KEY], 1500);
+  });
+
+  test("but not a second time — each one would erase the usage since the last payout", async () => {
+    await srv.post("/meter-ingest", { token, reading: 1600 });
+    const r = await srv.post("/meter/rebaseline", { address: WALLET });
+    assert.equal(r.status, 409);
+    assert.equal(srv.readState().readings[KEY], 1500);
+  });
+
+  test("and unpairing then pairing again does not reopen it", async () => {
+    await srv.post("/meter/unpair", { address: WALLET });
+    const pair = await srv.post("/meter/pair", { address: WALLET, meterNo: METER });
+    await srv.post("/meter-ingest", { token: pair.body.token, reading: 1700 });
+    const r = await srv.post("/meter/rebaseline", { address: WALLET });
+    assert.equal(r.status, 409);
+    const latest = await srv.get(`/meter/latest?address=${WALLET}`);
+    assert.equal(latest.body.canRebaseline, false);
+  });
+});
+
+describe("pairing again keeps what the pairing has already been through", () => {
+  let srv;
+  before(async () => {
+    const state = stateWithBaseline({ reading: REG[0] });
+    state.meterLinks = {
+      abc: { address: WALLET.toLowerCase(), meterNo: METER, utility: "electric",
+             createdAt: Date.now(), autoPaidAt: Date.now() },
+    };
+    state.linkReadings = { [WALLET.toLowerCase()]: { reading: TOTAL, meterNo: METER, at: Date.now(), source: "push" } };
+    srv = await startServer({ state });
+  });
+  after(async () => { await srv.stop(); });
+
+  test("a paid-out pairing stays closed to rebaseline after re-pairing", async () => {
+    const pair = await srv.post("/meter/pair", { address: WALLET, meterNo: METER });
+    assert.equal(pair.status, 200);
+    const r = await srv.post("/meter/rebaseline", { address: WALLET });
+    assert.equal(r.status, 409);
   });
 });

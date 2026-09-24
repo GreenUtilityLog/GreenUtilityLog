@@ -8,7 +8,8 @@ import { Certificate } from "@vechain/sdk-core";
 
 // Reject certificates older than this (anti-replay). The wallet's timestamp is in
 // seconds on some wallets and ms on others, so we normalise and allow generous skew.
-const MAX_AGE_MS = Number(process.env.CERT_MAX_AGE_MS || 15 * 60 * 1000);
+export const CERT_MAX_AGE_MS = Number(process.env.CERT_MAX_AGE_MS || 15 * 60 * 1000);
+const MAX_AGE_MS = CERT_MAX_AGE_MS;
 
 // Require a valid certificate by default; set REQUIRE_CERT=false only for local dev.
 export const REQUIRE_CERT = String(process.env.REQUIRE_CERT || "true").toLowerCase() !== "false";

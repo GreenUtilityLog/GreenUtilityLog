@@ -3,7 +3,7 @@
 // GET  /health  : service + distributor status.
 
 import "dotenv/config";
-import { randomBytes } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
 import express from "express";
 import cors from "cors";
 import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, REQUIRE_PASS, ECO_REWARD, ECO_MAX_PER_WEEK, ECO_COOLDOWN_MS, ECO_APPLIANCES, ecoWeekKey, RATES, UNITS } from "./config.js";
@@ -14,7 +14,7 @@ import { putPhoto, getPhotoDataUrl, deletePhoto, photoStoreEnabled } from "./pho
 import { distributeReward, distributeEcoReward, distributorAddress, chainDiagnostics, moveToRewardsPool, DRY_RUN } from "./reward.js";
 import { signalStatus, passportFor, signalUser } from "./passport.js";
 import { ocrImage, ocrEnabled, ocrProviders } from "./ocr.js";
-import { verifyWalletCertificate, REQUIRE_CERT } from "./auth.js";
+import { verifyWalletCertificate, REQUIRE_CERT, CERT_MAX_AGE_MS } from "./auth.js";
 import { checkPhotoAuthenticity, aiPhotoCheckEnabled } from "./authenticity.js";
 import { verifyCaptcha, captchaEnabled } from "./captcha.js";
 import { enodeEnabled, enodeInfo, createMeterLink, fetchLatestReading } from "./enode.js";
@@ -178,6 +178,10 @@ function backfillPasses() {
   let granted = 0;
   for (const w of known) {
     if (w.banned) continue;   // a blocked wallet shouldn't be handed a pass on the way in
+    // Only wallets that actually did something: own a meter (were paid for one) or
+    // paired a reader. "Seen" alone is an unauthenticated POST anyone can make for
+    // any address, so it would hand out passes to made-up wallets.
+    if (!w.hasMeter && !w.paired) continue;
     store.grantPass(w.address, { tier: "tester", note: "grandfathered when passes were enabled" });
     granted++;
   }
@@ -208,6 +212,21 @@ function canonicalAdminAction(path, body) {
 // `mustContain` are fragments of the text the wallet signed. Each endpoint asserts
 // its own purpose line, so a certificate signed for one action cannot be spent on
 // another, plus the values that decide the payout.
+// What makes a certificate "the same one again". Not its signature text: the same
+// signature still verifies in upper case, without 0x, or in its high-S twin, so the
+// audit replayed one admin certificate four times by re-spelling it. What was signed
+// cannot be re-spelled, so that is the key.
+function certKey(cert) {
+  const c = cert || {};
+  return createHash("sha256").update(JSON.stringify([
+    String(c.signer || "").toLowerCase(), String(c.timestamp ?? ""), String(c.purpose || ""),
+    String(c.domain || ""), String(c.payload?.type || ""), String(c.payload?.content || ""),
+  ])).digest("hex");
+}
+// A certificate is accepted while its timestamp is within CERT_MAX_AGE_MS of now,
+// on either side, so it can be live for twice that. Remember it for longer than that.
+const CERT_REPLAY_MS = 2 * CERT_MAX_AGE_MS + 60_000;
+
 function requireBoundCert(req, mustContain = []) {
   if (!REQUIRE_CERT) return { ok: true };
   const cert = req.body.certificate;
@@ -221,7 +240,7 @@ function requireBoundCert(req, mustContain = []) {
   }
   // Single use, for the certificate's whole lifetime: consumeCert only evicts
   // entries older than the freshness window, so a replay inside it always loses.
-  if (!store.consumeCert(cert?.signature)) {
+  if (!store.consumeCert(certKey(cert), CERT_REPLAY_MS)) {
     return { ok: false, code: 401, error: "signature already used — please sign again" };
   }
   return { ok: true };
@@ -240,7 +259,7 @@ function verifyAdmin(req, path) {
     return { ok: false, code: 401, error: "certificate does not authorise this action" };
   }
   // ...and be single-use (defence against replay within the freshness window).
-  if (!store.consumeCert(cert?.signature)) {
+  if (!store.consumeCert(certKey(cert), CERT_REPLAY_MS)) {
     return { ok: false, code: 401, error: "certificate already used — please sign again" };
   }
   return { ok: true, addr };
@@ -583,8 +602,8 @@ app.post("/reward", async (req, res) => {
     // 2b) AI authenticity — reject doctored / screenshotted / watermarked / hand-drawn
     // photos before issuing a reward. No-op (allows) when ANTHROPIC_API_KEY is unset.
     if (aiPhotoCheckEnabled()) {
-      const auth = await checkPhotoAuthenticity(req.body.photo);
-      if (!auth.ok) return res.status(400).json({ error: `photo rejected: ${auth.reason}` });
+      const auth = await checkPhotoAuthenticity(req.body.photo, photo.mime);
+      if (!auth.ok) return res.status(auth.unavailable ? 503 : 400).json({ error: auth.unavailable ? auth.reason : `photo rejected: ${auth.reason}` });
     }
 
     // 3) Pay out, then commit cooldown + baseline (only on success).
@@ -693,8 +712,8 @@ app.post("/eco-action", async (req, res) => {
     if (!photo.ok) return res.status(400).json({ error: photo.error });
 
     if (aiPhotoCheckEnabled()) {
-      const auth = await checkPhotoAuthenticity(req.body.photo);
-      if (!auth.ok) return res.status(400).json({ error: `photo rejected: ${auth.reason}` });
+      const auth = await checkPhotoAuthenticity(req.body.photo, photo.mime);
+      if (!auth.ok) return res.status(auth.unavailable ? 503 : 400).json({ error: auth.unavailable ? auth.reason : `photo rejected: ${auth.reason}` });
     }
 
     const txid = await distributeEcoReward({ appliance, amount: ECO_REWARD, receiver: req.body.address });
@@ -733,20 +752,35 @@ const publicBase = (req) =>
 app.post("/meter/pair", (req, res) => {
   const address = String(req.body.address || "");
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
-  if (REQUIRE_CERT) {
-    const c = verifyWalletCertificate({ certificate: req.body.certificate, address });
-    if (!c.ok) return res.status(401).json({ error: c.error });
+  {
+    // Bound to what the app signs for linking, and single-use. A bare "any valid
+    // signature by this wallet" also accepted one made for a different site.
+    const c = requireBoundCert(req, ["Green Utility Log — link smart meter"]);
+    if (!c.ok) return res.status(c.code).json({ error: c.error });
   }
   const meterNo = String(req.body.meterNo || "").trim();
   // Remember which utility this meter is, so the scheduled auto-submit pays it at
   // the right rate/bounds/cooldown instead of always assuming electric.
   const utility = RATES[String(req.body.utility || "").toLowerCase()] ? String(req.body.utility).toLowerCase() : "electric";
+  // A reader can only be paired to a meter that is yours, or nobody's yet. Without
+  // this, anyone who knew a meter number could pair to it and push numbers against
+  // someone else's baseline.
+  if (meterNo) {
+    const owner = store.meterOwner(utility, meterNo.toLowerCase());
+    if (owner && owner !== address.toLowerCase()) {
+      return res.status(403).json({ error: "this meter is registered to another wallet" });
+    }
+  }
   const existing = store.getLinkByAddress(address);
   // Re-pairing reuses the token; `rotate:true` forces a fresh one and invalidates the
   // old (use it if a token may have leaked from a Pi/NAS/shell history).
   if (existing && req.body.rotate === true) store.delMeterLink(existing.token);
   const token = (existing && req.body.rotate !== true) ? existing.token : randomBytes(24).toString("hex");
-  store.setMeterLink(token, { address: address.toLowerCase(), meterNo, utility, createdAt: Date.now() });
+  // Keep what this wallet's pairing has already been through (autoPaidAt closes
+  // /meter/rebaseline) when it is the same meter. Pairing again must not reset it.
+  const carried = existing && String(existing.meterNo || "").toLowerCase() === meterNo.toLowerCase() && existing.utility === utility
+    ? { autoPaidAt: existing.autoPaidAt, rebasedAt: existing.rebasedAt } : {};
+  store.setMeterLink(token, { ...carried, address: address.toLowerCase(), meterNo, utility, createdAt: Date.now() });
   res.json({
     token,
     ingestUrl: `${publicBase(req)}/meter-ingest`,
@@ -765,9 +799,11 @@ app.post("/meter/pair", (req, res) => {
 app.post("/meter/unpair", (req, res) => {
   const address = String(req.body.address || "");
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
-  if (REQUIRE_CERT) {
-    const c = verifyWalletCertificate({ certificate: req.body.certificate, address });
-    if (!c.ok) return res.status(401).json({ error: c.error });
+  {
+    // Bound to what the app signs for linking, and single-use. A bare "any valid
+    // signature by this wallet" also accepted one made for a different site.
+    const c = requireBoundCert(req, ["Green Utility Log — link smart meter"]);
+    if (!c.ok) return res.status(c.code).json({ error: c.error });
   }
   const existing = store.getLinkByAddress(address);
   if (existing) store.delMeterLink(existing.token);
@@ -844,7 +880,7 @@ app.get("/meter/latest", (req, res) => {
   res.json({
     paired: !!link,
     reading: r || null,
-    canRebaseline: !!link && !link.autoPaidAt,
+    canRebaseline: !!link && !link.autoPaidAt && !(link.meterNo && store.rebasedAt(utility, String(link.meterNo).toLowerCase())),
     baseline: baseline != null ? baseline : null,
     rebasedAt: link?.rebasedAt || null,
   });
@@ -858,9 +894,11 @@ app.post("/meter/enode/link", async (req, res) => {
   if (!enodeEnabled()) return res.status(503).json({ error: "enode not configured" });
   const address = String(req.body.address || "");
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
-  if (REQUIRE_CERT) {
-    const c = verifyWalletCertificate({ certificate: req.body.certificate, address });
-    if (!c.ok) return res.status(401).json({ error: c.error });
+  {
+    // Bound to what the app signs for linking, and single-use. A bare "any valid
+    // signature by this wallet" also accepted one made for a different site.
+    const c = requireBoundCert(req, ["Green Utility Log — link smart meter"]);
+    if (!c.ok) return res.status(c.code).json({ error: c.error });
   }
   try {
     const session = await createMeterLink(address);
@@ -877,9 +915,11 @@ app.post("/meter/enode/sync", async (req, res) => {
   if (!enodeEnabled()) return res.status(503).json({ error: "enode not configured" });
   const address = String(req.body.address || "");
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
-  if (REQUIRE_CERT) {
-    const c = verifyWalletCertificate({ certificate: req.body.certificate, address });
-    if (!c.ok) return res.status(401).json({ error: c.error });
+  {
+    // Bound to what the app signs for linking, and single-use. A bare "any valid
+    // signature by this wallet" also accepted one made for a different site.
+    const c = requireBoundCert(req, ["Green Utility Log — link smart meter"]);
+    if (!c.ok) return res.status(c.code).json({ error: c.error });
   }
   try {
     const latest = await fetchLatestReading(address);
@@ -1053,6 +1093,16 @@ app.post("/meter/rebaseline", async (req, res) => {
   }
 
   const key = meterNo.toLowerCase();
+  // Only the meter's owner may move its starting point.
+  const owner = store.meterOwner(utility, key);
+  if (owner && owner !== address.toLowerCase()) {
+    return res.status(403).json({ error: "this meter is registered to another wallet" });
+  }
+  // Once per meter. Each rebaseline wipes the usage since the last payout, so an
+  // unlimited one turns every photo after it into a near-zero-usage maximum payout.
+  if (store.rebasedAt(utility, key)) {
+    return res.status(409).json({ error: "this meter's starting point has already been corrected once — ask an admin if it is wrong again" });
+  }
   const prev = store.lastReading(utility, key);
   // The photo baseline stays required. The automatic path must never be able to
   // invent a meter or a starting value out of nothing — only to correct the scale of
@@ -1067,6 +1117,7 @@ app.post("/meter/rebaseline", async (req, res) => {
   // setLastReading also stamps the time, so the next submission's span is measured
   // from now rather than from a photo that may be weeks old.
   store.setLastReading(utility, key, reading);
+  store.markRebased(utility, key, { from: prev, to: reading, by: address.toLowerCase() });
   const { token, ...rest } = link;
   store.setMeterLink(token, { ...rest, rebasedAt: Date.now(), rebasedFrom: prev, rebasedTo: reading });
   store.addFlag(
@@ -1139,8 +1190,8 @@ app.post("/meter/fix-basis", async (req, res) => {
     photo = await verifyPhoto({ imageBase64: req.body.photo, reading: total, registers, ocr: OCR_ENABLED, mime: req.body.photoMime });
     if (!photo.ok) return res.status(400).json({ error: photo.error });
     if (aiPhotoCheckEnabled()) {
-      const auth = await checkPhotoAuthenticity(req.body.photo);
-      if (!auth.ok) { photo.unreserve(); return res.status(400).json({ error: `photo rejected: ${auth.reason}` }); }
+      const auth = await checkPhotoAuthenticity(req.body.photo, photo.mime);
+      if (!auth.ok) { photo.unreserve(); return res.status(auth.unavailable ? 503 : 400).json({ error: auth.unavailable ? auth.reason : `photo rejected: ${auth.reason}` }); }
     }
 
     store.setLastReading(utility, meterKey, total);

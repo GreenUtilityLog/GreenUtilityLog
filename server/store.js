@@ -20,7 +20,7 @@ const REDIS_KEY = process.env.STATE_KEY || "greenutilitylog:state";
 // `passes` is the access-pass registry (address → pass); `passesInit` records that the
 // one-time grandfathering has run, so turning REQUIRE_PASS on can't silently cut off
 // every existing tester — and can't re-grant a pass an admin has since revoked.
-const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {} };
+const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {} };
 
 // Cap the "seen wallets" roster so an open endpoint can't grow state without bound.
 // When exceeded we drop the least-recently-seen entries.
@@ -82,6 +82,9 @@ if (USE_REDIS && loadError) {
   }, 10000);
 }
 
+let saveError = false;
+let saveRetry = null;
+
 // Write the current state out now. Async so a graceful shutdown can await it.
 async function writeNow() {
   // Never overwrite a key we couldn't read at boot — that would wipe it durably.
@@ -91,8 +94,22 @@ async function writeNow() {
   }
   const blob = JSON.stringify(state);
   if (USE_REDIS) {
-    try { await redisCmd(["SET", REDIS_KEY, blob]); }
-    catch (e) { console.error("[store] Redis save failed:", e?.message || e); }
+    try {
+      await redisCmd(["SET", REDIS_KEY, blob]);
+      if (saveError) console.log("[store] Redis save recovered — payouts enabled again.");
+      saveError = false;
+    } catch (e) {
+      // A lost write is a payout that can be claimed again after the next restart
+      // (the cooldown, the burnt photo and the new baseline all lived in it). So a
+      // failing save makes the store NOT ready — no new payouts — and keeps trying
+      // until one lands. It used to log and carry on as if saved.
+      saveError = true;
+      console.error("[store] Redis save FAILED — payouts paused until a save succeeds:", e?.message || e);
+      if (!saveRetry) {
+        saveRetry = setTimeout(() => { saveRetry = null; writeNow(); }, 5000);
+        saveRetry.unref?.();
+      }
+    }
     return;
   }
   try {
@@ -194,6 +211,13 @@ export const store = {
   // claim is refused as implausible. Correcting it is allowed once per meter, and
   // that is recorded here — a bounded map keyed by meter, not a flag, because flags
   // are evicted when they get old and a gate that forgets is not a gate.
+  // Same idea for /meter/rebaseline: once per meter, remembered by the meter and not
+  // by the pairing, so unpairing and pairing again does not reopen it.
+  rebasedAt: (utility, meterNo) => state.rebased[mKey(utility, meterNo)] || null,
+  markRebased: (utility, meterNo, info) => {
+    state.rebased[mKey(utility, meterNo)] = { at: Date.now(), ...info };
+    persist();
+  },
   basisFixedAt: (utility, meterNo) => state.basisFixed[mKey(utility, meterNo)] || null,
   markBasisFixed: (utility, meterNo, info) => {
     state.basisFixed[mKey(utility, meterNo)] = { at: Date.now(), ...info };
@@ -294,7 +318,8 @@ export const store = {
   //   meterLinks:   token   -> { address, meterNo, createdAt }
   //   linkReadings: address -> { reading, meterNo, at, source }
   setMeterLink: (token, obj) => { state.meterLinks[token] = obj; persist(); },
-  getMeterLink: (token) => state.meterLinks[token] || null,
+  // Own keys only: a token of "__proto__" would otherwise find Object.prototype.
+  getMeterLink: (token) => (Object.prototype.hasOwnProperty.call(state.meterLinks, token) ? state.meterLinks[token] : null),
   // Reverse lookup so a wallet re-pairing reuses/overwrites its own token rather
   // than accumulating orphans.
   getLinkByAddress: (addr) => {
@@ -454,7 +479,7 @@ export const store = {
 
   // False while a durable store failed to load at boot — callers must refuse payouts
   // until it recovers, so anti-farming state is never bypassed or overwritten.
-  ready: () => !loadError,
+  ready: () => !loadError && !saveError,
 
   // Single-use admin certificates: returns true the FIRST time a signature is seen,
   // false on any replay within the TTL. Prunes expired entries on each call so it

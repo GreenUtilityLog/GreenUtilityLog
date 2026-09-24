@@ -3,7 +3,7 @@
 // every payout is re-validated here. The reward AMOUNT is always recomputed on
 // the server — a client-sent amount is never trusted.
 
-import { RATES, UNITS, COOLDOWN_MS, computeReward, usageBoundsFor, spanDays, MAX_REWARD } from "./config.js";
+import { RATES, UNITS, COOLDOWN_MS, computeReward, usageBoundsFor, spanDays, MAX_REWARD, REWARD_BASE } from "./config.js";
 import { store } from "./store.js";
 
 const isAddress = (a) => typeof a === "string" && /^0x[0-9a-fA-F]{40}$/.test(a);
@@ -68,7 +68,17 @@ export function validateSubmission(body) {
 
   // Server is the source of truth for the reward amount. Conservation-based:
   // you earn for using LESS than the benchmark, not for using more.
-  const amount = computeReward(utility, usage, days);
+  //
+  // Except on a meter's FIRST submission. Its "previous reading" is whatever the
+  // client typed — nothing on the server can vouch for it — so the usage, and with
+  // it the saving bonus, is the submitter's own choice: prevRead = reading means
+  // "zero usage", the maximum. The first reading sets the baseline and earns the
+  // base amount only; savings are paid from the second reading on, measured from a
+  // number the server recorded itself.
+  const firstReading = last == null;
+  const amount = firstReading
+    ? +Math.min(REWARD_BASE[utility] ?? 0, computeReward(utility, usage, days)).toFixed(2)
+    : computeReward(utility, usage, days);
   if (amount <= 0) return { ok: false, error: "computed reward is zero" };
   // Hard per-payout ceiling — a stateless sanity bound so a bug or a crafted
   // submission can never sign an absurd amount. Tune MAX_REWARD in config/env.
@@ -80,6 +90,7 @@ export function validateSubmission(body) {
     days,
     prev, // server-authoritative baseline, so the on-chain proof reflects what we validated
     amount,
+    firstReading,
     // Called only after a successful payout: start the cooldown, bind the meter
     // to this wallet, and record this reading as the new baseline for next time.
     markPaid: () => {
