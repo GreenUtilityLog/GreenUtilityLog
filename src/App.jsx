@@ -4450,12 +4450,31 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
 const AVATARS = ["🌱", "🌿", "🌳", "🌻", "☀️", "⚡", "💧", "🔥", "🐝", "🦊", "🐢", "🚲"];
 const PROFILE_NAME_MAX = 24;
 const profileKey = (w) => `greenlog_profile:${String(w || "").toLowerCase()}`;
+// An own photo is shrunk to a 160 px square JPEG (~10 KB) before it is kept, so
+// it fits comfortably in localStorage. Anything else found there is ignored.
+const PHOTO_PREFIX = "data:image/jpeg;base64,";
+const PHOTO_MAX_CHARS = 80000;
+const EMPTY_PROFILE = { name: "", avatar: "", photo: "" };
 function loadProfile(w) {
-  if (!w) return { name: "", avatar: "" };
+  if (!w) return EMPTY_PROFILE;
   try {
     const p = JSON.parse(localStorage.getItem(profileKey(w)) || "{}");
-    return { name: String(p.name || "").slice(0, PROFILE_NAME_MAX), avatar: AVATARS.includes(p.avatar) ? p.avatar : "" };
-  } catch { return { name: "", avatar: "" }; }
+    const photo = typeof p.photo === "string" && p.photo.startsWith(PHOTO_PREFIX) && p.photo.length <= PHOTO_MAX_CHARS ? p.photo : "";
+    return { name: String(p.name || "").slice(0, PROFILE_NAME_MAX), avatar: AVATARS.includes(p.avatar) ? p.avatar : "", photo };
+  } catch { return EMPTY_PROFILE; }
+}
+// Centre-crop to a square and scale down. Returns a data URL, or null when this
+// browser can't decode the file (HEIC on most non-Apple browsers, say).
+async function profilePhotoFrom(file) {
+  try {
+    const bmp = await createImageBitmap(file);
+    const side = Math.min(bmp.width, bmp.height);
+    const c = document.createElement("canvas");
+    c.width = c.height = 160;
+    c.getContext("2d").drawImage(bmp, (bmp.width - side) / 2, (bmp.height - side) / 2, side, side, 0, 0, 160, 160);
+    const url = c.toDataURL("image/jpeg", 0.85);
+    return url.startsWith(PHOTO_PREFIX) && url.length <= PHOTO_MAX_CHARS ? url : null;
+  } catch { return null; }
 }
 function saveProfile(w, p) {
   try { localStorage.setItem(profileKey(w), JSON.stringify(p)); return true; } catch { return false; }
@@ -4470,8 +4489,18 @@ function ProfileHero({ wallet, domain, tier, onToast, T }) {
 
   const title = profile.name || domain || "My Account";
   const avatar = profile.avatar || "🌱";
+  const fileRef = useRef(null);
+  const pickPhoto = async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = ""; // so picking the same file again still fires
+    if (!f) return;
+    const url = await profilePhotoFrom(f);
+    if (!url) { onToast?.("⚠️ Couldn't open that photo here — try a JPEG or PNG"); return; }
+    setDraft(d => ({ ...d, photo: url }));
+  };
+  const shown = editing ? draft : profile;
   const save = () => {
-    const next = { name: draft.name.trim().slice(0, PROFILE_NAME_MAX), avatar: draft.avatar };
+    const next = { name: draft.name.trim().slice(0, PROFILE_NAME_MAX), avatar: draft.avatar, photo: draft.photo || "" };
     if (!saveProfile(wallet, next)) onToast?.("⚠️ This browser won't let the app save it — try outside private mode");
     setProfile(next); setEditing(false);
   };
@@ -4480,7 +4509,9 @@ function ProfileHero({ wallet, domain, tier, onToast, T }) {
   return (
     <div className="profile-hero">
       <div style={{display:"flex",alignItems:"center",gap:12}}>
-        <div aria-hidden="true" style={{width:48,height:48,flexShrink:0,borderRadius:"50%",background:T.bgAlt,border:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24}}>{editing ? (draft.avatar || "🌱") : avatar}</div>
+        <div aria-hidden="true" style={{width:48,height:48,flexShrink:0,borderRadius:"50%",overflow:"hidden",background:T.bgAlt,border:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24}}>
+          {shown.photo ? <img src={shown.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} /> : (editing ? (draft.avatar || "🌱") : avatar)}
+        </div>
         <div style={{minWidth:0,flex:1}}>
           <div className="pname" style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{editing ? (draft.name.trim() || domain || "My Account") : title}</div>
           <div style={{fontSize:10,color:T.textSoft,fontFamily:mono,marginTop:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
@@ -4503,7 +4534,17 @@ function ProfileHero({ wallet, domain, tier, onToast, T }) {
               onChange={(e) => setDraft(d => ({ ...d, name: e.target.value }))}
               style={{display:"block",width:"100%",boxSizing:"border-box",marginTop:6,background:T.bg,border:`1px solid ${T.border}`,borderRadius:6,padding:"10px 12px",fontSize:14,color:T.text,outline:"none",textTransform:"none",letterSpacing:0,fontWeight:500}} />
           </label>
-          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,margin:"12px 0 6px"}}>Avatar</div>
+          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,margin:"12px 0 6px"}}>Photo</div>
+          <input ref={fileRef} type="file" accept="image/*" onChange={pickPhoto} style={{display:"none"}} />
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={() => fileRef.current?.click()} style={{flex:1,background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"10px",fontSize:12,fontWeight:700,color:T.text,cursor:"pointer"}}>
+              📷 {draft.photo ? "Change photo" : "Choose a photo"}
+            </button>
+            {draft.photo && (
+              <button onClick={() => setDraft(d => ({ ...d, photo: "" }))} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"10px 12px",fontSize:12,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Remove</button>
+            )}
+          </div>
+          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,margin:"12px 0 6px"}}>Or an avatar</div>
           <div role="radiogroup" aria-label="Avatar" style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:6}}>
             {AVATARS.map(a => {
               const on = (draft.avatar || "🌱") === a;
@@ -4515,7 +4556,7 @@ function ProfileHero({ wallet, domain, tier, onToast, T }) {
               );
             })}
           </div>
-          <div style={{fontSize:10,color:T.textSoft,lineHeight:1.5,marginTop:10}}>Only on this device — nobody else sees your name.</div>
+          <div style={{fontSize:10,color:T.textSoft,lineHeight:1.5,marginTop:10}}>Only on this device — nobody else sees your name or photo.</div>
           <div style={{display:"flex",gap:8,marginTop:12}}>
             <button onClick={() => setEditing(false)} style={{flex:1,background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"11px",fontSize:12,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Cancel</button>
             <button onClick={save} style={{flex:2,background:"#2E7D32",border:"none",borderRadius:6,padding:"11px",fontSize:12,fontWeight:800,color:"#fff",cursor:"pointer"}}>Save</button>
