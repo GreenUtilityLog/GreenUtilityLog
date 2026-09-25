@@ -2625,7 +2625,7 @@ ${fetchCmd(`--token=${token} --url=http://<reader-ip>/api/v1/data`)}`;
   );
 }
 
-function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading, setReading, prevRead, setPrevRead,
+function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading, setReading, prevRead, setPrevRead,
   dualTariff, setDualTariff, regLow, setRegLow, regNormal, setRegNormal,
   fixBasis, fixBusy, runFixBasis, dismissFixBasis, busy, usage, reward, days, handleSubmit, verifyKey, wallet, setShowWallet, subs, meters, T, setTab, onEcoSubmit, ecoBusy, ecoUsedThisWeek, ecoCooldownMs, onMeterAutoSubmit, meterAutoBusy, onRegisterMeter }) {
   const meterNo  = (meters?.[selUtil] || "").trim();
@@ -2891,6 +2891,9 @@ function SubmitScreen({ u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading
                 <div className="rp-rate">{subs.some(x => x.type === selUtil && x.status === "confirmed")
                   ? <>Use less, earn more · {rateText}</>
                   : <>First reading sets your starting point · savings pay from the next one</>}</div>
+                {rewardFactor < 1 && (
+                  <div className="rp-rate" style={{marginTop:3}}>This week's B3TR is shared by everyone: rewards at {Math.round(rewardFactor * 100)}%</div>
+                )}
               </div>
               <div style={{textAlign:"right"}}>
                 <div className="rp-val">+{reward()}</div>
@@ -4297,6 +4300,15 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
                   <Row ok={c?.distributionPaused == null ? null : !c.distributionPaused}
                     label={c?.distributionPaused === true ? "Payouts are PAUSED (emergency stop)" : c?.distributionPaused === false ? "Payouts are running (not paused)" : "Emergency stop: status unknown"}
                     fix="Every claim fails while payouts are paused. Press Resume payouts below once the problem is fixed." />
+                  {(() => {
+                    const b = h?.rewardBudget;
+                    if (!b) return null;
+                    const pct = Math.round((b.factor ?? 1) * 100);
+                    const ends = b.roundEndsAt ? new Date(b.roundEndsAt).toLocaleString() : null;
+                    return <Row ok={b.poolB3TR == null ? null : b.poolB3TR > 0}
+                      label={`Weekly budget: rewards at ${pct}%${b.poolB3TR != null ? ` · ${b.poolB3TR.toFixed(2)} B3TR in the pot` : ""} · ${b.dailyBudget != null ? `${b.dailyBudget} a day` : "?"} vs ${b.dailyDemand} claimed a day${ends ? ` · round ends ${ends}` : ""}`}
+                      fix="The pot is empty: payouts are refused until the round ends and its allocation is claimed (the server does that by itself within the hour), or fund the pool below." />;
+                  })()}
                   {onSetDistributionPaused && c?.distributionPaused != null && (
                     <div style={{paddingTop:10}}>
                       <button disabled={pausing}
@@ -5099,6 +5111,20 @@ export default function App() {
   // What the wallet actually holds (B3TR.balanceOf) — shown beside "earned here",
   // which only counts this app's payouts. null = not read (yet).
   const [walletB3tr, setWalletB3tr] = useState(null);
+  // This week's reward scale from the backend (/health → rewardBudget.factor): 1 =
+  // full rates; lower when the weekly B3TR has to stretch over more claims.
+  const [rewardFactor, setRewardFactor] = useState(1);
+  useEffect(() => {
+    if (!REWARD_API) return;
+    let stop = false;
+    const read = () => fetch(`${REWARD_API.replace(/\/$/, "")}/health`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(h => { const f = Number(h?.rewardBudget?.factor); if (!stop && Number.isFinite(f) && f >= 0 && f <= 1) setRewardFactor(f); })
+      .catch(() => {});
+    read();
+    const t = setInterval(read, 10 * 60 * 1000);
+    return () => { stop = true; clearInterval(t); };
+  }, []);
   const [subs, setSubs]             = useState([]);    // no demo data — start empty until hydrated
   const streak = computeStreak(subs); // derived from real submission dates
   const [verifyKey, setVerifyKey]   = useState(0);
@@ -5587,9 +5613,13 @@ export default function App() {
   // for a starting point it never recorded); the saving is paid from the next one.
   // Paid rows come back from chain on connect, so "none yet" is a fair signal here.
   const firstForUtil = () => !subs.some(x => x.type === selUtil && x.status === "confirmed");
-  const reward = () => (readingReady()
-    ? (firstForUtil() ? Math.min(REWARD_BASE[selUtil] ?? 0, computeReward(selUtil, usage(), daysSinceLast())) : computeReward(selUtil, usage(), daysSinceLast()))
-    : 0);
+  // Scaled to this week's budget exactly as the server does (budget.js): the
+  // full-rate amount × rewardFactor, rounded down to the cent.
+  const reward = () => {
+    if (!readingReady()) return 0;
+    const full = firstForUtil() ? Math.min(REWARD_BASE[selUtil] ?? 0, computeReward(selUtil, usage(), daysSinceLast())) : computeReward(selUtil, usage(), daysSinceLast());
+    return Math.floor(full * rewardFactor * 100) / 100;
+  };
 
   // ── Eco-mode bonus ──────────────────────────────────────────────────────────
   // Photo of an appliance running in eco mode → fixed bonus via the backend.
@@ -5957,7 +5987,7 @@ export default function App() {
           )}
 
           {tab==="home"      && <HomeScreen b3tr={b3tr} walletB3tr={walletB3tr} streak={streak} subs={subs} setTab={setTab} T={T}/>}
-          {tab==="submit"    && <SubmitScreen u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} dualTariff={dualTariff} fixBasis={fixBasis} fixBusy={fixBusy} runFixBasis={runFixBasis} dismissFixBasis={() => setFixBasis(null)} setDualTariff={setDualTariff} regLow={regLow} setRegLow={setRegLow} regNormal={regNormal} setRegNormal={setRegNormal} busy={busy} usage={usage} reward={reward} days={daysSinceLast()} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab} onEcoSubmit={handleEcoSubmit} ecoBusy={ecoBusy} ecoUsedThisWeek={ecoUsedThisWeek} ecoCooldownMs={ecoCooldownMs} onMeterAutoSubmit={handleMeterAutoSubmit} meterAutoBusy={meterAutoBusy} onRegisterMeter={(utils) => openRegistration(utils, true)}/>}
+          {tab==="submit"    && <SubmitScreen rewardFactor={rewardFactor} u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} dualTariff={dualTariff} fixBasis={fixBasis} fixBusy={fixBusy} runFixBasis={runFixBasis} dismissFixBasis={() => setFixBasis(null)} setDualTariff={setDualTariff} regLow={regLow} setRegLow={setRegLow} regNormal={regNormal} setRegNormal={setRegNormal} busy={busy} usage={usage} reward={reward} days={daysSinceLast()} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab} onEcoSubmit={handleEcoSubmit} ecoBusy={ecoBusy} ecoUsedThisWeek={ecoUsedThisWeek} ecoCooldownMs={ecoCooldownMs} onMeterAutoSubmit={handleMeterAutoSubmit} meterAutoBusy={meterAutoBusy} onRegisterMeter={(utils) => openRegistration(utils, true)}/>}
           {tab==="charts"    && <ChartsScreen subs={subs} T={T}/>}
           {tab==="leaderboard" && <LeaderboardScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}

@@ -10,7 +10,7 @@ const NODES = {
 };
 export const NODE_URL = process.env.NODE_URL || NODES[NETWORK] || NODES.testnet;
 
-// VeBetterPassport addresses taken from VeChain Kit's own network config
+// VeBetterPassport and XAllocation* addresses taken from VeChain Kit's own network config
 // (packages/vechain-kit/src/config/{testnet,mainnet}.ts). The X2Earn addresses in
 // that same file match the two below exactly, which is what corroborates it.
 const CONTRACTS_BY_NET = {
@@ -18,11 +18,15 @@ const CONTRACTS_BY_NET = {
     X2EarnRewardsPool: "0x6Bee7DDab6c99d5B2Af0554EaEA484CE18F52631",
     X2EarnApps:        "0x8392B7CCc763dB03b47afcD8E8f5e24F9cf0554D",
     VeBetterPassport:  "0x35a267671d8EDD607B2056A9a13E7ba7CF53c8b3",
+    XAllocationVoting: "0x89A00Bb0947a30FF95BEeF77a66AEdE3842Fe5B7",
+    XAllocationPool:   "0x4191776F05f4bE4848d3f4d587345078B439C7d3",
   },
   testnet: {
     X2EarnRewardsPool: "0x2d2a2207c68a46fc79325d7718e639d1047b0d8b",
     X2EarnApps:        "0x0b54a094b877a25bdc95b4431eaa1e2206b1ddfe",
     VeBetterPassport:  "0x592c756df7a5d39de1735030e8b9c18b7417e6c4",
+    XAllocationVoting: "0x8800592c463f0b21ae08732559ee8e146db1d7b2",
+    XAllocationPool:   "0x6f7b4bc19b4dc99005b473b9c45ce2815bbe7533",
   },
 };
 export const CONTRACTS = CONTRACTS_BY_NET[NETWORK] || CONTRACTS_BY_NET.testnet;

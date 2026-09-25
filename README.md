@@ -20,6 +20,9 @@ out on-chain.
 - The server recomputes every amount. Photos must be real, fresh and unused;
   with an OCR provider configured the typed reading must be on the photo.
 - Eco-mode bonus: a photo of an appliance on its eco program, 2 B3TR, up to 4 a week.
+- All amounts follow the weekly VeBetterDAO allocation: when more is claimed than
+  the week's B3TR covers, every payout is scaled down by the same percentage
+  (shown in the app). The server claims each round's allocation by itself.
 
 ---
 

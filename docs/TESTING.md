@@ -46,6 +46,9 @@ doet de server.
 - Je verdient **meer naarmate je mínder verbruikt** dan de zuinig-benchmark
   (≈8 kWh per dag): `0,2 + (8 − verbruik) × 0,61`, met een maximum van **4 B3TR**
   per inzending. Dit zijn **test-B3TR zonder echte waarde**.
+- Alle bedragen hangen af van de **wekelijkse B3TR van VeBetterDAO**: claimt
+  iedereen samen meer dan er die week is, dan krijgt iedereen hetzelfde
+  percentage. De app laat dat percentage zien bij je geschatte beloning.
 - Je **eerste** inzending legt alleen je startpunt vast en levert de basis (0,2)
   op. Vanaf de tweede wordt je besparing betaald.
 - Bekijk je totaal op **Home** en je positie op de **Leaderboard** (🏆).

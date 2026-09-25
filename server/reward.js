@@ -348,6 +348,9 @@ async function sendProofReward({ amount, receiver, proofText, impacts, descripti
       if (/distribution is paused/i.test(`${modernReason} ${legacyReason}`)) {
         throw new Error("payouts are paused by the app admin — nothing was used up, try again later");
       }
+      if (/insufficient (available )?funds|not enough funds/i.test(`${modernReason} ${legacyReason}`)) {
+        throw new Error("this week's reward budget is used up — rewards resume after the next VeBetterDAO round, nothing was used up");
+      }
       throw new Error(`payout would revert: ${reason}`);
     }
     console.warn(`[reward] modern variant reverts ("${modernReason}") — using legacy distributeReward`);
