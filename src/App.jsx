@@ -4443,16 +4443,96 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
   );
 }
 
-function ProfileScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, setOnboarded, onEditMeters, onEditSolar, meters, isAdmin, onOpenAdmin, onOpenHelp, onOpenFeedback, onToast, onReset, T }) {
+// ── Personal touch: a name and an avatar, on this device only ─────────────────
+// Kept per wallet in localStorage and never sent anywhere, so nobody else sees it
+// and there is nothing to moderate. A .vet name, when the wallet has one, is shown
+// without asking.
+const AVATARS = ["🌱", "🌿", "🌳", "🌻", "☀️", "⚡", "💧", "🔥", "🐝", "🦊", "🐢", "🚲"];
+const PROFILE_NAME_MAX = 24;
+const profileKey = (w) => `greenlog_profile:${String(w || "").toLowerCase()}`;
+function loadProfile(w) {
+  if (!w) return { name: "", avatar: "" };
+  try {
+    const p = JSON.parse(localStorage.getItem(profileKey(w)) || "{}");
+    return { name: String(p.name || "").slice(0, PROFILE_NAME_MAX), avatar: AVATARS.includes(p.avatar) ? p.avatar : "" };
+  } catch { return { name: "", avatar: "" }; }
+}
+function saveProfile(w, p) {
+  try { localStorage.setItem(profileKey(w), JSON.stringify(p)); return true; } catch { return false; }
+}
+
+function ProfileHero({ wallet, domain, tier, onToast, T }) {
+  const [profile, setProfile] = useState(() => loadProfile(wallet));
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(profile);
+  // Another wallet connected: show that wallet's own profile, not the last one's.
+  useEffect(() => { const p = loadProfile(wallet); setProfile(p); setDraft(p); setEditing(false); }, [wallet]);
+
+  const title = profile.name || domain || "My Account";
+  const avatar = profile.avatar || "🌱";
+  const save = () => {
+    const next = { name: draft.name.trim().slice(0, PROFILE_NAME_MAX), avatar: draft.avatar };
+    if (!saveProfile(wallet, next)) onToast?.("⚠️ This browser won't let the app save it — try outside private mode");
+    setProfile(next); setEditing(false);
+  };
+  const mono = "'SF Mono',monospace";
+
+  return (
+    <div className="profile-hero">
+      <div style={{display:"flex",alignItems:"center",gap:12}}>
+        <div aria-hidden="true" style={{width:48,height:48,flexShrink:0,borderRadius:"50%",background:T.bgAlt,border:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24}}>{editing ? (draft.avatar || "🌱") : avatar}</div>
+        <div style={{minWidth:0,flex:1}}>
+          <div className="pname" style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{editing ? (draft.name.trim() || domain || "My Account") : title}</div>
+          <div style={{fontSize:10,color:T.textSoft,fontFamily:mono,marginTop:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+            {wallet ? (profile.name && domain ? `${domain} · ${shortAddr(wallet)}` : shortAddr(wallet)) : "Not connected"}
+          </div>
+        </div>
+        {wallet && !editing && (
+          <button onClick={() => { setDraft(profile); setEditing(true); }}
+            style={{flexShrink:0,background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"8px 10px",fontSize:11,fontWeight:700,color:T.textMid,cursor:"pointer"}}>
+            ✏️ Edit
+          </button>
+        )}
+      </div>
+
+      {editing ? (
+        <div style={{marginTop:14}}>
+          <label style={{display:"block",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginBottom:6}}>
+            Name
+            <input value={draft.name} maxLength={PROFILE_NAME_MAX} placeholder={domain || "Your name"}
+              onChange={(e) => setDraft(d => ({ ...d, name: e.target.value }))}
+              style={{display:"block",width:"100%",boxSizing:"border-box",marginTop:6,background:T.bg,border:`1px solid ${T.border}`,borderRadius:6,padding:"10px 12px",fontSize:14,color:T.text,outline:"none",textTransform:"none",letterSpacing:0,fontWeight:500}} />
+          </label>
+          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,margin:"12px 0 6px"}}>Avatar</div>
+          <div role="radiogroup" aria-label="Avatar" style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:6}}>
+            {AVATARS.map(a => {
+              const on = (draft.avatar || "🌱") === a;
+              return (
+                <button key={a} role="radio" aria-checked={on} onClick={() => setDraft(d => ({ ...d, avatar: a }))}
+                  style={{height:44,fontSize:22,borderRadius:8,cursor:"pointer",background:on ? T.bgAlt : "transparent",border:`${on ? 2 : 1}px solid ${on ? T.green3 : T.border}`}}>
+                  {a}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{fontSize:10,color:T.textSoft,lineHeight:1.5,marginTop:10}}>Only on this device — nobody else sees your name.</div>
+          <div style={{display:"flex",gap:8,marginTop:12}}>
+            <button onClick={() => setEditing(false)} style={{flex:1,background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"11px",fontSize:12,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Cancel</button>
+            <button onClick={save} style={{flex:2,background:"#2E7D32",border:"none",borderRadius:6,padding:"11px",fontSize:12,fontWeight:800,color:"#fff",cursor:"pointer"}}>Save</button>
+          </div>
+        </div>
+      ) : (
+        <div style={{display:"inline-block",fontSize:10,fontWeight:700,background:T.bgAlt,color:tier.color,border:`1px solid ${T.border}`,borderRadius:2,padding:"3px 7px",marginTop:12,textTransform:"uppercase",letterSpacing:".8px"}}>{tier.name} Tier</div>
+      )}
+    </div>
+  );
+}
+
+function ProfileScreen({ b3tr, subs, wallet, walletDomain, setShowWallet, dark, setDark, setOnboarded, onEditMeters, onEditSolar, meters, isAdmin, onOpenAdmin, onOpenHelp, onOpenFeedback, onToast, onReset, T }) {
   const tier = getTier(b3tr);
   return (
     <>
-      <div className="profile-hero">
-        <div style={{fontSize:18}}>🌱</div>
-        <div className="pname">My Account</div>
-        <div style={{fontSize:10,color:T.textSoft,fontFamily:"'SF Mono',monospace",marginTop:3}}>{wallet ? shortAddr(wallet) : "Not connected"}</div>
-        <div style={{fontSize:10,fontWeight:700,background:T.bgAlt,color:tier.color,border:`1px solid ${T.border}`,borderRadius:2,padding:"3px 7px",marginTop:10,textTransform:"uppercase",letterSpacing:".8px"}}>{tier.name} Tier</div>
-      </div>
+      <ProfileHero wallet={wallet} domain={walletDomain} tier={tier} onToast={onToast} T={T} />
       
       <div className="pstat-row">
         {[{v:b3tr.toFixed(2),k:"B3TR Earned"},{v:subs.length,k:"Submissions"}].map(x=>(
@@ -4898,7 +4978,7 @@ export default function App() {
   // Wallet connection is handled by VeChain dapp-kit (VeWorld / WalletConnect
   // mobile). useWallet() exposes the connected address and the
   // requestTransaction() signer; useWalletModal() opens the connect dialog.
-  const { account, requestTransaction, requestCertificate, disconnect } = useWallet();
+  const { account, accountDomain, requestTransaction, requestCertificate, disconnect } = useWallet();
   const wallet = account || null;
 
   // Pre-fill meter numbers an admin assigned to this wallet on the server, so a user
@@ -5840,7 +5920,7 @@ export default function App() {
           {tab==="charts"    && <ChartsScreen subs={subs} T={T}/>}
           {tab==="leaderboard" && <LeaderboardScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}
-          {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} setShowWallet={openConnectModal} dark={dark} setDark={toggleDark} setOnboarded={setOnboarded} onEditMeters={()=>openRegistration(REQUIRED_UTILS, true)} onEditSolar={()=>openRegistration(SOLAR_UTILS, true)} meters={meters} isAdmin={isAdmin} onOpenAdmin={()=>setShowAdmin(true)} onOpenHelp={()=>setShowHelp(true)} onOpenFeedback={()=>setShowFeedback(true)} onToast={showToast} onReset={resetApp} T={T}/>}
+          {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} walletDomain={accountDomain || null} setShowWallet={openConnectModal} dark={dark} setDark={toggleDark} setOnboarded={setOnboarded} onEditMeters={()=>openRegistration(REQUIRED_UTILS, true)} onEditSolar={()=>openRegistration(SOLAR_UTILS, true)} meters={meters} isAdmin={isAdmin} onOpenAdmin={()=>setShowAdmin(true)} onOpenHelp={()=>setShowHelp(true)} onOpenFeedback={()=>setShowFeedback(true)} onToast={showToast} onReset={resetApp} T={T}/>}
         </div>
 
         <div className="bnav">
