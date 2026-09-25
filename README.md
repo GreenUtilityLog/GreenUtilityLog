@@ -19,7 +19,7 @@ out on-chain.
   are paid from the next one, measured from a number the server recorded.
 - The server recomputes every amount. Photos must be real, fresh and unused;
   with an OCR provider configured the typed reading must be on the photo.
-- Eco-mode bonus: a photo of an appliance on its eco program, 4 B3TR, up to 4 a week.
+- Eco-mode bonus: a photo of an appliance on its eco program, 2 B3TR, up to 4 a week.
 
 ---
 
