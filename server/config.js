@@ -67,7 +67,7 @@ export const MAX_REWARD = Number(process.env.MAX_REWARD || 50);
 // CALENDAR week (Monday 00:00 – Sunday 23:59 in ECO_TZ) and at least
 // ECO_COOLDOWN_MS between claims. An eco photo has no meter reading to anchor
 // it, so these caps (plus photo-hash dedupe + the optional AI check) are the guard.
-export const ECO_REWARD       = Number(process.env.ECO_REWARD || 4);     // B3TR per approved eco photo
+export const ECO_REWARD       = Number(process.env.ECO_REWARD || 2);     // B3TR per approved eco photo
 export const ECO_MAX_PER_WEEK = Number(process.env.ECO_MAX_PER_WEEK || 4);
 export const ECO_COOLDOWN_MS  = Number(process.env.ECO_COOLDOWN_MS || 24 * 60 * 60 * 1000); // 24h between claims
 export const ECO_TZ           = process.env.ECO_TZ || "Europe/Amsterdam";

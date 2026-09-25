@@ -215,3 +215,15 @@ describe("a payout records where its reading came from", () => {
     assert.doesNotMatch(srv.logs().split("source").pop(), /photo/);
   });
 });
+
+describe("the eco-mode bonus", () => {
+  let srv;
+  before(async () => { srv = await startServer({ state: stateWithBaseline() }); });
+  after(async () => { await srv.stop(); });
+
+  test("pays 2 B3TR per approved photo", async () => {
+    const r = await srv.post("/eco-action", { address: WALLET, appliance: "washer", photo: photo("eco"), photoMime: "image/jpeg" });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.equal(r.body.amount, 2);
+  });
+});
