@@ -20,7 +20,7 @@ const REDIS_KEY = process.env.STATE_KEY || "greenutilitylog:state";
 // `passes` is the access-pass registry (address → pass); `passesInit` records that the
 // one-time grandfathering has run, so turning REQUIRE_PASS on can't silently cut off
 // every existing tester — and can't re-grant a pass an admin has since revoked.
-const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {}, autoPaid: {} };
+const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {}, autoPaid: {}, payLog: [] };
 
 // Cap the "seen wallets" roster so an open endpoint can't grow state without bound.
 // When exceeded we drop the least-recently-seen entries.
@@ -490,6 +490,16 @@ export const store = {
   // claimed again after a restart. Other writes (admin actions, pairing, ingest)
   // only need loaded: they are lost at worst, and an admin must be able to act
   // while saving is failing.
+  // What each payout WOULD have been at full rates, with its time — the demand the
+  // weekly budget is spread over (budget.js). Two weeks kept, capped in size.
+  addPayLog: (full) => {
+    const now = Date.now();
+    const log = (Array.isArray(state.payLog) ? state.payLog : []).filter((e) => now - e.t < 14 * 86400000);
+    log.push({ t: now, full: Number(full) || 0 });
+    state.payLog = log.slice(-5000);
+    persist();
+  },
+  payLog: () => (Array.isArray(state.payLog) ? state.payLog : []),
   loaded: () => !loadError,
   saveOk: () => !saveError,
   ready: () => !loadError && !saveError,

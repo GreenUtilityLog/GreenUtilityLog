@@ -13,6 +13,7 @@ import { store } from "./store.js";
 import { putPhoto, getPhotoDataUrl, deletePhoto, photoStoreEnabled } from "./photostore.js";
 import { distributeReward, distributeEcoReward, distributorAddress, chainDiagnostics, moveToRewardsPool, DRY_RUN } from "./reward.js";
 import { signalStatus, passportFor, signalUser } from "./passport.js";
+import { budgetState, scaledAmount, recordPayout, autoClaimAllocation } from "./budget.js";
 import { ocrImage, ocrEnabled, ocrProviders } from "./ocr.js";
 import { verifyWalletCertificate, REQUIRE_CERT, CERT_MAX_AGE_MS, certDomainsSeen } from "./auth.js";
 import { checkPhotoAuthenticity, aiPhotoCheckEnabled } from "./authenticity.js";
@@ -107,6 +108,8 @@ app.get("/health", async (req, res) => {
     appId: APP_ID,
     ocr: OCR_ENABLED,
     ocrProviders: ocrProviders(),
+    // How this week's B3TR is being spread: rewards are paid at `factor` × the rates.
+    rewardBudget: await budgetState().catch(() => null),
     // Whether the typed reading must be on the photo (off without an OCR provider).
     readingCheck: readingCheckMode(ocrEnabled()),
     // Which site names signatures arrive with, to fill CERT_DOMAINS from.
@@ -642,18 +645,22 @@ app.post("/reward", async (req, res) => {
       if (!rc.ok) readingFlag = `server OCR did not find ${req.body.reading} on the photo (read ${(rc.seen || []).join(", ") || "nothing"})`;
     }
 
-    // 3) Pay out, then commit cooldown + baseline (only on success).
+    // 3) Scale to this week's budget (budget.js), pay out, then commit cooldown +
+    // baseline (only on success).
+    const pay = await scaledAmount(v.amount);
+    if (pay.error) return res.status(503).json({ error: pay.error, budget: true });
     const txid = await distributeReward({
       utility:  req.body.utility,
       meterNo:  req.body.meterNo,
       reading:  req.body.reading,
       prevRead: v.prev,    // server baseline, not the client-sent prevRead
       usage:    v.usage,   // server-validated usage
-      amount:   v.amount,
+      amount:   pay.amount,
       receiver: req.body.address,
       source:   "photo",
     });
     v.markPaid();
+    recordPayout(v.amount);
     committed = true; // payout landed — keep the reserved photo hash + committed cooldown
     // Make the anti-farming state (cooldown, burnt hash, baseline) durable BEFORE
     // responding, so a hard crash in the debounce window can't replay this payout.
@@ -687,7 +694,7 @@ app.post("/reward", async (req, res) => {
       try { store.addFlag(txid, req.body.address, reasons.join(" · ")); }
       catch (e) { console.error("[/reward] could not record flag:", e?.message || e); }
     }
-    res.json({ txid, amount: v.amount, flagged: reasons.length > 0 });
+    res.json({ txid, amount: pay.amount, fullAmount: v.amount, factor: pay.factor, flagged: reasons.length > 0 });
   } catch (e) {
     console.error("[/reward]", e?.message || e);
     res.status(502).json({ error: e?.message || "distribution failed" });
@@ -753,12 +760,15 @@ app.post("/eco-action", async (req, res) => {
       if (!auth.ok) return res.status(auth.unavailable ? 503 : 400).json({ error: auth.unavailable ? auth.reason : `photo rejected: ${auth.reason}` });
     }
 
-    const txid = await distributeEcoReward({ appliance, amount: ECO_REWARD, receiver: req.body.address });
+    const pay = await scaledAmount(ECO_REWARD);
+    if (pay.error) return res.status(503).json({ error: pay.error, budget: true });
+    const txid = await distributeEcoReward({ appliance, amount: pay.amount, receiver: req.body.address });
     store.addEcoClaim(addr, Date.now());
+    recordPayout(ECO_REWARD);
     committed = true; // payout landed — keep the reserved photo hash + recorded claim
     await store.flush(); // make the claim + burnt hash durable before responding
     archivePhoto(txid, req.body.photo, req.body.photoMime, req.body.address);
-    res.json({ txid, amount: ECO_REWARD, remaining: ECO_MAX_PER_WEEK - thisWeek.length - 1 });
+    res.json({ txid, amount: pay.amount, fullAmount: ECO_REWARD, factor: pay.factor, remaining: ECO_MAX_PER_WEEK - thisWeek.length - 1 });
   } catch (e) {
     console.error("[/eco-action]", e?.message || e);
     res.status(502).json({ error: e?.message || "distribution failed" });
@@ -1033,17 +1043,20 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
   if (inFlight.has(lockKey)) return { ok: false, code: 429, error: "a submission for this meter is already processing" };
   inFlight.add(lockKey);
   try {
+    const pay = await scaledAmount(v.amount);
+    if (pay.error) return { ok: false, code: 503, error: pay.error };
     const txid = await distributeReward({
       utility, meterNo,
       reading:  Number(latest.reading),
       prevRead: v.prev,
       usage:    v.usage,
-      amount:   v.amount,
+      amount:   pay.amount,
       receiver: addr,
       // "push" for a reader, "enode" for the API route; either way no photo exists.
       source:   latest.source || "reader",
     });
     v.markPaid();
+    recordPayout(v.amount);
     // This pairing has now produced a real payout, which means its readings and the
     // stored baseline are on the same scale. That closes /meter/rebaseline: the
     // escape hatch exists for a starting point that was never comparable, not for
@@ -1054,7 +1067,7 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
       store.setMeterLink(token, { ...rest, autoPaidAt: Date.now() });
     }
     await store.flush(); // durable before returning, so a crash can't replay this reading
-    return { ok: true, txid, amount: v.amount, usage: v.usage, reading: Number(latest.reading), source: latest.source || "meter" };
+    return { ok: true, txid, amount: pay.amount, fullAmount: v.amount, factor: pay.factor, usage: v.usage, reading: Number(latest.reading), source: latest.source || "meter" };
   } finally {
     inFlight.delete(lockKey);
   }
@@ -1336,6 +1349,11 @@ if (NETWORK === "mainnet") {
     console.warn("[boot] WARNING: mainnet with ALLOWED_ORIGIN='*' — lock it to your exact frontend origin.");
   }
 }
+
+// Collect each ended round's allocation into the pot (budget.js). Hourly, and once
+// shortly after start so a service that slept through the round end catches up.
+setTimeout(() => { autoClaimAllocation().catch((e) => console.warn("[budget] auto-claim:", e?.message || e)); }, 30000).unref();
+setInterval(() => { autoClaimAllocation().catch((e) => console.warn("[budget] auto-claim:", e?.message || e)); }, 60 * 60 * 1000).unref();
 
 const server = app.listen(PORT, () => {
   console.log(`Reward distributor listening on :${PORT} (${NETWORK})`);
