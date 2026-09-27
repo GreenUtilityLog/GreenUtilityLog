@@ -6,6 +6,7 @@ import "dotenv/config";
 import { randomBytes, createHash } from "node:crypto";
 import express from "express";
 import cors from "cors";
+import { COOLDOWN_MS } from "./config.js";
 import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, REQUIRE_PASS, PASSPORT_GRANTS_ACCESS, ECO_REWARD, ECO_MAX_PER_WEEK, ECO_COOLDOWN_MS, ECO_APPLIANCES, ecoWeekKey, RATES, UNITS } from "./config.js";
 import { validateSubmission } from "./verify.js";
 import { verifyPhoto, checkReadingOnPhoto, readingCheckMode, meterNoOnPhoto, meterNoCheckMode, photoPrint, printDistance } from "./media.js";
@@ -176,6 +177,31 @@ const banned = (addr) => isBanned(addr) || store.isBanned(addr);
 // Pay a reader's reading when it arrives. On by default; "off" leaves it to the
 // owner (a tap in the app) or to the AUTO_SUBMIT_MS sweep.
 const AUTO_CLAIM_ON_PUSH = String(process.env.AUTO_CLAIM_ON_PUSH || "on").toLowerCase() !== "off";
+
+// ── The last word on "was this already paid?" ────────────────────────────────
+// Taken right before the transaction, in storage every server process shares
+// (store.takeOnce). Two readings paid on one day, one of them twice, is what
+// happened when a deploy briefly ran two processes that each trusted only their
+// own memory. Released again if the payout doesn't go through.
+const DAY_MS = 86400000;
+async function guardPayout(keys) {
+  const taken = [];
+  for (const [key, ttl, msg] of keys) {
+    const ok = await store.takeOnce(key, ttl);
+    if (ok !== true) {
+      for (const t of taken) await store.releaseOnce(t);
+      return ok === null
+        ? { code: 503, error: "the server can't confirm right now that this isn't a duplicate — nothing was used up, please try again in a minute" }
+        : { code: 400, error: msg };
+    }
+    taken.push(key);
+  }
+  return { release: async () => { for (const t of taken) await store.releaseOnce(t); } };
+}
+const meterPayoutKeys = (addr, utility, meterNo, reading) => [
+  ...(COOLDOWN_MS > 0 ? [[`cool:${String(addr).toLowerCase()}:${utility}`, COOLDOWN_MS, "cooldown active — this meter was already paid recently"]] : []),
+  [`read:${utility}:${String(meterNo).trim().toLowerCase()}:${Number(reading)}`, 60 * DAY_MS, "this reading has already been paid"],
+];
 
 // Closest photo print from ANOTHER wallet (media.js photoPrint), or null. At most
 // PRINT_REFUSE bits apart is the same shot retaken — refused; up to PRINT_FLAG is
@@ -664,7 +690,7 @@ app.post("/reward", async (req, res) => {
   const lockKey = `${String(req.body.address).toLowerCase()}:${req.body.utility}`;
   if (inFlight.has(lockKey)) return res.status(429).json({ error: "a submission for this meter is already processing" });
   inFlight.add(lockKey);
-  let photo = null, committed = false;
+  let photo = null, committed = false, guard = null;
   try {
     // 2) Photo check — real image, not a reused one (and optional OCR match). This
     // reserves the photo hash immediately; the finally rolls it back unless we pay.
@@ -714,6 +740,8 @@ app.post("/reward", async (req, res) => {
     // baseline (only on success).
     const pay = await scaledAmount(v.amount);
     if (pay.error) return res.status(503).json({ error: pay.error, budget: true });
+    guard = await guardPayout(meterPayoutKeys(req.body.address, req.body.utility, req.body.meterNo, req.body.reading));
+    if (guard.error) { const g = guard; guard = null; return res.status(g.code).json({ error: g.error }); }
     const txid = await distributeReward({
       utility:  req.body.utility,
       meterNo:  req.body.meterNo,
@@ -769,6 +797,7 @@ app.post("/reward", async (req, res) => {
     // Release the photo reservation if we didn't actually pay, so a failed payout
     // doesn't permanently burn the user's photo.
     if (!committed && photo?.ok) photo.unreserve();
+    if (!committed && guard?.release) await guard.release();
     inFlight.delete(lockKey);
   }
 });
@@ -816,7 +845,7 @@ app.post("/eco-action", async (req, res) => {
   const lockKey = `${addr}:eco`;
   if (inFlight.has(lockKey)) return res.status(429).json({ error: "an eco submission is already processing" });
   inFlight.add(lockKey);
-  let photo = null, committed = false;
+  let photo = null, committed = false, guard = null;
   try {
     // Real image + never paid for before (reserved here). No OCR — no reading to match.
     photo = await verifyPhoto({ imageBase64: req.body.photo, ocr: false, mime: req.body.photoMime });
@@ -838,6 +867,8 @@ app.post("/eco-action", async (req, res) => {
 
     const pay = await scaledAmount(ECO_REWARD);
     if (pay.error) return res.status(503).json({ error: pay.error, budget: true });
+    guard = await guardPayout([[`eco:${addr}`, ECO_COOLDOWN_MS, "eco cooldown active — one eco bonus per 24 hours"]]);
+    if (guard.error) { const g = guard; guard = null; return res.status(g.code).json({ error: g.error }); }
     const txid = await distributeEcoReward({ appliance, amount: pay.amount, receiver: req.body.address });
     store.addEcoClaim(addr, Date.now());
     recordPayout(ECO_REWARD);
@@ -854,6 +885,7 @@ app.post("/eco-action", async (req, res) => {
     res.status(502).json({ error: e?.message || "distribution failed" });
   } finally {
     if (!committed && photo?.ok) photo.unreserve();
+    if (!committed && guard?.release) await guard.release();
     inFlight.delete(lockKey);
   }
 });
@@ -1131,9 +1163,12 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
   const lockKey = `${addr.toLowerCase()}:${utility}`;
   if (inFlight.has(lockKey)) return { ok: false, code: 429, error: "a submission for this meter is already processing" };
   inFlight.add(lockKey);
+  let guard = null, paid = false;
   try {
     const pay = await scaledAmount(v.amount);
     if (pay.error) return { ok: false, code: 503, error: pay.error };
+    guard = await guardPayout(meterPayoutKeys(addr, utility, meterNo, latest.reading));
+    if (guard.error) { const g = guard; guard = null; return { ok: false, code: g.code, error: g.error }; }
     const txid = await distributeReward({
       utility, meterNo,
       reading:  Number(latest.reading),
@@ -1145,6 +1180,7 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
       source:   latest.source || "reader",
     });
     v.markPaid();
+    paid = true;
     recordPayout(v.amount);
     // This pairing has now produced a real payout, which means its readings and the
     // stored baseline are on the same scale. That closes /meter/rebaseline: the
@@ -1158,6 +1194,7 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
     await store.flush(); // durable before returning, so a crash can't replay this reading
     return { ok: true, txid, amount: pay.amount, fullAmount: v.amount, factor: pay.factor, usage: v.usage, reading: Number(latest.reading), source: latest.source || "meter" };
   } finally {
+    if (!paid && guard?.release) await guard.release();
     inFlight.delete(lockKey);
   }
 }

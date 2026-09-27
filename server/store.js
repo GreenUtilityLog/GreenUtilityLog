@@ -82,6 +82,32 @@ if (USE_REDIS && loadError) {
   }, 10000);
 }
 
+// ── Once-only guards shared by every server process ──────────────────────────
+// The state is one JSON blob per process, loaded at boot. During a deploy Render
+// runs the old and the new process side by side for a while, each with its own
+// copy: one pays a reading, the other never hears of it, and pays it again — which
+// happened. So the checks that stop a double payout are ALSO taken as atomic keys
+// in Redis (SET NX), which both processes see at once. Without Redis there is one
+// process, and a Map does the same job.
+const localOnce = new Map();
+async function takeOnce(key, ttlMs) {
+  const ms = Math.max(1000, Math.floor(ttlMs));
+  if (USE_REDIS) {
+    try { return (await redisCmd(["SET", `${REDIS_KEY}:once:${key}`, String(Date.now()), "NX", "PX", String(ms)])) === "OK"; }
+    catch (e) { console.error("[store] once-guard unavailable:", e?.message || e); return null; } // unknown: caller refuses
+  }
+  const now = Date.now();
+  const until = localOnce.get(key);
+  if (until && until > now) return false;
+  localOnce.set(key, now + ms);
+  if (localOnce.size > 20000) for (const [k, t] of localOnce) if (t <= now) localOnce.delete(k);
+  return true;
+}
+async function releaseOnce(key) {
+  if (USE_REDIS) { try { await redisCmd(["DEL", `${REDIS_KEY}:once:${key}`]); } catch {} return; }
+  localOnce.delete(key);
+}
+
 let saveError = false;
 let saveRetry = null;
 
@@ -511,6 +537,8 @@ export const store = {
     persist();
   },
   prints: () => (Array.isArray(state.prints) ? state.prints : []),
+  takeOnce,
+  releaseOnce,
   loaded: () => !loadError,
   saveOk: () => !saveError,
   ready: () => !loadError && !saveError,
