@@ -8,6 +8,14 @@
 // The whole state is a single JSON blob (one key) — mirrors the file approach, so
 // reads stay synchronous from an in-memory cache and writes are debounced. This is
 // a single-instance design; for horizontal scale move to per-key atomic ops.
+//
+// Two processes do overlap during every deploy, though, so a Redis write is not
+// "replace the blob with my copy" (the older process would put back yesterday's
+// baseline for a meter the newer one had just paid). Each process records which
+// entries IT changed, and a write reads the stored blob, applies only those, and
+// stores the result — atomically, compare-and-set on a version key. It then takes
+// over everything else from the stored blob, and a pull every 30 s keeps it current
+// between writes. See mergedWrite().
 
 import { readFileSync, writeFileSync, renameSync } from "node:fs";
 
@@ -69,8 +77,40 @@ async function loadState() {
   }
 }
 
+// ── Knowing what THIS process changed ────────────────────────────────────────
+// Every top-level map is wrapped so that `state.x[k] = v` and `delete state.x[k]`
+// note (x, k); assigning a whole field (`state.payLog = …`) notes the field. At
+// write time the CURRENT local value of each noted entry is what gets applied, so
+// an in-place change after the noted assignment (push onto a list just assigned)
+// travels with it.
+const dirty = new Map();          // field -> Set of keys, or "*" for the whole field
+const isMap = (v) => v && typeof v === "object" && !Array.isArray(v);
+const note = (field, key) => {
+  if (dirty.get(field) === "*") return;
+  if (key === "*") { dirty.set(field, "*"); return; }
+  if (!dirty.has(field)) dirty.set(field, new Set());
+  dirty.get(field).add(key);
+};
+const rawOf = new WeakMap();      // proxy -> the plain object underneath
+function mapProxy(field, obj) {
+  const p = new Proxy(obj, {
+    set(t, k, v) { t[k] = v; note(field, k); return true; },
+    deleteProperty(t, k) { delete t[k]; note(field, k); return true; },
+  });
+  rawOf.set(p, obj);
+  return p;
+}
+function track(raw) {
+  for (const f of Object.keys(raw)) if (isMap(raw[f])) raw[f] = mapProxy(f, raw[f]);
+  const p = new Proxy(raw, {
+    set(t, f, v) { t[f] = isMap(v) ? mapProxy(f, v) : v; note(f, "*"); return true; },
+  });
+  rawOf.set(p, raw);
+  return p;
+}
+
 // Load once at boot (top-level await — importers wait for this to resolve).
-let state = await loadState();
+let state = track(await loadState());
 console.log(`[store] backend: ${USE_REDIS ? "Upstash Redis (durable)" : `file ${FILE} (ephemeral on free hosts)`}`);
 
 // If the durable store couldn't be read at boot, keep retrying so the service
@@ -78,7 +118,7 @@ console.log(`[store] backend: ${USE_REDIS ? "Upstash Redis (durable)" : `file ${
 if (USE_REDIS && loadError) {
   const retry = setInterval(async () => {
     const fresh = await loadState();
-    if (!loadError) { state = fresh; clearInterval(retry); console.log("[store] Redis recovered — state loaded, payouts enabled."); }
+    if (!loadError) { state = track(fresh); dirty.clear(); clearInterval(retry); console.log("[store] Redis recovered — state loaded, payouts enabled."); }
   }, 10000);
 }
 
@@ -111,6 +151,104 @@ async function releaseOnce(key) {
 let saveError = false;
 let saveRetry = null;
 
+// ── Merging with what another process stored ─────────────────────────────────
+const VERSION_KEY = `${REDIS_KEY}:version`;
+// Set only if the version is still the one read; bumps it. One round trip, atomic.
+const CAS_SCRIPT = "if (redis.call('GET', KEYS[2]) or '0') == ARGV[1] then redis.call('SET', KEYS[1], ARGV[2]); return redis.call('INCR', KEYS[2]) else return 0 end";
+let casSupported = true;
+const APPEND_LOGS = new Set(["payLog", "prints"]);   // merged as a union, not replaced
+const COUNTERS = new Set(["passSeq", "passesInit"]); // merged as the larger
+
+function applyMine(remote, changes) {
+  for (const [field, keys] of changes) {
+    const mine = state[field];
+    if (APPEND_LOGS.has(field)) {
+      const seen = new Set(), all = [];
+      for (const e of [...(Array.isArray(remote[field]) ? remote[field] : []), ...(Array.isArray(mine) ? mine : [])]) {
+        const id = JSON.stringify(e);
+        if (!seen.has(id)) { seen.add(id); all.push(e); }
+      }
+      const maxAge = (field === "payLog" ? 14 : 60) * 86400000, now = Date.now();
+      remote[field] = all.filter((e) => now - (e.t || 0) < maxAge).sort((a, b) => (a.t || 0) - (b.t || 0)).slice(field === "payLog" ? -5000 : -8000);
+    } else if (COUNTERS.has(field)) {
+      remote[field] = Math.max(Number(remote[field]) || 0, Number(mine) || 0);
+    } else if (keys === "*" || !isMap(mine)) {
+      remote[field] = isMap(mine) ? { ...mine } : mine;
+    } else {
+      if (!isMap(remote[field])) remote[field] = {};
+      for (const k of keys) {
+        if (Object.prototype.hasOwnProperty.call(mine, k)) remote[field][k] = mine[k];
+        else delete remote[field][k];
+      }
+    }
+  }
+}
+// Take over what's stored, except entries changed here since (they win at the next
+// write). Written to the plain objects underneath, so nothing is noted as changed.
+const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+function adopt(remote) {
+  const root = rawOf.get(state);
+  for (const f of Object.keys(remote)) {
+    const d = dirty.get(f);
+    if (d === "*") continue;
+    const cur = root[f];
+    if (!isMap(remote[f]) || !isMap(cur)) {        // lists, counters, a field new here
+      if (!d) root[f] = isMap(remote[f]) ? mapProxy(f, remote[f]) : remote[f];
+      continue;
+    }
+    const raw = rawOf.get(cur) || cur;
+    for (const k of Object.keys(remote[f])) if (!d || !d.has(k)) raw[k] = remote[f][k];
+    for (const k of Object.keys(raw)) if (!has(remote[f], k) && (!d || !d.has(k))) delete raw[k];
+  }
+}
+
+async function readStored() {
+  const [blob, ver] = await redisCmd(["MGET", REDIS_KEY, VERSION_KEY]);
+  return { remote: blob ? { ...EMPTY, ...JSON.parse(blob) } : { ...EMPTY }, ver: ver == null ? "0" : String(ver) };
+}
+
+async function mergedWrite() {
+  // What changed here up to now; anything changed during the round trips stays
+  // noted for the next write.
+  const changes = [...dirty.entries()].map(([f, k]) => [f, k === "*" ? "*" : new Set(k)]);
+  dirty.clear();
+  try {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const { remote, ver } = await readStored();
+      applyMine(remote, changes);
+      const blob = JSON.stringify(remote);
+      if (casSupported) {
+        let r;
+        try { r = await redisCmd(["EVAL", CAS_SCRIPT, "2", REDIS_KEY, VERSION_KEY, ver, blob]); }
+        catch (e) {
+          if (!/upstash 4\d\d/.test(String(e?.message))) throw e;
+          casSupported = false; // no scripting on this Redis: a plain merged SET still
+          console.warn("[store] EVAL not available — merged writes without compare-and-set");
+        }
+        if (casSupported && !r) continue;       // someone wrote in between: read again
+        if (casSupported) { adopt(remote); return; }
+      }
+      await redisCmd(["SET", REDIS_KEY, blob]);
+      adopt(remote);
+      return;
+    }
+    throw new Error("state kept changing under us — will retry");
+  } catch (e) {
+    // Not written: note the changes again so the retry carries them.
+    for (const [f, k] of changes) { if (k === "*") note(f, "*"); else for (const x of k) note(f, x); }
+    throw e;
+  }
+}
+
+// Pick up other processes' writes between our own (a deploy's overlap, mostly).
+if (USE_REDIS) {
+  const pull = setInterval(async () => {
+    if (loadError) return;
+    try { adopt((await readStored()).remote); } catch { /* next time */ }
+  }, 30000);
+  pull.unref?.();
+}
+
 // Write the current state out now. Async so a graceful shutdown can await it.
 async function writeNow() {
   // Never overwrite a key we couldn't read at boot — that would wipe it durably.
@@ -118,10 +256,9 @@ async function writeNow() {
     console.warn("[store] skip save — store not ready (won't overwrite unread key).");
     return;
   }
-  const blob = JSON.stringify(state);
   if (USE_REDIS) {
     try {
-      await redisCmd(["SET", REDIS_KEY, blob]);
+      await mergedWrite();
       if (saveError) console.log("[store] Redis save recovered — payouts enabled again.");
       saveError = false;
     } catch (e) {
@@ -138,6 +275,7 @@ async function writeNow() {
     }
     return;
   }
+  const blob = JSON.stringify(state);
   try {
     // Atomic-ish: write a temp file then rename, so a crash mid-write can't
     // corrupt the live state file (the old boot loader silently started fresh).

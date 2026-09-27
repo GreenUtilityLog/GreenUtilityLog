@@ -67,7 +67,9 @@ describe("a durable store that stops accepting writes", () => {
         // Only the state blob's writes fail; the once-guards (SET … NX) still work,
         // which is the case this is about: the payout goes out, its record is lost.
         const isState = !String(cmd[1] || "").includes(":once:");
-        if (cmd[0] === "SET" && failSets && isState) { res.statusCode = 500; return res.end("{}"); }
+        if ((cmd[0] === "SET" || cmd[0] === "EVAL") && failSets && isState) { res.statusCode = 500; return res.end("{}"); }
+        if (cmd[0] === "MGET") return res.end(JSON.stringify({ result: [blob, null] }));
+        if (cmd[0] === "EVAL") return res.end(JSON.stringify({ result: 1 }));
         res.end(JSON.stringify({ result: cmd[0] === "GET" ? blob : "OK" }));
       });
     });
