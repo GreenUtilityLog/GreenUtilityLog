@@ -64,7 +64,10 @@ describe("a durable store that stops accepting writes", () => {
     redis = createServer((req, res) => {
       let b = ""; req.on("data", (c) => (b += c)); req.on("end", () => {
         const cmd = JSON.parse(b || "[]");
-        if (cmd[0] === "SET" && failSets) { res.statusCode = 500; return res.end("{}"); }
+        // Only the state blob's writes fail; the once-guards (SET … NX) still work,
+        // which is the case this is about: the payout goes out, its record is lost.
+        const isState = !String(cmd[1] || "").includes(":once:");
+        if (cmd[0] === "SET" && failSets && isState) { res.statusCode = 500; return res.end("{}"); }
         res.end(JSON.stringify({ result: cmd[0] === "GET" ? blob : "OK" }));
       });
     });
