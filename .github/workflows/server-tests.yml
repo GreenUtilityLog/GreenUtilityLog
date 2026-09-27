@@ -30,6 +30,10 @@ jobs:
       # build on every runner and none of them are needed for these tests.
       - run: npm install --omit=optional
         working-directory: server
+      # sharp IS needed: the photo-likeness check (one meter, many wallets) decodes
+      # real images, and its test does too. It ships prebuilt for this runner.
+      - run: npm install --no-save sharp
+        working-directory: server
       - run: npm test
         working-directory: server
 

@@ -43,6 +43,7 @@ const APP_TOTAL_SIGNALS_ABI  = view("appTotalSignalsCounter", [{ name: "_app", t
 const SIGNALING_THRESHOLD_ABI= view("signalingThreshold", [], [U256()]);
 const IS_BLACKLISTED_ABI     = view("isBlacklisted", [ADDR("_user")], [{ name: "", type: "bool" }]);
 const HAS_ROLE_ABI           = view("hasRole", [{ name: "role", type: "bytes32" }, ADDR("account")], [{ name: "", type: "bool" }]);
+const POP_THRESHOLD_ABI      = view("thresholdPoPScore", [], [U256()]);
 
 const SIGNAL_ABI = {
   name: "signalUserWithReason",
@@ -160,4 +161,24 @@ export async function signalUser(address, reason) {
   const attempt = await sendClauseTo(PASSPORT, SIGNAL_ABI, [target, text], `Signal ${target} — ${text}`);
   if (attempt.reverted) throw new Error("signal reverted on-chain");
   return attempt.txid;
+}
+
+// Does the passport's "person" verdict actually say something about this wallet?
+// isPerson is true for "participation score is above the threshold" — and when the
+// threshold is 0 (as found on testnet) that is every wallet ever made, including
+// one created a second ago. So that reason only counts with a threshold above 0.
+// Whitelisted and Galaxy Member verdicts stand on their own. Unreadable = no.
+let thresholdCache = null;
+async function popThreshold() {
+  if (thresholdCache && Date.now() - thresholdCache.at < 3600000) return thresholdCache.v;
+  const v = num(one(await read(POP_THRESHOLD_ABI, [])));
+  thresholdCache = { v, at: Date.now() };
+  return v;
+}
+export async function passportVouches(address) {
+  const a = String(address || "").toLowerCase();
+  const p = (await passportFor([a]))[a];
+  if (!p || p.isPerson !== true) return false;
+  if (/participation score/i.test(p.reason || "")) return (await popThreshold()) > 0;
+  return true;
 }

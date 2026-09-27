@@ -5991,7 +5991,7 @@ export default function App() {
               everything — it just won't be paid — so this is a notice, not a wall. */}
           {wallet && passInfo.required && !passInfo.has && (tab==="home" || tab==="submit") && (
             <div style={{margin:"0 14px 12px",background:T.gasBg,border:`1px solid ${T.gasBorder}`,borderRadius:8,padding:"11px 13px",fontSize:11.5,color:T.text,lineHeight:1.6}}>
-              🎟️ <b>No access pass yet.</b> You can try everything out, but rewards are only paid to wallets with a pass. Ask an admin to add yours — they'll need this address.
+              🎟️ <b>No access pass yet.</b> You can try everything out, but rewards are only paid to wallets with a pass — or with a VeBetterDAO passport that counts you as a person. Ask an admin to add yours — they'll need this address.
             </div>
           )}
           {wallet && passInfo.pass && (tab==="profile") && (

@@ -20,7 +20,7 @@ const REDIS_KEY = process.env.STATE_KEY || "greenutilitylog:state";
 // `passes` is the access-pass registry (address → pass); `passesInit` records that the
 // one-time grandfathering has run, so turning REQUIRE_PASS on can't silently cut off
 // every existing tester — and can't re-grant a pass an admin has since revoked.
-const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {}, autoPaid: {}, payLog: [] };
+const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {}, autoPaid: {}, payLog: [], prints: [] };
 
 // Cap the "seen wallets" roster so an open endpoint can't grow state without bound.
 // When exceeded we drop the least-recently-seen entries.
@@ -500,6 +500,17 @@ export const store = {
     persist();
   },
   payLog: () => (Array.isArray(state.payLog) ? state.payLog : []),
+  // Photo prints of paid submissions (media.js photoPrint), to spot one meter being
+  // photographed for several wallets. 60 days, capped.
+  addPrint: (addr, kind, print) => {
+    if (!print) return;
+    const now = Date.now();
+    const list = (Array.isArray(state.prints) ? state.prints : []).filter((e) => now - e.t < 60 * 86400000);
+    list.push({ a: String(addr).toLowerCase(), k: kind, p: print, t: now });
+    state.prints = list.slice(-8000);
+    persist();
+  },
+  prints: () => (Array.isArray(state.prints) ? state.prints : []),
   loaded: () => !loadError,
   saveOk: () => !saveError,
   ready: () => !loadError && !saveError,

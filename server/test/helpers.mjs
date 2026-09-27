@@ -48,6 +48,9 @@ export async function startServer({ state = {}, env = {} } = {}) {
       // Off unless a test is about it: otherwise a push is paid before the test's own
       // claim, and every "push, then claim" test would race the server.
       AUTO_CLAIM_ON_PUSH: "off",
+      // Passes are on by default in production; the tests that are about them turn
+      // them on. Everything else is about other rules.
+      REQUIRE_PASS: "false",
       // Keep the real file backend: tests assert on what was persisted.
       UPSTASH_REDIS_REST_URL: "",
       UPSTASH_REDIS_REST_TOKEN: "",

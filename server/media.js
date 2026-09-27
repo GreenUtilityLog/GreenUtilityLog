@@ -190,10 +190,57 @@ export async function checkReadingOnPhoto({ imageBase64, reading, registers = []
   }
   const candidates = [reading, ...(Array.isArray(registers) ? registers : [])];
   const hit = candidates.findIndex((v) => readingOnPhoto(v, numbers));
-  if (hit >= 0) return { ok: true, matched: hit === 0 ? "total" : `register ${hit}`, seen: numbers.slice(0, 6) };
+  if (hit >= 0) return { ok: true, matched: hit === 0 ? "total" : `register ${hit}`, seen: numbers.slice(0, 6), text: r?.text || "" };
   return {
     ok: false,
     seen: numbers.slice(0, 6),
     error: `the reading you entered (${reading}) is not what the photo shows${numbers.length ? ` (it reads ${numbers.slice(0, 3).join(", ")})` : ""} — check the number and try again`,
   };
+}
+
+// ── Is the registered meter number on the photo? ─────────────────────────────
+// A meter number is bound to one wallet, but nothing proved it belongs to the
+// meter in the photo: ten wallets could each "register" an invented number and
+// all photograph the same real meter. The number is on the meter's sticker or
+// display, so with an OCR provider configured its text is searched for it — the
+// whole number, or a long enough piece of it (OCR drops characters on stickers).
+// Same rule as the app's own check.
+export function meterNoOnPhoto(meterNo, text) {
+  const norm = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const m = norm(meterNo), t = norm(text);
+  if (!m || m.length < 4 || !t) return false;
+  if (t.includes(m)) return true;
+  const segLen = Math.min(m.length, Math.max(6, Math.ceil(m.length * 0.6)));
+  for (let i = 0; i + segLen <= m.length; i++) if (t.includes(m.slice(i, i + segLen))) return true;
+  return false;
+}
+// flag (default): pay, and record for an admin — the number is often off-frame on
+// a photo of the display, so refusing would mostly hit honest people. strict:
+// refuse. off: skip.
+export function meterNoCheckMode() {
+  const m = String(process.env.METER_NO_CHECK || "flag").trim().toLowerCase();
+  return m === "strict" || m === "off" ? m : "flag";
+}
+
+// ── The same meter, photographed for different wallets ───────────────────────
+// A difference hash: the photo shrunk to 9×8 grey pixels, one bit per "is this
+// pixel brighter than its right neighbour". Photos of the same scene taken minutes
+// apart land a few bits apart; different meters, rooms and light land far apart.
+// Byte-identical reuse is already refused by the SHA-256 dedupe; this catches the
+// re-shot. Needs sharp (installed on the host); without it, returns null and the
+// check is skipped.
+export async function photoPrint(imageBase64) {
+  try {
+    const sharp = (await import("sharp")).default;
+    const buf = Buffer.from(String(imageBase64 || "").replace(/^data:[^,]+,/, ""), "base64");
+    const px = await sharp(buf).rotate().greyscale().resize(9, 8, { fit: "fill" }).raw().toBuffer();
+    let bits = "";
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) bits += px[y * 9 + x] > px[y * 9 + x + 1] ? "1" : "0";
+    return BigInt("0b" + bits).toString(16).padStart(16, "0");
+  } catch { return null; }
+}
+export function printDistance(a, b) {
+  let x = BigInt("0x" + a) ^ BigInt("0x" + b), n = 0;
+  while (x) { n += Number(x & 1n); x >>= 1n; }
+  return n;
 }

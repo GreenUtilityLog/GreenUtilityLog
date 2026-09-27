@@ -174,11 +174,18 @@ export const BANNED_ADDRESSES = new Set(
 );
 export const isBanned = (addr) => BANNED_ADDRESSES.has(String(addr || "").toLowerCase());
 
-// Access passes. When on, only wallets an admin has issued a pass to can EARN —
-// everyone can still open the app, connect and submit, they just aren't paid. Off by
-// default: switching it on is a deliberate act, and the first boot with it on
-// grandfathers every wallet the backend already knows so nobody is cut off retroactively.
-export const REQUIRE_PASS = /^(1|true|yes)$/i.test(process.env.REQUIRE_PASS || "");
+// Access passes — the main defence against one person farming with many wallets.
+// Only wallets with a pass (issued by an admin) or a VeBetterDAO passport that
+// counts them as a person (PASSPORT_GRANTS_ACCESS) are PAID; everyone can still
+// open the app, connect and submit. ON by default: a fresh wallet costs nothing to
+// make, so without a gate every other limit here is per-wallet and multiplies.
+// The first boot with it on grandfathers every wallet that already has a meter,
+// a reader or an eco claim, so nobody who was earning is cut off.
+// REQUIRE_PASS=false switches it off.
+export const REQUIRE_PASS = !/^(0|false|no|off)$/i.test(String(process.env.REQUIRE_PASS || "").trim());
+// A wallet VeBetterDAO's passport considers a person needs no pass: that is the
+// ecosystem's own sybil check, and real VeBetter users get in without waiting.
+export const PASSPORT_GRANTS_ACCESS = !/^(0|false|no|off)$/i.test(String(process.env.PASSPORT_GRANTS_ACCESS || "").trim());
 
 // Cloudflare Turnstile (anti-bot captcha). Set TURNSTILE_SECRET to require a
 // valid captcha token on /reward; leave empty to disable the check.
