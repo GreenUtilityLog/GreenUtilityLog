@@ -2399,10 +2399,24 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
                 <div style={{ ...mono, fontSize: 15, fontWeight: 800, color: T.eco || T.text }}>{rd.reading} kWh</div>
                 {rd.source && <div style={{ fontSize:10, color: T.textSoft }}>via {rd.source}{rd.at ? ` · ${new Date(rd.at).toLocaleString()}` : ""}</div>}
               </div>
-              <button disabled={busyAny} onClick={() => onAutoSubmit?.()} style={{ ...btn(T.eco || T.electric), whiteSpace: "nowrap", opacity: busyAny ? .6 : 1 }}>
-                {busyAny ? "Submitting…" : "Submit — no photo"}
-              </button>
+              {latest?.lastPayout && Number(latest.lastPayout.reading) === Number(rd.reading) ? (
+                // The server already paid this one as it arrived: say so, instead of a
+                // button that could only answer "cooldown active".
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: T.green3 || T.text }}>✓ Paid +{Number(latest.lastPayout.amount).toFixed(2)} B3TR</div>
+                  <div style={{ fontSize: 10, color: T.textSoft }}>automatically · {new Date(latest.lastPayout.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                </div>
+              ) : (
+                <button disabled={busyAny} onClick={() => onAutoSubmit?.()} style={{ ...btn(T.eco || T.electric), whiteSpace: "nowrap", opacity: busyAny ? .6 : 1 }}>
+                  {busyAny ? "Submitting…" : latest?.autoClaimOnPush ? "Claim now" : "Submit — no photo"}
+                </button>
+              )}
             </div>
+            {latest?.autoClaimOnPush && (
+              <div style={{ fontSize: 10, color: T.textSoft, lineHeight: 1.5, marginTop: 6 }}>
+                Readings from your reader are paid automatically when they arrive (at most once a day). No need to open the app.
+              </div>
+            )}
             {/* Shown only when the gap is larger than ANY span could ever pay, which
                 is the signature of a starting point that isn't on the same scale as
                 the reader — almost always a double-tariff meter photographed on one
