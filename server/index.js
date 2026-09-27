@@ -12,7 +12,7 @@ import { verifyPhoto, checkReadingOnPhoto, readingCheckMode, meterNoOnPhoto, met
 import { store } from "./store.js";
 import { putPhoto, getPhotoDataUrl, deletePhoto, photoStoreEnabled } from "./photostore.js";
 import { distributeReward, distributeEcoReward, distributorAddress, chainDiagnostics, moveToRewardsPool, DRY_RUN } from "./reward.js";
-import { signalStatus, passportFor, signalUser } from "./passport.js";
+import { signalStatus, passportFor, signalUser, passportVouches } from "./passport.js";
 import { budgetState, scaledAmount, recordPayout, autoClaimAllocation } from "./budget.js";
 import { ocrImage, ocrEnabled, ocrProviders } from "./ocr.js";
 import { verifyWalletCertificate, REQUIRE_CERT, CERT_MAX_AGE_MS, certDomainsSeen } from "./auth.js";
@@ -196,7 +196,7 @@ function nearestPrintFromOtherWallet(print, addr, kind) {
 }
 
 // Is this wallet let in? A pass does it; so does a VeBetterDAO passport that counts
-// the wallet as a person. The passport is read from chain and cached for an hour
+// the wallet as a person for a reason that means something (passport.js). The passport is read from chain and cached for an hour
 // (a "no" for ten minutes, so a newly qualified wallet isn't kept waiting long).
 // Unreadable counts as "no": only the pass then gets you in.
 const personCache = new Map();
@@ -205,7 +205,7 @@ async function isPerson(addr) {
   const hit = personCache.get(a);
   if (hit && Date.now() - hit.at < (hit.v ? 3600000 : 600000)) return hit.v;
   let v = false;
-  try { v = (await passportFor([a]))[a]?.isPerson === true; } catch { v = false; }
+  try { v = await passportVouches(a); } catch { v = false; }
   personCache.set(a, { v, at: Date.now() });
   if (personCache.size > 5000) personCache.delete(personCache.keys().next().value);
   return v;
