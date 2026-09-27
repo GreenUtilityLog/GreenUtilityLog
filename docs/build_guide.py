@@ -39,7 +39,7 @@ L["en"] = dict(
   s_a="Route A — Home Assistant (any meter)",
   s_b="Route B — HomeWizard P1, without Home Assistant",
   s_c="Route C — Another P1 reader",
-  s_claim="Finally: claim it in the app",
+  s_claim="Finally: it pays by itself",
   s_trouble="If something doesn't work",
   routes=[
     ("I use Home Assistant", "Works with almost any meter HA already reads. Install our add-on, or paste a few lines of YAML.", 1, "Easiest"),
@@ -82,7 +82,7 @@ L["en"] = dict(
   ],
   claim=[
     ("Your reading appears by itself", 'In the app open <strong>Submit</strong>. Under <strong>“Auto-received”</strong> you\'ll see your meter total and when it arrived.', None, None, None),
-    ("Tap “Submit — no photo”", 'That\'s it. From now on your meter sends its reading by itself and you only claim it.', None, None, None),
+    ("It is paid by itself", 'Nothing to tap: each reading is paid automatically when it arrives, at most once a day, and the app shows <strong>“✓ Paid”</strong>. Don\'t want to wait? <strong>Claim now</strong> does the same.', None, None, None),
   ],
   s_country='Does this work where you live?',
   country_intro="The socket on your meter differs per country, so not every reader works everywhere. What always works: <strong>if Home Assistant already shows your meter's total, Route A works</strong> — whatever country you're in.",
@@ -92,7 +92,7 @@ L["en"] = dict(
   be_t="🇧🇪 Belgium (Fluvius meters)",
   be_b="Digital Fluvius meters send encrypted data. Ask Fluvius for your free decryption key and enter it once in your reader's app — after that everything works the same.",
   once_t="No machine that stays on?",
-  once_b="You don’t need one. Run <span class=\"k\">node gul.js --once</span> whenever it suits you: it reads the meter, sends the reading and closes. Then claim it in the app — the only rule is that the reading is under 48 hours old when you claim. A laptop you open now and then is enough; leaving the helper running only saves you from having to think about it.",
+  once_b="You don’t need one. Run <span class=\"k\">node gul.js --once</span> whenever it suits you: it reads the meter, sends the reading and closes. It is paid as soon as it arrives, at most once a day. A laptop you open now and then is enough; leaving the helper running only saves you from having to think about it.",
   th=("You see", "What to do"),
   trouble=[
     ("'node' is not recognized", "Node.js isn’t installed, or that window was already open when you installed it. On Windows: <span class=\"k\">winget install OpenJS.NodeJS.LTS</span>. Elsewhere: nodejs.org. Then open a <strong>new</strong> terminal and paste the line again. You do not need git."),
@@ -122,7 +122,7 @@ L["nl"] = dict(
   s_a="Route A — Home Assistant (elke meter)",
   s_b="Route B — HomeWizard P1, zonder Home Assistant",
   s_c="Route C — Een andere P1-reader",
-  s_claim="Tot slot: claimen in de app",
+  s_claim="Tot slot: het betaalt vanzelf uit",
   s_trouble="Als er iets niet werkt",
   routes=[
     ("Ik gebruik Home Assistant", "Werkt met vrijwel elke meter die HA al uitleest. Installeer onze add-on, of plak een paar regels YAML.", 1, "Makkelijkst"),
@@ -165,7 +165,7 @@ L["nl"] = dict(
   ],
   claim=[
     ("Je stand verschijnt vanzelf", 'Ga in de app naar <strong>Submit</strong>. Onder <strong>“Auto-received”</strong> zie je je meterstand en hoe laat die binnenkwam.', None, None, None),
-    ("Tik op “Submit — no photo”", 'Klaar. Vanaf nu stuurt je meter vanzelf z\'n stand door en hoef jij alleen te claimen.', None, None, None),
+    ("Hij wordt vanzelf uitbetaald", 'Niets te tikken: elke stand wordt automatisch uitbetaald zodra hij binnenkomt, hooguit één keer per dag, en de app laat <strong>“✓ Paid”</strong> zien. Geen zin om te wachten? <strong>Claim now</strong> doet hetzelfde.', None, None, None),
   ],
   s_country='Werkt dit ook in jouw land?',
   country_intro='De aansluiting op je meter verschilt per land, dus niet elke reader werkt overal. Wat altijd werkt: <strong>toont Home Assistant je meterstand al, dan werkt Route A</strong> — in welk land je ook zit.',
@@ -175,7 +175,7 @@ L["nl"] = dict(
   be_t="🇧🇪 België (Fluvius-meters)",
   be_b="Digitale Fluvius-meters sturen versleutelde data. Vraag bij Fluvius je gratis decryptiesleutel op en voer die één keer in de app van je reader in — daarna werkt alles hetzelfde.",
   once_t="Geen apparaat dat aan blijft?",
-  once_b="Hoeft ook niet. Draai <span class=\"k\">node gul.js --once</span> wanneer het jou uitkomt: hij leest de meter, stuurt de stand door en sluit af. Daarna claim je in de app — de enige eis is dat de stand jonger dan 48 uur is op het moment dat je claimt. Een laptop die je af en toe openklapt is genoeg; continu laten draaien scheelt je alleen dat je eraan moet denken.",
+  once_b="Hoeft ook niet. Draai <span class=\"k\">node gul.js --once</span> wanneer het jou uitkomt: hij leest de meter, stuurt de stand door en sluit af. Hij wordt uitbetaald zodra hij binnenkomt, hooguit één keer per dag. Een laptop die je af en toe openklapt is genoeg; continu laten draaien scheelt je alleen dat je eraan moet denken.",
   th=("Je ziet", "Wat te doen"),
   trouble=[
     ("'node' is not recognized", "Node.js staat er niet op, of het venster stond al open toen je het installeerde. Op Windows: <span class=\"k\">winget install OpenJS.NodeJS.LTS</span>. Elders: nodejs.org. Open daarna een <strong>nieuw</strong> venster en plak de regel opnieuw. Git heb je niet nodig."),
@@ -205,7 +205,7 @@ L["de"] = dict(
   s_a="Route A — Home Assistant (jeder Zähler)",
   s_b="Route B — HomeWizard P1, ohne Home Assistant",
   s_c="Route C — Ein anderer P1-Reader",
-  s_claim="Zum Schluss: in der App einlösen",
+  s_claim="Zum Schluss: es zahlt sich von selbst aus",
   s_trouble="Wenn etwas nicht klappt",
   routes=[
     ("Ich nutze Home Assistant", "Funktioniert mit fast jedem Zähler, den HA schon ausliest. Installiere unser Add-on oder füge ein paar Zeilen YAML ein.", 1, "Am einfachsten"),
@@ -248,7 +248,7 @@ L["de"] = dict(
   ],
   claim=[
     ("Dein Stand erscheint von selbst", 'Geh in der App auf <strong>Submit</strong>. Unter <strong>„Auto-received“</strong> siehst du deinen Zählerstand und wann er ankam.', None, None, None),
-    ("Auf „Submit — no photo“ tippen", 'Fertig. Ab jetzt sendet dein Zähler seinen Stand von selbst und du löst nur noch ein.', None, None, None),
+    ("Er wird von selbst ausgezahlt", 'Nichts zu tippen: jeder Stand wird automatisch ausgezahlt, sobald er ankommt, höchstens einmal am Tag, und die App zeigt <strong>„✓ Paid“</strong>. Keine Lust zu warten? <strong>Claim now</strong> macht dasselbe.', None, None, None),
   ],
   s_country='Funktioniert das in deinem Land?',
   country_intro='Der Anschluss am Zähler unterscheidet sich je Land, nicht jeder Reader passt überall. Was immer geht: <strong>zeigt Home Assistant deinen Zählerstand bereits, funktioniert Route A</strong> — egal in welchem Land.',
@@ -258,7 +258,7 @@ L["de"] = dict(
   be_t="🇧🇪 Belgien (Fluvius-Zähler)",
   be_b="Digitale Fluvius-Zähler senden verschlüsselt. Frag bei Fluvius deinen kostenlosen Entschlüsselungscode an und gib ihn einmal in der App deines Readers ein — danach läuft alles gleich.",
   once_t="Kein Gerät, das durchläuft?",
-  once_b="Brauchst du nicht. Führ <span class=\"k\">node gul.js --once</span> aus, wann es dir passt: liest den Zähler, sendet den Stand und beendet sich. Danach claimst du in der App — die einzige Bedingung ist, dass der Stand beim Claimen jünger als 48 Stunden ist. Ein Laptop, den du ab und zu aufklappst, reicht; durchlaufen lassen erspart dir nur das Daran-denken.",
+  once_b="Brauchst du nicht. Führ <span class=\"k\">node gul.js --once</span> aus, wann es dir passt: liest den Zähler, sendet den Stand und beendet sich. Er wird ausgezahlt, sobald er ankommt, höchstens einmal am Tag. Ein Laptop, den du ab und zu aufklappst, reicht; durchlaufen lassen erspart dir nur das Daran-denken.",
   th=("Du siehst", "Was tun"),
   trouble=[
     ("'node' is not recognized", "Node.js fehlt, oder das Fenster war schon offen, als du es installiert hast. Unter Windows: <span class=\"k\">winget install OpenJS.NodeJS.LTS</span>. Sonst: nodejs.org. Öffne dann ein <strong>neues</strong> Fenster und füg die Zeile erneut ein. Git brauchst du nicht."),
@@ -288,7 +288,7 @@ L["fr"] = dict(
   s_a="Route A — Home Assistant (tout compteur)",
   s_b="Route B — HomeWizard P1, sans Home Assistant",
   s_c="Route C — Un autre lecteur P1",
-  s_claim="Enfin : réclamez dans l'app",
+  s_claim="Enfin : le paiement se fait tout seul",
   s_trouble="Si ça ne marche pas",
   routes=[
     ("J'utilise Home Assistant", "Fonctionne avec presque tout compteur que HA lit déjà. Installez notre add-on, ou collez quelques lignes de YAML.", 1, "Le plus simple"),
@@ -331,7 +331,7 @@ L["fr"] = dict(
   ],
   claim=[
     ("Votre relevé apparaît tout seul", 'Dans l\'app, allez sur <strong>Submit</strong>. Sous <strong>« Auto-received »</strong> vous voyez votre relevé et l\'heure d\'arrivée.', None, None, None),
-    ("Touchez « Submit — no photo »", 'C\'est tout. Votre compteur envoie son relevé tout seul et vous n\'avez plus qu\'à réclamer.', None, None, None),
+    ("Il est payé tout seul", 'Rien à toucher : chaque relevé est payé automatiquement à son arrivée, au plus une fois par jour, et l\'app affiche <strong>« ✓ Paid »</strong>. Pas envie d\'attendre ? <strong>Claim now</strong> fait la même chose.', None, None, None),
   ],
   s_country='Est-ce que ça marche chez vous ?',
   country_intro='La prise de votre compteur diffère selon le pays, donc tous les lecteurs ne fonctionnent pas partout. Ce qui marche toujours : <strong>si Home Assistant affiche déjà votre relevé, la Route A fonctionne</strong> — quel que soit le pays.',
@@ -341,7 +341,7 @@ L["fr"] = dict(
   be_t="🇧🇪 Belgique (compteurs Fluvius)",
   be_b="Les compteurs Fluvius numériques envoient des données chiffrées. Demandez votre clé gratuite à Fluvius et saisissez-la une fois dans l'app de votre lecteur — ensuite tout fonctionne pareil.",
   once_t="Pas d’appareil qui reste allumé ?",
-  once_b="Ce n’est pas nécessaire. Lancez <span class=\"k\">node gul.js --once</span> quand cela vous arrange : il lit le compteur, envoie le relevé et se ferme. Vous réclamez ensuite dans l’app — la seule règle est que le relevé ait moins de 48 heures au moment de la réclamation. Un ordinateur portable que vous ouvrez de temps en temps suffit ; le laisser tourner vous évite seulement d’y penser.",
+  once_b="Ce n’est pas nécessaire. Lancez <span class=\"k\">node gul.js --once</span> quand cela vous arrange : il lit le compteur, envoie le relevé et se ferme. Il est payé dès son arrivée, au plus une fois par jour. Un ordinateur portable que vous ouvrez de temps en temps suffit ; le laisser tourner vous évite seulement d’y penser.",
   th=("Vous voyez", "Que faire"),
   trouble=[
     ("'node' is not recognized", "Node.js n’est pas installé, ou la fenêtre était déjà ouverte quand vous l’avez installé. Sous Windows : <span class=\"k\">winget install OpenJS.NodeJS.LTS</span>. Ailleurs : nodejs.org. Puis ouvrez une <strong>nouvelle</strong> fenêtre et recollez la ligne. Git n’est pas nécessaire."),
@@ -371,7 +371,7 @@ L["es"] = dict(
   s_a="Ruta A — Home Assistant (cualquier contador)",
   s_b="Ruta B — HomeWizard P1, sin Home Assistant",
   s_c="Ruta C — Otro lector P1",
-  s_claim="Por último: reclama en la app",
+  s_claim="Por último: se paga solo",
   s_trouble="Si algo no funciona",
   routes=[
     ("Uso Home Assistant", "Funciona con casi cualquier contador que HA ya lee. Instala nuestro add-on, o pega unas líneas de YAML.", 1, "Lo más fácil"),
@@ -414,7 +414,7 @@ L["es"] = dict(
   ],
   claim=[
     ("Tu lectura aparece sola", 'En la app abre <strong>Submit</strong>. Bajo <strong>«Auto-received»</strong> verás tu lectura y cuándo llegó.', None, None, None),
-    ("Toca «Submit — no photo»", 'Listo. Desde ahora tu contador envía su lectura sola y tú solo reclamas.', None, None, None),
+    ("Se paga solo", 'Nada que tocar: cada lectura se paga automáticamente en cuanto llega, como mucho una vez al día, y la app muestra <strong>«✓ Paid»</strong>. ¿No quieres esperar? <strong>Claim now</strong> hace lo mismo.', None, None, None),
   ],
   s_country='¿Funciona en tu país?',
   country_intro='La toma de tu contador varía según el país, así que no todos los lectores sirven en todas partes. Lo que siempre funciona: <strong>si Home Assistant ya muestra tu lectura, la Ruta A funciona</strong> — estés donde estés.',
@@ -424,7 +424,7 @@ L["es"] = dict(
   be_t="🇧🇪 Bélgica (contadores Fluvius)",
   be_b="Los contadores Fluvius digitales envían datos cifrados. Pide tu clave gratuita a Fluvius e introdúcela una vez en la app de tu lector — después todo funciona igual.",
   once_t="¿No tienes un equipo que quede encendido?",
-  once_b="No hace falta. Ejecuta <span class=\"k\">node gul.js --once</span> cuando te venga bien: lee el contador, envía la lectura y se cierra. Luego reclamas en la app — la única condición es que la lectura tenga menos de 48 horas al reclamar. Un portátil que abres de vez en cuando basta; dejarlo en marcha solo te ahorra tener que acordarte.",
+  once_b="No hace falta. Ejecuta <span class=\"k\">node gul.js --once</span> cuando te venga bien: lee el contador, envía la lectura y se cierra. Se paga en cuanto llega, como mucho una vez al día. Un portátil que abres de vez en cuando basta; dejarlo en marcha solo te ahorra tener que acordarte.",
   th=("Ves", "Qué hacer"),
   trouble=[
     ("'node' is not recognized", "Node.js no está instalado, o la ventana ya estaba abierta cuando lo instalaste. En Windows: <span class=\"k\">winget install OpenJS.NodeJS.LTS</span>. En otros sistemas: nodejs.org. Abre después una ventana <strong>nueva</strong> y vuelve a pegar la línea. No necesitas git."),

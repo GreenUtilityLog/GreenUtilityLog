@@ -150,6 +150,8 @@ app.get("/health", async (req, res) => {
     enode: enodeInfo(),
     // Scheduled hands-off auto-submit (Step 3) — on when AUTO_SUBMIT_MS ≥ 60000.
     autoSubmit: Number(process.env.AUTO_SUBMIT_MS || 0) >= 60000,
+    // Readers' readings are paid the moment they arrive (no tap in the app).
+    autoClaimOnPush: AUTO_CLAIM_ON_PUSH,
   });
 });
 
@@ -171,6 +173,10 @@ const banned = (addr) => isBanned(addr) || store.isBanned(addr);
 // Access pass gate. Separate from `banned` on purpose: banned is "you did something
 // wrong", no pass is "you're not on the list yet" — different message, different fix.
 // Returns null when the wallet may earn, or an error string when it may not.
+// Pay a reader's reading when it arrives. On by default; "off" leaves it to the
+// owner (a tap in the app) or to the AUTO_SUBMIT_MS sweep.
+const AUTO_CLAIM_ON_PUSH = String(process.env.AUTO_CLAIM_ON_PUSH || "on").toLowerCase() !== "off";
+
 function passBlock(addr) {
   if (!REQUIRE_PASS) return null;
   if (store.hasPass(addr)) return null;
@@ -880,6 +886,11 @@ app.post("/meter-ingest", (req, res) => {
     source: "push",
   });
   res.json({ ok: true });
+  // Pay it now, rather than waiting for the owner to open the app and tap. After
+  // the response: a reader (or Home Assistant, with a 20 s timeout) shouldn't wait
+  // for a transaction receipt. Cooldown, staleness and every other rule apply as
+  // for a tap in the app; a reading that isn't payable yet is simply kept.
+  if (AUTO_CLAIM_ON_PUSH) setImmediate(() => { autoSettle(link, "push").catch(() => {}); });
 });
 
 // The app reports its connected wallet here so admin can see testers who haven't
@@ -930,6 +941,10 @@ app.get("/meter/latest", (req, res) => {
     canRebaseline: !!link && !link.autoPaidAt && !(link.meterNo && (store.rebasedAt(utility, String(link.meterNo).toLowerCase()) || store.autoPaidAt(utility, String(link.meterNo).toLowerCase()))),
     baseline: baseline != null ? baseline : null,
     rebasedAt: link?.rebasedAt || null,
+    // The last reading of this reader that was paid, so the app can say "paid
+    // automatically" instead of offering a button for something already done.
+    lastPayout: link?.lastPayout || null,
+    autoClaimOnPush: AUTO_CLAIM_ON_PUSH,
   });
 });
 
@@ -1064,7 +1079,7 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
     store.markAutoPaid(utility, meterNo.toLowerCase());
     if (link?.token) {
       const { token, ...rest } = link;
-      store.setMeterLink(token, { ...rest, autoPaidAt: Date.now() });
+      store.setMeterLink(token, { ...rest, autoPaidAt: Date.now(), lastPayout: { amount: pay.amount, txid, at: Date.now(), reading: Number(latest.reading) } });
     }
     await store.flush(); // durable before returning, so a crash can't replay this reading
     return { ok: true, txid, amount: pay.amount, fullAmount: v.amount, factor: pay.factor, usage: v.usage, reading: Number(latest.reading), source: latest.source || "meter" };
@@ -1282,25 +1297,32 @@ app.post("/meter/fix-basis", async (req, res) => {
 //     enforced by settleMeterReading, exactly like the manual path.
 const AUTO_SUBMIT_MS = Number(process.env.AUTO_SUBMIT_MS || 0);
 let autoTickBusy = false;
-async function autoSubmitTick() {
-  if (!store.ready()) return; // don't pay from a blank/half-loaded state
-  for (const link of store.allMeterLinks()) {
-    const meterNo = String(link.meterNo || "").trim();
-    if (!meterNo || banned(link.address)) continue;
-    const utility = RATES[link.utility] ? link.utility : "electric";
-    const latest = store.getLinkReading(link.address);
-    if (!latest) continue;
-    // Skip unless this reading is newer than the last payout for this wallet+utility.
-    const lastPaid = store.getCooldown(`${String(link.address).toLowerCase()}:${utility}`);
-    if ((latest.at || 0) <= lastPaid) continue;
-    try {
-      const r = await settleMeterReading({ address: link.address, utility, meterNo });
-      if (r.ok) console.log(`[auto-submit] ${shortAddr(link.address)} +${r.amount} B3TR (${r.txid})`);
-      // Non-ok results (stale / cooldown / no baseline) are normal skips, not errors.
-    } catch (e) {
-      console.error("[auto-submit]", shortAddr(link.address), e?.message || e);
-    }
+// Settle a paired reader's latest reading without the owner tapping anything.
+// Same gates as /reward-from-meter apart from the signature, which a device can't
+// give: its token already binds the reading to the wallet.
+async function autoSettle(link, why = "timer") {
+  if (!store.ready() || !link?.address) return null; // don't pay from a blank/half-loaded state
+  const meterNo = String(link.meterNo || "").trim();
+  if (!meterNo || banned(link.address) || passBlock(link.address)) return null;
+  const utility = RATES[link.utility] ? link.utility : "electric";
+  const latest = store.getLinkReading(link.address);
+  if (!latest) return null;
+  // Only a reading newer than the last payout for this wallet+utility.
+  const lastPaid = store.getCooldown(`${String(link.address).toLowerCase()}:${utility}`);
+  if ((latest.at || 0) <= lastPaid) return null;
+  try {
+    const r = await settleMeterReading({ address: link.address, utility, meterNo });
+    if (r.ok) console.log(`[auto-pay:${why}] ${shortAddr(link.address)} +${r.amount} B3TR (${r.txid})`);
+    // Non-ok results (cooldown / no baseline / budget) are normal skips, not errors.
+    return r;
+  } catch (e) {
+    console.error(`[auto-pay:${why}]`, shortAddr(link.address), e?.message || e);
+    return null;
   }
+}
+
+async function autoSubmitTick() {
+  for (const link of store.allMeterLinks()) await autoSettle(link, "timer");
 }
 if (AUTO_SUBMIT_MS >= 60000) {
   setInterval(() => {

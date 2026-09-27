@@ -227,3 +227,30 @@ describe("the eco-mode bonus", () => {
     assert.equal(r.body.amount, 2);
   });
 });
+
+describe("a reader's reading is paid the moment it arrives", () => {
+  let srv, token;
+  before(async () => {
+    srv = await startServer({ state: stateWithBaseline(), env: { AUTO_CLAIM_ON_PUSH: "on" } });
+    token = (await srv.post("/meter/pair", { address: WALLET, meterNo: METER })).body.token;
+  });
+  after(async () => { await srv.stop(); });
+
+  test("no tap in the app needed", async () => {
+    const r = await srv.post("/meter-ingest", { token, reading: 1008 });
+    assert.equal(r.status, 200);
+    const st = await srv.waitForState((s) => s.readings["electric:e1000"] === 1008);
+    assert.equal(st.readings["electric:e1000"], 1008, "paid, so the baseline moved");
+    const latest = await srv.get(`/meter/latest?address=${WALLET}`);
+    assert.equal(latest.body.lastPayout.reading, 1008);
+    assert.ok(latest.body.lastPayout.amount > 0);
+  });
+
+  test("and the next push inside the cooldown is kept, not paid", async () => {
+    await srv.post("/meter-ingest", { token, reading: 1012 });
+    await new Promise((r) => setTimeout(r, 800));
+    assert.equal(srv.readState().readings["electric:e1000"], 1008);
+    const latest = await srv.get(`/meter/latest?address=${WALLET}`);
+    assert.equal(latest.body.reading.reading, 1012, "the newest reading is still there to be paid later");
+  });
+});
