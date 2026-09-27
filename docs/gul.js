@@ -28,8 +28,8 @@
 //   --field=…     dot-path to the kWh number in that JSON          (READ_FIELD)
 //   --ingest=…    override the backend                            (GUL_INGEST_URL)
 //   --once        push one reading and exit                       (ONCE=1)
-//   --install     Windows: run twice a day by itself, no window open
-//   --uninstall   remove that scheduled task again
+//   --install     run twice a day by itself (Windows Task Scheduler, cron elsewhere)
+//   --uninstall   remove that schedule again
 
 // CommonJS on purpose. People download this as one loose gul.js with no package.json
 // beside it, and Node before 20.19/22.12 treats such a file as CommonJS: `import`
@@ -97,7 +97,7 @@ async function ensureToken() {
     // Given once on the command line, remembered from then on. Saving fails silently
     // on a read-only dir (Docker), which is fine — there the env var supplies it
     // every time anyway.
-    if (TOKEN !== SAVED.token && saveToken(TOKEN)) log(`token saved — next time just run: node ${SELF}`);
+    if (TOKEN !== SAVED.token && saveToken(TOKEN)) log(FLAGS.install === "1" ? "token saved" : `token saved — next time just run: node ${SELF}`);
     return true;
   }
   if (!process.stdin.isTTY) {
@@ -110,7 +110,7 @@ async function ensureToken() {
   rl.close();
   TOKEN = String(answer || "").trim();
   if (!TOKEN) { console.error("No token given — nothing to do."); return false; }
-  if (saveToken(TOKEN)) console.log(`Saved. Next time just run: node ${SELF}\n`);
+  if (saveToken(TOKEN)) console.log(FLAGS.install === "1" ? "Saved.\n" : `Saved. Next time just run: node ${SELF}\n`);
   return true;
 }
 
@@ -370,18 +370,48 @@ function relaxPowerSettings() {
   else log("note: could not allow the task on battery power — it runs when the PC is plugged in.");
 }
 
-function manageTask(action) {
-  if (process.platform !== "win32") {
-    log(`--${action} is a Windows feature (Task Scheduler).`);
-    // Single-quoted for sh: a space in a path or an & in --url would otherwise split
-    // or background the command. ' itself becomes '\''.
-    const q = (v) => `'${String(v).replace(/'/g, "'\\''")}'`;
-    const keep = ["ip", "url", "field", "ingest", "interval"].filter((k) => FLAGS[k] && FLAGS[k] !== "1").map((k) => q(`--${k}=${FLAGS[k]}`)).join(" ");
-    const cmd = `${q(process.execPath)} ${q(process.argv[1])} --once${keep ? " " + keep : ""}`;
-    log(`On Linux/macOS use cron or a systemd timer, running:  ${cmd}`);
-    log(`e.g. crontab -e, then:  0 */12 * * * ${cmd}`);
+// Mac, Linux, Raspberry Pi: the same idea with cron — one line in the user's own
+// crontab, marked so it can be found again, replaced on a re-install and removed
+// by --uninstall. Everything else in that crontab is kept exactly as it was.
+const CRON_MARK = "# GreenUtilityLog";
+function manageCron(action) {
+  // Single-quoted for sh: a space in a path or an & in --url would otherwise split
+  // or background the command. ' itself becomes '\''.
+  const q = (v) => `'${String(v).replace(/'/g, "'\\''")}'`;
+  const keep = ["ip", "url", "field", "ingest", "interval"].filter((k) => FLAGS[k] && FLAGS[k] !== "1").map((k) => q(`--${k}=${FLAGS[k]}`)).join(" ");
+  const cmd = `${q(process.execPath)} ${q(process.argv[1])} --once${keep ? " " + keep : ""}`;
+  // Output goes to .gul-bridge.log already; without the redirect cron mails it.
+  const line = `0 */12 * * * ${cmd} >/dev/null 2>&1 ${CRON_MARK}`;
+  const manual = () => {
+    log(`Add it yourself: run  crontab -e  and paste this line:\n  ${line}`);
     return 1;
+  };
+
+  const cur = spawnSync("crontab", ["-l"], { encoding: "utf8" });
+  if (cur.error) { log("cron is not available on this machine."); return manual(); }
+  // An empty crontab is an error on most systems ("no crontab for you"). Any OTHER
+  // failure means we could not read it — and writing then would wipe it.
+  let existing = "";
+  if (cur.status === 0) existing = cur.stdout || "";
+  else if (!/no crontab/i.test(cur.stderr || "")) {
+    log(`could not read your crontab: ${(cur.stderr || "").trim()}`);
+    return manual();
   }
+  const lines = existing.split("\n").filter((l) => l.trim() && !l.includes(CRON_MARK));
+  if (action === "install") lines.push(line);
+  const w = spawnSync("crontab", ["-"], { input: lines.join("\n") + "\n", encoding: "utf8" });
+  if (w.status !== 0) {
+    log(`could not ${action} the cron job: ${`${w.stdout || ""}${w.stderr || ""}`.trim()}`);
+    return action === "install" ? manual() : 1;
+  }
+  log(action === "install"
+    ? "Scheduled with cron. Your meter now reports twice a day on its own — you can close this terminal."
+    : "Removed. Nothing is scheduled any more.");
+  return 0;
+}
+
+function manageTask(action) {
+  if (process.platform !== "win32") return manageCron(action);
   const [cmd, args] = taskCommand(action);
   const r = spawnSync(cmd, args, { encoding: "utf8" });
   const out = `${r.stdout || ""}${r.stderr || ""}`.trim();
