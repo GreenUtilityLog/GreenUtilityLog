@@ -13,6 +13,9 @@ out on-chain.
 
 ## How rewards work
 
+- Only wallets with an **access pass** (from an admin) or a **VeBetterDAO passport**
+  that counts them as a person are paid; one meter belongs to one wallet, and
+  the same meter photographed for another wallet is refused.
 - One reading per meter per ~day (20 h cooldown), **at most 4 B3TR** per reading.
 - A reader's reading (P1 / Home Assistant) is paid the moment it arrives — nothing
   to tap in the app.

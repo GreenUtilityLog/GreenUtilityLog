@@ -15,6 +15,9 @@ testtokens zonder echte waarde. Gewoon veilig uitproberen. 🙂
    - Download: https://www.veworld.net
 2. **VeWorld op "Testnet" gezet** (niet Mainnet) — zie stap 2 hieronder.
 
+3. **Een toegangspas** — stuur je wallet-adres naar de admin, die zet hem aan.
+   Heb je al een VeBetterDAO-passport die je als persoon telt, dan hoeft dat niet.
+
 Gas (VTHO) heb je **niet** nodig: je zet alleen een handtekening, de uitbetaling
 doet de server.
 

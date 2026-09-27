@@ -6,9 +6,9 @@ import "dotenv/config";
 import { randomBytes, createHash } from "node:crypto";
 import express from "express";
 import cors from "cors";
-import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, REQUIRE_PASS, ECO_REWARD, ECO_MAX_PER_WEEK, ECO_COOLDOWN_MS, ECO_APPLIANCES, ecoWeekKey, RATES, UNITS } from "./config.js";
+import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, REQUIRE_PASS, PASSPORT_GRANTS_ACCESS, ECO_REWARD, ECO_MAX_PER_WEEK, ECO_COOLDOWN_MS, ECO_APPLIANCES, ecoWeekKey, RATES, UNITS } from "./config.js";
 import { validateSubmission } from "./verify.js";
-import { verifyPhoto, checkReadingOnPhoto, readingCheckMode } from "./media.js";
+import { verifyPhoto, checkReadingOnPhoto, readingCheckMode, meterNoOnPhoto, meterNoCheckMode, photoPrint, printDistance } from "./media.js";
 import { store } from "./store.js";
 import { putPhoto, getPhotoDataUrl, deletePhoto, photoStoreEnabled } from "./photostore.js";
 import { distributeReward, distributeEcoReward, distributorAddress, chainDiagnostics, moveToRewardsPool, DRY_RUN } from "./reward.js";
@@ -177,10 +177,48 @@ const banned = (addr) => isBanned(addr) || store.isBanned(addr);
 // owner (a tap in the app) or to the AUTO_SUBMIT_MS sweep.
 const AUTO_CLAIM_ON_PUSH = String(process.env.AUTO_CLAIM_ON_PUSH || "on").toLowerCase() !== "off";
 
-function passBlock(addr) {
-  if (!REQUIRE_PASS) return null;
-  if (store.hasPass(addr)) return null;
-  return "this wallet has no access pass yet — ask an admin for one";
+// Closest photo print from ANOTHER wallet (media.js photoPrint), or null. At most
+// PRINT_REFUSE bits apart is the same shot retaken — refused; up to PRINT_FLAG is
+// recorded for an admin. A wallet's own earlier photos never count against it:
+// photographing your meter every day is the point.
+const PRINT_REFUSE = Number(process.env.PHOTO_LIKENESS_REFUSE || 4);
+const PRINT_FLAG = Number(process.env.PHOTO_LIKENESS_FLAG || 10);
+function nearestPrintFromOtherWallet(print, addr, kind) {
+  if (!print) return null;
+  const me = String(addr || "").toLowerCase();
+  let best = null;
+  for (const e of store.prints()) {
+    if (e.k !== kind || e.a === me) continue;
+    const d = printDistance(print, e.p);
+    if (!best || d < best.d) best = { d, a: e.a };
+  }
+  return best;
+}
+
+// Is this wallet let in? A pass does it; so does a VeBetterDAO passport that counts
+// the wallet as a person. The passport is read from chain and cached for an hour
+// (a "no" for ten minutes, so a newly qualified wallet isn't kept waiting long).
+// Unreadable counts as "no": only the pass then gets you in.
+const personCache = new Map();
+async function isPerson(addr) {
+  const a = String(addr || "").toLowerCase();
+  const hit = personCache.get(a);
+  if (hit && Date.now() - hit.at < (hit.v ? 3600000 : 600000)) return hit.v;
+  let v = false;
+  try { v = (await passportFor([a]))[a]?.isPerson === true; } catch { v = false; }
+  personCache.set(a, { v, at: Date.now() });
+  if (personCache.size > 5000) personCache.delete(personCache.keys().next().value);
+  return v;
+}
+async function accessOk(addr) {
+  if (!REQUIRE_PASS || store.hasPass(addr)) return true;
+  return PASSPORT_GRANTS_ACCESS ? isPerson(addr) : false;
+}
+async function passBlock(addr) {
+  if (await accessOk(addr)) return null;
+  return PASSPORT_GRANTS_ACCESS
+    ? "this wallet has no access pass yet — ask an admin for one (a VeBetterDAO passport that counts you as a person also works)"
+    : "this wallet has no access pass yet — ask an admin for one";
 }
 
 // Why a request that needs the store was turned away. "Warming up" is only true
@@ -567,7 +605,7 @@ const inFlight = new Set();
 app.post("/reward", async (req, res) => {
   // 0) Ban list — blocked wallets can never claim.
   if (banned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
-  { const pb = passBlock(req.body.address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
+  { const pb = await passBlock(req.body.address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
 
   // 0a) Durable store must be loaded — otherwise cooldowns/hashes/baselines are blank
   // and a payout can't be recorded. Refuse rather than farm on an empty slate.
@@ -640,7 +678,9 @@ app.post("/reward", async (req, res) => {
       if (!auth.ok) return res.status(auth.unavailable ? 503 : 400).json({ error: auth.unavailable ? auth.reason : `photo rejected: ${auth.reason}` });
     }
 
-    // 2c) The typed reading has to be the one on the photo (see media.js).
+    // 2c) The typed reading has to be the one on the photo (see media.js), and the
+    // meter number the wallet registered should be on it too.
+    const sybilFlags = [];
     let readingFlag = "";
     const rcMode = readingCheckMode(ocrEnabled());
     if (rcMode !== "off") {
@@ -649,6 +689,25 @@ app.post("/reward", async (req, res) => {
         return res.status(rc.unavailable ? 503 : 400).json({ error: rc.error });
       }
       if (!rc.ok) readingFlag = `server OCR did not find ${req.body.reading} on the photo (read ${(rc.seen || []).join(", ") || "nothing"})`;
+      const mnMode = meterNoCheckMode();
+      if (rc.ok && mnMode !== "off" && !meterNoOnPhoto(req.body.meterNo, rc.text)) {
+        if (mnMode === "strict") {
+          return res.status(400).json({ error: `meter number ${req.body.meterNo} is not visible on the photo — include the sticker with the number, or check the number you registered` });
+        }
+        sybilFlags.push(`meter number ${req.body.meterNo} not found on the photo`);
+      }
+    }
+
+    // 2d) One real meter photographed for several wallets (media.js photoPrint).
+    const print = await photoPrint(req.body.photo);
+    {
+      const near = nearestPrintFromOtherWallet(print, req.body.address, "meter");
+      if (near && near.d <= PRINT_REFUSE) {
+        store.addFlag(`sybil-${String(req.body.address).toLowerCase().slice(2, 10)}-${Date.now()}`, req.body.address,
+          `refused: photo nearly identical (${near.d}/64) to one paid to ${shortAddr(near.a)} — same meter, another wallet?`);
+        return res.status(400).json({ error: "this photo looks like one another wallet already submitted — one meter belongs to one wallet" });
+      }
+      if (near && near.d <= PRINT_FLAG) sybilFlags.push(`photo resembles one paid to ${shortAddr(near.a)} (${near.d}/64)`);
     }
 
     // 3) Scale to this week's budget (budget.js), pay out, then commit cooldown +
@@ -667,6 +726,7 @@ app.post("/reward", async (req, res) => {
     });
     v.markPaid();
     recordPayout(v.amount);
+    store.addPrint(req.body.address, "meter", print);
     committed = true; // payout landed — keep the reserved photo hash + committed cooldown
     // Make the anti-farming state (cooldown, burnt hash, baseline) durable BEFORE
     // responding, so a hard crash in the debounce window can't replay this payout.
@@ -687,6 +747,7 @@ app.post("/reward", async (req, res) => {
     // should be able to see.
     const reasons = [];
     if (readingFlag) reasons.push(readingFlag);
+    reasons.push(...sybilFlags);
     if (req.body.clientFlagged) reasons.push(req.body.flagReason || "client checks were inconclusive");
     if (photo?.exif && !photo.exif.hasExif) reasons.push("photo carried no EXIF capture date");
     // Worth seeing: the figure paid on was a sum, and the photo could only vouch for
@@ -720,7 +781,7 @@ app.post("/reward", async (req, res) => {
 // calendar week (Mon–Sun) and a 24h cooldown between claims.
 app.post("/eco-action", async (req, res) => {
   if (banned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
-  { const pb = passBlock(req.body.address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
+  { const pb = await passBlock(req.body.address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
   if (!store.ready()) return res.status(503).json({ error: notReadyMessage() });
 
   if (captchaEnabled()) {
@@ -766,11 +827,24 @@ app.post("/eco-action", async (req, res) => {
       if (!auth.ok) return res.status(auth.unavailable ? 503 : 400).json({ error: auth.unavailable ? auth.reason : `photo rejected: ${auth.reason}` });
     }
 
+    // The same appliance photographed for several wallets.
+    const print = await photoPrint(req.body.photo);
+    const near = nearestPrintFromOtherWallet(print, req.body.address, "eco");
+    if (near && near.d <= PRINT_REFUSE) {
+      store.addFlag(`sybil-${addr.slice(2, 10)}-${Date.now()}`, req.body.address,
+        `refused eco: photo nearly identical (${near.d}/64) to one paid to ${shortAddr(near.a)}`);
+      return res.status(400).json({ error: "this photo looks like one another wallet already submitted" });
+    }
+
     const pay = await scaledAmount(ECO_REWARD);
     if (pay.error) return res.status(503).json({ error: pay.error, budget: true });
     const txid = await distributeEcoReward({ appliance, amount: pay.amount, receiver: req.body.address });
     store.addEcoClaim(addr, Date.now());
     recordPayout(ECO_REWARD);
+    store.addPrint(req.body.address, "eco", print);
+    if (near && near.d <= PRINT_FLAG) {
+      try { store.addFlag(txid, req.body.address, `eco photo resembles one paid to ${shortAddr(near.a)} (${near.d}/64)`); } catch {}
+    }
     committed = true; // payout landed — keep the reserved photo hash + recorded claim
     await store.flush(); // make the claim + burnt hash durable before responding
     archivePhoto(txid, req.body.photo, req.body.photoMime, req.body.address);
@@ -897,7 +971,7 @@ app.post("/meter-ingest", (req, res) => {
 // earned on-chain yet. Deliberately unauthenticated — requiring a signature would mean
 // a wallet popup on every connect — so it stores only a public address (validated),
 // is covered by the IP throttle, and the roster is hard-capped in the store.
-app.post("/wallet/seen", (req, res) => {
+app.post("/wallet/seen", async (req, res) => {
   const address = String(req.body?.address || "");
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
   store.seenWallet(address, req.body?.meters);
@@ -908,7 +982,7 @@ app.post("/wallet/seen", (req, res) => {
   res.json({
     ok: true,
     requirePass: REQUIRE_PASS,
-    hasPass: !REQUIRE_PASS || Boolean(pass),
+    hasPass: await accessOk(address),
     pass: pass ? { no: pass.no, tier: pass.tier, issuedAt: pass.issuedAt } : null,
   });
 });
@@ -1090,7 +1164,7 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
 
 app.post("/reward-from-meter", async (req, res) => {
   if (banned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
-  { const pb = passBlock(req.body.address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
+  { const pb = await passBlock(req.body.address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
   if (!store.ready()) return res.status(503).json({ error: notReadyMessage() });
   if (captchaEnabled()) {
     const cap = await verifyCaptcha(req.body.captchaToken, req.clientIp);
@@ -1303,7 +1377,7 @@ let autoTickBusy = false;
 async function autoSettle(link, why = "timer") {
   if (!store.ready() || !link?.address) return null; // don't pay from a blank/half-loaded state
   const meterNo = String(link.meterNo || "").trim();
-  if (!meterNo || banned(link.address) || passBlock(link.address)) return null;
+  if (!meterNo || banned(link.address) || await passBlock(link.address)) return null;
   const utility = RATES[link.utility] ? link.utility : "electric";
   const latest = store.getLinkReading(link.address);
   if (!latest) return null;
