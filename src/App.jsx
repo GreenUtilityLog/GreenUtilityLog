@@ -2486,11 +2486,11 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
 # your meter reading. Run it on a PC / Pi / NAS on the same network.
 ${needNode}
 
-${fetchCmd(os === "win" ? `--token=${token} --install` : `--token=${token}`)}
+${fetchCmd(`--token=${token} --install`)}
 
-${os === "win"
-  ? "# That sends your first reading AND schedules it twice a day, so you can\n# close this window — it keeps working, even after a restart."
-  : "# Leave the terminal open, or run  node gul.js --install  for the cron line."}
+# That sends your first reading AND schedules it twice a day (Windows: Task
+# Scheduler, Mac/Linux/Pi: cron), so you can close this window — it keeps
+# working, even after a restart. You only ever run this once.
 # Network blocks auto-discovery? Add --ip=<your P1 IP>`;
                     const haYaml = `# EASIEST: install our integration instead — no YAML at all.
 #   HACS → ⋮ → Custom repositories → add (type: Integration):

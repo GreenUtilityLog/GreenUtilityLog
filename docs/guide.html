@@ -268,13 +268,13 @@
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copy</button><pre>winget install OpenJS.NodeJS.LTS</pre></div>
       </li>
       <li><p class="steptitle">Paste one line, press Enter</p>
-      <p>It downloads the helper and sends your first reading. <strong>Windows:</strong> it also schedules itself to report twice a day, so you can close the window afterwards and it keeps working, even after a restart. <strong>Mac / Linux / Pi:</strong> leave the terminal open, or run <span class="k">node gul.js --install</span> for the line to put in cron.</p>
+      <p>It downloads the helper and sends your first reading. It also schedules itself to report twice a day (Windows: Task Scheduler · Mac / Linux / Pi: cron), so you can close the window afterwards and it keeps working, even after a restart. This is the only time you run it.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copy</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
-      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copy</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copy</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
       <li><p class="steptitle">Paste your token when it asks</p>
-      <p>It asks once and remembers it, so from then on you start it with just <span class="k">node gul.js</span>. Then it finds the meter and sends the reading.</p>
-      <div class="see"><b>What you should see, in order</b><span class="k">Paste your device token…</span> → <span class="k">found HomeWizard at 192.168.…</span> → <span class="k">pushed 8421.3 kWh ✓</span></div>
+      <p>It asks once and remembers it; the schedule uses the saved token from then on. Then it sets up the schedule, finds the meter and sends the first reading.</p>
+      <div class="see"><b>What you should see, in order</b><span class="k">Paste your device token…</span> → <span class="k">Scheduled…</span> → <span class="k">found HomeWizard at 192.168.…</span> → <span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
   <h2>Route C — Another P1 reader</h2>
@@ -404,13 +404,13 @@
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieer</button><pre>winget install OpenJS.NodeJS.LTS</pre></div>
       </li>
       <li><p class="steptitle">Plak één regel, druk op Enter</p>
-      <p>Die haalt de helper op en stuurt meteen je eerste stand. <strong>Windows:</strong> hij plant zichzelf ook in om twee keer per dag te rapporteren, dus je kunt het venster daarna gewoon sluiten — ook na een herstart blijft hij werken. <strong>Mac / Linux / Pi:</strong> laat de terminal open, of draai <span class="k">node gul.js --install</span> voor de regel voor cron.</p>
+      <p>Die haalt de helper op en stuurt meteen je eerste stand. Hij plant zichzelf ook in om twee keer per dag te rapporteren (Windows: Taakplanner · Mac / Linux / Pi: cron), dus je kunt het venster daarna gewoon sluiten — ook na een herstart blijft hij werken. Dit hoef je maar één keer te doen.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieer</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
-      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieer</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieer</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
       <li><p class="steptitle">Plak je token als hij erom vraagt</p>
-      <p>Hij vraagt het één keer en onthoudt het, dus daarna start je hem met alleen <span class="k">node gul.js</span>. Daarna zoekt hij de meter en stuurt hij de stand door.</p>
-      <div class="see"><b>Dit hoor je te zien, in deze volgorde</b><span class="k">Paste your device token…</span> → <span class="k">found HomeWizard at 192.168.…</span> → <span class="k">pushed 8421.3 kWh ✓</span></div>
+      <p>Hij vraagt het één keer en onthoudt het; de planning gebruikt daarna het opgeslagen token. Dan zet hij de planning klaar, zoekt de meter en stuurt de eerste stand door.</p>
+      <div class="see"><b>Dit hoor je te zien, in deze volgorde</b><span class="k">Paste your device token…</span> → <span class="k">Scheduled…</span> → <span class="k">found HomeWizard at 192.168.…</span> → <span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
   <h2>Route C — Een andere P1-reader</h2>
@@ -540,13 +540,13 @@
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieren</button><pre>winget install OpenJS.NodeJS.LTS</pre></div>
       </li>
       <li><p class="steptitle">Eine Zeile einfügen, Enter drücken</p>
-      <p>Sie lädt das Hilfsprogramm und sendet sofort deinen ersten Stand. <strong>Windows:</strong> es plant sich außerdem selbst, zweimal täglich zu melden — du kannst das Fenster danach schließen, auch nach einem Neustart läuft es weiter. <strong>Mac / Linux / Pi:</strong> Terminal offen lassen, oder <span class="k">node gul.js --install</span> für die cron-Zeile.</p>
+      <p>Sie lädt das Hilfsprogramm und sendet sofort deinen ersten Stand. Es plant sich außerdem selbst, zweimal täglich zu melden (Windows: Aufgabenplanung · Mac / Linux / Pi: cron) — du kannst das Fenster danach schließen, auch nach einem Neustart läuft es weiter. Das machst du nur ein einziges Mal.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieren</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
-      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieren</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieren</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
       <li><p class="steptitle">Token einfügen, wenn er danach fragt</p>
-      <p>Er fragt einmal und merkt es sich, danach startest du ihn mit nur <span class="k">node gul.js</span>. Dann findet er den Zähler und sendet den Stand.</p>
-      <div class="see"><b>Das solltest du sehen, in dieser Reihenfolge</b><span class="k">Paste your device token…</span> → <span class="k">found HomeWizard at 192.168.…</span> → <span class="k">pushed 8421.3 kWh ✓</span></div>
+      <p>Er fragt einmal und merkt es sich; die Planung nutzt danach das gespeicherte Token. Dann richtet er die Planung ein, findet den Zähler und sendet den ersten Stand.</p>
+      <div class="see"><b>Das solltest du sehen, in dieser Reihenfolge</b><span class="k">Paste your device token…</span> → <span class="k">Scheduled…</span> → <span class="k">found HomeWizard at 192.168.…</span> → <span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
   <h2>Route C — Ein anderer P1-Reader</h2>
@@ -676,13 +676,13 @@
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copier</button><pre>winget install OpenJS.NodeJS.LTS</pre></div>
       </li>
       <li><p class="steptitle">Collez une ligne, appuyez sur Entrée</p>
-      <p>Elle télécharge l’utilitaire et envoie tout de suite votre premier relevé. <strong>Windows :</strong> il se planifie aussi pour envoyer deux fois par jour — vous pouvez fermer la fenêtre ensuite, même après un redémarrage il continue. <strong>Mac / Linux / Pi :</strong> laissez le terminal ouvert, ou lancez <span class="k">node gul.js --install</span> pour la ligne cron.</p>
+      <p>Elle télécharge l’utilitaire et envoie tout de suite votre premier relevé. Il se planifie aussi pour envoyer deux fois par jour (Windows : Planificateur de tâches · Mac / Linux / Pi : cron) — vous pouvez fermer la fenêtre ensuite, même après un redémarrage il continue. Vous ne le faites qu’une seule fois.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copier</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
-      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copier</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copier</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
       <li><p class="steptitle">Collez votre jeton quand il le demande</p>
-      <p>Il ne le demande qu’une fois et le retient ; ensuite <span class="k">node gul.js</span> suffit. Il trouve alors le compteur et envoie le relevé.</p>
-      <div class="see"><b>Ce que vous devez voir, dans cet ordre</b><span class="k">Paste your device token…</span> → <span class="k">found HomeWizard at 192.168.…</span> → <span class="k">pushed 8421.3 kWh ✓</span></div>
+      <p>Il ne le demande qu’une fois et le retient ; la planification utilise ensuite le jeton enregistré. Il met alors la planification en place, trouve le compteur et envoie le premier relevé.</p>
+      <div class="see"><b>Ce que vous devez voir, dans cet ordre</b><span class="k">Paste your device token…</span> → <span class="k">Scheduled…</span> → <span class="k">found HomeWizard at 192.168.…</span> → <span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
   <h2>Route C — Un autre lecteur P1</h2>
@@ -812,13 +812,13 @@
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>winget install OpenJS.NodeJS.LTS</pre></div>
       </li>
       <li><p class="steptitle">Pega una línea y pulsa Enter</p>
-      <p>Descarga el programa y envía tu primera lectura al momento. <strong>Windows:</strong> además se programa para enviar dos veces al día, así que puedes cerrar la ventana después — sigue funcionando incluso tras reiniciar. <strong>Mac / Linux / Pi:</strong> deja la terminal abierta, o ejecuta <span class="k">node gul.js --install</span> para la línea de cron.</p>
+      <p>Descarga el programa y envía tu primera lectura al momento. Además se programa para enviar dos veces al día (Windows: Programador de tareas · Mac / Linux / Pi: cron), así que puedes cerrar la ventana después — sigue funcionando incluso tras reiniciar. Solo tienes que hacerlo una vez.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
-      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiar</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiar</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
       <li><p class="steptitle">Pega tu token cuando lo pida</p>
-      <p>Lo pide una sola vez y lo recuerda, así que después arrancas con solo <span class="k">node gul.js</span>. Entonces encuentra el contador y envía la lectura.</p>
-      <div class="see"><b>Lo que deberías ver, en este orden</b><span class="k">Paste your device token…</span> → <span class="k">found HomeWizard at 192.168.…</span> → <span class="k">pushed 8421.3 kWh ✓</span></div>
+      <p>Lo pide una sola vez y lo recuerda; la programación usa después el token guardado. Entonces deja lista la programación, encuentra el contador y envía la primera lectura.</p>
+      <div class="see"><b>Lo que deberías ver, en este orden</b><span class="k">Paste your device token…</span> → <span class="k">Scheduled…</span> → <span class="k">found HomeWizard at 192.168.…</span> → <span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
   <h2>Ruta C — Otro lector P1</h2>

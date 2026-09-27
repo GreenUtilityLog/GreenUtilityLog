@@ -93,3 +93,37 @@ test("the token file stays private", () => {
   assert.equal(mode, 0o600);
   assert.equal(JSON.parse(readFileSync(join(dir, ".gul-bridge.json"), "utf8")).token, "t1");
 });
+
+test("--install on Mac/Linux adds one cron line, keeps the rest, and --uninstall removes it", async () => {
+  if (process.platform === "win32") return;
+  const { writeFileSync, chmodSync, mkdirSync } = require("node:fs");
+  const bin = join(dir, "bin");
+  mkdirSync(bin, { recursive: true });
+  const cronFile = join(dir, "crontab.txt");
+  // A stand-in for crontab(1): -l prints the file (or "no crontab"), - replaces it.
+  writeFileSync(join(bin, "crontab"), '#!/bin/sh\nif [ "$1" = "-l" ]; then if [ -f "$CRONFILE" ]; then cat "$CRONFILE"; else echo "no crontab for you" >&2; exit 1; fi; elif [ "$1" = "-" ]; then cat > "$CRONFILE"; fi\n');
+  chmodSync(join(bin, "crontab"), 0o755);
+  writeFileSync(cronFile, "MAILTO=me\n5 4 * * * /usr/bin/backup\n");
+  const env = { PATH: `${bin}:${process.env.PATH}`, CRONFILE: cronFile };
+  const reader = await fake(hw);
+  const backend = await fake((req, res) => { req.resume(); req.on("end", () => res.end("{}")); });
+  const flags = [`--ip=127.0.0.1:${reader.address().port}`, `--ingest=http://127.0.0.1:${backend.address().port}/meter-ingest`];
+
+  const r = await run(["--install", ...flags], env);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /Scheduled with cron/);
+  assert.match(r.out, /pushed 300\.75 kWh/, "and sends the first reading straight away");
+  let tab = readFileSync(cronFile, "utf8");
+  assert.match(tab, /MAILTO=me\n5 4 \* \* \* \/usr\/bin\/backup\n/, "the user's own lines stay");
+  assert.equal((tab.match(/# GreenUtilityLog/g) || []).length, 1);
+  assert.match(tab, /--once '--ip=127\.0\.0\.1:\d+'/, "where to read is carried into the job");
+
+  await run(["--install", ...flags], env);
+  tab = readFileSync(cronFile, "utf8");
+  assert.equal((tab.match(/# GreenUtilityLog/g) || []).length, 1, "installing again replaces, not duplicates");
+
+  const u = await run(["--uninstall"], env);
+  assert.equal(u.code, 0, u.out);
+  assert.equal(readFileSync(cronFile, "utf8"), "MAILTO=me\n5 4 * * * /usr/bin/backup\n");
+  reader.close(); backend.close();
+});
