@@ -285,8 +285,8 @@
       </li>
       <li><p class="steptitle">Start the helper with that URL</p>
       <p>Put your own address in place of the example one; it asks for your token itself. If the reading isn't found automatically, add <span class="k">--field=</span> with the dot-path to the kWh value in that JSON.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copy</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --url=http://192.168.1.60/api/v1/data</pre></div>
-      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copy</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copy</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copy</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">Check it worked</p>
       <p>The helper prints what it pushed.</p>
@@ -316,6 +316,7 @@
     <tr><td>usage … is outside the plausible range</td><td>Almost always a <strong>double-tariff meter</strong>: the display keeps two registers (<span class="k">1.8.1</span> and <span class="k">1.8.2</span>) and your photo captured one of them, while your reader reports the total of both — so your starting point and your reader are on different scales. In the app, under <span class="k">Auto-received</span>, press <strong>&ldquo;Use this reading as my starting point&rdquo;</strong>. It pays nothing and only sets where counting begins. Possible until your first automatic payout.</td></tr>
     <tr><td>the automatic reading is stale</td><td>A reading has to be under 48 hours old at the moment you claim it. Run the helper again (or leave it running) and claim once it prints <span class="k">pushed … ✓</span>.</td></tr>
     <tr><td>Nothing under “Auto-received”</td><td>The helper hasn’t pushed successfully yet. Look at its window, or open <span class="k">.gul-bridge.log</span> in the same folder as gul.js: every run writes either <span class="k">pushed … ✓</span> or the reason it failed.</td></tr>
+    <tr><td>Not sure it is scheduled?</td><td>Windows: in PowerShell run <span class="k">schtasks /Query /TN GreenUtilityLog</span> — a line with <em>GreenUtilityLog</em> and a next run time means it is. Mac / Linux / Pi: <span class="k">crontab -l</span> should show a line ending in <em># GreenUtilityLog</em>. Nothing there? Paste the setup line once more.</td></tr>
     <tr><td>You set this up before 24 September</td><td>Paste the same line again once. The new helper waits for a server that is still waking up instead of giving up, writes every run to <span class="k">.gul-bridge.log</span>, and on Windows also runs on battery power.</td></tr>
     <tr><td>already been corrected once</td><td>A meter’s starting point can be corrected once — every correction wipes the usage since the last payout. If it is wrong again, ask an admin via Send Feedback in the app.</td></tr>
   </table></div>
@@ -421,8 +422,8 @@
       </li>
       <li><p class="steptitle">Start het hulpprogramma met die URL</p>
       <p>Zet je eigen adres op de plek van het voorbeeld; om je token vraagt hij zelf. Wordt de stand niet automatisch gevonden, zet er dan <span class="k">--field=</span> bij met het pad naar de kWh-waarde in die JSON.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieer</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --url=http://192.168.1.60/api/v1/data</pre></div>
-      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieer</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieer</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieer</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">Controleer of het werkte</p>
       <p>Het hulpprogramma laat zien wat het verstuurd heeft.</p>
@@ -452,6 +453,7 @@
     <tr><td>usage … is outside the plausible range</td><td>Bijna altijd een <strong>dubbeltariefmeter</strong>: je display houdt twee registers bij (<span class="k">1.8.1</span> en <span class="k">1.8.2</span>) en je foto ving er één, terwijl je reader de som van allebei doorgeeft — startpunt en reader staan dus op een andere schaal. Gebruik in de app onder <span class="k">Auto-received</span> de knop <strong>&ldquo;Use this reading as my starting point&rdquo;</strong>. Die betaalt niets uit en zet alleen waar het tellen begint. Kan tot je eerste automatische uitbetaling.</td></tr>
     <tr><td>the automatic reading is stale</td><td>Een stand moet jonger dan 48 uur zijn op het moment dat je claimt. Start de helper opnieuw (of laat hem draaien) en claim zodra er <span class="k">pushed … ✓</span> staat.</td></tr>
     <tr><td>Niets onder “Auto-received”</td><td>De helper heeft nog niets succesvol doorgestuurd. Kijk in zijn venster, of open <span class="k">.gul-bridge.log</span> in dezelfde map als gul.js: elke ronde schrijft óf <span class="k">pushed … ✓</span> óf de reden waarom het niet lukte.</td></tr>
+    <tr><td>Weet je niet zeker of hij is ingepland?</td><td>Windows: typ in PowerShell <span class="k">schtasks /Query /TN GreenUtilityLog</span> — zie je een regel met <em>GreenUtilityLog</em> en een volgende starttijd, dan staat hij erin. Mac / Linux / Pi: <span class="k">crontab -l</span> hoort een regel te tonen die eindigt op <em># GreenUtilityLog</em>. Niets te zien? Plak de installatieregel nog één keer.</td></tr>
     <tr><td>Je stelde dit in vóór 24 september</td><td>Plak dezelfde regel nog één keer. De nieuwe helper wacht op een server die nog wakker wordt in plaats van op te geven, schrijft elke ronde naar <span class="k">.gul-bridge.log</span> en draait op Windows ook op de accu.</td></tr>
     <tr><td>already been corrected once</td><td>Het startpunt van een meter kan één keer worden gecorrigeerd — elke correctie wist het verbruik sinds de laatste uitbetaling. Klopt het weer niet, vraag het een admin via Send Feedback in de app.</td></tr>
   </table></div>
@@ -557,8 +559,8 @@
       </li>
       <li><p class="steptitle">Hilfsprogramm mit dieser URL starten</p>
       <p>Setz deine eigene Adresse anstelle der Beispiel-URL; nach dem Token fragt es selbst. Wird der Stand nicht automatisch gefunden, ergänze <span class="k">--field=</span> mit dem Pfad zum kWh-Wert in diesem JSON.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieren</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --url=http://192.168.1.60/api/v1/data</pre></div>
-      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieren</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieren</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieren</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">Prüfen, ob es klappte</p>
       <p>Das Hilfsprogramm zeigt, was es gesendet hat.</p>
@@ -588,6 +590,7 @@
     <tr><td>usage … is outside the plausible range</td><td>Fast immer ein <strong>Doppeltarifzähler</strong>: das Display führt zwei Register (<span class="k">1.8.1</span> und <span class="k">1.8.2</span>) und dein Foto hat eines davon erwischt, während dein Reader die Summe beider meldet — Startpunkt und Reader liegen also auf verschiedenen Skalen. Druck in der App unter <span class="k">Auto-received</span> auf <strong>&ldquo;Use this reading as my starting point&rdquo;</strong>. Das zahlt nichts aus und setzt nur, wo gezählt wird. Möglich bis zur ersten automatischen Auszahlung.</td></tr>
     <tr><td>the automatic reading is stale</td><td>Ein Stand muss beim Claimen jünger als 48 Stunden sein. Starte das Hilfsprogramm erneut (oder lass es laufen) und claime, sobald <span class="k">pushed … ✓</span> erscheint.</td></tr>
     <tr><td>Nichts unter „Auto-received“</td><td>Das Hilfsprogramm hat noch nichts erfolgreich gesendet. Schau in sein Fenster oder öffne <span class="k">.gul-bridge.log</span> im selben Ordner wie gul.js: jede Runde schreibt entweder <span class="k">pushed … ✓</span> oder den Grund für den Fehlschlag.</td></tr>
+    <tr><td>Nicht sicher, ob es eingeplant ist?</td><td>Windows: in PowerShell <span class="k">schtasks /Query /TN GreenUtilityLog</span> eingeben — eine Zeile mit <em>GreenUtilityLog</em> und einer nächsten Laufzeit heißt, es ist eingeplant. Mac / Linux / Pi: <span class="k">crontab -l</span> sollte eine Zeile zeigen, die auf <em># GreenUtilityLog</em> endet. Nichts da? Füge die Einrichtungszeile noch einmal ein.</td></tr>
     <tr><td>Vor dem 24. September eingerichtet</td><td>Füge dieselbe Zeile noch einmal ein. Das neue Hilfsprogramm wartet auf einen Server, der noch aufwacht, statt aufzugeben, schreibt jede Runde in <span class="k">.gul-bridge.log</span> und läuft unter Windows auch im Akkubetrieb.</td></tr>
     <tr><td>already been corrected once</td><td>Der Startwert eines Zählers kann einmal korrigiert werden — jede Korrektur löscht den Verbrauch seit der letzten Auszahlung. Stimmt er wieder nicht, frag einen Admin über Send Feedback in der App.</td></tr>
   </table></div>
@@ -693,8 +696,8 @@
       </li>
       <li><p class="steptitle">Lancez l'utilitaire avec cette URL</p>
       <p>Mettez votre propre adresse à la place de l'exemple ; il demande votre jeton lui-même. Si le relevé n'est pas trouvé automatiquement, ajoutez <span class="k">--field=</span> avec le chemin vers la valeur kWh dans ce JSON.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copier</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --url=http://192.168.1.60/api/v1/data</pre></div>
-      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copier</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copier</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copier</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">Vérifiez que ça a marché</p>
       <p>L'utilitaire affiche ce qu'il a envoyé.</p>
@@ -724,6 +727,7 @@
     <tr><td>usage … is outside the plausible range</td><td>Presque toujours un <strong>compteur bi-horaire</strong> : l’afficheur tient deux registres (<span class="k">1.8.1</span> et <span class="k">1.8.2</span>) et votre photo en a saisi un seul, alors que votre lecteur rapporte le total des deux — le point de départ et le lecteur ne sont donc pas à la même échelle. Dans l’app, sous <span class="k">Auto-received</span>, appuyez sur <strong>&ldquo;Use this reading as my starting point&rdquo;</strong>. Cela ne paie rien et ne fait que fixer où commence le comptage. Possible jusqu’à votre premier versement automatique.</td></tr>
     <tr><td>the automatic reading is stale</td><td>Un relevé doit avoir moins de 48 heures au moment où vous le réclamez. Relancez l’utilitaire (ou laissez-le tourner) et réclamez dès qu’il affiche <span class="k">pushed … ✓</span>.</td></tr>
     <tr><td>Rien sous « Auto-received »</td><td>L’utilitaire n’a encore rien envoyé avec succès. Regardez sa fenêtre, ou ouvrez <span class="k">.gul-bridge.log</span> dans le même dossier que gul.js : chaque cycle écrit soit <span class="k">pushed … ✓</span>, soit la raison de l’échec.</td></tr>
+    <tr><td>Pas sûr qu’il soit planifié ?</td><td>Windows : dans PowerShell, tapez <span class="k">schtasks /Query /TN GreenUtilityLog</span> — une ligne avec <em>GreenUtilityLog</em> et une prochaine exécution signifie que c’est bon. Mac / Linux / Pi : <span class="k">crontab -l</span> doit afficher une ligne se terminant par <em># GreenUtilityLog</em>. Rien ? Collez la ligne d’installation une fois de plus.</td></tr>
     <tr><td>Installé avant le 24 septembre</td><td>Collez la même ligne une fois de plus. Le nouvel utilitaire attend un serveur qui se réveille au lieu d’abandonner, écrit chaque cycle dans <span class="k">.gul-bridge.log</span> et, sous Windows, fonctionne aussi sur batterie.</td></tr>
     <tr><td>already been corrected once</td><td>Le point de départ d’un compteur ne peut être corrigé qu’une fois — chaque correction efface la consommation depuis le dernier paiement. S’il est de nouveau faux, demandez à un admin via Send Feedback dans l’app.</td></tr>
   </table></div>
@@ -829,8 +833,8 @@
       </li>
       <li><p class="steptitle">Inicia el programa con esa URL</p>
       <p>Pon tu propia dirección en lugar del ejemplo; el token te lo pide él mismo. Si la lectura no se encuentra automáticamente, añade <span class="k">--field=</span> con la ruta al valor kWh en ese JSON.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --url=http://192.168.1.60/api/v1/data</pre></div>
-      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiar</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiar</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">Comprueba que funcionó</p>
       <p>El programa muestra lo que ha enviado.</p>
@@ -860,6 +864,7 @@
     <tr><td>usage … is outside the plausible range</td><td>Casi siempre un <strong>contador de doble tarifa</strong>: la pantalla lleva dos registros (<span class="k">1.8.1</span> y <span class="k">1.8.2</span>) y tu foto capturó uno de ellos, mientras que tu lector informa la suma de ambos — el punto de partida y el lector están en escalas distintas. En la app, bajo <span class="k">Auto-received</span>, pulsa <strong>&ldquo;Use this reading as my starting point&rdquo;</strong>. No paga nada y solo fija dónde empieza el conteo. Posible hasta tu primer pago automático.</td></tr>
     <tr><td>the automatic reading is stale</td><td>Una lectura debe tener menos de 48 horas en el momento de reclamarla. Vuelve a ejecutar el programa (o déjalo en marcha) y reclama en cuanto muestre <span class="k">pushed … ✓</span>.</td></tr>
     <tr><td>Nada en “Auto-received”</td><td>El programa aún no ha enviado nada con éxito. Mira su ventana, o abre <span class="k">.gul-bridge.log</span> en la misma carpeta que gul.js: cada ciclo escribe o bien <span class="k">pushed … ✓</span> o el motivo del fallo.</td></tr>
+    <tr><td>¿No estás seguro de que esté programado?</td><td>Windows: en PowerShell escribe <span class="k">schtasks /Query /TN GreenUtilityLog</span> — una línea con <em>GreenUtilityLog</em> y una próxima ejecución significa que sí. Mac / Linux / Pi: <span class="k">crontab -l</span> debe mostrar una línea que termina en <em># GreenUtilityLog</em>. ¿No hay nada? Pega la línea de instalación una vez más.</td></tr>
     <tr><td>Lo configuraste antes del 24 de septiembre</td><td>Pega la misma línea una vez más. El nuevo programa espera a un servidor que aún se está despertando en lugar de rendirse, escribe cada ciclo en <span class="k">.gul-bridge.log</span> y en Windows también funciona con batería.</td></tr>
     <tr><td>already been corrected once</td><td>El punto de partida de un contador solo se puede corregir una vez — cada corrección borra el consumo desde el último pago. Si vuelve a estar mal, pide ayuda a un admin con Send Feedback en la app.</td></tr>
   </table></div>
