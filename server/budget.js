@@ -81,8 +81,11 @@ export async function budgetState() {
   if (cache && Date.now() - cache.at < CACHE_MS) return { ...cache.state, dailyDemand: +dailyDemand().toFixed(2), factor: factorFor(cache.state) };
   const [pot, endsAt] = await Promise.all([potB3TR(), roundEndsAt()]);
   // Half a day of slack past the deadline: the new allocation arrives only after
-  // the round has ended AND been claimed.
-  const daysLeft = endsAt != null ? Math.max(0.5, (endsAt - Date.now()) / DAY + 0.5) : 7;
+  // the round has ended AND been claimed. A deadline already in the past means the
+  // next round hasn't started (seen on testnet: five days after the deadline) — when
+  // the pot refills is then unknown, so plan for a full week rather than spending it
+  // as if it refilled in twelve hours.
+  const daysLeft = endsAt == null || endsAt <= Date.now() ? 7 : (endsAt - Date.now()) / DAY + 0.5;
   const state = {
     scaling: SCALING,
     poolB3TR: pot,
