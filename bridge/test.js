@@ -116,7 +116,7 @@ test("--install on Mac/Linux adds one cron line, keeps the rest, and --uninstall
   let tab = readFileSync(cronFile, "utf8");
   assert.match(tab, /MAILTO=me\n5 4 \* \* \* \/usr\/bin\/backup\n/, "the user's own lines stay");
   assert.equal((tab.match(/# GreenUtilityLog/g) || []).length, 1);
-  assert.match(tab, /--once '--ip=127\.0\.0\.1:\d+'/, "where to read is carried into the job");
+  assert.match(tab, /^0 \* \* \* \* .* --once --due '--ip=127\.0\.0\.1:\d+'/m, "hourly, pushing only when due, where to read carried into the job");
 
   await run(["--install", ...flags], env);
   tab = readFileSync(cronFile, "utf8");
@@ -125,5 +125,32 @@ test("--install on Mac/Linux adds one cron line, keeps the rest, and --uninstall
   const u = await run(["--uninstall"], env);
   assert.equal(u.code, 0, u.out);
   assert.equal(readFileSync(cronFile, "utf8"), "MAILTO=me\n5 4 * * * /usr/bin/backup\n");
+  reader.close(); backend.close();
+});
+
+test("--due pushes only when the last reading is 11 hours old, and retries a failure next time", async () => {
+  const reader = await fake(hw);
+  let n = 0, fail = true;
+  const backend = await fake((req, res) => { req.resume(); req.on("end", () => { n++; if (fail) { res.statusCode = 401; res.end("{}"); } else res.end("{}"); }); });
+  const flags = ["--once", "--due", `--ip=127.0.0.1:${reader.address().port}`, `--ingest=http://127.0.0.1:${backend.address().port}/meter-ingest`];
+  const cfg = join(dir, ".gul-bridge.json");
+  const set = (lastPushAt) => { const c = JSON.parse(readFileSync(cfg, "utf8")); c.lastPushAt = lastPushAt; require("node:fs").writeFileSync(cfg, JSON.stringify(c)); };
+
+  set(Date.now() - 12 * 3600e3);
+  let r = await run(flags);                       // due, but the server refuses
+  assert.equal(r.code, 1, r.out);
+  assert.equal(n, 1);
+  r = await run(flags);                           // a failure isn't a push: still due
+  assert.equal(n, 2);
+
+  fail = false;
+  r = await run(flags);                           // goes through now
+  assert.equal(r.code, 0, r.out);
+  assert.equal(n, 3);
+  r = await run(flags);                           // just pushed: not due, silent
+  assert.equal(r.code, 0);
+  assert.equal(n, 3);
+  assert.equal(r.out, "");
+  assert.ok(JSON.parse(readFileSync(cfg, "utf8")).token, "the token survives the timestamp being saved");
   reader.close(); backend.close();
 });

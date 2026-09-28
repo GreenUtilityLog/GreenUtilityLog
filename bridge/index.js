@@ -60,12 +60,15 @@ const CONFIG_FILE = join(HERE, ".gul-bridge.json");
 function readSaved() {
   try { return JSON.parse(readFileSync(CONFIG_FILE, "utf8")) || {}; } catch { return {}; }
 }
-function saveToken(token) {
+// The saved settings: the token, and when a reading last went through. Written
+// whole each time, keeping whatever else is in the file.
+function saveConfig(patch) {
   // 0600: the token is a credential — anyone holding it can submit readings for this
   // wallet. Ignored on Windows, which has no POSIX modes, but free to ask for.
-  try { writeFileSync(CONFIG_FILE, JSON.stringify({ token }, null, 2), { mode: 0o600 }); return true; }
+  try { writeFileSync(CONFIG_FILE, JSON.stringify({ ...readSaved(), ...patch }, null, 2), { mode: 0o600 }); return true; }
   catch { return false; }  // read-only dir (Docker) — not worth failing over
 }
+const saveToken = (token) => saveConfig({ token });
 const SAVED = readSaved();
 
 const pick = (flag, env, fallback = "") =>
@@ -83,6 +86,12 @@ const FIXED_IP = pick("ip", "HW_IP");
 const INTERVAL_SEC = Number(pick("interval", "INTERVAL_SEC", 43200));
 const INTERVAL_MS = (Number.isFinite(INTERVAL_SEC) && INTERVAL_SEC > 0 ? Math.max(60, INTERVAL_SEC) : 43200) * 1000;
 const ONCE = FLAGS.once === "1" || process.env.ONCE === "1";
+// --due: push only if the last reading that went through is older than this. The
+// cron job runs every hour with it, so a laptop that is on at SOME point of the day
+// still reports daily — at 00:00 and 12:00 exactly it may well be asleep — and a
+// push that failed (server asleep, Wi-Fi down) is simply tried again next hour.
+const DUE = FLAGS.due === "1";
+const DUE_AFTER_MS = 11 * 60 * 60 * 1000;
 // Generic mode: point at ANY reader that returns JSON over HTTP (dsmr-reader,
 // Shelly, a custom endpoint…). READ_URL switches off HomeWizard discovery; READ_FIELD
 // is an optional dot-path to the cumulative-kWh number (auto-detected if omitted).
@@ -314,6 +323,7 @@ async function cycle() {
       split = tariffSplit(data);
     }
     await push(reading);
+    saveConfig({ lastPushAt: Date.now() });
     log(`pushed ${reading} kWh ✓${split}`);
     return true;
   } catch (e) {
@@ -379,9 +389,11 @@ function manageCron(action) {
   // or background the command. ' itself becomes '\''.
   const q = (v) => `'${String(v).replace(/'/g, "'\\''")}'`;
   const keep = ["ip", "url", "field", "ingest", "interval"].filter((k) => FLAGS[k] && FLAGS[k] !== "1").map((k) => q(`--${k}=${FLAGS[k]}`)).join(" ");
-  const cmd = `${q(process.execPath)} ${q(process.argv[1])} --once${keep ? " " + keep : ""}`;
+  const cmd = `${q(process.execPath)} ${q(process.argv[1])} --once --due${keep ? " " + keep : ""}`;
+  // Every hour, but --due makes it push only when the last reading is 11 h old:
+  // twice a day in practice, and caught up within the hour when the machine wakes.
   // Output goes to .gul-bridge.log already; without the redirect cron mails it.
-  const line = `0 */12 * * * ${cmd} >/dev/null 2>&1 ${CRON_MARK}`;
+  const line = `0 * * * * ${cmd} >/dev/null 2>&1 ${CRON_MARK}`;
   const manual = () => {
     log(`Add it yourself: run  crontab -e  and paste this line:\n  ${line}`);
     return 1;
@@ -405,7 +417,7 @@ function manageCron(action) {
     return action === "install" ? manual() : 1;
   }
   log(action === "install"
-    ? "Scheduled with cron. Your meter now reports twice a day on its own — you can close this terminal."
+    ? "Scheduled with cron. Your meter now reports twice a day on its own, and catches up within the hour after the computer was off — you can close this terminal."
     : "Removed. Nothing is scheduled any more.");
   return 0;
 }
@@ -448,6 +460,8 @@ async function main() {
     process.exit(code);
   }
   if (!(await ensureToken())) process.exit(1);
+  // Not due yet: stay silent, or the log gets a line every hour for nothing.
+  if (DUE && ONCE && Date.now() - (Number(readSaved().lastPushAt) || 0) < DUE_AFTER_MS) process.exit(0);
   const src = READ_URL ? `reader ${READ_URL}` : (FIXED_IP ? `HomeWizard ${FIXED_IP}` : "HomeWizard (auto-discover)");
   if (!/^https:/i.test(INGEST)) log("WARNING: GUL_INGEST_URL is not https — your token would be sent in cleartext. Use the default https endpoint.");
   log(`GreenUtilityLog bridge starting — ${src}, pushing every ${INTERVAL_MS / 1000}s to ${INGEST}`);

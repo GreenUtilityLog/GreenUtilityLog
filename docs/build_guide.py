@@ -92,7 +92,7 @@ L["en"] = dict(
   be_t="🇧🇪 Belgium (Fluvius meters)",
   be_b="Digital Fluvius meters send encrypted data. Ask Fluvius for your free decryption key and enter it once in your reader's app — after that everything works the same.",
   once_t="No machine that stays on?",
-  once_b="You don’t need one. Run <span class=\"k\">node gul.js --once</span> whenever it suits you: it reads the meter, sends the reading and closes. It is paid as soon as it arrives, at most once a day. A laptop you open now and then is enough; leaving the helper running only saves you from having to think about it.",
+  once_b="You don’t need one. Missed a scheduled time because the computer was off? It sends as soon as the computer is on again — so a laptop you open now and then is enough. It is paid as soon as it arrives, at most once a day.",
   th=("You see", "What to do"),
   trouble=[
     ("'node' is not recognized", "Node.js isn’t installed, or that window was already open when you installed it. On Windows: <span class=\"k\">winget install OpenJS.NodeJS.LTS</span>. Elsewhere: nodejs.org. Then open a <strong>new</strong> terminal and paste the line again. You do not need git."),
@@ -175,7 +175,7 @@ L["nl"] = dict(
   be_t="🇧🇪 België (Fluvius-meters)",
   be_b="Digitale Fluvius-meters sturen versleutelde data. Vraag bij Fluvius je gratis decryptiesleutel op en voer die één keer in de app van je reader in — daarna werkt alles hetzelfde.",
   once_t="Geen apparaat dat aan blijft?",
-  once_b="Hoeft ook niet. Draai <span class=\"k\">node gul.js --once</span> wanneer het jou uitkomt: hij leest de meter, stuurt de stand door en sluit af. Hij wordt uitbetaald zodra hij binnenkomt, hooguit één keer per dag. Een laptop die je af en toe openklapt is genoeg; continu laten draaien scheelt je alleen dat je eraan moet denken.",
+  once_b="Hoeft ook niet. Stond de computer uit op een geplande tijd? Dan stuurt hij de stand zodra de computer weer aan staat — een laptop die je af en toe openklapt is dus genoeg. Hij wordt uitbetaald zodra hij binnenkomt, hooguit één keer per dag.",
   th=("Je ziet", "Wat te doen"),
   trouble=[
     ("'node' is not recognized", "Node.js staat er niet op, of het venster stond al open toen je het installeerde. Op Windows: <span class=\"k\">winget install OpenJS.NodeJS.LTS</span>. Elders: nodejs.org. Open daarna een <strong>nieuw</strong> venster en plak de regel opnieuw. Git heb je niet nodig."),
@@ -258,7 +258,7 @@ L["de"] = dict(
   be_t="🇧🇪 Belgien (Fluvius-Zähler)",
   be_b="Digitale Fluvius-Zähler senden verschlüsselt. Frag bei Fluvius deinen kostenlosen Entschlüsselungscode an und gib ihn einmal in der App deines Readers ein — danach läuft alles gleich.",
   once_t="Kein Gerät, das durchläuft?",
-  once_b="Brauchst du nicht. Führ <span class=\"k\">node gul.js --once</span> aus, wann es dir passt: liest den Zähler, sendet den Stand und beendet sich. Er wird ausgezahlt, sobald er ankommt, höchstens einmal am Tag. Ein Laptop, den du ab und zu aufklappst, reicht; durchlaufen lassen erspart dir nur das Daran-denken.",
+  once_b="Brauchst du nicht. War der Computer zu einem geplanten Zeitpunkt aus? Dann sendet er, sobald der Computer wieder an ist — ein Laptop, den du ab und zu aufklappst, reicht also. Er wird ausgezahlt, sobald er ankommt, höchstens einmal am Tag.",
   th=("Du siehst", "Was tun"),
   trouble=[
     ("'node' is not recognized", "Node.js fehlt, oder das Fenster war schon offen, als du es installiert hast. Unter Windows: <span class=\"k\">winget install OpenJS.NodeJS.LTS</span>. Sonst: nodejs.org. Öffne dann ein <strong>neues</strong> Fenster und füg die Zeile erneut ein. Git brauchst du nicht."),
@@ -341,7 +341,7 @@ L["fr"] = dict(
   be_t="🇧🇪 Belgique (compteurs Fluvius)",
   be_b="Les compteurs Fluvius numériques envoient des données chiffrées. Demandez votre clé gratuite à Fluvius et saisissez-la une fois dans l'app de votre lecteur — ensuite tout fonctionne pareil.",
   once_t="Pas d’appareil qui reste allumé ?",
-  once_b="Ce n’est pas nécessaire. Lancez <span class=\"k\">node gul.js --once</span> quand cela vous arrange : il lit le compteur, envoie le relevé et se ferme. Il est payé dès son arrivée, au plus une fois par jour. Un ordinateur portable que vous ouvrez de temps en temps suffit ; le laisser tourner vous évite seulement d’y penser.",
+  once_b="Ce n’est pas nécessaire. L’ordinateur était éteint à l’heure prévue ? Il envoie dès qu’il est rallumé — un ordinateur portable que vous ouvrez de temps en temps suffit donc. Il est payé dès son arrivée, au plus une fois par jour.",
   th=("Vous voyez", "Que faire"),
   trouble=[
     ("'node' is not recognized", "Node.js n’est pas installé, ou la fenêtre était déjà ouverte quand vous l’avez installé. Sous Windows : <span class=\"k\">winget install OpenJS.NodeJS.LTS</span>. Ailleurs : nodejs.org. Puis ouvrez une <strong>nouvelle</strong> fenêtre et recollez la ligne. Git n’est pas nécessaire."),
@@ -424,7 +424,7 @@ L["es"] = dict(
   be_t="🇧🇪 Bélgica (contadores Fluvius)",
   be_b="Los contadores Fluvius digitales envían datos cifrados. Pide tu clave gratuita a Fluvius e introdúcela una vez en la app de tu lector — después todo funciona igual.",
   once_t="¿No tienes un equipo que quede encendido?",
-  once_b="No hace falta. Ejecuta <span class=\"k\">node gul.js --once</span> cuando te venga bien: lee el contador, envía la lectura y se cierra. Se paga en cuanto llega, como mucho una vez al día. Un portátil que abres de vez en cuando basta; dejarlo en marcha solo te ahorra tener que acordarte.",
+  once_b="No hace falta. ¿El ordenador estaba apagado a la hora prevista? Envía en cuanto vuelve a encenderse — así que basta con un portátil que abres de vez en cuando. Se paga en cuanto llega, como mucho una vez al día.",
   th=("Ves", "Qué hacer"),
   trouble=[
     ("'node' is not recognized", "Node.js no está instalado, o la ventana ya estaba abierta cuando lo instalaste. En Windows: <span class=\"k\">winget install OpenJS.NodeJS.LTS</span>. En otros sistemas: nodejs.org. Abre después una ventana <strong>nueva</strong> y vuelve a pegar la línea. No necesitas git."),
