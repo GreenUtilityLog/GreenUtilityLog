@@ -20,6 +20,8 @@ out on-chain.
 - A reader's reading (P1 / Home Assistant) is paid the moment it arrives — nothing
   to tap in the app.
 - You earn for using *less* than a daily benchmark (8 kWh); the base is 0.2 B3TR.
+  Almost no usage (under 0.1 kWh a day) pays the base only and is flagged: that is
+  a stale or repeated reading, not a saving.
 - A meter's **first** reading only sets the starting point (base amount); savings
   are paid from the next one, measured from a number the server recorded.
 - The server recomputes every amount. Photos must be real, fresh and unused;

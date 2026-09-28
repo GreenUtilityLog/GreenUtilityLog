@@ -3,7 +3,7 @@
 // every payout is re-validated here. The reward AMOUNT is always recomputed on
 // the server — a client-sent amount is never trusted.
 
-import { RATES, UNITS, COOLDOWN_MS, computeReward, usageBoundsFor, spanDays, MAX_REWARD, REWARD_BASE } from "./config.js";
+import { RATES, UNITS, COOLDOWN_MS, computeReward, usageBoundsFor, spanDays, MAX_REWARD, REWARD_BASE, SAVING_UTILS, MAX_SPAN_DAYS } from "./config.js";
 import { store } from "./store.js";
 
 const isAddress = (a) => typeof a === "string" && /^0x[0-9a-fA-F]{40}$/.test(a);
@@ -52,9 +52,14 @@ export function validateSubmission(body) {
   const days = lastAt ? spanDays(Date.now() - lastAt) : 1;
 
   const [lo, hi] = usageBoundsFor(utility, days);
-  // usage 0 (equal readings) is allowed; only a tiny-but-nonzero delta below the
-  // plausible floor, or an abnormally high delta, is rejected.
-  if ((usage > 0 && usage < lo) || usage > hi) {
+  // Almost no usage over the whole span — less than the floor per day (0.1 kWh a day
+  // for electricity; a fridge alone uses about 1). A home that is lived in doesn't
+  // do that, so it is a reader sending an old value, the same number typed again,
+  // or an empty house. It used to count as the best saving there is and pay the
+  // maximum; now it is accepted, paid the base amount only, and flagged for review.
+  const span = Math.min(Math.max(Number(days) || 1, 1), MAX_SPAN_DAYS);
+  const nearZero = SAVING_UTILS.has(utility) && usage < lo * span;
+  if ((!SAVING_UTILS.has(utility) && usage > 0 && usage < lo) || usage > hi) {
     return { ok: false, error: `usage ${usage} ${UNITS[utility]} is outside the plausible range` };
   }
 
@@ -76,7 +81,7 @@ export function validateSubmission(body) {
   // base amount only; savings are paid from the second reading on, measured from a
   // number the server recorded itself.
   const firstReading = last == null;
-  const amount = firstReading
+  const amount = firstReading || nearZero
     ? +Math.min(REWARD_BASE[utility] ?? 0, computeReward(utility, usage, days)).toFixed(2)
     : computeReward(utility, usage, days);
   if (amount <= 0) return { ok: false, error: "computed reward is zero" };
@@ -91,6 +96,10 @@ export function validateSubmission(body) {
     prev, // server-authoritative baseline, so the on-chain proof reflects what we validated
     amount,
     firstReading,
+    // For the flag: why this payout was held to the base amount.
+    nearZero: nearZero
+      ? `almost no usage: ${usage} ${UNITS[utility]} over ${+span.toFixed(1)} day(s) — paid the base amount only`
+      : null,
     // Called only after a successful payout: start the cooldown, bind the meter
     // to this wallet, and record this reading as the new baseline for next time.
     markPaid: () => {
