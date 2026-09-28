@@ -254,3 +254,42 @@ describe("a reader's reading is paid the moment it arrives", () => {
     assert.equal(latest.body.reading.reading, 1012, "the newest reading is still there to be paid later");
   });
 });
+
+describe("almost no usage", () => {
+  let srv, token;
+  before(async () => {
+    srv = await startServer({ state: stateWithBaseline(), env: { COOLDOWN_MS: "0" } });
+    token = (await srv.post("/meter/pair", { address: WALLET, meterNo: METER })).body.token;
+  });
+  after(async () => { await srv.stop(); });
+
+  test("the same reading again is no longer the maximum: base amount, flagged", async () => {
+    // 0 kWh in a day used to count as the best saving there is — 4 B3TR — which
+    // made "type yesterday's number again" the best-paying thing to do.
+    const r = await submit(srv, { reading: 1000 });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.equal(r.body.amount, 0.2);
+    assert.equal(r.body.flagged, true);
+    const st = await srv.waitForState((s) => Object.values(s.flags || {}).some((f) => /almost no usage/.test(f.reason)));
+    assert.ok(st);
+  });
+
+  test("a tiny amount is not refused any more either, just held to the base", async () => {
+    const r = await submit(srv, { reading: 1000.05, photo: photo("tiny") });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.equal(r.body.amount, 0.2);
+  });
+
+  test("a reader sending the same value: base amount, flagged too", async () => {
+    await srv.post("/meter-ingest", { token, reading: 1000.08 });
+    const r = await srv.post("/reward-from-meter", { address: WALLET, meterNo: METER });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.equal(r.body.amount, 0.2);
+  });
+
+  test("real, low usage still earns the saving", async () => {
+    const r = await submit(srv, { reading: 1002, photo: photo("low") });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.ok(r.body.amount > 3, `amount ${r.body.amount}`);
+  });
+});

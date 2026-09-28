@@ -52,6 +52,8 @@ doet de server.
 - Alle bedragen hangen af van de **wekelijkse B3TR van VeBetterDAO**: claimt
   iedereen samen meer dan er die week is, dan krijgt iedereen hetzelfde
   percentage. De app laat dat percentage zien bij je geschatte beloning.
+- **(Bijna) geen verbruik** (minder dan 0,1 kWh per dag) levert alleen de basis
+  van 0,2 op: dat is meestal een oude of dubbel ingevoerde stand, geen besparing.
 - Je **eerste** inzending legt alleen je startpunt vast en levert de basis (0,2)
   op. Vanaf de tweede wordt je besparing betaald.
 - Bekijk je totaal op **Home** en je positie op de **Leaderboard** (🏆).

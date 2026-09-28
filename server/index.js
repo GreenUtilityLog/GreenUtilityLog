@@ -775,6 +775,7 @@ app.post("/reward", async (req, res) => {
     // should be able to see.
     const reasons = [];
     if (readingFlag) reasons.push(readingFlag);
+    if (v.nearZero) reasons.push(v.nearZero);
     reasons.push(...sybilFlags);
     if (req.body.clientFlagged) reasons.push(req.body.flagReason || "client checks were inconclusive");
     if (photo?.exif && !photo.exif.hasExif) reasons.push("photo carried no EXIF capture date");
@@ -1182,6 +1183,7 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
     v.markPaid();
     paid = true;
     recordPayout(v.amount);
+    if (v.nearZero) { try { store.addFlag(txid, addr, `${v.nearZero} (reader)`); } catch {} }
     // This pairing has now produced a real payout, which means its readings and the
     // stored baseline are on the same scale. That closes /meter/rebaseline: the
     // escape hatch exists for a starting point that was never comparable, not for

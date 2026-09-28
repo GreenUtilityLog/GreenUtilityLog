@@ -369,6 +369,16 @@ function mergeSubs(local, chain) {
 // anything any span could ever allow. MUST match USAGE_BOUNDS on the server.
 const USAGE_RANGES = { electric: { min:0.1, max:80 }, gas: { min:0.01, max:20 }, water: { min:10, max:1000}, solar: { min:0.1, max:60 } };
 
+// Less than the per-day floor over the whole span (0.1 kWh a day for electricity):
+// not a saving but a stale or repeated reading, so the server pays the base amount
+// only. MUST match nearZero in server/verify.js.
+function nearZeroUsage(utilId, usageVal, days = 1) {
+  const range = USAGE_RANGES[utilId];
+  if (!range || !SAVING_UTILS.has(utilId)) return false;
+  const span = Math.min(Math.max(Number(days) || 1, 1), MAX_SPAN_DAYS);
+  return usageVal < range.min * span;
+}
+
 function checkPlausibility(utilId, usageVal, days = 1) {
   const range = USAGE_RANGES[utilId];
   if (!range) return { ok:true };
@@ -378,9 +388,10 @@ function checkPlausibility(utilId, usageVal, days = 1) {
   // who doesn't submit daily was blocked by their own client.
   const span = Math.min(Math.max(Number(days) || 1, 1), MAX_SPAN_DAYS);
   const ceiling = +(range.max * span).toFixed(2);
-  // Zero usage (current == previous) is explicitly valid — the best conservation
-  // outcome. Only a tiny-but-nonzero delta may be a typo, and high is abnormal.
-  if (usageVal > 0 && usageVal < range.min) return { ok:false, reason:`Usage too low (${usageVal} < ${range.min})` };
+  // Almost no usage on a saving meter is accepted (the server pays the base amount
+  // and flags it — see nearZeroUsage); only for production meters is a tiny-but-
+  // nonzero value treated as a typo. High is abnormal either way.
+  if (!SAVING_UTILS.has(utilId) && usageVal > 0 && usageVal < range.min) return { ok:false, reason:`Usage too low (${usageVal} < ${range.min})` };
   if (usageVal > ceiling) return { ok:false, reason:`Abnormally high (${usageVal} > ${ceiling})`, tooHigh:true };
   return { ok:true };
 }
@@ -2907,6 +2918,9 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
                   : <>First reading sets your starting point · savings pay from the next one</>}</div>
                 {rewardFactor < 1 && (
                   <div className="rp-rate" style={{marginTop:3}}>This week's B3TR is shared by everyone: rewards at {Math.round(rewardFactor * 100)}%</div>
+                )}
+                {String(reading).trim() !== "" && String(prevRead).trim() !== "" && nearZeroUsage(selUtil, usage(), days) && (
+                  <div className="rp-rate" style={{marginTop:3}}>Almost no usage since your last reading — that pays the base amount only. Check the number?</div>
                 )}
               </div>
               <div style={{textAlign:"right"}}>
@@ -5631,7 +5645,8 @@ export default function App() {
   // full-rate amount × rewardFactor, rounded down to the cent.
   const reward = () => {
     if (!readingReady()) return 0;
-    const full = firstForUtil() ? Math.min(REWARD_BASE[selUtil] ?? 0, computeReward(selUtil, usage(), daysSinceLast())) : computeReward(selUtil, usage(), daysSinceLast());
+    const baseOnly = firstForUtil() || nearZeroUsage(selUtil, usage(), daysSinceLast());
+    const full = baseOnly ? Math.min(REWARD_BASE[selUtil] ?? 0, computeReward(selUtil, usage(), daysSinceLast())) : computeReward(selUtil, usage(), daysSinceLast());
     return Math.floor(full * rewardFactor * 100) / 100;
   };
 
