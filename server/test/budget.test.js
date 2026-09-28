@@ -83,3 +83,15 @@ describe("the eco bonus follows the same budget", () => {
     assert.ok(r.body.amount < 2 && r.body.amount > 0.8, `amount ${r.body.amount}`);
   });
 });
+
+describe("a round whose deadline has passed and no new one has started", () => {
+  let srv;
+  before(async () => { srv = await startServer({ state: stateWithBaseline(), env: { BUDGET_POOL_B3TR: "70", BUDGET_DAYS_LEFT: "-5" } }); });
+  after(async () => { await srv.stop(); });
+
+  test("spreads the pot over a week, not over the half day it used to assume", async () => {
+    const h = await srv.get("/health");
+    assert.equal(h.body.rewardBudget.daysLeft, 7);
+    assert.equal(h.body.rewardBudget.dailyBudget, 10);
+  });
+});
