@@ -9,6 +9,16 @@ permissions:
   pages: write
   id-token: write
 
+# Two copies of the app from one codebase:
+#   /GreenUtilityLog/          the main app — the network in MAIN_NETWORK
+#   /GreenUtilityLog/testnet/  always testnet, for trying changes with test tokens
+# Going live on mainnet = set MAIN_NETWORK to mainnet and MAINNET_API to the
+# mainnet backend (docs/MAINNET.md). Until then both copies are testnet.
+env:
+  MAIN_NETWORK: testnet
+  TESTNET_API: https://greenutilitylog-rewards.onrender.com
+  MAINNET_API: ""
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -23,7 +33,22 @@ jobs:
       # could silently update between builds and break the app, e.g. two copies
       # of valtio crashing dapp-kit. Requires package-lock.json to be committed.
       - run: npm ci
-      - run: npm run build
+      - name: Build the main app
+        run: npm run build
+        env:
+          VITE_NETWORK: ${{ env.MAIN_NETWORK }}
+          VITE_REWARD_API: ${{ env.MAIN_NETWORK == 'mainnet' && env.MAINNET_API || env.TESTNET_API }}
+      - name: Refuse a mainnet build without a mainnet backend
+        if: env.MAIN_NETWORK == 'mainnet' && env.MAINNET_API == ''
+        run: echo "MAIN_NETWORK is mainnet but MAINNET_API is empty" && exit 1
+      - name: Build the testnet copy
+        run: npx vite build --outDir dist/testnet
+        env:
+          VITE_BASE: /GreenUtilityLog/testnet/
+          VITE_NETWORK: testnet
+          VITE_REWARD_API: ${{ env.TESTNET_API }}
+          VITE_TESTNET_BANNER: "1"
+          VITE_MAIN_APP_URL: ${{ env.MAIN_NETWORK == 'mainnet' && 'https://greenutilitylog.github.io/GreenUtilityLog/' || '' }}
       # Publish the setup guide alongside the app so testers get a plain public URL
       # (…/GreenUtilityLog/guide.html) with no login. Copied here rather than via
       # Vite's publicDir, which is deliberately disabled — see vite.config.js.
@@ -38,7 +63,7 @@ jobs:
       - run: cp docs/og-image.png dist/og-image.png
       # App icon: the browser tab and the WalletConnect prompt ("Green Utility Log
       # wants to connect") both showed a broken image before this.
-      - run: cp brand/logo-256.png dist/icon.png
+      - run: cp brand/logo-256.png dist/icon.png && cp brand/logo-256.png dist/testnet/icon.png
       # The bridge helper itself. Setup is now "download this one file and run it"
       # — no git, no clone — so the guide's and the app's commands both point here.
       # Regenerated from bridge/index.js by build_guide.py; verified below so a stale

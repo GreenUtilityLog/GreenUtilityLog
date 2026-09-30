@@ -46,6 +46,9 @@ photos · honest testnet copy · analytics dashboard · error toasts you can rea
 ---
 
 ## 🔵 Stage 2 — mainnet (much later, only when leaving testnet)
+
+> **Current, step-by-step plan (Dutch): [`docs/MAINNET.md`](docs/MAINNET.md).** The table below is the original outline.
+
 | What | Where | Set to |
 |---|---|---|
 | Network | `src/App.jsx` line 16 `const NETWORK` | `"mainnet"` |
