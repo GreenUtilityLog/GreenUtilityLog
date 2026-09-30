@@ -1,7 +1,9 @@
+// First: sets up per-network storage before any app code reads it.
+import './network.js'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { DAppKitProvider } from '@vechain/dapp-kit-react'
-import App, { ACTIVE_NODE } from './App.jsx'
+import App, { ACTIVE_NODE, TestnetBanner } from './App.jsx'
 
 // ════════════════════════════════════════════════════════════════════════════
 // WALLETCONNECT PROJECT ID  (free, from https://cloud.reown.com)
@@ -107,6 +109,7 @@ try {
         language="en"
       >
         <App />
+        <TestnetBanner />
       </DAppKitProvider>
     </ErrorBoundary>,
   )

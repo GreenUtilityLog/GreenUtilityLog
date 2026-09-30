@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, Fragment } from "react";
+import { NETWORK, REWARD_API, TESTNET_BANNER, MAIN_APP_URL, ownStorageKeys, IDB_NAME, INGEST_FLAG } from "./network.js";
 import { useWallet, useWalletModal } from "@vechain/dapp-kit-react";
 import { Clause, Address, ABIFunction } from "@vechain/sdk-core";
 import { fetchOnChainLeaderboard, fetchWalletHistory, fetchIsAppAdmin, fetchPoolBalance, fetchDiagnostics, fetchTokenBalance } from "./leaderboard.js";
@@ -13,7 +14,8 @@ const APP_NAME = "Green Utility Log";
 // Flip to "mainnet" for the production launch. Everything below (node URL +
 // contract addresses) follows this one switch. Addresses are the official
 // VeBetterDAO deployments (npm @vechain/vebetterdao-contracts).
-const NETWORK = "testnet"; // "testnet" | "mainnet"
+// Set per build (src/network.js, .github/workflows/deploy.yml): the main app and
+// the /testnet/ copy are the same code with a different NETWORK and REWARD_API.
 
 const NETWORKS = {
   mainnet: {
@@ -98,7 +100,7 @@ const isAdminWallet = (w) => !!w && ADMIN_WALLETS.includes(w.toLowerCase());
 // user signs nothing, and you never have to grant the distributor role to every
 // wallet. See the /server folder for the matching service. Leave empty to keep
 // the direct on-chain flow (the connected wallet must hold the distributor role).
-const REWARD_API = "https://greenutilitylog-rewards.onrender.com";
+// REWARD_API comes from src/network.js (per build).
 
 // ── ANTI-BOT CAPTCHA (optional) ───────────────────────────────────────────────
 // Cloudflare Turnstile public site key. Set it to require a captcha on each
@@ -285,7 +287,7 @@ async function generateMonthlyPDF(b3tr, subs) {
     doc.text(`Monthly Report - ${month}`, 20, 30);
     doc.setFontSize(10);
     doc.text(`Total B3TR Earned: ${b3tr.toFixed(2)} B3TR`, 20, 45);
-    doc.text(`Network: ${NETWORK_LABEL} (test tokens, no real-world value)`, 20, 55);
+    doc.text(`Network: ${NETWORK_LABEL}${NETWORK === "testnet" ? " (test tokens, no real-world value)" : ""}`, 20, 55);
     doc.text(`Submissions: ${subs.length}`, 20, 65);
     doc.setFontSize(14);
     doc.text('Submissions', 20, 85);
@@ -486,7 +488,7 @@ function readingMatchesPhoto(reading, ocrNums) {
 
 async function initDB() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open("GreenUtilityLog", 1);
+    const req = indexedDB.open(IDB_NAME, 1);
     req.onerror = () => reject(req.error);
     req.onsuccess = () => resolve(req.result);
     req.onupgradeneeded = (e) => {
@@ -737,7 +739,7 @@ const ONBOARD_SLIDES = [
   { icon:"🌍", title:"Welcome to Green Utility Log", sub:"Track your home utilities, reduce your footprint, and earn B3TR rewards on VeChain.", color:"#1a3326" },
   { icon:"📸", title:"How to Photograph", sub:"Meter must be clear, readable and unobstructed. Take a fresh photo each time.", color:"#10386a" },
   { icon:"⚡", title:"Electric Meter", sub:"The total in kWh on the meter's display. Up to 4 B3TR per reading, once a day — the less you use, the more you earn.", color:"#8a4200" },
-  { icon:"🏆", title:"Earn & Compete", sub:"Daily submissions build your streak and move you up the leaderboard. Testnet: B3TR here are test tokens.", color:"#3a1a6e" },
+  { icon:"🏆", title:"Earn & Compete", sub: NETWORK === "mainnet" ? "Daily submissions build your streak and move you up the leaderboard." : "Daily submissions build your streak and move you up the leaderboard. Testnet: B3TR here are test tokens.", color:"#3a1a6e" },
 ];
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -1474,7 +1476,7 @@ function IntroScreen({ onStart }) {
   const slides = [
     { icon: 'logo', title: 'Welcome to Green Utility Log', sub: `Track ${UTILS_PHRASE}. Earn B3TR rewards on VeChain.` },
     { icon: '📸', title: 'Verify Your Meters', sub: 'Take a photo of your meter. AI-powered OCR verifies readings instantly.' },
-    { icon: '💰', title: 'Earn B3TR Rewards', sub: 'Earn B3TR for logging your meter and saving energy. Testnet beta — test tokens, no real-world value yet.' },
+    { icon: '💰', title: 'Earn B3TR Rewards', sub: NETWORK === "mainnet" ? 'Earn B3TR for logging your meter and saving energy — real tokens, straight to your wallet.' : 'Earn B3TR for logging your meter and saving energy. Testnet beta — test tokens, no real-world value yet.' },
     { icon: '🏆', title: 'Climb the Leaderboard', sub: 'Compete globally. Unlock achievement badges. Build your sustainability streak.' },
   ];
   
@@ -2127,7 +2129,7 @@ function HomeScreen({ b3tr, walletB3tr, streak, subs, setTab, T }) {
       <div className="hero">
         <div className="hero-label">Total B3TR Earned</div>
         <div className="hero-amount">{b3tr.toFixed(2)}<span>B3TR</span></div>
-        <div className="hero-usd">{walletB3tr != null ? `In your wallet: ${walletB3tr.toFixed(2)} B3TR · ` : ""}Testnet beta · test tokens</div>
+        <div className="hero-usd">{walletB3tr != null ? `In your wallet: ${walletB3tr.toFixed(2)} B3TR · ` : ""}{NETWORK === "mainnet" ? "Powered by VeBetterDAO" : "Testnet beta · test tokens"}</div>
         <div className="hero-chips">
           <div className="hchip"><div className="hchip-val">{streak}</div><div className="hchip-key">Day Streak</div></div>
           <div className="hchip"><div className="hchip-val">{subs.length}</div><div className="hchip-key">Submissions</div></div>
@@ -2511,7 +2513,7 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
 # your meter reading. Run it on a PC / Pi / NAS on the same network.
 ${needNode}
 
-${fetchCmd(`--token=${token} --install`)}
+${fetchCmd(`--token=${token} --install${INGEST_FLAG}`)}
 
 # That sends your first reading AND schedules it twice a day (Windows: Task
 # Scheduler, Mac/Linux/Pi: cron), so you can close this window — it keeps
@@ -2546,7 +2548,7 @@ curl -X POST ${ingestUrl} \\
   -d '{"token":"${token}","reading":12345.6}'
 
 # Or let the bridge read any HTTP/JSON reader for you — one file, no install:
-${fetchCmd(`--token=${token} --url=http://<reader-ip>/api/v1/data`)}`;
+${fetchCmd(`--token=${token} --install --url=http://<reader-ip>/api/v1/data${INGEST_FLAG}`)}`;
                     const snip = device === "ha" ? haYaml : device === "curl" ? curlSnippet : bridgeCmd;
                     const hint = device === "homewizard"
                       ? 'Turn on "Local API" in the HomeWizard app first (Settings → Meters → your P1). The bridge finds your P1 itself — if your network blocks mDNS, add --ip=<your P1 IP>. Needs Node 18+ or Docker — nothing to clone, no git.'
@@ -4289,7 +4291,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
                   <Row ok={diag.backend} label={`Reward backend online${h?.network ? ` (${h.network})` : ""}`}
                     fix="The Render service is unreachable or asleep — open the /health URL once to wake it, and check the Render dashboard." />
                   <Row ok={authorized} label="Distributor wallet has the reward-distributor role"
-                    fix={`THIS IS THE USUAL CAUSE OF REVERTED PAYOUTS. In the VeBetterDAO testnet dashboard, open your app → settings → Reward distributors, and add ${h?.distributor || "the distributor wallet"} — then sign and retry.`} />
+                    fix={`THIS IS THE USUAL CAUSE OF REVERTED PAYOUTS. In the VeBetterDAO ${NETWORK} dashboard, open your app → settings → Reward distributors, and add ${h?.distributor || "the distributor wallet"} — then sign and retry.`} />
                   {(() => {
                     const adminAddr = c?.appAdmin ?? h?.appAdmin ?? null;
                     const a = adminAddr ? String(adminAddr).toLowerCase() : null;
@@ -4322,7 +4324,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
                   })()}
                   <Row ok={h?.delegation ? true : (vtho === null ? null : vtho >= 1)}
                     label={h?.delegation ? "Gas sponsored via fee delegation" : `Distributor has gas${vtho != null ? ` (${vtho.toFixed(1)} VTHO)` : ""}`}
-                    fix={`Send free testnet VTHO to ${h?.distributor || "the distributor wallet"} via faucet.vecha.in.`} />
+                    fix={NETWORK === "mainnet" ? `Send some VTHO to ${h?.distributor || "the distributor wallet"} — it pays the gas for every payout.` : `Send free testnet VTHO to ${h?.distributor || "the distributor wallet"} via faucet.vecha.in.`} />
                   <Row ok={payouts === null ? null : payouts > 0} label={payouts != null ? `${payouts >= 20 ? "20+" : payouts} payout${payouts === 1 ? "" : "s"} recorded on-chain${c?.lastPayoutAt ? ` — last ${new Date(c.lastPayoutAt).toLocaleString()}` : ""}` : "Payouts recorded on-chain"}
                     fix="No payout has EVER landed on-chain for this app id. Fix the failing checks above, submit a reading, then re-run this check." />
                   <Row ok={c?.distributionPaused == null ? null : !c.distributionPaused}
@@ -4822,6 +4824,25 @@ const HELP_I18N = {
     ] },
 };
 
+// The help above is written for testnet ("test tokens, no real money"). On the
+// mainnet build those four answers would be untrue, so they are replaced.
+const HELP_MAINNET = {
+  en: { connect: "Tap Connect and open VeWorld (set to Mainnet) or WalletConnect.", earn: "A valid reading rewards you with real B3TR in your own wallet. Track your total on Home and your position on the Leaderboard.", real: "Yes. The app runs on VeChain mainnet: the B3TR you earn are real tokens in your own wallet. The amount per reading follows the weekly VeBetterDAO budget.", wallet: "Make sure VeWorld is switched to Mainnet. On mobile, use the in-app browser or WalletConnect QR." },
+  nl: { connect: "Tik op Connect en open VeWorld (op Mainnet) of WalletConnect.", earn: "Een geldige stand levert echte B3TR op in je eigen wallet. Zie je totaal op Home en je positie in het klassement.", real: "Ja. De app draait op VeChain mainnet: de B3TR die je verdient zijn echte tokens in je eigen wallet. Het bedrag per stand volgt het wekelijkse budget van VeBetterDAO.", wallet: "Zorg dat VeWorld op Mainnet staat. Op mobiel: gebruik de in-app browser of WalletConnect-QR." },
+  de: { connect: "Tippe auf Connect und öffne VeWorld (auf Mainnet) oder WalletConnect.", earn: "Ein gültiger Stand bringt dir echte B3TR in deine eigene Wallet. Sieh dein Gesamt auf Home und deine Position in der Rangliste.", real: "Ja. Die App läuft im VeChain-Mainnet: die B3TR, die du verdienst, sind echte Token in deiner eigenen Wallet. Der Betrag pro Stand folgt dem wöchentlichen VeBetterDAO-Budget.", wallet: "Stelle sicher, dass VeWorld auf Mainnet steht. Mobil: nutze den In-App-Browser oder WalletConnect-QR." },
+  fr: { connect: "Touchez Connect et ouvrez VeWorld (sur Mainnet) ou WalletConnect.", earn: "Un relevé valide vous rapporte de vrais B3TR dans votre propre wallet. Suivez votre total sur Home et votre place au classement.", real: "Oui. L’app tourne sur le mainnet VeChain : les B3TR gagnés sont de vrais jetons dans votre propre wallet. Le montant par relevé suit le budget hebdomadaire de VeBetterDAO.", wallet: "Assurez-vous que VeWorld est sur Mainnet. Sur mobile : navigateur intégré ou QR WalletConnect." },
+  es: { connect: "Toca Connect y abre VeWorld (en Mainnet) o WalletConnect.", earn: "Una lectura válida te da B3TR reales en tu propio wallet. Mira tu total en Home y tu puesto en la clasificación.", real: "Sí. La app funciona en la mainnet de VeChain: los B3TR que ganas son tokens reales en tu propio wallet. La cantidad por lectura sigue el presupuesto semanal de VeBetterDAO.", wallet: "Asegúrate de que VeWorld esté en Mainnet. En móvil: navegador interno o QR de WalletConnect." },
+};
+if (NETWORK === "mainnet") {
+  for (const [lang, h] of Object.entries(HELP_MAINNET)) {
+    const L = HELP_I18N[lang];
+    if (!L) continue;
+    let step = 0, faq = 0;
+    L.steps = L.steps.map((st) => (/testnet/i.test(st.d) ? { ...st, d: step++ === 0 ? h.connect : h.earn } : st));
+    L.faqs = L.faqs.map((f) => (/testnet/i.test(f.a) ? { ...f, a: faq++ === 0 ? h.real : h.wallet } : f));
+  }
+}
+
 function HelpScreen({ onClose, onFeedback, T }) {
   const [lang, setLang] = useState(() => {
     try { const s = localStorage.getItem("gul_help_lang"); if (HELP_I18N[s]) return s; const n = (navigator.language || "").slice(0,2).toLowerCase(); if (HELP_I18N[n]) return n; } catch {}
@@ -4999,6 +5020,16 @@ if (typeof document !== "undefined") {
   });
 }
 
+export function TestnetBanner() {
+  if (!TESTNET_BANNER) return null;
+  return (
+    <div style={{position:"fixed",top:0,left:0,right:0,zIndex:2147483000,background:"#7a4a00",color:"#fff",fontSize:11,fontWeight:700,textAlign:"center",padding:"5px 12px",letterSpacing:".3px",lineHeight:"16px",fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif"}}>
+      🧪 TESTNET — test tokens only
+      {MAIN_APP_URL && <> · <a href={MAIN_APP_URL} style={{color:"#fff",textDecoration:"underline"}}>Go to the real app →</a></>}
+    </div>
+  );
+}
+
 export default function App() {
   // Check if user has seen intro before
   const [showIntro, setShowIntro] = useState(() => {
@@ -5115,13 +5146,13 @@ export default function App() {
   // from the wallet's events on reconnect.)
   const resetApp = async () => {
     try {
-      for (const k of Object.keys(localStorage)) {
-        // Also drop the meter-ingest device token(s) — a bearer credential that must
-        // not linger on a shared/kiosk browser after disconnect.
-        if (k.startsWith("greenlog_") || k.startsWith("gul_mtoken_")) localStorage.removeItem(k);
-      }
+      // This network's own keys only (the other build's stay). Includes the
+      // meter-ingest device token(s) — a bearer credential that must not linger on
+      // a shared/kiosk browser after disconnect. ownStorageKeys() gives raw names;
+      // removeItem adds this build's prefix back itself.
+      for (const k of ownStorageKeys()) localStorage.removeItem(k.replace(/^mainnet:/, ""));
     } catch {}
-    try { indexedDB.deleteDatabase("GreenUtilityLog"); } catch {}
+    try { indexedDB.deleteDatabase(IDB_NAME); } catch {}
     try { await disconnect?.(); } catch {}
     setTimeout(() => { try { location.reload(); } catch {} }, 150);
   };
@@ -5970,6 +6001,12 @@ export default function App() {
 
       <div className="app">
         <div className="z1 scr">
+          {/* The /testnet/ copy says what it is, so nobody mistakes test tokens for
+              real ones — and, once the real app is on mainnet, where that is. */}
+          {/* The testnet strip itself is rendered next to the app in main.jsx, so it
+              also shows over the connect screen and the intro; this keeps it from
+              covering the header. */}
+          {TESTNET_BANNER && <div aria-hidden="true" style={{height:26}} />}
           <div className="hdr">
             <div className="logo">
               <div className="logo-mark"><SproutIcon size={18} /></div>

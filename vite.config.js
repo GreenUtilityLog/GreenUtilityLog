@@ -3,7 +3,8 @@ import react from '@vitejs/plugin-react'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
 export default defineConfig({
-  base: '/GreenUtilityLog/',
+  // The deploy also builds a test copy under /GreenUtilityLog/testnet/ (VITE_BASE).
+  base: process.env.VITE_BASE || '/GreenUtilityLog/',
   // Don't copy a public/ folder. We don't ship static assets that way, and on
   // GitHub an accidental FILE named "public" (instead of a folder) makes Vite
   // crash with "ENOTDIR: not a directory, scandir public" and fails the build.
