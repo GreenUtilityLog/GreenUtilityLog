@@ -7,7 +7,7 @@ import { randomBytes, createHash } from "node:crypto";
 import express from "express";
 import cors from "cors";
 import { COOLDOWN_MS } from "./config.js";
-import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, REQUIRE_PASS, PASSPORT_GRANTS_ACCESS, ECO_REWARD, ECO_MAX_PER_WEEK, ECO_COOLDOWN_MS, ECO_APPLIANCES, ecoWeekKey, RATES, UNITS } from "./config.js";
+import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, REQUIRE_PASS, PASSPORT_GRANTS_ACCESS, ECO_REWARD, ECO_MAX_PER_WEEK, ECO_COOLDOWN_MS, ECO_APPLIANCES, ecoWeekKey, RATES, UNITS, pickUtility, pickAnyUtility, isEnabledUtility } from "./config.js";
 import { validateSubmission } from "./verify.js";
 import { verifyPhoto, checkReadingOnPhoto, readingCheckMode, meterNoOnPhoto, meterNoCheckMode, photoPrint, printDistance } from "./media.js";
 import { store } from "./store.js";
@@ -22,6 +22,21 @@ import { verifyCaptcha, captchaEnabled } from "./captcha.js";
 import { enodeEnabled, enodeInfo, createMeterLink, fetchLatestReading } from "./enode.js";
 
 const app = express();
+
+// Express 4 doesn't catch a rejected promise from an async handler: it became an
+// unhandled rejection, and Node exits on those — one malformed request could take
+// the whole server down (an audit did exactly that). Every handler registered
+// below goes through this, so an error becomes a 500 for that one request.
+for (const method of ["get", "post", "put", "delete"]) {
+  const orig = app[method].bind(app);
+  app[method] = (path, ...handlers) => orig(path, ...handlers.map((h) =>
+    typeof h === "function" && h.length < 4
+      ? (req, res, next) => { try { const r = h(req, res, next); if (r && typeof r.catch === "function") r.catch(next); } catch (e) { next(e); } }
+      : h));
+}
+// And a backstop for anything outside a request (timers, background claims):
+// log it, don't die.
+process.on("unhandledRejection", (e) => console.error("[unhandledRejection]", e?.stack || e?.message || e));
 // Trust exactly the platform's proxy hop(s) so req.ip is the REAL client IP and not
 // a client-injected X-Forwarded-For (which would let anyone forge the throttle key).
 // Render/most PaaS = 1 hop; override with TRUST_PROXY_HOPS if you add a CDN in front.
@@ -313,26 +328,41 @@ function certKey(cert) {
 // on either side, so it can be live for twice that. Remember it for longer than that.
 const CERT_REPLAY_MS = 2 * CERT_MAX_AGE_MS + 60_000;
 
-function requireBoundCert(req, mustContain = []) {
+// Does the signed text say this? A "Key: value" needle must be a whole line —
+// as a substring, a signature for "Reading: 100" also matched "Reading: 1000".
+function certSays(content, needle) {
+  if (!needle) return true;
+  if (/^[^\n:]+: /.test(needle)) return content.split(/\r?\n/).some((l) => l.trim() === needle.trim());
+  return content.includes(needle);
+}
+
+// Spent, for the certificate's whole lifetime — in this process, and in the
+// storage every process shares, so the other process of a deploy's overlap
+// can't take it again either. null: that storage couldn't be asked.
+async function spendCert(cert) {
+  const key = certKey(cert);
+  if (!store.consumeCert(key, CERT_REPLAY_MS)) return false;
+  return store.takeOnce(`cert:${key}`, CERT_REPLAY_MS);
+}
+
+async function requireBoundCert(req, mustContain = []) {
   if (!REQUIRE_CERT) return { ok: true };
   const cert = req.body.certificate;
   const c = verifyWalletCertificate({ certificate: cert, address: req.body.address });
   if (!c.ok) return { ok: false, code: 401, error: c.error };
   const content = String(cert?.payload?.content || "");
   for (const needle of mustContain) {
-    if (needle && !content.includes(needle)) {
+    if (!certSays(content, needle)) {
       return { ok: false, code: 401, error: "this signature does not authorise this request — please sign again" };
     }
   }
-  // Single use, for the certificate's whole lifetime: consumeCert only evicts
-  // entries older than the freshness window, so a replay inside it always loses.
-  if (!store.consumeCert(certKey(cert), CERT_REPLAY_MS)) {
-    return { ok: false, code: 401, error: "signature already used — please sign again" };
-  }
+  const spent = await spendCert(cert);
+  if (spent === null) return { ok: false, code: 503, error: "the server can't check this signature right now — please try again in a minute" };
+  if (!spent) return { ok: false, code: 401, error: "signature already used — please sign again" };
   return { ok: true };
 }
 
-function verifyAdmin(req, path) {
+async function verifyAdmin(req, path) {
   const addr = String(req.body.address || "").toLowerCase();
   if (!/^0x[0-9a-f]{40}$/.test(addr) || !ADMIN_USER_WALLETS.includes(addr)) {
     return { ok: false, code: 403, error: "not an admin wallet" };
@@ -345,9 +375,9 @@ function verifyAdmin(req, path) {
     return { ok: false, code: 401, error: "certificate does not authorise this action" };
   }
   // ...and be single-use (defence against replay within the freshness window).
-  if (!store.consumeCert(certKey(cert), CERT_REPLAY_MS)) {
-    return { ok: false, code: 401, error: "certificate already used — please sign again" };
-  }
+  const spent = await spendCert(cert);
+  if (spent === null) return { ok: false, code: 503, error: "the server can't check this signature right now — please try again in a minute" };
+  if (!spent) return { ok: false, code: 401, error: "certificate already used — please sign again" };
   return { ok: true, addr };
 }
 const isAddr = (a) => /^0x[0-9a-fA-F]{40}$/.test(String(a || ""));
@@ -366,7 +396,7 @@ function archivePhoto(txid, photoBase64, mime, addr) {
 }
 
 app.post("/admin/move-rewards-pool", async (req, res) => {
-  const a = verifyAdmin(req, "/admin/move-rewards-pool");
+  const a = await verifyAdmin(req, "/admin/move-rewards-pool");
   if (!a.ok) return res.status(a.code).json({ error: a.error });
   const amount = Number(req.body.amount);
   if (!(amount > 0 && amount <= 1_000_000)) return res.status(400).json({ error: "invalid amount" });
@@ -382,8 +412,8 @@ app.post("/admin/move-rewards-pool", async (req, res) => {
 // ── Admin: account management ────────────────────────────────────────────────
 // Block/unblock a farming wallet. A blocked wallet can never claim (checked on
 // every reward path). Durable across restarts.
-app.post("/admin/ban", (req, res) => {
-  const a = verifyAdmin(req, "/admin/ban");
+app.post("/admin/ban", async (req, res) => {
+  const a = await verifyAdmin(req, "/admin/ban");
   if (!a.ok) return res.status(a.code).json({ error: a.error });
   const target = String(req.body.targetWallet || "");
   if (!isAddr(target)) return res.status(400).json({ error: "invalid target wallet" });
@@ -396,13 +426,13 @@ app.post("/admin/ban", (req, res) => {
 });
 
 // Inspect a meter/wallet's server-side state so the admin knows what to correct.
-app.post("/admin/lookup", (req, res) => {
-  const a = verifyAdmin(req, "/admin/lookup");
+app.post("/admin/lookup", async (req, res) => {
+  const a = await verifyAdmin(req, "/admin/lookup");
   if (!a.ok) return res.status(a.code).json({ error: a.error });
   const meterNo = String(req.body.meterNo || "").trim();
   const target = String(req.body.targetWallet || "");
   if (!meterNo && !isAddr(target)) return res.status(400).json({ error: "provide a meter number or a wallet" });
-  const utility = RATES[String(req.body.utility || "").toLowerCase()] ? String(req.body.utility).toLowerCase() : "electric";
+  const utility = pickAnyUtility(req.body.utility);
   const meterKey = meterNo.toLowerCase();
   const snap = store.meterState(utility, meterKey, isAddr(target) ? target : null);
   res.json({
@@ -420,14 +450,14 @@ app.post("/admin/lookup", (req, res) => {
 // Correct a wrong baseline: overwrite the server-recorded last reading for a
 // meter (the value every future usage delta is measured from). Optionally also
 // (re)bind the meter to a wallet. This is the fix for a mis-entered reading.
-app.post("/admin/set-baseline", (req, res) => {
-  const a = verifyAdmin(req, "/admin/set-baseline");
+app.post("/admin/set-baseline", async (req, res) => {
+  const a = await verifyAdmin(req, "/admin/set-baseline");
   if (!a.ok) return res.status(a.code).json({ error: a.error });
   const meterNo = String(req.body.meterNo || "").trim();
   if (!meterNo) return res.status(400).json({ error: "meter number is required" });
   const reading = Number(req.body.reading);
   if (!Number.isFinite(reading) || reading < 0) return res.status(400).json({ error: "invalid reading" });
-  const utility = RATES[String(req.body.utility || "").toLowerCase()] ? String(req.body.utility).toLowerCase() : "electric";
+  const utility = pickAnyUtility(req.body.utility);
   const meterKey = meterNo.toLowerCase();
   store.setLastReading(utility, meterKey, reading);
   // Optional: rebind this meter to a given wallet (e.g. fix a wrong owner).
@@ -439,8 +469,8 @@ app.post("/admin/set-baseline", (req, res) => {
 // Change a meter's NUMBER for a wallet (fix a typo / re-register under the correct
 // number). Moves the server-side owner + baseline from the old number to the new one
 // for the given utility. (Registering a brand-new meter is done via /admin/set-baseline.)
-app.post("/admin/rename-meter", (req, res) => {
-  const a = verifyAdmin(req, "/admin/rename-meter");
+app.post("/admin/rename-meter", async (req, res) => {
+  const a = await verifyAdmin(req, "/admin/rename-meter");
   if (!a.ok) return res.status(a.code).json({ error: a.error });
   const oldMeterNo = String(req.body.oldMeterNo || "").trim().toLowerCase();
   const newMeterNo = String(req.body.newMeterNo || "").trim().toLowerCase();
@@ -448,7 +478,7 @@ app.post("/admin/rename-meter", (req, res) => {
   if (oldMeterNo === newMeterNo) return res.status(400).json({ error: "the new meter number is the same as the old one" });
   const target = String(req.body.targetWallet || "");
   if (!isAddr(target)) return res.status(400).json({ error: "target wallet is required" });
-  const utility = RATES[String(req.body.utility || "").toLowerCase()] ? String(req.body.utility).toLowerCase() : "electric";
+  const utility = pickAnyUtility(req.body.utility);
   // Don't clobber a meter number already owned by a DIFFERENT wallet.
   const newOwner = store.meterOwner(utility, newMeterNo);
   if (newOwner && newOwner !== target.toLowerCase()) return res.status(409).json({ error: "the new meter number is registered to another wallet" });
@@ -458,8 +488,8 @@ app.post("/admin/rename-meter", (req, res) => {
 
 // Submissions the app's own checks couldn't fully confirm. They were paid — these
 // checks don't hold a payout — so this is the list a human actually reviews.
-app.post("/admin/flags", (req, res) => {
-  const a = verifyAdmin(req, "/admin/flags");
+app.post("/admin/flags", async (req, res) => {
+  const a = await verifyAdmin(req, "/admin/flags");
   if (!a.ok) return res.status(a.code).json({ error: a.error });
   const target = String(req.body.targetWallet || "");
   const all = store.listFlags().sort((x, y) => (y.at || 0) - (x.at || 0));
@@ -471,8 +501,8 @@ app.post("/admin/flags", (req, res) => {
 // Issue or withdraw a wallet's pass. With REQUIRE_PASS on, holding one is what
 // lets a wallet earn — it does not restrict opening the app or submitting, so a
 // newcomer can still see what this is before asking for access.
-app.post("/admin/pass", (req, res) => {
-  const a = verifyAdmin(req, "/admin/pass");
+app.post("/admin/pass", async (req, res) => {
+  const a = await verifyAdmin(req, "/admin/pass");
   if (!a.ok) return res.status(a.code).json({ error: a.error });
   const target = String(req.body.targetWallet || "");
   if (!isAddr(target)) return res.status(400).json({ error: "invalid target wallet" });
@@ -486,8 +516,8 @@ app.post("/admin/pass", (req, res) => {
 });
 
 // Every issued pass, for the admin overview.
-app.post("/admin/passes", (req, res) => {
-  const a = verifyAdmin(req, "/admin/passes");
+app.post("/admin/passes", async (req, res) => {
+  const a = await verifyAdmin(req, "/admin/passes");
   if (!a.ok) return res.status(a.code).json({ error: a.error });
   res.json({ ok: true, requirePass: REQUIRE_PASS, passes: store.listPasses() });
 });
@@ -497,7 +527,7 @@ app.post("/admin/passes", (req, res) => {
 // all. Works with no role and no key, which is the point: the admin can see who
 // the passport already distrusts long before we can file a signal ourselves.
 app.post("/admin/passport", async (req, res) => {
-  const a = verifyAdmin(req, "/admin/passport");
+  const a = await verifyAdmin(req, "/admin/passport");
   if (!a.ok) return res.status(a.code).json({ error: a.error });
   const wallets = Array.isArray(req.body.wallets) ? req.body.wallets.slice(0, 25) : [];
   try {
@@ -514,7 +544,7 @@ app.post("/admin/passport", async (req, res) => {
 // admin grants from the admin panel (passport.js); without it the simulation fails and we return the
 // contract's own reason rather than spending gas.
 app.post("/admin/signal", async (req, res) => {
-  const a = verifyAdmin(req, "/admin/signal");
+  const a = await verifyAdmin(req, "/admin/signal");
   if (!a.ok) return res.status(a.code).json({ error: a.error });
   const target = String(req.body.targetWallet || "");
   if (!isAddr(target)) return res.status(400).json({ error: "invalid target wallet" });
@@ -538,16 +568,16 @@ app.post("/admin/signal", async (req, res) => {
 
 // Every wallet the backend knows about — app-seen, meter owners, paired devices and
 // bans — so the admin list isn't limited to wallets that already earned on-chain.
-app.post("/admin/wallets", (req, res) => {
-  const a = verifyAdmin(req, "/admin/wallets");
+app.post("/admin/wallets", async (req, res) => {
+  const a = await verifyAdmin(req, "/admin/wallets");
   if (!a.ok) return res.status(a.code).json({ error: a.error });
   res.json({ ok: true, wallets: store.listKnownWallets() });
 });
 
 // Clear a wallet+utility cooldown so a user who was wrongly blocked (or whose
 // submission we just corrected) can submit again immediately.
-app.post("/admin/reset-cooldown", (req, res) => {
-  const a = verifyAdmin(req, "/admin/reset-cooldown");
+app.post("/admin/reset-cooldown", async (req, res) => {
+  const a = await verifyAdmin(req, "/admin/reset-cooldown");
   if (!a.ok) return res.status(a.code).json({ error: a.error });
   const target = String(req.body.targetWallet || "");
   if (!isAddr(target)) return res.status(400).json({ error: "invalid target wallet" });
@@ -559,7 +589,7 @@ app.post("/admin/reset-cooldown", (req, res) => {
 // Fetch the archived photo behind a payout (keyed by its txID) so an admin can eyeball
 // it for fraud. Returns { found, dataUrl } — dataUrl is a downscaled thumbnail.
 app.post("/admin/photo", async (req, res) => {
-  const a = verifyAdmin(req, "/admin/photo");
+  const a = await verifyAdmin(req, "/admin/photo");
   if (!a.ok) return res.status(a.code).json({ error: a.error });
   if (!photoStoreEnabled()) return res.json({ ok: true, enabled: false, found: false });
   const txid = String(req.body.txid || "").trim();
@@ -581,7 +611,7 @@ app.post("/admin/photo", async (req, res) => {
 
 // Delete one archived photo (per-submission 🗑️ in admin, or a GDPR erase request).
 app.post("/admin/photo-delete", async (req, res) => {
-  const a = verifyAdmin(req, "/admin/photo-delete");
+  const a = await verifyAdmin(req, "/admin/photo-delete");
   if (!a.ok) return res.status(a.code).json({ error: a.error });
   const txid = String(req.body.txid || "").trim();
   if (!txid) return res.status(400).json({ error: "txid is required" });
@@ -676,7 +706,7 @@ app.post("/reward", async (req, res) => {
 
   // 1b) Wallet ownership proof, bound to THIS submission and spendable once.
   {
-    const c = requireBoundCert(req, [
+    const c = await requireBoundCert(req, [
       "confirm submission",
       `Utility: ${req.body.utility}`,
       `Reading: ${req.body.reading}`,
@@ -793,7 +823,7 @@ app.post("/reward", async (req, res) => {
     res.json({ txid, amount: pay.amount, fullAmount: v.amount, factor: pay.factor, flagged: reasons.length > 0 });
   } catch (e) {
     console.error("[/reward]", e?.message || e);
-    res.status(502).json({ error: e?.message || "distribution failed" });
+    res.status(502).json({ error: e?.public ? e.message : "the payout couldn't be completed — nothing was used up, please try again later" });
   } finally {
     // Release the photo reservation if we didn't actually pay, so a failed payout
     // doesn't permanently burn the user's photo.
@@ -825,7 +855,7 @@ app.post("/eco-action", async (req, res) => {
   if (!ECO_APPLIANCES.has(appliance)) return res.status(400).json({ error: "unknown appliance" });
 
   {
-    const c = requireBoundCert(req, ["confirm eco-mode bonus", `Appliance: ${appliance}`]);
+    const c = await requireBoundCert(req, ["confirm eco-mode bonus", `Appliance: ${appliance}`]);
     if (!c.ok) return res.status(c.code).json({ error: c.error });
   }
 
@@ -883,7 +913,7 @@ app.post("/eco-action", async (req, res) => {
     res.json({ txid, amount: pay.amount, fullAmount: ECO_REWARD, factor: pay.factor, remaining: ECO_MAX_PER_WEEK - thisWeek.length - 1 });
   } catch (e) {
     console.error("[/eco-action]", e?.message || e);
-    res.status(502).json({ error: e?.message || "distribution failed" });
+    res.status(502).json({ error: e?.public ? e.message : "the payout couldn't be completed — nothing was used up, please try again later" });
   } finally {
     if (!committed && photo?.ok) photo.unreserve();
     if (!committed && guard?.release) await guard.release();
@@ -909,19 +939,19 @@ const publicBase = (req) =>
 // Pair a device to this wallet. Cert-authed (proves wallet ownership) → returns a
 // secret device token + the exact URL a reader should POST readings to. Re-pairing
 // the same wallet reuses its token so it can't accumulate orphans.
-app.post("/meter/pair", (req, res) => {
+app.post("/meter/pair", async (req, res) => {
   const address = String(req.body.address || "");
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
   {
     // Bound to what the app signs for linking, and single-use. A bare "any valid
     // signature by this wallet" also accepted one made for a different site.
-    const c = requireBoundCert(req, ["Green Utility Log — link smart meter"]);
+    const c = await requireBoundCert(req, ["Green Utility Log — link smart meter"]);
     if (!c.ok) return res.status(c.code).json({ error: c.error });
   }
   const meterNo = String(req.body.meterNo || "").trim();
   // Remember which utility this meter is, so the scheduled auto-submit pays it at
   // the right rate/bounds/cooldown instead of always assuming electric.
-  const utility = RATES[String(req.body.utility || "").toLowerCase()] ? String(req.body.utility).toLowerCase() : "electric";
+  const utility = pickUtility(req.body.utility);
   // A reader can only be paired to a meter that is yours, or nobody's yet. Without
   // this, anyone who knew a meter number could pair to it and push numbers against
   // someone else's baseline.
@@ -956,13 +986,13 @@ app.post("/meter/pair", (req, res) => {
 
 // Unpair: revoke this wallet's device token and erase its ingested reading. Cert-authed
 // (proves ownership) — the "revoke my reader / delete my meter data" control.
-app.post("/meter/unpair", (req, res) => {
+app.post("/meter/unpair", async (req, res) => {
   const address = String(req.body.address || "");
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
   {
     // Bound to what the app signs for linking, and single-use. A bare "any valid
     // signature by this wallet" also accepted one made for a different site.
-    const c = requireBoundCert(req, ["Green Utility Log — link smart meter"]);
+    const c = await requireBoundCert(req, ["Green Utility Log — link smart meter"]);
     if (!c.ok) return res.status(c.code).json({ error: c.error });
   }
   const existing = store.getLinkByAddress(address);
@@ -1040,7 +1070,7 @@ app.get("/meter/latest", (req, res) => {
   // The app needs two more things to offer the "correct my starting point" button
   // honestly: whether it is still allowed, and what the stored starting point is, so
   // it can show the jump rather than ask people to trust a button.
-  const utility = link?.utility && RATES[link.utility] ? link.utility : "electric";
+  const utility = pickUtility(link?.utility);
   const baseline = link?.meterNo ? store.lastReading(utility, String(link.meterNo).toLowerCase()) : null;
   res.json({
     paired: !!link,
@@ -1066,7 +1096,7 @@ app.post("/meter/enode/link", async (req, res) => {
   {
     // Bound to what the app signs for linking, and single-use. A bare "any valid
     // signature by this wallet" also accepted one made for a different site.
-    const c = requireBoundCert(req, ["Green Utility Log — link smart meter"]);
+    const c = await requireBoundCert(req, ["Green Utility Log — link smart meter"]);
     if (!c.ok) return res.status(c.code).json({ error: c.error });
   }
   try {
@@ -1074,7 +1104,7 @@ app.post("/meter/enode/link", async (req, res) => {
     res.json({ linkUrl: session?.linkUrl || session?.url || null, session });
   } catch (e) {
     console.error("[/meter/enode/link]", e?.message || e);
-    res.status(502).json({ error: e?.message || "enode link failed" });
+    res.status(502).json({ error: "couldn't reach the meter service — please try again later" });
   }
 });
 
@@ -1087,7 +1117,7 @@ app.post("/meter/enode/sync", async (req, res) => {
   {
     // Bound to what the app signs for linking, and single-use. A bare "any valid
     // signature by this wallet" also accepted one made for a different site.
-    const c = requireBoundCert(req, ["Green Utility Log — link smart meter"]);
+    const c = await requireBoundCert(req, ["Green Utility Log — link smart meter"]);
     if (!c.ok) return res.status(c.code).json({ error: c.error });
   }
   try {
@@ -1116,7 +1146,7 @@ app.post("/meter/enode/sync", async (req, res) => {
     });
   } catch (e) {
     console.error("[/meter/enode/sync]", e?.message || e);
-    res.status(502).json({ error: e?.message || "enode sync failed" });
+    res.status(502).json({ error: "couldn't reach the meter service — please try again later" });
   }
 });
 
@@ -1136,12 +1166,13 @@ const METER_MAX_AGE_MS = Number(process.env.METER_MAX_AGE_MS || 48 * 60 * 60 * 1
 // rules still come from validateSubmission (cooldown, monotonicity, bounds, cap).
 async function settleMeterReading({ address, utility = "electric", meterNo }) {
   const addr = String(address);
+  utility = pickUtility(utility);
   // Bind to the PAIRED device: the reading came from this device, so it must settle
   // against the meter/utility the device was paired for — not arbitrary body values.
   // Otherwise one pushed number could be settled against several utilities/meters.
   const link = store.getLinkByAddress(addr);
   if (link?.meterNo) meterNo = link.meterNo;
-  if (link?.utility && RATES[link.utility]) utility = link.utility;
+  if (link?.utility && isEnabledUtility(link.utility)) utility = link.utility;
   meterNo = String(meterNo || "").trim();
   if (!meterNo) return { ok: false, code: 400, error: "register your meter number first" };
 
@@ -1212,7 +1243,7 @@ app.post("/reward-from-meter", async (req, res) => {
   const address = String(req.body.address || "");
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
   {
-    const c = requireBoundCert(req, ["confirm automatic meter submission"]);
+    const c = await requireBoundCert(req, ["confirm automatic meter submission"]);
     if (!c.ok) return res.status(c.code).json({ error: c.error });
   }
   try {
@@ -1221,7 +1252,7 @@ app.post("/reward-from-meter", async (req, res) => {
     res.json({ txid: r.txid, amount: r.amount, usage: r.usage, reading: r.reading, source: r.source });
   } catch (e) {
     console.error("[/reward-from-meter]", e?.message || e);
-    res.status(502).json({ error: e?.message || "distribution failed" });
+    res.status(502).json({ error: e?.public ? e.message : "the payout couldn't be completed — nothing was used up, please try again later" });
   }
 });
 
@@ -1248,7 +1279,7 @@ app.post("/meter/rebaseline", async (req, res) => {
   const address = String(req.body.address || "");
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
   {
-    const c = requireBoundCert(req, ["confirm starting point correction"]);
+    const c = await requireBoundCert(req, ["confirm starting point correction"]);
     if (!c.ok) return res.status(c.code).json({ error: c.error });
   }
 
@@ -1258,7 +1289,7 @@ app.post("/meter/rebaseline", async (req, res) => {
     return res.status(409).json({ error: "this reader has already paid out once, so its starting point is settled" });
   }
 
-  const utility = link.utility && RATES[link.utility] ? link.utility : "electric";
+  const utility = pickUtility(link.utility);
   const meterNo = String(link.meterNo || req.body.meterNo || "").trim();
   if (!meterNo) return res.status(400).json({ error: "register your meter number first" });
 
@@ -1331,11 +1362,11 @@ app.post("/meter/fix-basis", async (req, res) => {
   const address = String(req.body.address || "");
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
   {
-    const c = requireBoundCert(req, ["reconcile tariff registers", `Meter: ${req.body.meterNo}`]);
+    const c = await requireBoundCert(req, ["reconcile tariff registers", `Meter: ${req.body.meterNo}`]);
     if (!c.ok) return res.status(c.code).json({ error: c.error });
   }
 
-  const utility = RATES[String(req.body.utility || "").toLowerCase()] ? String(req.body.utility).toLowerCase() : "electric";
+  const utility = pickUtility(req.body.utility);
   const meterNo = String(req.body.meterNo || "").trim();
   if (!meterNo) return res.status(400).json({ error: "meter number is required" });
   const meterKey = meterNo.toLowerCase();
@@ -1395,7 +1426,7 @@ app.post("/meter/fix-basis", async (req, res) => {
   } catch (e) {
     if (photo?.ok) photo.unreserve();
     console.error("[/meter/fix-basis]", e?.message || e);
-    res.status(500).json({ error: e?.message || "could not reconcile this meter" });
+    res.status(500).json({ error: "could not reconcile this meter — nothing was changed, please try again" });
   }
 });
 
@@ -1417,7 +1448,7 @@ async function autoSettle(link, why = "timer") {
   if (!store.ready() || !link?.address) return null; // don't pay from a blank/half-loaded state
   const meterNo = String(link.meterNo || "").trim();
   if (!meterNo || banned(link.address) || await passBlock(link.address)) return null;
-  const utility = RATES[link.utility] ? link.utility : "electric";
+  const utility = pickUtility(link.utility);
   const latest = store.getLinkReading(link.address);
   if (!latest) return null;
   // Only a reading newer than the last payout for this wallet+utility.
@@ -1489,6 +1520,16 @@ if (NETWORK === "mainnet") {
 // shortly after start so a service that slept through the round end catches up.
 setTimeout(() => { autoClaimAllocation().catch((e) => console.warn("[budget] auto-claim:", e?.message || e)); }, 30000).unref();
 setInterval(() => { autoClaimAllocation().catch((e) => console.warn("[budget] auto-claim:", e?.message || e)); }, 60 * 60 * 1000).unref();
+
+// Last in line: turns a thrown/rejected handler into a plain 500, without the
+// error's text (which can carry node or provider internals) going to the client.
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  if (err?.type === "entity.too.large") return res.status(413).json({ error: "request too large" });
+  if (err?.type === "entity.parse.failed") return res.status(400).json({ error: "invalid JSON" });
+  console.error(`[error] ${req.method} ${req.path}:`, err?.stack || err?.message || err);
+  if (!res.headersSent) res.status(500).json({ error: "something went wrong on the server — please try again" });
+});
 
 const server = app.listen(PORT, () => {
   console.log(`Reward distributor listening on :${PORT} (${NETWORK})`);

@@ -42,6 +42,30 @@ export const APP_VERSION = "1.3.0";
 // For consumption meters this is the B3TR earned per unit SAVED below the
 // benchmark (see below); for solar it's per unit produced.
 export const RATES = { electric: 0.61, gas: 0.84, water: 0.12, solar: 0.72 };
+
+// A utility name straight from a request is looked up in plain objects, where
+// "constructor", "toString" and "__proto__" also "exist": RATES["constructor"] is
+// a function, and the bounds lookup after it threw and took the process down. So
+// names are checked as OWN keys only.
+export const isUtility = (u) => typeof u === "string" && Object.prototype.hasOwnProperty.call(RATES, u);
+// What this deployment actually pays for. The app offers electricity only; the
+// rates for gas, water and solar are kept for later, but a request for them is
+// refused here — otherwise one meter could be claimed once per utility per day by
+// anyone calling the API directly.
+export const ENABLED_UTILITIES = new Set(
+  String(process.env.ENABLED_UTILITIES || "electric").split(",").map((s) => s.trim().toLowerCase()).filter(isUtility),
+);
+export const isEnabledUtility = (u) => isUtility(u) && ENABLED_UTILITIES.has(u);
+// A utility from a request: an enabled one, or the fallback.
+export const pickUtility = (raw, fallback = "electric") => {
+  const u = String(raw || "").trim().toLowerCase();
+  return isEnabledUtility(u) ? u : fallback;
+};
+// Admin tools may address any known utility (e.g. to inspect old data).
+export const pickAnyUtility = (raw, fallback = "electric") => {
+  const u = String(raw || "").trim().toLowerCase();
+  return isUtility(u) ? u : fallback;
+};
 export const UNITS = { electric: "kWh", gas: "m³", water: "L", solar: "kWh" };
 
 // ── Conservation-based reward ────────────────────────────────────────────────

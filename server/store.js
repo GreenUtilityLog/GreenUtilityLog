@@ -29,6 +29,10 @@ const REDIS_KEY = process.env.STATE_KEY || "greenutilitylog:state";
 // one-time grandfathering has run, so turning REQUIRE_PASS on can't silently cut off
 // every existing tester — and can't re-grant a pass an admin has since revoked.
 const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {}, autoPaid: {}, payLog: [], prints: [] };
+// A fresh copy each time. Spreading EMPTY copies only its top level: every
+// "empty" state then shared EMPTY's own maps, so writing to one wrote to all of
+// them — and to the next "empty" state read from Redis.
+const fresh = (over = {}) => ({ ...JSON.parse(JSON.stringify(EMPTY)), ...over });
 
 // Cap the "seen wallets" roster so an open endpoint can't grow state without bound.
 // When exceeded we drop the least-recently-seen entries.
@@ -59,21 +63,21 @@ async function loadState() {
     try {
       const blob = await redisCmd(["GET", REDIS_KEY]);
       loadError = false;
-      if (blob) return { ...EMPTY, ...JSON.parse(blob) };
+      if (blob) return fresh(JSON.parse(blob));
       console.log("[store] Redis backend ready (empty — fresh state).");
-      return { ...EMPTY };
+      return fresh();
     } catch (e) {
       // Fail CLOSED: mark not-ready. Do not disable anti-farming with an empty slate,
       // and do not let a later write clobber the unread key.
       loadError = true;
       console.error("[store] Redis load FAILED — store NOT ready; payouts refused and no writes until it loads:", e?.message || e);
-      return { ...EMPTY };
+      return fresh();
     }
   }
   try {
-    return { ...EMPTY, ...JSON.parse(readFileSync(FILE, "utf8")) };
+    return fresh(JSON.parse(readFileSync(FILE, "utf8")));
   } catch {
-    return { ...EMPTY };
+    return fresh();
   }
 }
 
@@ -186,10 +190,21 @@ function applyMine(remote, changes) {
 // Take over what's stored, except entries changed here since (they win at the next
 // write). Written to the plain objects underneath, so nothing is noted as changed.
 const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+// Changes on their way to Redis right now. They are no longer "dirty", but until
+// the write lands they are this process's newest values: adopt() must not undo
+// them. (It did: a pull or a second write landing in that window put the stored,
+// older value back, and the retry then wrote that.)
+let inflight = null; // Map field -> Set | "*"
+function protectedKeys(f) {
+  const d = dirty.get(f), w = inflight?.get(f);
+  if (d === "*" || w === "*") return "*";
+  if (!d && !w) return null;
+  return new Set([...(d || []), ...(w || [])]);
+}
 function adopt(remote) {
   const root = rawOf.get(state);
   for (const f of Object.keys(remote)) {
-    const d = dirty.get(f);
+    const d = protectedKeys(f);
     if (d === "*") continue;
     const cur = root[f];
     if (!isMap(remote[f]) || !isMap(cur)) {        // lists, counters, a field new here
@@ -204,7 +219,7 @@ function adopt(remote) {
 
 async function readStored() {
   const [blob, ver] = await redisCmd(["MGET", REDIS_KEY, VERSION_KEY]);
-  return { remote: blob ? { ...EMPTY, ...JSON.parse(blob) } : { ...EMPTY }, ver: ver == null ? "0" : String(ver) };
+  return { remote: blob ? fresh(JSON.parse(blob)) : fresh(), ver: ver == null ? "0" : String(ver) };
 }
 
 async function mergedWrite() {
@@ -212,6 +227,7 @@ async function mergedWrite() {
   // noted for the next write.
   const changes = [...dirty.entries()].map(([f, k]) => [f, k === "*" ? "*" : new Set(k)]);
   dirty.clear();
+  inflight = new Map(changes);
   try {
     for (let attempt = 0; attempt < 5; attempt++) {
       const { remote, ver } = await readStored();
@@ -237,20 +253,36 @@ async function mergedWrite() {
     // Not written: note the changes again so the retry carries them.
     for (const [f, k] of changes) { if (k === "*") note(f, "*"); else for (const x of k) note(f, x); }
     throw e;
+  } finally {
+    inflight = null;
   }
 }
 
 // Pick up other processes' writes between our own (a deploy's overlap, mostly).
 if (USE_REDIS) {
   const pull = setInterval(async () => {
-    if (loadError) return;
-    try { adopt((await readStored()).remote); } catch { /* next time */ }
+    if (loadError || writing) return; // a write is about to adopt the newest anyway
+    try {
+      const { remote } = await readStored();
+      if (!writing) adopt(remote);
+    } catch { /* next time */ }
   }, 30000);
   pull.unref?.();
 }
 
+// Writes run one at a time: two overlapping merged writes (a payout's flush and
+// the debounce timer, say) each read, merged and stored, and the second could
+// take the first's in-flight changes for "someone else's" values.
+let writing = false;
+let writeQueue = Promise.resolve();
+function writeNow() {
+  const run = writeQueue.then(() => { writing = true; return writeOnce(); }).finally(() => { writing = false; });
+  writeQueue = run.catch(() => {});
+  return run;
+}
+
 // Write the current state out now. Async so a graceful shutdown can await it.
-async function writeNow() {
+async function writeOnce() {
   // Never overwrite a key we couldn't read at boot — that would wipe it durably.
   if (USE_REDIS && loadError) {
     console.warn("[store] skip save — store not ready (won't overwrite unread key).");

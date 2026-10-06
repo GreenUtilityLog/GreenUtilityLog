@@ -71,6 +71,14 @@ describe("a signature on a real submission", () => {
     assert.match(again.body.error, /already used/i);
   });
 
+  test("a signature for one reading doesn't cover a longer number that starts the same", async () => {
+    // "Reading: 104" is a substring of "Reading: 1040" — it must not count.
+    const certificate = await sign(submissionText("electric", 104));
+    const r = await srv.post("/reward", body({ certificate, reading: 1040 }));
+    assert.equal(r.status, 401);
+    assert.match(r.body.error, /does not authorise/);
+  });
+
   test("cannot be moved to a different reading", async () => {
     const certificate = await sign(submissionText("electric", 1032));
     const r = await srv.post("/reward", body({ certificate, reading: 1040 }));
