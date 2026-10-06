@@ -296,6 +296,14 @@ const sendClause = (abi, args, comment) =>
 //
 // Must be set to an explicit true, is shouted about at startup, and is reported by
 // /health, so it cannot sit unnoticed in a deployment that is handing out real B3TR.
+// An error whose message is written for the user and safe to show them. Anything
+// else (node URLs, provider internals, stack-ish text) stays in the server log.
+export function publicError(message) {
+  const e = new Error(message);
+  e.public = true;
+  return e;
+}
+
 export const DRY_RUN = /^(1|true|yes)$/i.test(process.env.DISTRIBUTOR_DRY_RUN || "");
 if (DRY_RUN) {
   console.warn("[reward] DISTRIBUTOR_DRY_RUN is on — rewards are NOT sent on-chain.");
@@ -346,12 +354,12 @@ async function sendProofReward({ amount, receiver, proofText, impacts, descripti
       // The admin's emergency stop. Say so in words a user can act on ("try later"),
       // not as a contract error that reads like something they did wrong.
       if (/distribution is paused/i.test(`${modernReason} ${legacyReason}`)) {
-        throw new Error("payouts are paused by the app admin — nothing was used up, try again later");
+        throw publicError("payouts are paused by the app admin — nothing was used up, try again later");
       }
       if (/insufficient (available )?funds|not enough funds/i.test(`${modernReason} ${legacyReason}`)) {
-        throw new Error("this week's reward budget is used up — rewards resume after the next VeBetterDAO round, nothing was used up");
+        throw publicError("this week's reward budget is used up — rewards resume after the next VeBetterDAO round, nothing was used up");
       }
-      throw new Error(`payout would revert: ${reason}`);
+      throw publicError(`payout would revert: ${reason}`);
     }
     console.warn(`[reward] modern variant reverts ("${modernReason}") — using legacy distributeReward`);
   }
@@ -365,7 +373,7 @@ async function sendProofReward({ amount, receiver, proofText, impacts, descripti
   );
   if (attempt.reverted) {
     console.error(`[reward] tx ${attempt.txid} reverted on-chain despite clean simulation`);
-    throw new Error("payout reverted on-chain — re-run the admin System Check and try again");
+    throw publicError("payout reverted on-chain — re-run the admin System Check and try again");
   }
   return attempt.txid;
 }

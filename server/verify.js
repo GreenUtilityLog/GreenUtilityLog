@@ -3,7 +3,7 @@
 // every payout is re-validated here. The reward AMOUNT is always recomputed on
 // the server — a client-sent amount is never trusted.
 
-import { RATES, UNITS, COOLDOWN_MS, computeReward, usageBoundsFor, spanDays, MAX_REWARD, REWARD_BASE, SAVING_UTILS, MAX_SPAN_DAYS } from "./config.js";
+import { RATES, UNITS, isEnabledUtility, COOLDOWN_MS, computeReward, usageBoundsFor, spanDays, MAX_REWARD, REWARD_BASE, SAVING_UTILS, MAX_SPAN_DAYS } from "./config.js";
 import { store } from "./store.js";
 
 const isAddress = (a) => typeof a === "string" && /^0x[0-9a-fA-F]{40}$/.test(a);
@@ -12,7 +12,7 @@ export function validateSubmission(body) {
   const { utility, reading, prevRead, meterNo, address } = body || {};
 
   if (!isAddress(address)) return { ok: false, error: "invalid wallet address" };
-  if (!RATES[utility]) return { ok: false, error: "unknown utility" };
+  if (!isEnabledUtility(utility)) return { ok: false, error: "this utility isn't available" };
   if (!meterNo || !String(meterNo).trim()) return { ok: false, error: "meter number is required" };
 
   const addr = address.toLowerCase();
@@ -23,7 +23,8 @@ export function validateSubmission(body) {
   const owner = store.meterOwner(utility, meterKey);
   if (owner && owner !== addr) return { ok: false, error: "this meter is registered to another wallet" };
 
-  const r = parseFloat(reading);
+  // Number(), not parseFloat(): "1000x" is not a reading.
+  const r = typeof reading === "number" || typeof reading === "string" ? Number(reading) : NaN;
   if (!Number.isFinite(r)) return { ok: false, error: "invalid reading" };
 
   // Compute usage from the LAST reading the server recorded for this meter, not

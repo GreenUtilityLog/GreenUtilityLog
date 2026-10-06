@@ -47,6 +47,15 @@ Render → **New → Web Service** → deze repository.
 | `ANTHROPIC_API_KEY` | sterk aangeraden: controle stand + meternummer op de foto |
 | `MAX_PAYOUT_PER_SUBMISSION` | `1` voor de eerste week (veilige start), daarna weghalen (= 4) |
 | `ECO_REWARD` | `1` voor de eerste week, daarna weghalen (= 2) |
+| `REQUIRE_PASS` | niet invullen (staat standaard aan): alleen wallets met een pas worden uitbetaald |
+| `PASSPORT_GRANTS_ACCESS` | `false` — anders komt elke VeBetterDAO-gebruiker met een passport er zonder pas in |
+| `ADMIN_WALLETS` | alleen **jouw** wallet-adres (meerdere: met komma's) |
+
+**Alleen jij op mainnet (besloten start):** met de drie regels hierboven wordt op mainnet
+alleen uitbetaald aan wallets met een pas, en alleen jij kunt passen uitdelen. De database
+voor mainnet begint leeg, dus niemand krijgt automatisch een pas. Geef jezelf een pas in het
+adminpaneel (Pass → je eigen adres). Anderen kunnen de app openen maar krijgen niets, tot
+jij ze een pas geeft. Testers blijven op `/testnet/`.
 
 Stuur mij daarna het **adres** van de nieuwe service (bijv. `https://….onrender.com`).
 Test: open `<adres>/health` → `network` moet `mainnet` zijn.
