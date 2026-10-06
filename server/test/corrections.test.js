@@ -36,7 +36,7 @@ describe("correcting a paired reader's starting point", () => {
   });
 
   test("the app is told the correction is available, and what the gap is", async () => {
-    const r = await srv.get(`/meter/latest?address=${WALLET}`);
+    const r = await srv.get(`/meter/latest?address=${WALLET}`, { "x-device-token": token });
     assert.equal(r.body.canRebaseline, true);
     assert.equal(r.body.baseline, REG[0]);
     assert.equal(r.body.reading.reading, TOTAL);
@@ -92,7 +92,7 @@ describe("once a reader has been paid, its starting point is settled", () => {
   });
 
   test("and the app is told not to offer it", async () => {
-    const r = await srv.get(`/meter/latest?address=${WALLET}`);
+    const r = await srv.get(`/meter/latest?address=${WALLET}`, { "x-device-token": "abc" });
     assert.equal(r.body.canRebaseline, false);
   });
 });
@@ -231,7 +231,7 @@ describe("a starting point belongs to the meter's owner, and moves once", () => 
     await srv.post("/meter-ingest", { token: pair.body.token, reading: 1700 });
     const r = await srv.post("/meter/rebaseline", { address: WALLET });
     assert.equal(r.status, 409);
-    const latest = await srv.get(`/meter/latest?address=${WALLET}`);
+    const latest = await srv.get(`/meter/latest?address=${WALLET}`, { "x-device-token": pair.body.token });
     assert.equal(latest.body.canRebaseline, false);
   });
 });

@@ -32,7 +32,7 @@ Flow:
 2. The reader POSTs `{ "token": "...", "reading": 12345.6 }` to `/meter-ingest`
    whenever it has a fresh total. The token is the secret that binds the reading to
    the wallet — no token, no write, so nobody can push a fake reading for someone else.
-3. App polls `GET /meter/latest?address=…` and shows it.
+3. App polls `GET /meter/latest?address=…` (header `x-device-token`) and shows it.
 
 No env vars needed — this path is always on.
 
@@ -75,7 +75,7 @@ same store.
 |---|---|---|---|
 | POST | `/meter/pair` | wallet cert | issue a device token + ingest URL |
 | POST | `/meter-ingest` | device token | a reader pushes a reading |
-| GET | `/meter/latest?address=` | — | latest reading for the app |
+| GET | `/meter/latest?address=` | device token (header `x-device-token`) | latest reading for the app; without the token only whether a reader is paired |
 | POST | `/meter/enode/link` | wallet cert | start an Enode link session |
 | POST | `/meter/enode/sync` | wallet cert | pull latest Enode reading (+ raw) |
 | POST | `/reward-from-meter` | wallet cert | **photoless payout** from the latest ingested reading |

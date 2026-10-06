@@ -3,7 +3,7 @@
 // GET  /health  : service + distributor status.
 
 import "dotenv/config";
-import { randomBytes, createHash } from "node:crypto";
+import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import express from "express";
 import cors from "cors";
 import { COOLDOWN_MS } from "./config.js";
@@ -654,6 +654,46 @@ app.post("/ocr", async (req, res) => {
   res.json({ ok: true, text, numbers, provider });
 });
 
+// ── Tariff registers, one by one ─────────────────────────────────────────────
+// A photo shows one register of a double-tariff meter; the other rests on the
+// submitter's word. Typing the true register plus an invented one, and
+// photographing the true one, passed every other check. Two rules close that:
+//  1. each register only counts up, against the values last paid on;
+//  2. the register seen longest ago has to be on the next photo — so an invented
+//     value must be photographed sooner or later, and it can't be.
+// rc: the server OCR result (registersShown / totalShown), or null when the photo
+// wasn't read. Returns the refusal, or the "due" warning and the updated seen-times.
+function checkRegisters({ utility, meterNo, registers, rc }) {
+  const prev = store.getMeterRegs(utility, String(meterNo).trim().toLowerCase());
+  const same = !!prev && prev.regs.length === registers.length;
+  if (same) {
+    const down = registers.findIndex((x, i) => x < prev.regs[i] - 0.001);
+    if (down >= 0) {
+      return { error: `tariff register ${down + 1} went down (${prev.regs[down]} → ${registers[down]}) — a meter register only counts up. Check that each register is in its own box, in the same order as last time.` };
+    }
+  }
+  const seen = same ? [...prev.seen] : registers.map(() => 0);
+  const shown = rc?.ok ? (rc.registersShown || []) : [];
+  const due = seen.indexOf(Math.min(...seen));
+  let wrong = null;
+  // The sum on the photo vouches for every part at once; otherwise the photo must
+  // show the overdue register, unless it is only as overdue as the one it shows.
+  if (rc?.ok && !rc.totalShown && !shown.includes(due) && shown.every((i) => seen[i] > seen[due])) {
+    wrong = { photoRegister: due + 1, message: `this time photograph tariff register ${due + 1} — it is the one that has been off your photos longest. The meter's display switches between its registers; wait for it to show.` };
+  }
+  const now = Date.now();
+  if (rc?.ok && rc.totalShown) seen.fill(now);
+  else for (const i of shown) seen[i] = now;
+  return { wrong, seen };
+}
+// Which register the next photo of this meter must show (1-based), or null.
+function dueRegister(utility, meterNo) {
+  const p = store.getMeterRegs(utility, meterNo);
+  if (!p || p.regs.length < 2) return null;
+  const due = p.seen.indexOf(Math.min(...p.seen));
+  return p.seen.some((t, i) => t > p.seen[due] && i !== due) ? due + 1 : null;
+}
+
 // Wallet+utility pairs with a payout in flight — prevents two concurrent
 // requests from both passing the cooldown and double-paying.
 const inFlight = new Set();
@@ -738,9 +778,11 @@ app.post("/reward", async (req, res) => {
     // meter number the wallet registered should be on it too.
     const sybilFlags = [];
     let readingFlag = "";
+    let rcResult = null;
     const rcMode = readingCheckMode(ocrEnabled());
     if (rcMode !== "off") {
       const rc = await checkReadingOnPhoto({ imageBase64: req.body.photo, reading: req.body.reading, registers, ocrImage });
+      rcResult = rc;
       if (!rc.ok && (rcMode === "strict" || rc.unavailable)) {
         return res.status(rc.unavailable ? 503 : 400).json({ error: rc.error });
       }
@@ -752,6 +794,18 @@ app.post("/reward", async (req, res) => {
         }
         sybilFlags.push(`meter number ${req.body.meterNo} not found on the photo`);
       }
+    }
+
+    // 2c-ii) A double-tariff meter: each register on its own (checkRegisters).
+    let regSeen = null;
+    if (registers.length > 1) {
+      const rg = checkRegisters({ utility: req.body.utility, meterNo: req.body.meterNo, registers, rc: rcResult });
+      if (rg.error) return res.status(400).json({ error: rg.error });
+      if (rg.wrong) {
+        if (rcMode === "strict") return res.status(400).json({ error: rg.wrong.message, photoRegister: rg.wrong.photoRegister });
+        sybilFlags.push(`tariff register ${rg.wrong.photoRegister} was due on the photo but not shown`);
+      }
+      regSeen = rg.seen;
     }
 
     // 2d) One real meter photographed for several wallets (media.js photoPrint).
@@ -784,6 +838,7 @@ app.post("/reward", async (req, res) => {
       noImpact: !!(v.firstReading || v.nearZero),
     });
     v.markPaid();
+    if (regSeen) store.setMeterRegs(req.body.utility, String(req.body.meterNo).trim().toLowerCase(), registers, regSeen);
     recordPayout(v.amount);
     store.addPrint(req.body.address, "meter", print);
     committed = true; // payout landed — keep the reserved photo hash + committed cooldown
@@ -1054,20 +1109,37 @@ app.post("/wallet/seen", async (req, res) => {
 // The app fetches this on connect to PRE-FILL a meter number an admin registered for
 // this wallet (via /admin/set-baseline) — so a user who can't find their meter number
 // doesn't have to: the admin assigns it and it shows up ready to submit. Returns the
-// wallet's registered meters (number + utility + baseline). Low-sensitivity (meter
-// numbers), behind the IP throttle; gate with a cert before mainnet if desired.
+// wallet's registered meters (number + utility). Anyone can ask for any address, so
+// it carries no readings: the number is what the app needs, and a reading history
+// per address is how someone learns when a household is away.
 app.get("/meter/registered", (req, res) => {
   const address = String(req.query.address || "");
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
-  res.json({ ok: true, meters: store.metersForWallet(address) });
+  res.json({ ok: true, meters: store.metersForWallet(address).map(({ utility, meterNo }) => ({ utility, meterNo, photoRegister: dueRegister(utility, meterNo) })) });
 });
 
 // The app polls this to show / prefill the latest automatically-received reading.
+// Readings and the starting point only go to whoever holds this wallet's device
+// token (header x-device-token): the address alone is public — it is on every
+// payout — and live readings show when someone is home. Without the token: only
+// whether a reader is paired, and the last payout (already public on chain).
 app.get("/meter/latest", (req, res) => {
   const address = String(req.query.address || "");
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
-  const r = store.getLinkReading(address);
   const link = store.getLinkByAddress(address);
+  const given = String(req.get("x-device-token") || "");
+  const tokenOk = !!(link?.token && given && given.length === link.token.length
+    && timingSafeEqual(Buffer.from(given), Buffer.from(link.token)));
+  if (!tokenOk) {
+    return res.json({
+      paired: !!link,
+      needsToken: !!link,
+      reading: null,
+      lastPayout: link?.lastPayout || null,
+      autoClaimOnPush: AUTO_CLAIM_ON_PUSH,
+    });
+  }
+  const r = store.getLinkReading(address);
   // The app needs two more things to offer the "correct my starting point" button
   // honestly: whether it is still allowed, and what the stored starting point is, so
   // it can show the jump rather than ask people to trust a button.
@@ -1173,9 +1245,18 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
   // Otherwise one pushed number could be settled against several utilities/meters.
   const link = store.getLinkByAddress(addr);
   if (link?.meterNo) meterNo = link.meterNo;
-  if (link?.utility && isEnabledUtility(link.utility)) utility = link.utility;
+  if (link?.utility) {
+    if (!isEnabledUtility(link.utility)) return { ok: false, code: 400, error: "this utility isn't available" };
+    utility = link.utility;
+  }
   meterNo = String(meterNo || "").trim();
   if (!meterNo) return { ok: false, code: 400, error: "register your meter number first" };
+  // Without a paired device (an Enode reading), the meter number comes from the
+  // request — so it must be one this wallet already owns. Otherwise the one reading
+  // could be settled against any meter that happens to have no owner recorded.
+  if (!link && String(store.meterOwner(utility, meterNo.toLowerCase()) || "").toLowerCase() !== addr.toLowerCase()) {
+    return { ok: false, code: 403, error: "this meter isn't registered to your wallet — submit one photo reading for it first" };
+  }
 
   const latest = store.getLinkReading(addr);
   if (!latest || !Number.isFinite(Number(latest.reading))) {
@@ -1410,12 +1491,19 @@ app.post("/meter/fix-basis", async (req, res) => {
     }
     // One of the registers has to be on the photo. Flag mode has nothing to flag
     // here — this moves a baseline, it pays nothing — so anything but "off" enforces.
+    let rcResult = null;
     if (readingCheckMode(ocrEnabled()) !== "off") {
       const rc = await checkReadingOnPhoto({ imageBase64: req.body.photo, reading: total, registers, ocrImage });
       if (!rc.ok) { photo.unreserve(); return res.status(rc.unavailable ? 503 : 400).json({ error: rc.error }); }
+      rcResult = rc;
     }
+    // Same register rules as a payout: these become the values the next one is
+    // held to, so they mustn't run backwards or skip the overdue register either.
+    const rg = checkRegisters({ utility, meterNo: meterKey, registers, rc: rcResult });
+    if (rg.error || rg.wrong) { photo.unreserve(); return res.status(400).json({ error: rg.error || rg.wrong.message }); }
 
     store.setLastReading(utility, meterKey, total);
+    store.setMeterRegs(utility, meterKey, registers, rg.seen);
     store.bindMeter(utility, meterKey, address.toLowerCase());
     store.markBasisFixed(utility, meterKey, { from: prev, to: total, registers, addr: address.toLowerCase() });
     store.addFlag(

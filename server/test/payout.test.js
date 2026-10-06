@@ -250,7 +250,7 @@ describe("a reader's reading is paid the moment it arrives", () => {
     await srv.post("/meter-ingest", { token, reading: 1012 });
     await new Promise((r) => setTimeout(r, 800));
     assert.equal(srv.readState().readings["electric:e1000"], 1008);
-    const latest = await srv.get(`/meter/latest?address=${WALLET}`);
+    const latest = await srv.get(`/meter/latest?address=${WALLET}`, { "x-device-token": token });
     assert.equal(latest.body.reading.reading, 1012, "the newest reading is still there to be paid later");
   });
 });

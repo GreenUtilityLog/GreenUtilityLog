@@ -188,9 +188,14 @@ export async function checkReadingOnPhoto({ imageBase64, reading, registers = []
   if (!numbers.length) {
     return { ok: false, error: "the meter's numbers could not be read on this photo — take a sharper photo, straight on, with the display filling most of the picture" };
   }
-  const candidates = [reading, ...(Array.isArray(registers) ? registers : [])];
+  const regs = Array.isArray(registers) ? registers : [];
+  const candidates = [reading, ...regs];
   const hit = candidates.findIndex((v) => readingOnPhoto(v, numbers));
-  if (hit >= 0) return { ok: true, matched: hit === 0 ? "total" : `register ${hit}`, seen: numbers.slice(0, 6), text: r?.text || "" };
+  // Every register on the photo (0-based), not just the first: some displays show
+  // both at once, and the register checks in /reward track which were seen.
+  const registersShown = regs.map((v, i) => (readingOnPhoto(v, numbers) ? i : -1)).filter((i) => i >= 0);
+  const totalShown = readingOnPhoto(reading, numbers);
+  if (hit >= 0) return { ok: true, matched: hit === 0 ? "total" : `register ${hit}`, registersShown, totalShown, seen: numbers.slice(0, 6), text: r?.text || "" };
   return {
     ok: false,
     seen: numbers.slice(0, 6),

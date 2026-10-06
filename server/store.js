@@ -28,7 +28,7 @@ const REDIS_KEY = process.env.STATE_KEY || "greenutilitylog:state";
 // `passes` is the access-pass registry (address → pass); `passesInit` records that the
 // one-time grandfathering has run, so turning REQUIRE_PASS on can't silently cut off
 // every existing tester — and can't re-grant a pass an admin has since revoked.
-const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {}, autoPaid: {}, payLog: [], prints: [], payDays: {} };
+const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {}, autoPaid: {}, payLog: [], prints: [], payDays: {}, meterRegs: {} };
 // A fresh copy each time. Spreading EMPTY copies only its top level: every
 // "empty" state then shared EMPTY's own maps, so writing to one wrote to all of
 // them — and to the next "empty" state read from Redis.
@@ -369,6 +369,19 @@ export const store = {
     if (Object.prototype.hasOwnProperty.call(state.meterOwners, k)) return state.meterOwners[k];
     if (mFallback(utility) && Object.prototype.hasOwnProperty.call(state.meterOwners, meterNo)) return state.meterOwners[meterNo];
     return null;
+  },
+  // The tariff registers a double-tariff meter was last paid on, and when each was
+  // last seen on a photo (ms, 0 = never). See "tariff registers" in /reward.
+  getMeterRegs: (utility, meterNo) => {
+    const v = isMap(state.meterRegs) ? state.meterRegs[mKey(utility, meterNo)] : null;
+    if (!v || !Array.isArray(v.regs)) return null;
+    const seen = Array.isArray(v.seen) && v.seen.length === v.regs.length ? v.seen.map((n) => Number(n) || 0) : v.regs.map(() => 0);
+    return { regs: v.regs.map(Number), seen, at: v.at || 0 };
+  },
+  setMeterRegs: (utility, meterNo, regs, seen) => {
+    if (!isMap(state.meterRegs)) state.meterRegs = {};
+    state.meterRegs[mKey(utility, meterNo)] = { regs: regs.map(Number), seen: seen.map((n) => Number(n) || 0), at: Date.now() };
+    persist();
   },
   bindMeter: (utility, meterNo, addr) => {
     state.meterOwners[mKey(utility, meterNo)] = addr;
