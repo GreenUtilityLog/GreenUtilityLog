@@ -2218,7 +2218,9 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
   const refreshLatest = async () => {
     if (!API || !wallet) return;
     try {
-      const r = await fetch(`${API}/meter/latest?address=${wallet}`);
+      // Readings are only returned with this wallet's device token: the address
+      // alone is public, and live readings show when someone is home.
+      const r = await fetch(`${API}/meter/latest?address=${wallet}`, token ? { headers: { "x-device-token": token } } : undefined);
       if (r.ok) setLatest(await r.json());
     } catch { /* offline — leave as-is */ }
   };
@@ -2237,7 +2239,7 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
     refreshLatest();
     const id = setInterval(refreshLatest, 15000);
     return () => clearInterval(id);
-  }, [open, wallet, API]);
+  }, [open, wallet, API, token]);
 
   // Pair once (one wallet signature ever) and remember the token so future sends
   // need no popup. Returns the token to use for /meter-ingest.
@@ -2456,6 +2458,15 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
               </div>
             )}
             </>
+          ) : latest?.needsToken && !token ? (
+            /* Paired, but from another browser or device: this one has no token yet,
+               and readings are only shown to whoever holds it. */
+            <div style={{ fontSize: 11, color: T.textSoft, lineHeight: 1.6 }}>
+              Your reader is connected{latest?.lastPayout ? ` — last paid +${Number(latest.lastPayout.amount).toFixed(2)} B3TR automatically` : ""}. To see its readings on this device, sign once:
+              <div style={{ marginTop: 8 }}>
+                <button onClick={showToken} style={btn(T.eco || T.electric)}>Show my readings here</button>
+              </div>
+            </div>
           ) : (
             <div style={{ fontSize: 11, color: T.textSoft, lineHeight: 1.6 }}>
               No automatic reading yet. Set up your <b>P1 reader</b> below — your meter total then shows up here to submit with one tap. To submit <b>by hand, use the 📸 Photo tab</b> (a photo is required for manual submissions).
@@ -2653,7 +2664,7 @@ ${fetchCmd(`--token=${token} --install --url=http://<reader-ip>/api/v1/data${ING
 }
 
 function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading, setReading, prevRead, setPrevRead,
-  dualTariff, setDualTariff, regLow, setRegLow, regNormal, setRegNormal,
+  dualTariff, setDualTariff, regLow, setRegLow, regNormal, setRegNormal, photoRegister,
   fixBasis, fixBusy, runFixBasis, dismissFixBasis, busy, usage, reward, days, handleSubmit, verifyKey, wallet, setShowWallet, subs, meters, T, setTab, onEcoSubmit, ecoBusy, ecoUsedThisWeek, ecoCooldownMs, onMeterAutoSubmit, meterAutoBusy, onRegisterMeter }) {
   const meterNo  = (meters?.[selUtil] || "").trim();
   // Submittable when current ≥ previous (equal = zero usage = valid, max reward).
@@ -2807,10 +2818,15 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
                   Total used for your reading:{" "}
                   <b style={{ fontFamily: "'SF Mono',Menlo,monospace", color: T.text }}>{reading || "—"}</b> {u.unit}
                   <span style={{ display: "block", marginTop: 3, fontSize: 10.5, lineHeight: 1.5 }}>
-                    Your display alternates between the two, so photograph whichever one is showing — the photo is checked
-                    against the register it shows, not against the total. Which value goes in which field doesn’t
-                    matter; they are added together.
+                    Your display alternates between the two. The photo is checked against the register it shows, and
+                    the two take turns: each time, photograph the one your last photo didn’t show. Keep 1.8.1 and 1.8.2
+                    in their own boxes — each one only counts up.
                   </span>
+                  {photoRegister && (
+                    <span style={{ display: "block", marginTop: 6, padding: "6px 8px", fontSize: 11, fontWeight: 700, lineHeight: 1.5, color: T.text, background: T.bg, border: `1px dashed ${T.border || T.electricBorder}`, borderRadius: 6 }}>
+                      📸 This time, photograph <span style={{ fontFamily: "'SF Mono',Menlo,monospace" }}>{photoRegister === 1 ? "1.8.1" : photoRegister === 2 ? "1.8.2" : `register ${photoRegister}`}</span> — wait until your display shows it.
+                    </span>
+                  )}
                 </div>
               </>
             ) : (
@@ -5093,6 +5109,11 @@ export default function App() {
   const { account, accountDomain, requestTransaction, requestCertificate, disconnect } = useWallet();
   const wallet = account || null;
 
+  // Which tariff register the server wants on the next photo, per utility (it
+  // checks that the registers take turns — see /reward), refreshed after a payout.
+  const [regHint, setRegHint]       = useState({});
+  const [regTick, setRegTick]       = useState(0);
+
   // Pre-fill meter numbers an admin assigned to this wallet on the server, so a user
   // who can't find their meter number doesn't have to enter it. Only fills EMPTY slots
   // — never overwrites a number the user typed themselves.
@@ -5105,7 +5126,9 @@ export default function App() {
         if (!r.ok) return;
         const d = await r.json().catch(() => ({}));
         const list = Array.isArray(d.meters) ? d.meters : [];
-        if (cancelled || !list.length) return;
+        if (cancelled) return;
+        setRegHint(Object.fromEntries(list.filter(m => m.photoRegister).map(m => [m.utility, m.photoRegister])));
+        if (!list.length) return;
         setMeters(prev => {
           const next = { ...prev };
           let changed = false;
@@ -5119,7 +5142,7 @@ export default function App() {
       } catch { /* offline — ignore */ }
     })();
     return () => { cancelled = true; };
-  }, [wallet]);
+  }, [wallet, regTick]);
 
   // Let the backend know this wallet is active, so the admin panel can see testers
   // who have connected (and maybe registered meters locally) but not yet earned
@@ -5951,6 +5974,7 @@ export default function App() {
       }, ...prev]);
 
       setB3tr(b => b + paidAmount);
+      if (registers) setRegTick(t => t + 1);
       setCooldown(selUtil);
       setAiOk(false);
       setPhoto(null);
@@ -6053,7 +6077,7 @@ export default function App() {
           )}
 
           {tab==="home"      && <HomeScreen b3tr={b3tr} walletB3tr={walletB3tr} streak={streak} subs={subs} setTab={setTab} T={T}/>}
-          {tab==="submit"    && <SubmitScreen rewardFactor={rewardFactor} u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} dualTariff={dualTariff} fixBasis={fixBasis} fixBusy={fixBusy} runFixBasis={runFixBasis} dismissFixBasis={() => setFixBasis(null)} setDualTariff={setDualTariff} regLow={regLow} setRegLow={setRegLow} regNormal={regNormal} setRegNormal={setRegNormal} busy={busy} usage={usage} reward={reward} days={daysSinceLast()} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab} onEcoSubmit={handleEcoSubmit} ecoBusy={ecoBusy} ecoUsedThisWeek={ecoUsedThisWeek} ecoCooldownMs={ecoCooldownMs} onMeterAutoSubmit={handleMeterAutoSubmit} meterAutoBusy={meterAutoBusy} onRegisterMeter={(utils) => openRegistration(utils, true)}/>}
+          {tab==="submit"    && <SubmitScreen rewardFactor={rewardFactor} u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} dualTariff={dualTariff} fixBasis={fixBasis} fixBusy={fixBusy} runFixBasis={runFixBasis} dismissFixBasis={() => setFixBasis(null)} setDualTariff={setDualTariff} regLow={regLow} setRegLow={setRegLow} regNormal={regNormal} setRegNormal={setRegNormal} photoRegister={regHint[selUtil] || null} busy={busy} usage={usage} reward={reward} days={daysSinceLast()} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab} onEcoSubmit={handleEcoSubmit} ecoBusy={ecoBusy} ecoUsedThisWeek={ecoUsedThisWeek} ecoCooldownMs={ecoCooldownMs} onMeterAutoSubmit={handleMeterAutoSubmit} meterAutoBusy={meterAutoBusy} onRegisterMeter={(utils) => openRegistration(utils, true)}/>}
           {tab==="charts"    && <ChartsScreen subs={subs} T={T}/>}
           {tab==="leaderboard" && <LeaderboardScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}

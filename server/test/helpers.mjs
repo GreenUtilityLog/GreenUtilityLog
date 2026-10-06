@@ -110,8 +110,8 @@ export async function startServer({ state = {}, env = {} } = {}) {
       });
       return { status: res.status, body: await res.json().catch(() => ({})) };
     },
-    async get(path) {
-      const res = await fetch(base + path);
+    async get(path, headers = {}) {
+      const res = await fetch(base + path, { headers });
       return { status: res.status, body: await res.json().catch(() => ({})) };
     },
     async stop() {
