@@ -28,7 +28,7 @@ const REDIS_KEY = process.env.STATE_KEY || "greenutilitylog:state";
 // `passes` is the access-pass registry (address → pass); `passesInit` records that the
 // one-time grandfathering has run, so turning REQUIRE_PASS on can't silently cut off
 // every existing tester — and can't re-grant a pass an admin has since revoked.
-const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {}, autoPaid: {}, payLog: [], prints: [] };
+const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {}, autoPaid: {}, payLog: [], prints: [], payDays: {} };
 // A fresh copy each time. Spreading EMPTY copies only its top level: every
 // "empty" state then shared EMPTY's own maps, so writing to one wrote to all of
 // them — and to the next "empty" state read from Redis.
@@ -88,6 +88,7 @@ async function loadState() {
 // an in-place change after the noted assignment (push onto a list just assigned)
 // travels with it.
 const dirty = new Map();          // field -> Set of keys, or "*" for the whole field
+const PROCESS_ID = Math.random().toString(36).slice(2, 10);
 const isMap = (v) => v && typeof v === "object" && !Array.isArray(v);
 const note = (field, key) => {
   if (dirty.get(field) === "*") return;
@@ -679,22 +680,24 @@ export const store = {
   // True when state is backed by a durable store (not the ephemeral file).
   isDurable: () => USE_REDIS,
 
-  // False while a durable store failed to load at boot — callers must refuse payouts
-  // until it recovers, so anti-farming state is never bypassed or overwritten.
-  // loaded: the durable state was read, so writing is safe. ready: also the last
-  // save landed — required to PAY, since a payout whose save is lost can be
-  // claimed again after a restart. Other writes (admin actions, pairing, ingest)
-  // only need loaded: they are lost at worst, and an admin must be able to act
-  // while saving is failing.
-  // What each payout WOULD have been at full rates, with its time — the demand the
-  // weekly budget is spread over (budget.js). Two weeks kept, capped in size.
+  // What each payout WOULD have been at full rates — the demand the weekly budget
+  // is spread over (budget.js). One running total per UTC day AND per process:
+  // two processes adding to one shared key during a deploy would overwrite each
+  // other's sums in a merged write, while a key per process merges cleanly.
+  // 14 days kept. The old per-payout list (payLog) is only read until it ages out.
   addPayLog: (full) => {
     const now = Date.now();
-    const log = (Array.isArray(state.payLog) ? state.payLog : []).filter((e) => now - e.t < 14 * 86400000);
-    log.push({ t: now, full: Number(full) || 0 });
-    state.payLog = log.slice(-5000);
+    const day = new Date(now).toISOString().slice(0, 10);
+    if (!isMap(state.payDays)) state.payDays = {};
+    for (const k of Object.keys(state.payDays)) if (now - Date.parse(k.slice(0, 10)) > 14 * 86400000) delete state.payDays[k];
+    if (Array.isArray(state.payLog) && state.payLog.length && now - state.payLog[0].t > 14 * 86400000) {
+      state.payLog = state.payLog.filter((e) => now - e.t < 14 * 86400000);
+    }
+    const key = `${day}|${PROCESS_ID}`;
+    state.payDays[key] = +((Number(state.payDays[key]) || 0) + (Number(full) || 0)).toFixed(4);
     persist();
   },
+  payDays: () => Object.entries(isMap(state.payDays) ? state.payDays : {}).map(([k, sum]) => ({ dayStart: Date.parse(k.slice(0, 10)), sum: Number(sum) || 0 })),
   payLog: () => (Array.isArray(state.payLog) ? state.payLog : []),
   // Photo prints of paid submissions (media.js photoPrint), to spot one meter being
   // photographed for several wallets. 60 days, capped.
@@ -709,6 +712,13 @@ export const store = {
   prints: () => (Array.isArray(state.prints) ? state.prints : []),
   takeOnce,
   releaseOnce,
+  // False while a durable store failed to load at boot — callers must refuse payouts
+  // until it recovers, so anti-farming state is never bypassed or overwritten.
+  // loaded: the durable state was read, so writing is safe. ready: also the last
+  // save landed — required to PAY, since a payout whose save is lost can be
+  // claimed again after a restart. Other writes (admin actions, pairing, ingest)
+  // only need loaded: they are lost at worst, and an admin must be able to act
+  // while saving is failing.
   loaded: () => !loadError,
   saveOk: () => !saveError,
   ready: () => !loadError && !saveError,

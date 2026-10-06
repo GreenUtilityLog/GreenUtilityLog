@@ -26,6 +26,12 @@ de nieuwe app-ID.
 ## Stap 3 — Distributor-wallet (jij)
 - Zet wat **VTHO op mainnet** op de distributor-wallet (betaalt het gas van elke uitbetaling).
 - Voeg hem in VeBetterDAO mainnet toe als **Reward distributor** van de app.
+- Zet in de VeBetterDAO-app-admin de **rewards-pool-functie uit** (met je admin-wallet).
+  Waarom: bij elke nieuwe app staat die aan. Uitbetalingen komen dan alleen uit een apart
+  potje, terwijl de wekelijkse B3TR ernaast binnenkomt. Dan lijkt de pot leeg en wordt
+  niemand betaald. Uitzetten zet alles in één pot; daarna gaat het vanzelf.
+  Laat je hem aan, druk dan na elke ronde op **Move to rewards pool**.
+  `/health` → `rewardBudget.waitingB3TR` laat zien hoeveel B3TR nog naast het potje wacht.
 
 ## Stap 4 — Code voor twee versies (klaar)
 Staat al klaar: de app bouwt een mainnet- en een testnetversie, elk met eigen

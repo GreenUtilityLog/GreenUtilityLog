@@ -14,7 +14,7 @@ import { store } from "./store.js";
 import { putPhoto, getPhotoDataUrl, deletePhoto, photoStoreEnabled } from "./photostore.js";
 import { distributeReward, distributeEcoReward, distributorAddress, chainDiagnostics, moveToRewardsPool, DRY_RUN } from "./reward.js";
 import { signalStatus, passportFor, signalUser, passportVouches } from "./passport.js";
-import { budgetState, scaledAmount, recordPayout, autoClaimAllocation } from "./budget.js";
+import { budgetState, scaledAmount, recordPayout, autoClaimAllocation, autoMoveToRewardsPool } from "./budget.js";
 import { ocrImage, ocrEnabled, ocrProviders } from "./ocr.js";
 import { verifyWalletCertificate, REQUIRE_CERT, CERT_MAX_AGE_MS, certDomainsSeen } from "./auth.js";
 import { checkPhotoAuthenticity, aiPhotoCheckEnabled } from "./authenticity.js";
@@ -781,6 +781,7 @@ app.post("/reward", async (req, res) => {
       amount:   pay.amount,
       receiver: req.body.address,
       source:   "photo",
+      noImpact: !!(v.firstReading || v.nearZero),
     });
     v.markPaid();
     recordPayout(v.amount);
@@ -1210,6 +1211,7 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
       receiver: addr,
       // "push" for a reader, "enode" for the API route; either way no photo exists.
       source:   latest.source || "reader",
+      noImpact: !!(v.firstReading || v.nearZero),
     });
     v.markPaid();
     paid = true;
@@ -1518,8 +1520,13 @@ if (NETWORK === "mainnet") {
 
 // Collect each ended round's allocation into the pot (budget.js). Hourly, and once
 // shortly after start so a service that slept through the round end catches up.
-setTimeout(() => { autoClaimAllocation().catch((e) => console.warn("[budget] auto-claim:", e?.message || e)); }, 30000).unref();
-setInterval(() => { autoClaimAllocation().catch((e) => console.warn("[budget] auto-claim:", e?.message || e)); }, 60 * 60 * 1000).unref();
+// Then move what landed outside the payout bucket into it (see budget.js).
+const budgetHousekeeping = () => autoClaimAllocation()
+  .catch((e) => console.warn("[budget] auto-claim:", e?.message || e))
+  .then(() => autoMoveToRewardsPool())
+  .catch((e) => console.warn("[budget] auto-move:", e?.message || e));
+setTimeout(budgetHousekeeping, 30000).unref();
+setInterval(budgetHousekeeping, 60 * 60 * 1000).unref();
 
 // Last in line: turns a thrown/rejected handler into a plain 500, without the
 // error's text (which can carry node or provider internals) going to the client.

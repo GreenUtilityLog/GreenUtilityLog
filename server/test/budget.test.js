@@ -48,8 +48,10 @@ describe("a busy week: everyone gets the same smaller share", () => {
   });
 
   test("and records the full-rate amount as demand, not the scaled one", async () => {
-    const st = await srv.waitForState((s) => (s.payLog || []).length === 71);
-    assert.equal(st.payLog.at(-1).full, 0.2);
+    // New payouts are summed per day (payDays) instead of one row each.
+    const sum = (s) => Object.values(s.payDays || {}).reduce((a, n) => a + n, 0);
+    const st = await srv.waitForState((s) => sum(s) > 0);
+    assert.equal(Math.round(sum(st) * 100) / 100, 0.2);
   });
 });
 
