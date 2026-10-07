@@ -2433,6 +2433,40 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
   const scaleMismatch = !!latest?.canRebaseline && gapKwh != null
     && gapKwh > USAGE_RANGES.electric.max * MAX_SPAN_DAYS;
   const busyAny = sending || !!autoBusy;
+  // "today 19:13", "yesterday 08:52", "tomorrow 15:20", else "8 Oct 15:20".
+  // Split for the timeline: the day on one line, the time under it.
+  const dayTime = (ts) => {
+    const w = fmtWhen(ts), t = new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return { day: w.slice(0, w.length - t.length).trim(), time: t };
+  };
+  const fmtWhen = (ts) => {
+    const d = new Date(ts), now = new Date();
+    const dayDiff = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000);
+    const t = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    if (dayDiff === 0) return `today ${t}`;
+    if (dayDiff === -1) return `yesterday ${t}`;
+    if (dayDiff === 1) return `tomorrow ${t}`;
+    return `${d.toLocaleDateString([], { day: "numeric", month: "short" })} ${t}`;
+  };
+  const lastPayout = latest?.lastPayout || null;
+  const paidThis = !!(lastPayout && rd && Number(lastPayout.reading) === Number(rd.reading));
+  // A reading must be under 48 h old to be paid; older means the reader stopped.
+  const readerFresh = !!(rd?.at && Date.now() - rd.at < 48 * 3600e3);
+  // When the next reward can come: the server's own answer when we have it,
+  // else the last payout plus the cooldown.
+  const nextAt = Object.prototype.hasOwnProperty.call(SERVER_NEXT_AT, "electric")
+    ? (Number(SERVER_NEXT_AT.electric) || 0)
+    : (lastPayout?.at ? lastPayout.at + RULES.cooldownMs : 0);
+  const timeline = (() => {
+    const steps = [];
+    if (rd?.at) steps.push({ at: rd.at, ...dayTime(rd.at), title: "Reading received", sub: `${rd.reading} kWh from your reader`, done: true });
+    if (lastPayout?.at) steps.push({ at: lastPayout.at, ...dayTime(lastPayout.at), title: `Paid +${Number(lastPayout.amount).toFixed(2)} B3TR`, sub: "automatically, on VeChain", done: true });
+    steps.sort((a, b) => a.at - b.at);
+    steps.push(nextAt > Date.now()
+      ? { ...dayTime(nextAt), title: "Next reward possible", sub: "your reader sends at the first hour after", done: false }
+      : { day: "", time: "now", title: "Next reward possible", sub: paidThis || !rd ? "paid as soon as the next reading arrives" : "this reading can be paid — it goes automatically", done: false });
+    return steps;
+  })();
   const box = { margin: "0 14px 12px", padding: 12, background: T.ecoBg || T.waterBg, border: `1px solid ${T.ecoBorder || T.waterBorder}`, borderRadius: 8 };
   const btn = (bg) => ({ padding: "9px 12px", fontSize: 12, fontWeight: 700, color: "#fff", background: bg, border: "none", borderRadius: 6, cursor: "pointer" });
   const mono = { fontFamily: "'SF Mono',Menlo,'Courier New',monospace" };
@@ -2449,9 +2483,11 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
 
       {open && (
         <div style={{ marginTop: 10 }}>
-          <div style={{ fontSize: 11, color: T.textSoft, lineHeight: 1.6, marginBottom: 10 }}>
-            Connect a P1 reader (e.g. HomeWizard) and your meter total is sent in automatically — no photos, no typing. Once it arrives it shows above, ready to submit with one tap.
-          </div>
+          {rd == null && (
+            <div style={{ fontSize: 11, color: T.textSoft, lineHeight: 1.6, marginBottom: 10 }}>
+              Connect a P1 reader (e.g. HomeWizard) and your meter total is sent in automatically — no photos, no typing — and paid as it arrives, at most once a day.
+            </div>
+          )}
 
           {!wallet ? (
             <div style={{ fontSize: 11, color: T.textSoft }}>Connect your wallet to submit a reading.</div>
@@ -2459,28 +2495,56 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
             /* A real reader (P1 / Enode) pushed a reading — claim it with one tap, no
                photo needed (the device token binds it to your wallet). */
             <>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "10px 12px", background: T.bg, border: `1px solid ${T.border || T.waterBorder}`, borderRadius: 8 }}>
-              <div>
-                <div style={{ fontSize:10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft }}>Auto-received</div>
-                <div style={{ ...mono, fontSize: 15, fontWeight: 800, color: T.eco || T.text }}>{rd.reading} kWh</div>
-                {rd.source && <div style={{ fontSize:10, color: T.textSoft }}>via {rd.source}{rd.at ? ` · ${new Date(rd.at).toLocaleString()}` : ""}</div>}
-              </div>
-              {latest?.lastPayout && Number(latest.lastPayout.reading) === Number(rd.reading) ? (
-                // The server already paid this one as it arrived: say so, instead of a
-                // button that could only answer "cooldown active".
-                <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: T.green3 || T.text }}>✓ Paid +{Number(latest.lastPayout.amount).toFixed(2)} B3TR</div>
-                  <div style={{ fontSize: 10, color: T.textSoft }}>automatically · {new Date(latest.lastPayout.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+            {/* Status at a glance: is the reader alive, what arrived, what was paid,
+                and when the next reward can come — the questions people actually
+                asked when a day went missing. */}
+            <div style={{ padding: "12px", background: T.bg, border: `1px solid ${T.border || T.waterBorder}`, borderRadius: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, fontWeight: 800, color: T.text }}>
+                  <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: "50%", background: readerFresh ? T.green3 : T.electric, flexShrink: 0 }} />
+                  {rd.source === "enode" ? "Enode" : "P1 reader"}
                 </div>
-              ) : (
-                <button disabled={busyAny} onClick={() => onAutoSubmit?.()} style={{ ...btn(T.eco || T.electric), whiteSpace: "nowrap", opacity: busyAny ? .6 : 1 }}>
+                <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".6px", padding: "3px 8px", borderRadius: 999, color: readerFresh ? T.green3 : T.electric, background: readerFresh ? (T.green5 || T.bgAlt) : (T.electricBg || T.bgAlt) }}>
+                  {readerFresh ? "Connected" : "No new reading"}
+                </span>
+              </div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 8 }}>
+                <span style={{ ...mono, fontSize: 22, fontWeight: 800, color: T.text }}>{rd.reading}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: T.textSoft }}>kWh</span>
+              </div>
+              <div style={{ fontSize: 10.5, color: T.textSoft, marginTop: 2 }}>
+                received {rd.at ? fmtWhen(rd.at) : "—"}{readerFresh ? "" : " — check that the computer with the script (or Home Assistant) is on"}
+              </div>
+            </div>
+
+            <div style={{ marginTop: 8, padding: "12px", background: T.bg, border: `1px solid ${T.border || T.waterBorder}`, borderRadius: 8 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft, marginBottom: 8 }}>Timeline</div>
+              {timeline.map((s, i) => (
+                <div key={i} style={{ display: "grid", gridTemplateColumns: "72px 14px 1fr", gap: 8, alignItems: "stretch", minHeight: i === timeline.length - 1 ? 0 : 40 }}>
+                  <div style={{ paddingTop: 1 }}>
+                    {s.day && <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".4px", color: T.textSoft }}>{s.day}</div>}
+                    <div style={{ ...mono, fontSize: 12, fontWeight: 700, color: T.textMid, whiteSpace: "nowrap" }}>{s.time}</div>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                    <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: "50%", boxSizing: "border-box", marginTop: 3, flexShrink: 0, background: s.done ? (T.green3 || T.eco) : T.bg, border: `2px solid ${T.green3 || T.eco}` }} />
+                    {i < timeline.length - 1 && <span aria-hidden="true" style={{ flex: 1, width: 2, background: T.border || T.waterBorder, marginTop: 2 }} />}
+                  </div>
+                  <div style={{ paddingBottom: i < timeline.length - 1 ? 10 : 0 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 800, color: s.done ? T.text : T.textMid }}>{s.title}</div>
+                    <div style={{ fontSize: 10.5, color: T.textSoft, marginTop: 1 }}>{s.sub}</div>
+                  </div>
+                </div>
+              ))}
+              {!paidThis && (
+                <button disabled={busyAny} onClick={() => onAutoSubmit?.()} style={{ ...btn(T.eco || T.electric), width: "100%", marginTop: 10, opacity: busyAny ? .6 : 1 }}>
                   {busyAny ? "Submitting…" : latest?.autoClaimOnPush ? "Claim now" : "Submit — no photo"}
                 </button>
               )}
             </div>
-            {latest?.autoClaimOnPush && (
-              <div style={{ fontSize: 10, color: T.textSoft, lineHeight: 1.5, marginTop: 6 }}>
-                Readings from your reader are paid automatically when they arrive (at most once a day). No need to open the app.
+
+            {nextAt > Date.now() && (
+              <div style={{ marginTop: 8, padding: "10px 12px", fontSize: 11, color: T.text, lineHeight: 1.55, background: T.green5 || T.bgAlt, border: `1px solid ${T.green4 || T.border}`, borderRadius: 8 }}>
+                🖥️ Keep the computer with the script (or Home Assistant) on around <b>{fmtWhen(nextAt)}</b>. If it's off then, the reading goes out within the hour after you switch it on.
               </div>
             )}
             {/* Shown only when the gap is larger than ANY span could ever pay, which
