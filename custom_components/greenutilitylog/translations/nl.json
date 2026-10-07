@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "GreenUtilityLog",
-        "description": "Stuur je meterstand automatisch door, zodat je nooit meer hoeft te fotograferen.\n\nJe token haal je in de app: Submit → Have a P1 reader? → Automatic setup → “Get my device token”. Doe eerst één foto-inzending — dat zet je startpunt.",
+        "description": "Stuur je meterstand automatisch door, zodat je nooit meer hoeft te fotograferen.\n\nJe token haal je in de app: Meter → Have a P1 reader? → Automatic setup → “Get my device token”. Doe eerst één foto-inzending — dat zet je startpunt.",
         "data": {
           "token": "Device-token",
           "source_entity": "Meterstand (cumulatief kWh)",

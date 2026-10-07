@@ -13,7 +13,7 @@ scripts, no YAML**. Install it, paste your token, press Start.
 
 1. In the app, do **one photo submission** first — that sets your meter's baseline
    (needed once).
-2. In the app: **Submit → Electricity → ⚙️ Automatic setup → "Get my device token"**.
+2. In the app: **Meter → ⚙️ Automatic setup → "Get my device token"**.
    Copy it.
 3. In the add-on's **Configuration** tab, paste it into **token**. Press **Save**,
    then **Start**.

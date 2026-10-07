@@ -21,7 +21,7 @@ options:
   read_field: ""
   ingest_url: ""
 schema:
-  # Device token from the app: Submit → Electricity → Automatic setup.
+  # Device token from the app: Meter → Automatic setup.
   token: str
   # Seconds between pushes (min 60, max once a minute is plenty for a meter).
   interval_sec: int(60,86400)

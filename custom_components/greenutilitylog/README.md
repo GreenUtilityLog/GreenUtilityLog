@@ -15,7 +15,7 @@ meter again. Home Assistant already reads your meter — whatever your country u
 
 1. In the app, do **one photo submission** first — that sets your meter's starting
    point. Automatic readings can't pay out without it.
-2. In the app: **Submit → ⚡ Have a P1 reader? → ⚙️ Automatic setup → “Get my device
+2. In the app: **Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → “Get my device
    token”**. Copy it.
 3. In the integration dialog: paste the token, pick the sensor holding your
    **cumulative kWh** (the value that keeps counting up — not current power), and
