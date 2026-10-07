@@ -1251,7 +1251,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .intro-dots{display:flex;gap:6px;margin-top:32px;}
 .intro-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.3);transition:all .3s;cursor:pointer;}
 .intro-dot.active{width:24px;background:#4CAF50;border-radius:3px;}
-.intro-btn{margin-top:40px;width:100%;max-width:280px;background:#2E7D32;border:none;border-radius:6px;padding:16px;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;font-weight:800;cursor:pointer;transition:all .2s;text-transform:uppercase;letter-spacing:1.2px;box-shadow:0 8px 24px rgba(76,175,80,0.3);}
+.intro-btn{margin-top:40px;width:100%;max-width:280px;background:#264d3a;border:none;border-radius:6px;padding:16px;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;font-weight:800;cursor:pointer;transition:all .2s;text-transform:none;letter-spacing:0;}
 .intro-btn:hover{background:#45a049;box-shadow:0 12px 32px rgba(76,175,80,0.4);transform:translateY(-2px);}
 .intro-skip{margin-top:14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.6);cursor:pointer;background:none;border:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
 .intro-skip:hover{color:rgba(255,255,255,0.9);}
@@ -1260,12 +1260,12 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 
 .hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:${T.white};border-bottom:1px solid ${T.border};position:sticky;top:0;z-index:20;transition:background .25s;gap:16px;}
 .logo{display:flex;align-items:center;gap:10px;flex:1;min-width:0;}
-.logo-mark{width:30px;height:30px;border-radius:4px;background:linear-gradient(135deg,${T.green1},${T.green2});display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;box-shadow:0 2px 8px ${T.shadow};font-weight:700;font-size:11px;}
+.logo-mark{width:30px;height:30px;border-radius:6px;background:linear-gradient(135deg,${T.green1},${T.green2});display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;box-shadow:0 2px 8px ${T.shadow};font-weight:700;font-size:11px;}
 .logo-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;font-weight:800;color:${T.text};letter-spacing:-0.5px;line-height:1;}
 .hdr-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;}
-.dark-toggle{width:40px;height:40px;border-radius:3px;background:transparent;border:1px solid ${T.border};display:flex;align-items:center;justify-content:center;cursor:pointer;color:${T.textMid};transition:all .15s;flex-shrink:0;font-size:14px;}
+.dark-toggle{width:40px;height:40px;border-radius:6px;background:transparent;border:1px solid ${T.border};display:flex;align-items:center;justify-content:center;cursor:pointer;color:${T.textMid};transition:all .15s;flex-shrink:0;font-size:14px;}
 .dark-toggle:hover{border-color:${T.green3};color:${T.green3};}
-.wallet-pill{display:flex;align-items:center;gap:6px;background:transparent;border:1px solid ${T.border};border-radius:3px;padding:5px 9px;cursor:pointer;transition:all .15s;flex-shrink:0;font-size:11px;font-weight:600;}
+.wallet-pill{display:flex;align-items:center;gap:6px;background:transparent;border:1px solid ${T.border};border-radius:6px;padding:5px 9px;cursor:pointer;transition:all .15s;flex-shrink:0;font-size:11px;font-weight:600;}
 .wallet-pill:hover,.wallet-pill.connected{border-color:${T.green3};color:${T.green3};}
 .wdot{width:5px;height:5px;border-radius:50%;background:${T.green3};animation:wpulse 2.5s infinite;flex-shrink:0;}
 .wdot.off{background:${T.textSoft};animation:none;}
@@ -1276,30 +1276,30 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
    AFTER the rules it overrides — placed before them, it lost and did nothing. */
 @media (max-width:430px){.hdr{padding:10px 12px;gap:8px;}.logo{gap:8px;}.logo-name{white-space:normal;font-size:14px;letter-spacing:-0.4px;line-height:1.1;}.hdr-actions{gap:6px;}.dark-toggle{width:36px;height:36px;}.hdr-online.is-online{display:none!important;}.wallet-pill{padding:5px 7px;}}
 
-.hero{margin:16px 14px 0;border-radius:5px;border:1px solid ${T.border};background:${T.card};padding:22px;position:relative;overflow:hidden;box-shadow:0 2px 6px ${T.shadow};}
-.hero-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2.4px;color:${T.textSoft};margin-bottom:12px;}
-.hero-amount{font-family:'SF Mono',Menlo,'Courier New',monospace;font-size:48px;font-weight:500;color:${T.text};line-height:1;letter-spacing:-1.5px;}
-.hero-amount span{font-size:14px;font-weight:400;color:${T.textSoft};margin-left:8px;letter-spacing:0;}
+.hero{margin:16px 14px 0;border-radius:10px;border:1px solid ${T.border};background:${T.card};padding:22px;position:relative;overflow:hidden;}
+.hero-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${T.textSoft};margin-bottom:12px;}
+.hero-amount{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:44px;font-weight:800;color:${T.text};line-height:1;letter-spacing:-1px;font-variant-numeric:tabular-nums;}
+.hero-amount span{font-size:14px;font-weight:700;color:${T.textSoft};margin-left:8px;letter-spacing:0;}
 .hero-usd{font-size:10px;color:${T.textSoft};margin-top:8px;}
 .hero-chips{display:flex;gap:0;margin-top:20px;padding-top:18px;border-top:1px solid ${T.border};}
 .hchip{flex:1;padding-right:18px;margin-right:18px;border-right:1px solid ${T.border};}
 .hchip:last-child{border-right:none;margin-right:0;padding-right:0;}
-.hchip-val{font-size:20px;font-weight:600;color:${T.text};font-family:'SF Mono',Menlo,'Courier New',monospace;line-height:1;}
-.hchip-key{white-space:nowrap;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:${T.textSoft};margin-top:5px;}
+.hchip-val{font-size:20px;font-weight:800;color:${T.text};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1;font-variant-numeric:tabular-nums;}
+.hchip-key{white-space:nowrap;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${T.textSoft};margin-top:5px;}
 
 .sec{display:flex;align-items:center;gap:12px;margin:24px 14px 14px;padding:0;}
 .sec-line{flex:1;height:1px;background:${T.border};}
-.sec-txt{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:2.8px;color:${T.textSoft};}
+.sec-txt{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:${T.textSoft};}
 
 .util-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 14px 16px;}
-.ucard{background:${T.card};border:1px solid ${T.border};border-radius:5px;padding:14px;transition:all .2s;cursor:pointer;box-shadow:0 1px 3px ${T.shadow};}
-.ucard:hover{border-color:${T.green3};box-shadow:0 4px 12px ${T.shadowMd};}
-.ucard-icon{width:32px;height:32px;border-radius:4px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;color:${T.green2};font-size:16px;}
-.ucard-name{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${T.text};}
+.ucard{background:${T.card};border:1px solid ${T.border};border-radius:10px;padding:14px;transition:all .2s;cursor:pointer;}
+.ucard:hover{border-color:${T.green3};}
+.ucard-icon{width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;color:${T.green2};font-size:16px;}
+.ucard-name{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${T.text};}
 .ucard-reads{font-size:10px;color:${T.textSoft};margin-top:4px;font-weight:500;}
-.ucard-b3tr{font-size:16px;font-weight:600;margin-top:9px;font-family:'SF Mono',Menlo,'Courier New',monospace;}
+.ucard-b3tr{font-size:16px;font-weight:800;margin-top:9px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-variant-numeric:tabular-nums;}
 
-.calendar{margin:0 14px 14px;background:${T.card};border:1px solid ${T.border};border-radius:4px;padding:16px;}
+.calendar{margin:0 14px 14px;background:${T.card};border:1px solid ${T.border};border-radius:10px;padding:16px;}
 .cal-hdr{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:13px;}
 .cal-month{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:${T.text};}
 .cal-streak{font-size:11px;font-weight:600;color:${T.green3};display:flex;align-items:center;gap:5px;}
@@ -1307,32 +1307,32 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .cal-days-hdr{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px;}
 .cal-day-name{text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${T.textSoft};}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
-.cal-cell{aspect-ratio:1;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:${T.textSoft};background:${T.bgAlt};}
+.cal-cell{aspect-ratio:1;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:${T.textSoft};background:${T.bgAlt};}
 .cal-cell.has-sub{background:${T.green1};color:#fff;font-weight:600;}
 .cal-cell.today{outline:1.5px solid ${T.green3};outline-offset:-1px;}
 .cal-cell.empty{opacity:0;}
 
-.hitem{margin:0 14px 6px;background:${T.card};border:1px solid ${T.border};border-radius:5px;padding:13px 14px;display:flex;align-items:center;gap:12px;transition:all .2s;box-shadow:0 1px 3px ${T.shadow};}
-.hitem:hover{border-color:${T.green3};box-shadow:0 4px 12px ${T.shadowMd};}
-.hicon{width:32px;height:32px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.hitem{margin:0 14px 6px;background:${T.card};border:1px solid ${T.border};border-radius:10px;padding:13px 14px;display:flex;align-items:center;gap:12px;transition:all .2s;}
+.hitem:hover{border-color:${T.green3};}
+.hicon{width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
 .hinfo{flex:1;min-width:0;}
-.htitle{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:${T.text};}
-.hdate{font-size:10px;color:${T.textSoft};font-family:'SF Mono',Menlo,'Courier New',monospace;margin-top:2px;}
+.htitle{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${T.text};}
+.hdate{font-size:10px;color:${T.textSoft};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;margin-top:2px;}
 .hright{text-align:right;flex-shrink:0;}
-.hb3tr{font-size:14px;font-weight:500;color:${T.green1};font-family:'SF Mono',Menlo,'Courier New',monospace;}
-.hstatus{font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;padding:1px 5px;border-radius:1px;margin-top:4px;display:inline-block;}
+.hb3tr{font-size:14px;font-weight:800;color:${T.green1};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-variant-numeric:tabular-nums;}
+.hstatus{font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:1px 5px;border-radius:999px;margin-top:4px;display:inline-block;}
 .s-confirmed{background:${T.green5};color:${T.green2};border:1px solid ${T.green4};}
 
 .sub-header{padding:20px 18px 10px;}
 .sub-title{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:22px;font-weight:800;color:${T.text};letter-spacing:-0.4px;}
 .sub-sub{font-size:11px;color:${T.textSoft};margin-top:4px;text-transform:uppercase;letter-spacing:.8px;}
-.util-selector{display:grid;grid-template-columns:repeat(${UTILS.length},1fr);margin:0 14px 14px;border:1px solid ${T.border};border-radius:4px;overflow:hidden;}
-.utab{display:flex;flex-direction:column;align-items:center;gap:3px;background:${T.card};border-right:1px solid ${T.border};padding:10px 4px;cursor:pointer;transition:background .12s,color .12s;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${T.textSoft};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;border-radius:0;}
+.util-selector{display:grid;grid-template-columns:repeat(${UTILS.length},1fr);margin:0 14px 14px;border:1px solid ${T.border};border-radius:6px;overflow:hidden;}
+.utab{display:flex;flex-direction:column;align-items:center;gap:3px;background:${T.card};border-right:1px solid ${T.border};padding:10px 4px;cursor:pointer;transition:background .12s,color .12s;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${T.textSoft};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;border-radius:0;}
 .utab:last-child{border-right:none;}
 .utab:hover,.utab.active{background:var(--ubg);color:var(--uc);}
 .utab-icon{font-size:18px;}
 
-.verify-zone{margin:0 14px 12px;border-radius:4px;overflow:hidden;border:1px solid ${T.border};background:${T.card};transition:border-color .15s;cursor:pointer;}
+.verify-zone{margin:0 14px 12px;border-radius:10px;overflow:hidden;border:1px solid ${T.border};background:${T.card};transition:border-color .15s;cursor:pointer;}
 .verify-zone:hover{border-color:${T.green3};}
 .verify-zone.verified{background:${T.green5};}
 .verify-zone.error{border-color:${T.gas};background:${T.gasBg};}
@@ -1340,76 +1340,76 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .vz-icon{font-size:26px;margin-bottom:2px;}
 .vz-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${T.text};}
 .vz-sub{font-size:10px;color:${T.textSoft};}
-.vz-meter{font-size:10px;font-weight:700;font-family:'SF Mono',Menlo,'Courier New',monospace;color:${T.green1};background:${T.bgAlt};border:1px solid ${T.border};border-radius:3px;padding:2px 8px;letter-spacing:.4px;}
+.vz-meter{font-size:10px;font-weight:700;font-family:'SF Mono',Menlo,'Courier New',monospace;color:${T.green1};background:${T.bgAlt};border:1px solid ${T.border};border-radius:6px;padding:2px 8px;letter-spacing:.4px;}
 .vz-verifying{display:flex;flex-direction:column;align-items:center;gap:12px;padding:26px;}
 .ai-ring{width:36px;height:36px;border-radius:50%;border:2px solid ${T.border};border-top-color:${T.green3};animation:spin .8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg)}}
 .ai-steps{display:flex;flex-direction:column;gap:2px;width:100%;}
-.ai-step{display:flex;align-items:center;gap:8px;font-size:10px;font-weight:500;color:${T.textSoft};padding:4px 10px;border-radius:2px;transition:color .2s;}
+.ai-step{display:flex;align-items:center;gap:8px;font-size:10px;font-weight:500;color:${T.textSoft};padding:4px 10px;border-radius:6px;transition:color .2s;}
 .ai-step.done{color:${T.green3};}
 .ai-step.active{color:${T.text};font-weight:700;}
 .ai-step-icon{font-size:10px;width:12px;text-align:center;}
 .vz-result{padding:14px 16px;}
 .vr-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
-.vr-badge{display:flex;align-items:center;gap:4px;background:transparent;border:1px solid ${T.green3};border-radius:2px;padding:3px 7px;font-size:10px;font-weight:700;color:${T.green3};text-transform:uppercase;letter-spacing:1px;}
-.vr-confidence{font-size:10px;color:${T.textSoft};margin-left:auto;font-family:'SF Mono',Menlo,'Courier New',monospace;}
+.vr-badge{display:flex;align-items:center;gap:4px;background:transparent;border:1px solid ${T.green3};border-radius:999px;padding:3px 7px;font-size:10px;font-weight:700;color:${T.green3};text-transform:uppercase;letter-spacing:.6px;}
+.vr-confidence{font-size:10px;color:${T.textSoft};margin-left:auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
 .vr-summary{font-size:11px;color:${T.textMid};line-height:1.55;}
 .vr-retry{font-size:10px;font-weight:700;color:${T.green3};margin-top:7px;cursor:pointer;text-transform:uppercase;letter-spacing:.8px;}
-.vz-photo{width:100%;max-height:160px;object-fit:cover;border-radius:3px;border:1px solid ${T.border};margin-bottom:10px;display:block;}
+.vz-photo{width:100%;max-height:160px;object-fit:cover;border-radius:6px;border:1px solid ${T.border};margin-bottom:10px;display:block;}
 .vz-photo.sm{max-height:90px;}
 
-.form-card{margin:0 14px 14px;background:${T.card};border:1px solid ${T.border};border-radius:5px;padding:16px;box-shadow:0 2px 6px ${T.shadow};}
+.form-card{margin:0 14px 14px;background:${T.card};border:1px solid ${T.border};border-radius:10px;padding:16px;}
 .irow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
 .igroup{display:flex;flex-direction:column;gap:4px;}
-.ilabel{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:${T.textSoft};display:flex;align-items:center;gap:6px;}
-.utag{border-radius:1px;padding:1px 4px;font-size:9px;font-weight:700;background:var(--ubg);color:var(--uc);border:1px solid var(--uborder);text-transform:uppercase;letter-spacing:.6px;}
-.ifield{width:100%;background:${T.bg};border:1px solid ${T.border};border-radius:3px;padding:9px 10px;color:${T.text};font-family:'SF Mono',Menlo,'Courier New',monospace;font-size:15px;outline:none;transition:border-color .15s;}
+.ilabel{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${T.textSoft};display:flex;align-items:center;gap:6px;}
+.utag{border-radius:4px;padding:1px 4px;font-size:9px;font-weight:700;background:var(--ubg);color:var(--uc);border:1px solid var(--uborder);text-transform:uppercase;letter-spacing:.6px;}
+.ifield{width:100%;background:${T.bg};border:1px solid ${T.border};border-radius:6px;padding:9px 10px;color:${T.text};font-family:'SF Mono',Menlo,'Courier New',monospace;font-size:15px;outline:none;transition:border-color .15s;}
 .ifield:focus{border-color:var(--uc,${T.green3});}
 .ifield::placeholder{color:${T.textSoft};opacity:.5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;}
-.reward-preview{background:${T.bgAlt};border:1px solid ${T.border};border-left:3px solid ${T.green3};border-radius:3px;padding:12px 13px;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
-.rp-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:${T.textSoft};}
-.rp-rate{font-size:10px;color:${T.textSoft};margin-top:3px;font-family:'SF Mono',Menlo,'Courier New',monospace;}
-.rp-val{font-size:28px;font-weight:500;color:${T.text};font-family:'SF Mono',Menlo,'Courier New',monospace;letter-spacing:-0.5px;}
-.rp-b3tr{font-size:10px;color:${T.textSoft};text-transform:uppercase;letter-spacing:1.4px;}
-.sbtn{width:100%;background:linear-gradient(135deg,${T.green1},${T.green2});border:none;border-radius:4px;padding:14px;color:${T.bg};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;letter-spacing:1px;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 12px rgba(26,51,38,0.2);}
-.sbtn:hover:not(:disabled){box-shadow:0 6px 20px rgba(26,51,38,0.3);transform:translateY(-1px);}
+.reward-preview{background:${T.bgAlt};border:1px solid ${T.border};border-left:1px solid ${T.border};border-radius:6px;padding:12px 13px;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.rp-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${T.textSoft};}
+.rp-rate{font-size:10px;color:${T.textSoft};margin-top:3px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
+.rp-val{font-size:28px;font-weight:800;color:${T.text};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;letter-spacing:-0.5px;font-variant-numeric:tabular-nums;}
+.rp-b3tr{font-size:10px;color:${T.textSoft};text-transform:uppercase;letter-spacing:.8px;}
+.sbtn{width:100%;background:${T.green2};border:none;border-radius:6px;padding:14px;color:${T === DARK ? T.bg : "#fff"};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;font-weight:800;cursor:pointer;transition:all .2s;letter-spacing:0;text-transform:none;display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;}
+.sbtn:hover:not(:disabled){box-shadow:none;transform:none;filter:brightness(1.08);}
 .sbtn:disabled{opacity:.4;cursor:not-allowed;}
 
 .page-title{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:22px;font-weight:800;color:${T.text};padding:20px 18px 4px;letter-spacing:-0.4px;}
-.chart-card{margin:0 14px 10px;background:${T.card};border:1px solid ${T.border};border-radius:5px;padding:16px;box-shadow:0 2px 6px ${T.shadow};}
+.chart-card{margin:0 14px 10px;background:${T.card};border:1px solid ${T.border};border-radius:10px;padding:16px;}
 .chart-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;}
-.chart-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:${T.text};}
+.chart-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${T.text};}
 .chart-bars{display:flex;align-items:flex-end;gap:5px;height:68px;}
 .chart-bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;}
-.chart-bar{width:100%;border-radius:1px 1px 0 0;min-height:3px;transition:all .3s;cursor:pointer;}
+.chart-bar{width:100%;border-radius:3px 3px 0 0;min-height:3px;transition:all .3s;cursor:pointer;}
 .chart-bar:hover{filter:brightness(1.2);}
-.chart-val{font-size:10px;font-family:'SF Mono',Menlo,'Courier New',monospace;color:${T.textSoft};text-align:center;}
+.chart-val{font-size:10px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:${T.textSoft};text-align:center;}
 .chart-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:${T.textSoft};text-align:center;}
 
-.lb-hero{margin:14px 14px 0;border-radius:4px;border:1px solid ${T.border};border-left:3px solid #7c3aed;background:${T.card};padding:20px;}
-.lb-hero-rank{font-family:'SF Mono',Menlo,'Courier New',monospace;font-size:52px;font-weight:500;color:${T.text};line-height:1;letter-spacing:-2px;}
-.lb-item{margin:0 14px 6px;background:${T.card};border:1px solid ${T.border};border-radius:5px;padding:12px 14px;display:flex;align-items:center;gap:11px;transition:all .2s;box-shadow:0 1px 3px ${T.shadow};}
-.lb-item:hover{border-color:${T.green3};box-shadow:0 4px 12px ${T.shadowMd};}
-.lb-item.me{border-left:3px solid ${T.green3};}
-.lb-rank{font-family:'SF Mono',Menlo,'Courier New',monospace;font-size:15px;font-weight:500;color:${T.textSoft};width:22px;text-align:center;flex-shrink:0;}
-.lb-name{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:${T.text};display:flex;align-items:center;gap:6px;}
-.lb-b3tr{font-size:13px;font-weight:500;color:${T.green1};font-family:'SF Mono',Menlo,'Courier New',monospace;}
+.lb-hero{margin:14px 14px 0;border-radius:10px;border:1px solid ${T.border};border-left:1px solid ${T.border};background:${T.card};padding:20px;}
+.lb-hero-rank{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:48px;font-weight:800;color:${T.text};line-height:1;letter-spacing:-2px;font-variant-numeric:tabular-nums;}
+.lb-item{margin:0 14px 6px;background:${T.card};border:1px solid ${T.border};border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:11px;transition:all .2s;}
+.lb-item:hover{border-color:${T.green3};}
+.lb-item.me{border-left:1px solid ${T.green3};border-color:${T.green3};}
+.lb-rank{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;font-weight:700;color:${T.textSoft};width:22px;text-align:center;flex-shrink:0;font-variant-numeric:tabular-nums;}
+.lb-name{font-size:12.5px;font-weight:700;text-transform:none;letter-spacing:0;color:${T.text};display:flex;align-items:center;gap:6px;}
+.lb-b3tr{font-size:13px;font-weight:800;color:${T.green1};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-variant-numeric:tabular-nums;}
 
-.profile-hero{margin:14px;border:1px solid ${T.border};border-left:3px solid ${T.green3};border-radius:4px;background:${T.card};padding:20px;}
+.profile-hero{margin:0 14px 14px;border:1px solid ${T.border};border-left:1px solid ${T.border};border-radius:10px;background:${T.card};padding:20px;}
 .pname{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:20px;font-weight:800;color:${T.text};letter-spacing:-0.4px;}
 .pstat-row{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin:0 14px 14px;}
-.pstat{background:${T.card};border:1px solid ${T.border};border-radius:4px;padding:13px;text-align:center;}
-.pstat-val{font-size:22px;font-weight:500;color:${T.text};font-family:'SF Mono',Menlo,'Courier New',monospace;letter-spacing:-0.5px;}
-.pstat-key{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:${T.textSoft};margin-top:3px;}
+.pstat{background:${T.card};border:1px solid ${T.border};border-radius:10px;padding:13px;text-align:center;}
+.pstat-val{font-size:22px;font-weight:800;color:${T.text};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;letter-spacing:-0.5px;font-variant-numeric:tabular-nums;}
+.pstat-key{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:${T.textSoft};margin-top:3px;}
 .toggle{width:34px;height:19px;border-radius:10px;background:${T.border};border:none;cursor:pointer;position:relative;transition:background .18s;flex-shrink:0;}
 .toggle.on{background:${T.green3};}
 .toggle-dot{position:absolute;top:3px;left:3px;width:13px;height:13px;border-radius:50%;background:#fff;transition:transform .16s;box-shadow:0 1px 2px rgba(0,0,0,.2);}
 .toggle.on .toggle-dot{transform:translateX(15px);}
-.setting-row{margin:0 14px 5px;background:${T.card};border:1px solid ${T.border};border-radius:4px;padding:11px 13px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:border-color .15s;}
+.setting-row{margin:0 14px 5px;background:${T.card};border:1px solid ${T.border};border-radius:10px;padding:11px 13px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:border-color .15s;}
 .setting-row:hover{border-color:${T.green3};}
 .sr-left{display:flex;align-items:center;gap:10px;}
-.sr-icon{width:28px;height:28px;border-radius:3px;background:${T.bgAlt};display:flex;align-items:center;justify-content:center;font-size:13px;border:1px solid ${T.border};}
-.sr-label{font-size:12px;font-weight:600;color:${T.text};}
+.sr-icon{width:28px;height:28px;border-radius:6px;background:${T.bgAlt};display:flex;align-items:center;justify-content:center;font-size:13px;border:1px solid ${T.border};}
+.sr-label{font-size:13px;font-weight:700;color:${T.text};}
 .sr-sub{font-size:10px;color:${T.textSoft};margin-top:1px;}
 .sr-right{display:flex;align-items:center;gap:6px;}
 
@@ -1418,22 +1418,22 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .nitem.active{color:${T.green2};}
 .nitem.active::before{content:'';position:absolute;top:-2px;left:50%;transform:translateX(-50%);width:20px;height:2px;background:${T.green3};border-radius:1px;}
 .nicon{font-size:17px;width:30px;height:26px;display:flex;align-items:center;justify-content:center;color:inherit;}
-.nlabel{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;}
+.nlabel{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;}
 
 /* 400, above the admin screen's 320: at 200 every message the admin panel
    produced rendered UNDER it, so signing an action showed nothing at all.
    Any new full-screen overlay must stay below this. */
-.toast{position:fixed;top:72px;left:50%;transform:translateX(-50%);background:${T.text};border-radius:3px;padding:8px 14px;font-size:11px;font-weight:700;letter-spacing:.3px;color:${T.bg};z-index:400;width:max-content;max-width:min(88vw,420px);white-space:normal;overflow-wrap:anywhere;text-align:center;line-height:1.4;animation:toastin .18s ease;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
+.toast{position:fixed;top:72px;left:50%;transform:translateX(-50%);background:${T.text};border-radius:6px;padding:8px 14px;font-size:11px;font-weight:700;letter-spacing:.3px;color:${T.bg};z-index:400;width:max-content;max-width:min(88vw,420px);white-space:normal;overflow-wrap:anywhere;text-align:center;line-height:1.4;animation:toastin .18s ease;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
 @keyframes toastin{from{opacity:0;transform:translateX(-50%) translateY(-5px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);z-index:100;display:flex;align-items:flex-end;justify-content:center;}
-.modal{background:${T.card};border-radius:8px 8px 0 0;padding:24px 18px 36px;width:100%;max-width:420px;border-top:1px solid ${T.border};animation:slideup .22s ease;box-shadow:0 -4px 16px ${T.shadowMd};}
+.modal{background:${T.card};border-radius:14px 14px 0 0;padding:24px 18px 36px;width:100%;max-width:420px;border-top:1px solid ${T.border};animation:slideup .22s ease;box-shadow:0 -4px 16px ${T.shadowMd};}
 @keyframes slideup{from{transform:translateY(22px);opacity:0}to{transform:translateY(0);opacity:1}}
 .modal-handle{width:28px;height:2px;background:${T.border};border-radius:1px;margin:0 auto 20px;}
 .modal-title{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:20px;font-weight:800;color:${T.text};margin-bottom:4px;letter-spacing:-0.3px;}
-.modal-opt{display:flex;align-items:center;gap:11px;background:${T.bg};border:1px solid ${T.border};border-radius:4px;padding:12px 13px;cursor:pointer;margin-bottom:7px;transition:border-color .15s;}
+.modal-opt{display:flex;align-items:center;gap:11px;background:${T.bg};border:1px solid ${T.border};border-radius:10px;padding:12px 13px;cursor:pointer;margin-bottom:7px;transition:border-color .15s;}
 .modal-opt:hover{border-color:${T.green3};}
-.modal-opt-icon{width:32px;height:32px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:16px;background:${T.bgAlt};border:1px solid ${T.border};}
+.modal-opt-icon{width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px;background:${T.bgAlt};border:1px solid ${T.border};}
 .modal-opt-name{font-size:13px;font-weight:700;color:${T.text};}
 
 .onboard{position:fixed;inset:0;background:${T.bg};z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 28px;}
@@ -1445,7 +1445,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .ob-dots{display:flex;gap:5px;margin-top:28px;}
 .ob-dot{width:5px;height:5px;border-radius:3px;background:${T.border};transition:all .22s;}
 .ob-dot.active{width:18px;background:${T.green1};}
-.ob-btn{margin-top:24px;width:100%;max-width:280px;background:linear-gradient(135deg,${T.green1},${T.green2});border:none;border-radius:4px;padding:15px;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;text-transform:uppercase;letter-spacing:1.2px;box-shadow:0 4px 12px rgba(26,51,38,0.2);}
+.ob-btn{margin-top:24px;width:100%;max-width:280px;background:${T.green2};border:none;border-radius:6px;padding:15px;color:${T === DARK ? T.bg : "#fff"};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;font-weight:800;cursor:pointer;transition:all .2s;text-transform:none;letter-spacing:0;min-height:48px;}
 .ob-btn:hover{box-shadow:0 6px 20px rgba(26,51,38,0.3);transform:translateY(-1px);}
 .ob-skip{margin-top:13px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${T.textSoft};cursor:pointer;background:none;border:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
 
@@ -1552,7 +1552,7 @@ function IntroScreen({ onStart }) {
             style={{
               width: i === slide ? 24 : 6,
               height: 6,
-              borderRadius: 3,
+              borderRadius: 6,
               background: i === slide ? "#4CAF50" : "rgba(255,255,255,0.3)",
               transition: "all 0.3s",
               cursor: "pointer"
@@ -1577,7 +1577,7 @@ function IntroScreen({ onStart }) {
             cursor: "pointer",
             transition: "all 0.2s",
             textTransform: "uppercase",
-            letterSpacing: "1.2px",
+            letterSpacing: ".8px",
             boxShadow: "0 8px 24px rgba(76,175,80,0.3)"
           }}
           onMouseEnter={e => {
@@ -1605,7 +1605,7 @@ function IntroScreen({ onStart }) {
               fontWeight: 700,
               cursor: "pointer",
               textTransform: "uppercase",
-              letterSpacing: "1px",
+              letterSpacing: ".8px",
               padding: 8
             }}
             onMouseEnter={e => e.target.style.color = "rgba(255,255,255,0.9)"}
@@ -1688,10 +1688,10 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
         {shown.map(u => {
           const needsMeter = required.includes(u);
           const locked = isLocked(u);
-          const lockedInput = {width:"100%",boxSizing:"border-box",background:T.bgAlt,border:`1px solid ${T.border}`,borderRadius:3,padding:"7px 10px",fontSize:13,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:T.textMid,outline:"none",marginBottom:6,cursor:"not-allowed"};
-          const editInput = (ok, key) => ({width:"100%",boxSizing:"border-box",background:T.bg,border:`1px solid ${(ok || !touched[key]) ? T.border : "rgba(220,80,60,0.7)"}`,borderRadius:3,padding:"7px 10px",fontSize:14,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:T.text,outline:"none",marginBottom:6});
+          const lockedInput = {width:"100%",boxSizing:"border-box",background:T.bgAlt,border:`1px solid ${T.border}`,borderRadius:6,padding:"7px 10px",fontSize:13,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:T.textMid,outline:"none",marginBottom:6,cursor:"not-allowed"};
+          const editInput = (ok, key) => ({width:"100%",boxSizing:"border-box",background:T.bg,border:`1px solid ${(ok || !touched[key]) ? T.border : "rgba(220,80,60,0.7)"}`,borderRadius:6,padding:"7px 10px",fontSize:14,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:T.text,outline:"none",marginBottom:6});
           return (
-          <div key={u.id} style={{display:"flex",alignItems:"flex-start",gap:12,background:T.card,borderRadius:4,padding:"10px 14px",border:`1px solid ${T.border}`}}>
+          <div key={u.id} style={{display:"flex",alignItems:"flex-start",gap:12,background:T.card,borderRadius:6,padding:"10px 14px",border:`1px solid ${T.border}`}}>
             <span style={{width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center",color:T[u.id]||T.text,flexShrink:0,marginTop:2}}>{UTIL_ICONS[u.id]}</span>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginBottom:4}}>{u.label} <span style={{fontWeight:400}}>({u.unit})</span>{locked ? <span style={{fontWeight:400,textTransform:"none",letterSpacing:0,color:T.eco||T.text}}> · 🔒 locked</span> : (!needsMeter && <span style={{fontWeight:400,textTransform:"none",letterSpacing:0}}> · optional</span>)}</div>
@@ -1828,7 +1828,7 @@ function MeterCropper({ imgUrl, onCancel, onConfirm }) {
           style={{display:"block",maxWidth:"100%",maxHeight:"60vh",userSelect:"none",pointerEvents:"none",borderRadius:6}} />
         {box && (
           <div onPointerDown={onDown("move")}
-            style={{position:"absolute",left:box.x,top:box.y,width:box.w,height:box.h,border:"2px solid #4CAF50",boxShadow:"0 0 0 9999px rgba(0,0,0,0.5)",borderRadius:4,cursor:"move",touchAction:"none"}}>
+            style={{position:"absolute",left:box.x,top:box.y,width:box.w,height:box.h,border:"2px solid #4CAF50",boxShadow:"0 0 0 9999px rgba(0,0,0,0.5)",borderRadius:6,cursor:"move",touchAction:"none"}}>
             <div onPointerDown={onDown("resize")}
               style={{position:"absolute",right:-13,bottom:-13,width:28,height:28,borderRadius:"50%",background:"#4CAF50",border:"2px solid #fff",cursor:"nwse-resize",touchAction:"none"}} />
           </div>
@@ -1838,7 +1838,7 @@ function MeterCropper({ imgUrl, onCancel, onConfirm }) {
         <button onClick={()=>onConfirm(null)} style={{...btn,border:"1px solid rgba(255,255,255,0.3)",background:"transparent",color:"#fff"}}>Whole photo</button>
         <button onClick={scan} style={{...btn,flex:2,border:"none",background:"#2E7D32",color:"#fff"}}>Scan this area</button>
       </div>
-      <button onClick={onCancel} style={{marginTop:12,background:"transparent",border:"none",color:"rgba(255,255,255,0.7)",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"1px",cursor:"pointer"}}>Retake</button>
+      <button onClick={onCancel} style={{marginTop:12,background:"transparent",border:"none",color:"rgba(255,255,255,0.7)",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",cursor:"pointer"}}>Retake</button>
     </div>
   );
 }
@@ -2079,7 +2079,7 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
         </div>
         <div className="vr-summary">{result.summary}</div>
         {result.anomCheck?.anomaly && (
-          <div style={{marginTop:12,padding:10,background:T?.electricBg||"#fff3e0",border:`1px solid ${T?.electricBorder||"#FFB74D"}`,borderRadius:4}}>
+          <div style={{marginTop:12,padding:10,background:T?.electricBg||"#fff3e0",border:`1px solid ${T?.electricBorder||"#FFB74D"}`,borderRadius:6}}>
             <div style={{fontSize:11,fontWeight:700,color:T?.electric||"#E65100"}}>⚠️ High Usage Detected</div>
             <div style={{fontSize:10,color:T?.textMid||"#666",marginTop:4}}>This reading is {result.anomCheck.avg ? `${Math.round((result.usageVal/result.anomCheck.avg - 1)*100)}%` : "significantly"} higher than your average.</div>
             <div style={{fontSize:10,color:T?.electric||"#E65100",marginTop:4,fontWeight:600}}>Allow anyway? Tap Submit to continue.</div>
@@ -2220,7 +2220,7 @@ function TodayPanel({ subs, wallet, setTab, onOpenReader, T }) {
     ? (Number(SERVER_NEXT_AT.electric) || 0)
     : (() => { const last = paid.filter(s => s.type === "electric").reduce((m, s) => Math.max(m, subTs(s)), 0); return last ? last + RULES.cooldownMs : 0; })();
   const max = Math.max(1, ...days.map(d => d.v));
-  const card = { background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: "12px" };
+  const card = { background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, padding: "12px" };
   const label = { fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".8px", color: T.textSoft };
 
   if (!wallet) return null;
@@ -2270,7 +2270,7 @@ function TodayPanel({ subs, wallet, setTab, onOpenReader, T }) {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 6, alignItems: "end", height: 72, marginTop: 10 }}>
           {days.map((d, i) => (
             <div key={i} title={`${d.name}: ${d.v.toFixed(2)} B3TR`} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", gap: 4, height: "100%" }}>
-              <div style={{ width: "100%", borderRadius: 4, height: d.v > 0 ? Math.round(10 + (d.v / max) * 42) : 4, background: d.v > 0 ? (T.green3 || T.eco) : T.border, outline: d.isToday ? `2px solid ${T.green4 || T.border}` : "none", outlineOffset: 2 }} />
+              <div style={{ width: "100%", borderRadius: 6, height: d.v > 0 ? Math.round(10 + (d.v / max) * 42) : 4, background: d.v > 0 ? (T.green3 || T.eco) : T.border, outline: d.isToday ? `2px solid ${T.green4 || T.border}` : "none", outlineOffset: 2 }} />
               <div style={{ fontSize: 10, fontWeight: d.isToday ? 800 : 700, color: d.isToday ? T.text : T.textSoft }}>{d.label}</div>
             </div>
           ))}
@@ -2282,7 +2282,7 @@ function TodayPanel({ subs, wallet, setTab, onOpenReader, T }) {
         )}
       </div>
 
-      <button type="button" onClick={() => setTab("submit")} style={{ minHeight: 48, borderRadius: 8, border: "none", background: T.green2, color: T === DARK ? T.bg : "#fff", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>
+      <button type="button" onClick={() => setTab("submit")} style={{ minHeight: 48, borderRadius: 6, border: "none", background: T.green2, color: T === DARK ? T.bg : "#fff", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>
         📸 Submit a reading
       </button>
     </div>
@@ -2579,7 +2579,7 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
       : { day: "", time: "now", title: "Next reward possible", sub: paidThis || !rd ? "paid as soon as the next reading arrives" : "this reading can be paid — it goes automatically", done: false });
     return steps;
   })();
-  const box = { margin: "0 14px 12px", padding: 12, background: T.ecoBg || T.waterBg, border: `1px solid ${T.ecoBorder || T.waterBorder}`, borderRadius: 8 };
+  const box = { margin: "0 14px 12px", padding: 12, background: T.ecoBg || T.waterBg, border: `1px solid ${T.ecoBorder || T.waterBorder}`, borderRadius: 10 };
   const btn = (bg) => ({ padding: "9px 12px", fontSize: 12, fontWeight: 700, color: "#fff", background: bg, border: "none", borderRadius: 6, cursor: "pointer" });
   const mono = { fontFamily: "'SF Mono',Menlo,'Courier New',monospace" };
   const inputStyle = { flex: 1, minWidth: 0, padding: "10px 12px", fontSize: 15, fontWeight: 700, ...mono, color: T.text, background: T.bg, border: `1px solid ${T.border || T.waterBorder}`, borderRadius: 6, outline: "none" };
@@ -2610,7 +2610,7 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
             {/* Status at a glance: is the reader alive, what arrived, what was paid,
                 and when the next reward can come — the questions people actually
                 asked when a day went missing. */}
-            <div style={{ padding: "12px", background: T.bg, border: `1px solid ${T.border || T.waterBorder}`, borderRadius: 8 }}>
+            <div style={{ padding: "12px", background: T.bg, border: `1px solid ${T.border || T.waterBorder}`, borderRadius: 10 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, fontWeight: 800, color: T.text }}>
                   <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: "50%", background: readerFresh ? T.green3 : T.electric, flexShrink: 0 }} />
@@ -2629,7 +2629,7 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
               </div>
             </div>
 
-            <div style={{ marginTop: 8, padding: "12px", background: T.bg, border: `1px solid ${T.border || T.waterBorder}`, borderRadius: 8 }}>
+            <div style={{ marginTop: 8, padding: "12px", background: T.bg, border: `1px solid ${T.border || T.waterBorder}`, borderRadius: 10 }}>
               <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft, marginBottom: 8 }}>Timeline</div>
               {timeline.map((s, i) => (
                 <div key={i} style={{ display: "grid", gridTemplateColumns: "72px 14px 1fr", gap: 8, alignItems: "stretch", minHeight: i === timeline.length - 1 ? 0 : 40 }}>
@@ -2655,7 +2655,7 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
             </div>
 
             {nextAt > Date.now() && (
-              <div style={{ marginTop: 8, padding: "10px 12px", fontSize: 11, color: T.text, lineHeight: 1.55, background: T.green5 || T.bgAlt, border: `1px solid ${T.green4 || T.border}`, borderRadius: 8 }}>
+              <div style={{ marginTop: 8, padding: "10px 12px", fontSize: 11, color: T.text, lineHeight: 1.55, background: T.green5 || T.bgAlt, border: `1px solid ${T.green4 || T.border}`, borderRadius: 10 }}>
                 🖥️ Keep the computer with the script (or Home Assistant) on around <b>{fmtWhen(nextAt)}</b>. If it's off then, the reading goes out within the hour after you switch it on.
               </div>
             )}
@@ -2665,7 +2665,7 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
                 register. Below that threshold this is just normal usage and the
                 button would be an invitation to throw away earnings. */}
             {scaleMismatch && (
-              <div style={{ marginTop: 10, padding: "10px 12px", background: T.bg, border: `1px dashed ${T.border || T.waterBorder}`, borderRadius: 8 }}>
+              <div style={{ marginTop: 10, padding: "10px 12px", background: T.bg, border: `1px dashed ${T.border || T.waterBorder}`, borderRadius: 10 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: T.text, marginBottom: 4 }}>
                   Your starting point doesn’t match your reader
                 </div>
@@ -2828,7 +2828,7 @@ ${fetchCmd(`--token=${token} --install --url=http://<reader-ip>/api/v1/data${ING
 
                         {/* Pre-filled, one-tap-copy setup */}
                         <div style={{ position: "relative" }}>
-                          <button onClick={() => copy(snip, "snip")} style={{ position: "absolute", top: 6, right: 6, padding: "4px 8px", fontSize:10, fontWeight: 700, border: "none", borderRadius: 5, cursor: "pointer", background: copied === "snip" ? (T.eco || T.green3 || T.electric) : T.textSoft, color: "#fff" }}>
+                          <button onClick={() => copy(snip, "snip")} style={{ position: "absolute", top: 6, right: 6, padding: "4px 8px", fontSize:10, fontWeight: 700, border: "none", borderRadius: 6, cursor: "pointer", background: copied === "snip" ? (T.eco || T.green3 || T.electric) : T.textSoft, color: "#fff" }}>
                             {copied === "snip" ? "✓ Copied" : "Copy setup"}
                           </button>
                           <pre style={{ ...mono, fontSize:10, lineHeight: 1.5, color: T.text, background: T.bg, border: `1px dashed ${T.border || T.waterBorder}`, padding: "10px 10px 10px", borderRadius: 6, overflowX: "auto", margin: 0, whiteSpace: "pre" }}>{snip}</pre>
@@ -3012,7 +3012,7 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
       {/* Which tariff register this photo has to show — said BEFORE the photo is
           taken, where it can still be acted on (the server refuses the other one). */}
       {photoRegister && (
-        <div role="note" style={{display:"flex",gap:10,alignItems:"flex-start",margin:"0 14px 12px",padding:"11px 12px",background:T.electricBg||T.bgAlt,border:`1px solid ${T.electricBorder||T.border}`,borderRadius:8}}>
+        <div role="note" style={{display:"flex",gap:10,alignItems:"flex-start",margin:"0 14px 12px",padding:"11px 12px",background:T.electricBg||T.bgAlt,border:`1px solid ${T.electricBorder||T.border}`,borderRadius:10}}>
           <span aria-hidden="true" style={{fontSize:16,lineHeight:"20px"}}>📸</span>
           <div style={{fontSize:12,color:T.text,lineHeight:1.5}}>
             <b>This time, photograph {photoRegister === 1 ? "1.8.1 (low tariff)" : photoRegister === 2 ? "1.8.2 (normal tariff)" : `register ${photoRegister}`}.</b>{" "}
@@ -3347,7 +3347,7 @@ function EcoBonusCard({ T, wallet, setShowWallet, onSubmit, busy, usedThisWeek, 
               {busy ? <><span className="spin-sm"/> Submitting…</> : "✅ Submit for bonus"}
             </button>
             <label htmlFor="gul-eco-photo" onClick={() => clearPreview()}
-              style={{background:"transparent",color:T.textMid,border:`1px solid ${T.border}`,borderRadius:4,padding:"0 16px",fontWeight:700,fontSize:12,cursor:"pointer",display:"flex",alignItems:"center"}}>↻ Retake</label>
+              style={{background:"transparent",color:T.textMid,border:`1px solid ${T.border}`,borderRadius:6,padding:"0 16px",fontWeight:700,fontSize:12,cursor:"pointer",display:"flex",alignItems:"center"}}>↻ Retake</label>
           </div>
         </div>
       ) : !IS_MOBILE
@@ -3430,7 +3430,10 @@ function ChartsScreen({ subs, T }) {
 
   if (!subs.length) return (
     <>
-      <div className="page-title">Analytics</div>
+      <div className="sub-header">
+        <div className="sub-title">Analytics</div>
+        <div className="sub-sub">Your impact and trends</div>
+      </div>
       <div className="chart-card" style={{textAlign:"center",padding:"28px 16px"}}>
         <div style={{fontSize:26,marginBottom:8}}>📊</div>
         <div style={{fontSize:12,fontWeight:700,color:T.text,marginBottom:4}}>No data yet</div>
@@ -3441,7 +3444,10 @@ function ChartsScreen({ subs, T }) {
 
   return (
     <>
-      <div className="page-title">Analytics</div>
+      <div className="sub-header">
+        <div className="sub-title">Analytics</div>
+        <div className="sub-sub">Your impact and trends</div>
+      </div>
 
       {/* Impact headline — the numbers that tell the sustainability story */}
       <div className="pstat-row">
@@ -3487,8 +3493,8 @@ function ChartsScreen({ subs, T }) {
                 </div>
                 {saving && (
                 <div style={{display:"flex",gap:12,marginTop:8,fontSize:9.5,color:T.textMid}}>
-                  <span><span style={{display:"inline-block",width:8,height:8,borderRadius:2,background:T.green3,marginRight:4,verticalAlign:"middle"}}/>under target ({underCount})</span>
-                  <span><span style={{display:"inline-block",width:8,height:8,borderRadius:2,background:T.electric,marginRight:4,verticalAlign:"middle"}}/>above target ({series.length - underCount})</span>
+                  <span><span style={{display:"inline-block",width:8,height:8,borderRadius:6,background:T.green3,marginRight:4,verticalAlign:"middle"}}/>under target ({underCount})</span>
+                  <span><span style={{display:"inline-block",width:8,height:8,borderRadius:6,background:T.electric,marginRight:4,verticalAlign:"middle"}}/>above target ({series.length - underCount})</span>
                 </div>
                 )}
               </>
@@ -3539,13 +3545,13 @@ function ChartsScreen({ subs, T }) {
           {bestDay && (
             <div style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${T.border}`,fontSize:11}}>
               <span style={{color:T.textMid}}>Most efficient reading</span>
-              <span style={{fontWeight:700,color:T.green3,fontFamily:mono}}>{usageOf(bestDay).toFixed(2)} {getUtil(bestDay.type).unit} · {bestDay.date}</span>
+              <span style={{fontWeight:700,color:T.green3}}>{usageOf(bestDay).toFixed(2)} {getUtil(bestDay.type).unit} · {bestDay.date}</span>
             </div>
           )}
           {bestReward && (
             <div style={{display:"flex",justifyContent:"space-between",padding:"7px 0",fontSize:11}}>
               <span style={{color:T.textMid}}>Biggest single reward</span>
-              <span style={{fontWeight:700,color:T.green3,fontFamily:mono}}>+{(parseFloat(bestReward.b3tr) || 0).toFixed(2)} B3TR · {bestReward.date}</span>
+              <span style={{fontWeight:700,color:T.green3}}>+{(parseFloat(bestReward.b3tr) || 0).toFixed(2)} B3TR · {bestReward.date}</span>
             </div>
           )}
         </div>
@@ -3628,8 +3634,12 @@ function LeaderboardScreen({ b3tr, streak, subs, wallet, T }) {
 
   return (
     <>
-      <div className="lb-hero" style={{borderLeftColor:tierColor(currentTier, T)}}>
-        <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"2.2px",color:T.textSoft,marginBottom:10}}>Your Rank & Tier</div>
+      <div className="sub-header">
+        <div className="sub-title">Rank</div>
+        <div className="sub-sub">Tiers, goals and the leaderboard</div>
+      </div>
+      <div className="lb-hero" style={{marginTop:0}}>
+        <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginBottom:10}}>Your Rank & Tier</div>
         <div className="lb-hero-rank">{isLive ? `#${myRank}` : "#–"}</div>
         <div style={{fontSize:12,fontWeight:700,color:tierColor(currentTier, T),marginTop:8}}>{currentTier.name} Tier</div>
         <div style={{fontSize:11,color:T.textSoft,marginTop:5}}>{(isLive ? myBoardB3tr : b3tr).toFixed(2)} B3TR · {streak} day streak</div>
@@ -3641,7 +3651,7 @@ function LeaderboardScreen({ b3tr, streak, subs, wallet, T }) {
         {nextTier && (
           <div style={{marginTop:14,width:"100%"}}>
             <div style={{fontSize:10,fontWeight:700,color:T.textMid,marginBottom:6}}>Progress to {nextTier.name} Tier</div>
-            <div style={{width:"100%",height:6,background:T.border,borderRadius:3,overflow:"hidden"}}>
+            <div style={{width:"100%",height:6,background:T.border,borderRadius:6,overflow:"hidden"}}>
               <div style={{width:`${progressPercent}%`,height:"100%",background:T.green3,transition:"width 0.3s"}}/>
             </div>
             <div style={{fontSize:10,color:T.textSoft,marginTop:4,textAlign:"center"}}>{progressPercent}% • Need {b3trNeeded.toFixed(2)} more B3TR</div>
@@ -3650,23 +3660,23 @@ function LeaderboardScreen({ b3tr, streak, subs, wallet, T }) {
       </div>
 
       <div className="sec" style={{marginTop:20}}><div className="sec-line"/><div className="sec-txt">🎯 Next Goals</div><div className="sec-line"/></div>
-      <div style={{margin:"0 14px 14px",padding:14,background:T.card,border:`1px solid ${T.border}`,borderRadius:5}}>
+      <div style={{margin:"0 14px 14px",padding:14,background:T.card,border:`1px solid ${T.border}`,borderRadius:10}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
           <div style={{fontSize:11,fontWeight:700,color:T.text}}>100 B3TR Achievement</div>
-          <div style={{fontSize:10,fontWeight:700,color:T.green3,fontFamily:"'SF Mono',monospace"}}>{to100 > 0 ? `${to100.toFixed(2)} away` : "Achieved ✓"}</div>
+          <div style={{fontSize:11,fontWeight:700,color:T.green3}}>{to100 > 0 ? `${to100.toFixed(2)} away` : "Achieved ✓"}</div>
         </div>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
           <div style={{fontSize:11,fontWeight:700,color:T.text}}>#1 Global Rank</div>
-          <div style={{fontSize:10,fontWeight:700,color:T.green3,fontFamily:"'SF Mono',monospace"}}>{!isLive ? "—" : myRank === 1 ? "You're #1!" : `${myRank - 1} spots away`}</div>
+          <div style={{fontSize:11,fontWeight:700,color:T.green3}}>{!isLive ? "—" : myRank === 1 ? "You're #1!" : `${myRank - 1} spots away`}</div>
         </div>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div style={{fontSize:11,fontWeight:700,color:T.text}}>30-Day Streak</div>
-          <div style={{fontSize:10,fontWeight:700,color:T.green3,fontFamily:"'SF Mono',monospace"}}>{Math.max(0, 30-streak)} days away</div>
+          <div style={{fontSize:11,fontWeight:700,color:T.green3}}>{Math.max(0, 30-streak)} days away</div>
         </div>
       </div>
 
       <div className="sec"><div className="sec-line"/><div className="sec-txt">📊 This Week</div><div className="sec-line"/></div>
-      <div style={{margin:"0 14px 14px",padding:14,background:T.card,border:`1px solid ${T.border}`,borderRadius:5}}>
+      <div style={{margin:"0 14px 14px",padding:14,background:T.card,border:`1px solid ${T.border}`,borderRadius:10}}>
         <div style={{fontSize:10,fontWeight:700,color:T.green3,marginBottom:8}}>✓ +{weekB3tr} B3TR</div>
         <div style={{fontSize:10,fontWeight:700,color:T.green3,marginBottom:8}}>✓ +{weekSubs.length} submissions</div>
         <div style={{fontSize:10,fontWeight:700,color:T.green3}}>✓ Avg: {(weekB3tr/7).toFixed(2)} B3TR/day</div>
@@ -3675,7 +3685,7 @@ function LeaderboardScreen({ b3tr, streak, subs, wallet, T }) {
       <div className="sec"><div className="sec-line"/><div className="sec-txt">🏅 Achievements</div><div className="sec-line"/></div>
       <div style={{margin:"0 14px 14px",display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
         {badges.map(b => (
-          <div key={b.id} style={{padding:12,background:b.unlocked?T.card:T.bgAlt,border:`1px solid ${b.unlocked?T.border:T.textSoft}`,borderRadius:4,textAlign:"center",opacity:b.unlocked?1:0.5}}>
+          <div key={b.id} style={{padding:12,background:b.unlocked?T.card:T.bgAlt,border:`1px solid ${b.unlocked?T.border:T.textSoft}`,borderRadius:6,textAlign:"center",opacity:b.unlocked?1:0.5}}>
             <div style={{fontSize:24,marginBottom:4}}>{b.icon}</div>
             <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.8px",color:T.textSoft}}>{b.name}</div>
           </div>
@@ -3695,7 +3705,7 @@ function LeaderboardScreen({ b3tr, streak, subs, wallet, T }) {
         <div key={item.isMe ? "me" : (item.rawAddr || item.name)} className={`lb-item ${item.isMe ? 'me' : ''}`}>
           <div className="lb-rank">{item.rank}</div>
           <div style={{flex:1}}>
-            <div className="lb-name">{item.name} {item.isMe && item.name !== "You" && <span style={{fontSize:9,fontWeight:700,background:T.green1,color:"#fff",borderRadius:1,padding:"1px 4px",letterSpacing:".8px"}}>YOU</span>}</div>
+            <div className="lb-name">{item.name} {item.isMe && item.name !== "You" && <span style={{fontSize:9,fontWeight:700,background:T.green1,color:"#fff",borderRadius:6,padding:"1px 4px",letterSpacing:".8px"}}>YOU</span>}</div>
             <div style={{fontSize:9,color:T.textSoft,fontFamily:"'SF Mono',monospace"}}>{item.addr}</div>
           </div>
           <div style={{textAlign:"right"}}>
@@ -3753,10 +3763,10 @@ function AdminAccountTools({ T, onAdminApi, onToast }) {
     finally { setBusy(""); }
   };
 
-  const inp = { width: "100%", boxSizing: "border-box", background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, padding: "9px 11px", fontSize: 12, color: T.text, fontFamily: "'SF Mono',Menlo,'Courier New',monospace", outline: "none" };
+  const inp = { width: "100%", boxSizing: "border-box", background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, padding: "9px 11px", fontSize: 12, color: T.text, fontFamily: "'SF Mono',Menlo,'Courier New',monospace", outline: "none" };
   const btn = (bg, fg, disabled) => ({ background: bg, color: fg, border: bg === "transparent" ? `1px solid ${T.border}` : "none", borderRadius: 6, padding: "9px 12px", fontWeight: 700, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap", opacity: disabled ? 0.6 : 1 });
   const lbl = { fontSize:10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft, margin: "0 0 5px" };
-  const card = { background: T.bgAlt, border: `1px solid ${T.border}`, borderRadius: 8, padding: 12, marginBottom: 10 };
+  const card = { background: T.bgAlt, border: `1px solid ${T.border}`, borderRadius: 10, padding: 12, marginBottom: 10 };
 
   return (
     <div style={{ marginBottom: 14 }}>
@@ -3799,7 +3809,7 @@ function AdminAccountTools({ T, onAdminApi, onToast }) {
           <button disabled={busy === "look" || !lookW.trim()} onClick={() => run("look", () => onAdminApi("/admin/lookup", isAddr(lookW) ? { targetWallet: lookW.trim() } : { meterNo: lookW.trim() }), () => `🔎 Loaded`)} style={btn("transparent", T.textMid, busy === "look" || !lookW.trim())}>{busy === "look" ? "…" : "Look up"}</button>
         </div>
         {result && (
-          <pre style={{ margin: "8px 0 0", padding: 10, background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, fontSize: 11, color: T.text, fontFamily: "'SF Mono',Menlo,'Courier New',monospace", overflowX: "auto", lineHeight: 1.5 }}>{JSON.stringify(result, null, 2)}</pre>
+          <pre style={{ margin: "8px 0 0", padding: 10, background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, fontSize: 11, color: T.text, fontFamily: "'SF Mono',Menlo,'Courier New',monospace", overflowX: "auto", lineHeight: 1.5 }}>{JSON.stringify(result, null, 2)}</pre>
         )}
       </div>
     </div>
@@ -3826,7 +3836,7 @@ function FlaggedPanel({ T, address, onAdminApi }) {
   };
 
   const mono = "'SF Mono',Menlo,'Courier New',monospace";
-  const box = { marginTop: 16, padding: 12, background: T.bgAlt, border: `1px solid ${T.border}`, borderRadius: 8 };
+  const box = { marginTop: 16, padding: 12, background: T.bgAlt, border: `1px solid ${T.border}`, borderRadius: 10 };
   const head = { fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".8px", color: T.textSoft, marginBottom: 10 };
   const btn = { background: "transparent", border: `1px solid ${T.border}`, borderRadius: 6, padding: "9px 12px", fontWeight: 700, fontSize: 11, color: T.textMid, cursor: "pointer" };
 
@@ -3862,7 +3872,7 @@ function FlaggedPanel({ T, address, onAdminApi }) {
       {flags.length === 0 ? (
         <div style={{ fontSize: 11, color: T.textSoft, lineHeight: 1.6 }}>None — every submission from this wallet passed the app's photo checks.</div>
       ) : flags.map((f) => (
-        <div key={f.txid} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, padding: "9px 11px", marginBottom: 6 }}>
+        <div key={f.txid} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, padding: "9px 11px", marginBottom: 6 }}>
           <div style={{ fontSize:10.5, color: T.text, lineHeight: 1.5 }}>{f.reason}</div>
           <div style={{ fontSize:9, color: T.textSoft, marginTop: 3, fontFamily: mono, wordBreak: "break-all" }}>
             {f.at ? new Date(f.at).toISOString().slice(0, 16).replace("T", " ") : "—"} · {String(f.txid).slice(0, 14)}…
@@ -3918,7 +3928,7 @@ function AccessModePanel({ T, onAdminApi, onToast }) {
     );
   };
   return (
-    <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:6,padding:"11px 12px",marginBottom:12}}>
+    <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"11px 12px",marginBottom:12}}>
       <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".6px",color:T.textSoft,marginBottom:8}}>
         🔐 Who can use this version · {NETWORK_LABEL}
       </div>
@@ -3968,7 +3978,7 @@ function AccessPassPanel({ T, address, onAdminApi, onToast }) {
   };
 
   const mono = "'SF Mono',Menlo,'Courier New',monospace";
-  const box = { marginTop: 16, padding: 12, background: T.bgAlt, border: `1px solid ${T.border}`, borderRadius: 8 };
+  const box = { marginTop: 16, padding: 12, background: T.bgAlt, border: `1px solid ${T.border}`, borderRadius: 10 };
   const head = { fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".8px", color: T.textSoft, marginBottom: 10 };
   const btn = (bg, fg, dis) => ({ background: bg, color: fg, border: bg === "transparent" ? `1px solid ${T.border}` : "none", borderRadius: 6, padding: "9px 12px", fontWeight: 700, fontSize: 11, cursor: dis ? "default" : "pointer", opacity: dis ? 0.6 : 1, whiteSpace: "nowrap" });
 
@@ -3997,10 +4007,10 @@ function AccessPassPanel({ T, address, onAdminApi, onToast }) {
     <div style={box}>
       <div style={head}>🎟️ Role</div>
       {p ? (
-        <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, padding: "10px 12px", marginBottom: 10 }}>
+        <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, padding: "10px 12px", marginBottom: 10 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
             <div style={{ fontSize: 14, fontWeight: 800, color: T.green3, fontFamily: mono }}>Pass #{p.no}</div>
-            <span style={{ background: T.gasBg, color: T.textMid, borderRadius: 4, padding: "3px 7px", fontSize:10, fontWeight: 800, textTransform: "uppercase" }}>{p.tier}</span>
+            <span style={{ background: T.gasBg, color: T.textMid, borderRadius: 6, padding: "3px 7px", fontSize:10, fontWeight: 800, textTransform: "uppercase" }}>{p.tier}</span>
           </div>
           <div style={{ fontSize:10, color: T.textSoft, marginTop: 4 }}>
             Issued {p.issuedAt ? new Date(p.issuedAt).toISOString().slice(0, 10) : "—"}{p.issuedBy ? ` by ${shortAddr(p.issuedBy)}` : ""}
@@ -4030,7 +4040,7 @@ function AccessPassPanel({ T, address, onAdminApi, onToast }) {
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         {!p && (
           <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" maxLength={140}
-            style={{ flex: 1, minWidth: 140, boxSizing: "border-box", background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, padding: "8px 10px", fontSize: 12, color: T.text, outline: "none" }} />
+            style={{ flex: 1, minWidth: 140, boxSizing: "border-box", background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, padding: "8px 10px", fontSize: 12, color: T.text, outline: "none" }} />
         )}
         {p
           ? <button disabled={busy === "revoke"} onClick={() => act(false)} style={btn("transparent", T.textMid, busy === "revoke")}>{busy === "revoke" ? "…" : "Withdraw role"}</button>
@@ -4069,7 +4079,7 @@ function PassportPanel({ T, address, onAdminApi, onAssignSignaler, onToast }) {
   };
 
   const mono = "'SF Mono',Menlo,'Courier New',monospace";
-  const box = { marginTop: 16, padding: 12, background: T.bgAlt, border: `1px solid ${T.border}`, borderRadius: 8 };
+  const box = { marginTop: 16, padding: 12, background: T.bgAlt, border: `1px solid ${T.border}`, borderRadius: 10 };
   const head = { fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".8px", color: T.textSoft, marginBottom: 10 };
   const btn = (bg, fg, dis) => ({ background: bg, color: fg, border: bg === "transparent" ? `1px solid ${T.border}` : "none", borderRadius: 6, padding: "9px 12px", fontWeight: 700, fontSize: 11, cursor: dis ? "default" : "pointer", opacity: dis ? 0.6 : 1, whiteSpace: "nowrap" });
 
@@ -4100,7 +4110,7 @@ function PassportPanel({ T, address, onAdminApi, onAssignSignaler, onToast }) {
   const authorized = st.authorized === true;
   // null means the node didn't answer — say "unknown" rather than implying a verdict.
   const person = p?.isPerson;
-  const pill = (bg, fg, text) => <span style={{ background: bg, color: fg, borderRadius: 4, padding: "3px 7px", fontSize:10, fontWeight: 800 }}>{text}</span>;
+  const pill = (bg, fg, text) => <span style={{ background: bg, color: fg, borderRadius: 6, padding: "3px 7px", fontSize:10, fontWeight: 800 }}>{text}</span>;
 
   const doSignal = async () => {
     if (reason.trim().length < 3) { onToast?.("❌ Give a reason first"); return; }
@@ -4150,7 +4160,7 @@ function PassportPanel({ T, address, onAdminApi, onAssignSignaler, onToast }) {
               onChange={(e) => setReason(e.target.value)}
               placeholder="Reason (recorded on-chain)"
               maxLength={256}
-              style={{ flex: 1, minWidth: 160, boxSizing: "border-box", background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, padding: "8px 10px", fontSize: 12, color: T.text, outline: "none" }}
+              style={{ flex: 1, minWidth: 160, boxSizing: "border-box", background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, padding: "8px 10px", fontSize: 12, color: T.text, outline: "none" }}
             />
             <button disabled={busy} onClick={doSignal} style={btn("#c0392b", "#fff", busy)}>{busy ? "…" : "🚩 Signal as bot"}</button>
           </div>
@@ -4199,10 +4209,10 @@ function WalletAdminActions({ T, address, meters, onAdminApi, onToast }) {
   };
   const mono = "'SF Mono',Menlo,'Courier New',monospace";
   const btn = (bg, fg, dis) => ({ background: bg, color: fg, border: bg === "transparent" ? `1px solid ${T.border}` : "none", borderRadius: 6, padding: "9px 12px", fontWeight: 700, fontSize: 11, cursor: "pointer", opacity: dis ? 0.6 : 1, whiteSpace: "nowrap" });
-  const inp = { flex: 1, minWidth: 0, boxSizing: "border-box", background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, padding: "8px 10px", fontSize: 12, color: T.text, fontFamily: mono, outline: "none" };
+  const inp = { flex: 1, minWidth: 0, boxSizing: "border-box", background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, padding: "8px 10px", fontSize: 12, color: T.text, fontFamily: mono, outline: "none" };
 
   return (
-    <div style={{ marginTop: 16, padding: 12, background: T.bgAlt, border: `1px solid ${T.border}`, borderRadius: 8 }}>
+    <div style={{ marginTop: 16, padding: 12, background: T.bgAlt, border: `1px solid ${T.border}`, borderRadius: 10 }}>
       <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".8px", color: T.textSoft, marginBottom: 10 }}>🛠️ Admin actions</div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <button disabled={busy === "ban"} onClick={() => run("ban", () => onAdminApi("/admin/ban", { targetWallet: address, ban: true }), () => "🚫 Wallet blocked — it can no longer claim")} style={btn("#c0392b", "#fff", busy === "ban")}>{busy === "ban" ? "…" : "🚫 Block wallet"}</button>
@@ -4303,7 +4313,7 @@ function SubmissionRow({ r, T, onAdminApi, onToast, archiveOn }) {
   );
 
   return (
-    <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:8,marginBottom:6,overflow:"hidden"}}>
+    <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:10,marginBottom:6,overflow:"hidden"}}>
       <div role="button" tabIndex={0} onClick={() => txUrl && window.open(txUrl, "_blank", "noopener")}
         title={txUrl ? "View this transaction on the VeChain explorer" : undefined}
         style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",cursor:txUrl?"pointer":"default"}}>
@@ -4315,7 +4325,7 @@ function SubmissionRow({ r, T, onAdminApi, onToast, archiveOn }) {
                 seen by a human and has no photo to check, so it is the row an admin
                 most needs to recognise at a glance. */}
             {fromReader && (
-              <span style={{marginLeft:6,fontSize:9,fontWeight:800,letterSpacing:".6px",textTransform:"uppercase",color:T.eco||T.electric,border:`1px solid ${T.ecoBorder||T.border}`,background:T.ecoBg||T.bgAlt,borderRadius:3,padding:"1px 5px"}}>
+              <span style={{marginLeft:6,fontSize:9,fontWeight:800,letterSpacing:".6px",textTransform:"uppercase",color:T.eco||T.electric,border:`1px solid ${T.ecoBorder||T.border}`,background:T.ecoBg||T.bgAlt,borderRadius:6,padding:"1px 5px"}}>
                 ⚡ Automatic · no photo
               </span>
             )}
@@ -4442,13 +4452,13 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
   const headerBar = (title, sub, onBack) => (
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 18px",borderBottom:`1px solid ${T.border}`}}>
       <div style={{display:"flex",alignItems:"center",gap:10}}>
-        {onBack && <button onClick={onBack} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:4,padding:"6px 10px",fontSize:12,fontWeight:700,color:T.textMid,cursor:"pointer"}}>←</button>}
+        {onBack && <button onClick={onBack} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"6px 10px",fontSize:12,fontWeight:700,color:T.textMid,cursor:"pointer"}}>←</button>}
         <div>
           <div style={{fontSize:14,fontWeight:800,color:T.text}}>{title}</div>
           <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginTop:2}}>{sub}</div>
         </div>
       </div>
-      <button onClick={onClose} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:4,padding:"6px 12px",fontSize:11,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Close</button>
+      <button onClick={onClose} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"6px 12px",fontSize:11,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Close</button>
     </div>
   );
 
@@ -4469,10 +4479,10 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
       <div style={{position:"fixed",inset:0,background:T.bg,zIndex:320,display:"flex",flexDirection:"column"}}>
         {headerBar("🛡️ Wallet detail", `On-chain · ${NETWORK_LABEL}`, () => setSelected(null))}
         <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"14px"}}>
-          <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:6,padding:"12px 14px",marginBottom:14}}>
+          <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"12px 14px",marginBottom:14}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
               <div style={{fontSize:13,fontWeight:700,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:T.text}}>{shortAddr(selected)}</div>
-              <button onClick={() => { navigator.clipboard?.writeText(selected).catch(() => {}); }} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:4,padding:"4px 8px",fontSize:10,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Copy</button>
+              <button onClick={() => { navigator.clipboard?.writeText(selected).catch(() => {}); }} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"4px 8px",fontSize:10,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Copy</button>
             </div>
             <div style={{fontSize:9,color:T.textSoft,wordBreak:"break-all",marginTop:4,fontFamily:"'SF Mono',Menlo,'Courier New',monospace"}}>{selected}</div>
             <div style={{display:"flex",gap:16,marginTop:10}}>
@@ -4520,7 +4530,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
           {detail.status === "live" && detail.rows.length === 0 && (() => {
             const MONO = "'SF Mono',Menlo,'Courier New',monospace";
             const ghost = (icon, title, sub, amt) => (
-              <div style={{display:"flex",alignItems:"center",gap:10,background:T.bgAlt,border:`1px dashed ${T.border}`,borderRadius:8,padding:"10px 12px",marginBottom:6,opacity:.7}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,background:T.bgAlt,border:`1px dashed ${T.border}`,borderRadius:10,padding:"10px 12px",marginBottom:6,opacity:.7}}>
                 <span style={{fontSize:16}}>{icon}</span>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontSize:12,fontWeight:700,color:T.textMid}}>{title}</div>
@@ -4576,7 +4586,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
             { k:"B3TR Distributed", v: totalB3tr.toFixed(2) },
             { k:"Submissions",      v: totalSubs },
           ].map(s => (
-            <div key={s.k} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:5,padding:"12px 8px",textAlign:"center"}}>
+            <div key={s.k} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"12px 8px",textAlign:"center"}}>
               <div style={{fontSize:17,fontWeight:600,color:T.text,fontFamily:"'SF Mono',monospace"}}>{s.v}</div>
               <div style={{fontSize:7.5,fontWeight:700,textTransform:"uppercase",letterSpacing:".6px",color:T.textSoft,marginTop:3}}>{s.k}</div>
             </div>
@@ -4585,7 +4595,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
 
         <AccessModePanel T={T} onAdminApi={onAdminApi} onToast={onToast} />
 
-        <button onClick={() => setOpsOpen(o => !o)} style={{display:"flex",width:"100%",alignItems:"center",justifyContent:"space-between",background:T.card,border:`1px solid ${T.border}`,borderRadius:6,padding:"11px 14px",marginBottom:12,cursor:"pointer",color:T.text}}>
+        <button onClick={() => setOpsOpen(o => !o)} style={{display:"flex",width:"100%",alignItems:"center",justifyContent:"space-between",background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"11px 14px",marginBottom:12,cursor:"pointer",color:T.text}}>
           <span style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".6px"}}>⚙️ Setup &amp; diagnostics</span>
           <span style={{color:T.textSoft,fontSize:13}}>{opsOpen ? "▲ hide" : "▼ show"}</span>
         </button>
@@ -4606,7 +4616,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
             </div>
           );
           return (
-            <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:6,padding:"12px 14px",marginBottom:12}}>
+            <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"12px 14px",marginBottom:12}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
                 <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".6px",color:T.green3}}>🩺 System check</div>
                 <button onClick={() => { setDiag({ status: "loading" }); runDiagnostics().catch(() => {}); }}
@@ -4695,7 +4705,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
                   <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".6px",color:T.textSoft}}>Pool balance</span>
                   <span style={{display:"inline-flex",alignItems:"center",fontSize:14,fontWeight:700,color:c,fontFamily:"'SF Mono',Menlo,'Courier New',monospace"}}>
                     {pool.status === "loading" ? "…" : pool.status === "error" ? "—" : `${pool.b3tr.toFixed(2)} B3TR`}
-                    {empty && <span style={{fontSize:9,fontWeight:700,marginLeft:6,color:T.gas,background:T.gasBg,border:`1px solid ${T.gasBorder}`,borderRadius:2,padding:"1px 5px"}}>EMPTY</span>}
+                    {empty && <span style={{fontSize:9,fontWeight:700,marginLeft:6,color:T.gas,background:T.gasBg,border:`1px solid ${T.gasBorder}`,borderRadius:6,padding:"1px 5px"}}>EMPTY</span>}
                   </span>
                 </div>
               );
@@ -4745,7 +4755,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
           onChange={(e) => setQuery(e.target.value)}
           placeholder="🔎 Search wallet address (0x…)"
           spellCheck={false}
-          style={{width:"100%",boxSizing:"border-box",background:T.card,border:`1px solid ${T.border}`,borderRadius:6,padding:"11px 12px",fontSize:12,color:T.text,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",outline:"none",marginBottom:10}}
+          style={{width:"100%",boxSizing:"border-box",background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"11px 12px",fontSize:12,color:T.text,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",outline:"none",marginBottom:10}}
         />
 
         {/* The on-chain list only has wallets that already earned. One tap pulls in
@@ -4944,7 +4954,7 @@ function ProfileHero({ wallet, domain, tier, onToast, T }) {
               const on = (draft.avatar || "🌱") === a;
               return (
                 <button key={a} role="radio" aria-checked={on} onClick={() => setDraft(d => ({ ...d, avatar: a }))}
-                  style={{height:44,fontSize:22,borderRadius:8,cursor:"pointer",background:on ? T.bgAlt : "transparent",border:`${on ? 2 : 1}px solid ${on ? T.green3 : T.border}`}}>
+                  style={{height:44,fontSize:22,borderRadius:10,cursor:"pointer",background:on ? T.bgAlt : "transparent",border:`${on ? 2 : 1}px solid ${on ? T.green3 : T.border}`}}>
                   {a}
                 </button>
               );
@@ -4957,7 +4967,7 @@ function ProfileHero({ wallet, domain, tier, onToast, T }) {
           </div>
         </div>
       ) : (
-        <div style={{display:"inline-block",fontSize:10,fontWeight:700,background:T.bgAlt,color:tierColor(tier, T),border:`1px solid ${T.border}`,borderRadius:2,padding:"3px 7px",marginTop:12,textTransform:"uppercase",letterSpacing:".8px"}}>{tier.name} Tier</div>
+        <div style={{display:"inline-block",fontSize:10,fontWeight:700,background:T.bgAlt,color:tierColor(tier, T),border:`1px solid ${T.border}`,borderRadius:6,padding:"3px 7px",marginTop:12,textTransform:"uppercase",letterSpacing:".8px"}}>{tier.name} Tier</div>
       )}
     </div>
   );
@@ -4998,6 +5008,10 @@ function ProfileScreen({ b3tr, subs, wallet, walletDomain, setShowWallet, dark, 
   const tier = getTier(b3tr);
   return (
     <>
+      <div className="sub-header">
+        <div className="sub-title">Profile</div>
+        <div className="sub-sub">Your account and settings</div>
+      </div>
       <ProfileHero wallet={wallet} domain={walletDomain} tier={tier} onToast={onToast} T={T} />
       
       <div className="pstat-row">
@@ -5236,7 +5250,7 @@ function HelpScreen({ onClose, onFeedback, T }) {
   const steps = L.steps.map((s, i) => ({ n: i + 1, t: s.t, d: s.d }));
   const faqs = L.faqs;
   const [openFaq, setOpenFaq] = useState(0); // accordion — first item open by default
-  const row = { background:T.card, border:`1px solid ${T.border}`, borderRadius:6, padding:"12px 14px", marginBottom:8 };
+  const row = { background:T.card, border:`1px solid ${T.border}`, borderRadius:10, padding:"12px 14px", marginBottom:8 };
   return (
     <div style={{position:"fixed",inset:0,background:T.bg,zIndex:330,display:"flex",flexDirection:"column"}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 18px",borderBottom:`1px solid ${T.border}`}}>
@@ -5244,7 +5258,7 @@ function HelpScreen({ onClose, onFeedback, T }) {
           <div style={{fontSize:14,fontWeight:800,color:T.text}}>❓ Help &amp; FAQ</div>
           <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginTop:2}}>{L.subtitle} · {NETWORK_LABEL}</div>
         </div>
-        <button onClick={onClose} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:4,padding:"6px 12px",fontSize:11,fontWeight:700,color:T.textMid,cursor:"pointer"}}>{L.close}</button>
+        <button onClick={onClose} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"6px 12px",fontSize:11,fontWeight:700,color:T.textMid,cursor:"pointer"}}>{L.close}</button>
       </div>
 
       {/* Language picker */}
@@ -5283,7 +5297,7 @@ function HelpScreen({ onClose, onFeedback, T }) {
         {/* Long-form setup lives outside the app — link, don't inline a manual. */}
         <a href={GUIDE_URL} target="_blank" rel="noopener noreferrer"
           style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,marginTop:16,
-            background:T.card,border:`1px solid ${T.border}`,borderRadius:6,padding:"13px 14px",textDecoration:"none"}}>
+            background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"13px 14px",textDecoration:"none"}}>
           <span>
             <span style={{display:"block",fontSize:12.5,fontWeight:700,color:T.text}}>📖 Automatic meter reading — full guide</span>
             <span style={{display:"block",fontSize:10.5,color:T.textSoft,marginTop:2}}>P1 reader, Home Assistant & other readers · step by step</span>
@@ -5291,7 +5305,7 @@ function HelpScreen({ onClose, onFeedback, T }) {
           <span style={{color:T.green3,fontWeight:800}}>↗</span>
         </a>
 
-        <button onClick={onFeedback} style={{width:"100%",marginTop:10,background:T.green3,border:"none",borderRadius:6,padding:"13px",color:"#fff",fontSize:12,fontWeight:800,textTransform:"uppercase",letterSpacing:"1px",cursor:"pointer"}}>{L.feedback}</button>
+        <button onClick={onFeedback} style={{width:"100%",marginTop:10,background:T.green3,border:"none",borderRadius:6,padding:"13px",color:"#fff",fontSize:12,fontWeight:800,textTransform:"uppercase",letterSpacing:".8px",cursor:"pointer"}}>{L.feedback}</button>
       </div>
     </div>
   );
@@ -5333,7 +5347,7 @@ function FeedbackScreen({ onClose, onToast, wallet, tab, T }) {
     try { await navigator.clipboard.writeText(text); onToast?.("📋 Copied — paste it anywhere"); }
     catch { onToast?.("❌ Copy failed on this device"); }
   };
-  const inputStyle = { width:"100%", boxSizing:"border-box", background:T.card, border:`1px solid ${T.border}`, borderRadius:6, padding:"12px", fontSize:13, color:T.text, fontFamily:"inherit", lineHeight:1.5, resize:"vertical" };
+  const inputStyle = { width:"100%", boxSizing:"border-box", background:T.card, border:`1px solid ${T.border}`, borderRadius:10, padding:"12px", fontSize:13, color:T.text, fontFamily:"inherit", lineHeight:1.5, resize:"vertical" };
   return (
     <div style={{position:"fixed",inset:0,background:T.bg,zIndex:335,display:"flex",flexDirection:"column"}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 18px",borderBottom:`1px solid ${T.border}`}}>
@@ -5341,7 +5355,7 @@ function FeedbackScreen({ onClose, onToast, wallet, tab, T }) {
           <div style={{fontSize:14,fontWeight:800,color:T.text}}>✉️ Send Feedback</div>
           <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginTop:2}}>{NETWORK === "mainnet" ? "Help us improve the app" : "Help us improve the test"}</div>
         </div>
-        <button onClick={onClose} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:4,padding:"6px 12px",fontSize:11,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Close</button>
+        <button onClick={onClose} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"6px 12px",fontSize:11,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Close</button>
       </div>
 
       <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"16px 14px 28px"}}>
@@ -5360,8 +5374,8 @@ function FeedbackScreen({ onClose, onToast, wallet, tab, T }) {
         <div style={{fontSize:10.5,color:T.textSoft,lineHeight:1.55,margin:"10px 2px 16px"}}>
           We attach a little diagnostic info (app version, network, screen, device) so we can reproduce issues. No reading photos or private keys are ever included.
         </div>
-        <button onClick={sendEmail} style={{width:"100%",background:T.green3,border:"none",borderRadius:6,padding:"13px",color:"#fff",fontSize:12,fontWeight:800,textTransform:"uppercase",letterSpacing:"1px",cursor:"pointer",marginBottom:8}}>✉️ Send via email</button>
-        <button onClick={copyAll} style={{width:"100%",background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"12px",color:T.textMid,fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"1px",cursor:"pointer"}}>📋 Copy instead</button>
+        <button onClick={sendEmail} style={{width:"100%",background:T.green3,border:"none",borderRadius:6,padding:"13px",color:"#fff",fontSize:12,fontWeight:800,textTransform:"uppercase",letterSpacing:".8px",cursor:"pointer",marginBottom:8}}>✉️ Send via email</button>
+        <button onClick={copyAll} style={{width:"100%",background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"12px",color:T.textMid,fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",cursor:"pointer"}}>📋 Copy instead</button>
       </div>
     </div>
   );
@@ -6429,9 +6443,9 @@ export default function App() {
           <div style={{wordBreak:"break-word"}}>{toast.msg}</div>
           <div style={{display:"flex",gap:8,marginTop:10}}>
             <button onClick={() => { navigator.clipboard?.writeText(toast.msg).catch(() => {}); }}
-              style={{flex:1,background:T.gas,color:T.bg,border:0,borderRadius:5,padding:"8px 10px",fontSize:11,fontWeight:800,cursor:"pointer"}}>📋 Copy error</button>
+              style={{flex:1,background:T.gas,color:T.bg,border:0,borderRadius:6,padding:"8px 10px",fontSize:11,fontWeight:800,cursor:"pointer"}}>📋 Copy error</button>
             <button onClick={() => setToast(null)}
-              style={{background:"transparent",color:T.gas,border:`1px solid ${T.gasBorder}`,borderRadius:5,padding:"8px 12px",fontSize:11,fontWeight:800,cursor:"pointer"}}>✕ Close</button>
+              style={{background:"transparent",color:T.gas,border:`1px solid ${T.gasBorder}`,borderRadius:6,padding:"8px 12px",fontSize:11,fontWeight:800,cursor:"pointer"}}>✕ Close</button>
           </div>
         </div>
       ) : (
@@ -6454,7 +6468,7 @@ export default function App() {
               </div>
             </div>
             <div className="hdr-actions">
-              <div className={`hdr-online ${online ? "is-online" : ""}`} title={online ? "Online" : "Offline"} aria-label={online ? "Online" : "Offline"} style={{display:"flex",alignItems:"center",justifyContent:"center",width:30,height:30,borderRadius:3,border:`1px solid ${online?T.green4:T.gasBorder}`,background:online?T.green5:T.gasBg,flexShrink:0}}>
+              <div className={`hdr-online ${online ? "is-online" : ""}`} title={online ? "Online" : "Offline"} aria-label={online ? "Online" : "Offline"} style={{display:"flex",alignItems:"center",justifyContent:"center",width:30,height:30,borderRadius:6,border:`1px solid ${online?T.green4:T.gasBorder}`,background:online?T.green5:T.gasBg,flexShrink:0}}>
                 <div style={{width:7,height:7,borderRadius:"50%",background:online?T.green3:T.gas,animation:online?"pulse 2.5s infinite":"none"}}/>
               </div>
               <button className="dark-toggle" onClick={() => setShowHelp(true)} aria-label="Help and FAQ" title="Help & FAQ">
@@ -6489,7 +6503,7 @@ export default function App() {
               this is the honest front of a rule that holds either way. */}
           {noAccess && <NoAccessScreen wallet={wallet} T={T} onSwitch={openConnectModal} onToast={showToast} />}
           {wallet && passInfo.pass && (tab==="profile") && (
-            <div style={{margin:"0 14px 12px",background:T.card,border:`1px solid ${T.border}`,borderRadius:8,padding:"11px 13px",fontSize:11.5,color:T.textMid,lineHeight:1.6}}>
+            <div style={{margin:"0 14px 12px",background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"11px 13px",fontSize:11.5,color:T.textMid,lineHeight:1.6}}>
               🎟️ <b style={{color:T.green3}}>Access pass #{passInfo.pass.no}</b> · {passInfo.pass.tier}
             </div>
           )}
