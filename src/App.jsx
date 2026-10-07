@@ -2280,9 +2280,6 @@ function TodayPanel({ subs, wallet, setTab, onOpenReader, T }) {
         )}
       </div>
 
-      <button type="button" onClick={() => setTab("submit")} style={{ minHeight: 48, borderRadius: 6, border: "none", background: T.green2, color: T === DARK ? T.bg : "#fff", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>
-        📸 Submit a reading
-      </button>
     </div>
   );
 }
@@ -3232,22 +3229,6 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
         )}
       </div>
 
-      {/* Eco bonus lives here as its own card rather than a sub-tab competing with the
-          meter flow: a separate earning action, clearly labelled, one tap away. */}
-      {onEcoSubmit && (
-        <div role="button" tabIndex={0} onClick={() => setSubTab("eco")} style={{margin:"14px 14px 0",display:"flex",alignItems:"center",gap:12,padding:"14px 15px",background:T.ecoBg||T.bgAlt,border:`1px solid ${T.ecoBorder||T.border}`,borderRadius:10,cursor:"pointer"}}>
-          <span style={{fontSize:26,lineHeight:1}}>🌿</span>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{fontSize:13.5,fontWeight:800,color:T.text}}>Eco Bonus</div>
-            <div style={{fontSize:11,color:T.textSoft,lineHeight:1.45,marginTop:2}}>
-              Washer, dryer or dishwasher on eco mode — extra B3TR
-              {` · +${RULES.ecoReward} B3TR`}{Number.isFinite(ecoUsedThisWeek) ? ` · ${Math.max(0, RULES.ecoMaxPerWeek - ecoUsedThisWeek)} left this week` : ""}
-            </div>
-          </div>
-          <span style={{fontSize:16,color:T.eco||T.green3,fontWeight:800}}>→</span>
-        </div>
-      )}
-
       {/* Quiet entry point for the minority who want automatic readings — a link, not
           a competing button, so the photo CTA stays the obvious one. */}
       {autoAvailable && !hasReader && (
@@ -3268,6 +3249,20 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
         </div>
         <EcoBonusCard T={T} wallet={wallet} setShowWallet={setShowWallet} onSubmit={onEcoSubmit} busy={ecoBusy} usedThisWeek={ecoUsedThisWeek} cooldownMs={ecoCooldownMs} rewardFactor={rewardFactor} />
       </>)}
+    </>
+  );
+}
+
+// The Eco tab: a second way to earn, on its own tab so people find it.
+function EcoScreen({ T, wallet, setShowWallet, onSubmit, busy, usedThisWeek, cooldownMs, rewardFactor }) {
+  return (
+    <>
+      <div className="sub-header">
+        <div className="sub-title">Eco bonus</div>
+        <div className="sub-sub">Appliance on eco mode · earn B3TR</div>
+      </div>
+      {TURNSTILE_SITE_KEY && <div id="cf-turnstile" style={{display:"flex",justifyContent:"center",margin:"0 0 12px"}} />}
+      <EcoBonusCard T={T} wallet={wallet} setShowWallet={setShowWallet} onSubmit={onSubmit} busy={busy} usedThisWeek={usedThisWeek} cooldownMs={cooldownMs} rewardFactor={rewardFactor} />
     </>
   );
 }
@@ -5151,11 +5146,11 @@ const HELP_I18N = {
     steps:[
       { t:"Connect your wallet", d:"Tap Connect and open VeWorld (set to Testnet) or WalletConnect. This is a test app — no real funds are used." },
       { t:"Register your meters", d:"Enter your electricity meter number and its current reading (the starting point)." },
-      { t:"Submit a reading", d:"Go to Submit, pick a utility, photograph the meter (the app reads the number for you), check it, and send." },
+      { t:"Submit a reading", d:"Go to Meter, photograph the meter (the app reads the number for you), check it, and send." },
       { t:"Earn B3TR", d:"A valid reading rewards you with B3TR on testnet. Track your total on Home and your position on the Leaderboard." },
     ], faqs:[
       { q:"Where do I find my meter number?", a:"Two spots on the meter:\n1) On the little screen — press the meter's buttons until the number appears.\n2) Under the barcode, on a sticker on the front or side.\nEnter the whole number including the letter — electricity usually starts with E, gas with G. It's also on your energy bill or your supplier's online account." },
-      { q:"Automatic reading (P1 reader / HomeWizard)", a:"With a P1 reader, Home Assistant, or another reader, your meter can send its own reading — then you never photograph again.\nDo one photo submission first (it sets your baseline), then open Submit → ⚡ Have a P1 reader? → ⚙️ Automatic setup for your token and the ready-made setup.\nFull step-by-step guide for every setup: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
+      { q:"Automatic reading (P1 reader / HomeWizard)", a:"With a P1 reader, Home Assistant, or another reader, your meter can send its own reading — then you never photograph again.\nDo one photo submission first (it sets your baseline), then open Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup for your token and the ready-made setup.\nFull step-by-step guide for every setup: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"Where do I paste the setup code?", a:"In a terminal on the device that stays on — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. That device needs Node.js 18+.\nUsing Home Assistant? No terminal at all — install our add-on.\nStep-by-step with screenshots of every route: https://greenutilitylog.github.io/GreenUtilityLog/guide.html\nToo technical? Just take a photo — that works just as well." },
       { q:"Which meters work?", a:"Almost any Dutch or Belgian smart meter with a P1 port. Dutch meters send plain data and work out of the box. Belgian (Fluvius) meters are encrypted — enter the free Fluvius key in the HomeWizard app once, then it works the same." },
       { q:"Do I always need a photo?", a:"A photo is required for a hand-entered reading. A connected P1 reader can submit without a photo, because its device token binds the reading to your wallet." },
@@ -5174,7 +5169,7 @@ const HELP_I18N = {
       { t:"Verdien B3TR", d:"Een geldige stand levert B3TR op testnet op. Zie je totaal op Home en je positie in het klassement." },
     ], faqs:[
       { q:"Waar vind ik mijn meternummer?", a:"Twee plekken op de meter:\n1) Op het schermpje — druk op de knopjes tot het nummer verschijnt.\n2) Onder de streepjescode, op een sticker aan de voor- of zijkant.\nNeem het hele nummer over, mét de letter — stroom begint meestal met E, gas met G. Het staat ook op je energierekening of in je online account bij je leverancier." },
-      { q:"Automatisch uitlezen (P1-reader / HomeWizard)", a:"Met een P1-reader, Home Assistant of een andere reader kan je meter z’n eigen stand doorsturen — dan fotografeer je nooit meer.\nDoe eerst één foto-inzending (dat zet je baseline), ga dan naar Submit → ⚡ Have a P1 reader? → ⚙️ Automatic setup voor je token en de kant-en-klare instellingen.\nVolledige stap-voor-stap gids voor elke situatie: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
+      { q:"Automatisch uitlezen (P1-reader / HomeWizard)", a:"Met een P1-reader, Home Assistant of een andere reader kan je meter z’n eigen stand doorsturen — dan fotografeer je nooit meer.\nDoe eerst één foto-inzending (dat zet je baseline), ga dan naar Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup voor je token en de kant-en-klare instellingen.\nVolledige stap-voor-stap gids voor elke situatie: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"Waar plak ik de setup-code?", a:"In een terminal op het apparaat dat altijd aan staat — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. Daar moet Node.js 18+ op staan.\nGebruik je Home Assistant? Dan helemaal geen terminal — installeer onze add-on.\nStap voor stap voor elke route: https://greenutilitylog.github.io/GreenUtilityLog/guide.html\nTe technisch? Maak gewoon een foto — dat werkt net zo goed." },
       { q:"Welke meters werken?", a:"Bijna elke Nederlandse of Belgische slimme meter met een P1-poort. Nederlandse meters sturen open data en werken direct. Belgische (Fluvius) meters zijn versleuteld — voer de gratis Fluvius-sleutel één keer in de HomeWizard-app in, daarna werkt alles hetzelfde." },
       { q:"Heb ik altijd een foto nodig?", a:"Voor een handmatig ingevoerde stand is een foto verplicht. Een gekoppelde P1-reader mag zonder foto insturen, omdat zijn device-token de stand aan jouw wallet koppelt." },
@@ -5193,7 +5188,7 @@ const HELP_I18N = {
       { t:"B3TR verdienen", d:"Ein gültiger Stand belohnt dich mit B3TR im Testnet. Sieh dein Gesamt auf Home und deine Position in der Rangliste." },
     ], faqs:[
       { q:"Wo finde ich meine Zählernummer?", a:"Zwei Stellen am Zähler:\n1) Auf dem kleinen Display — drücke die Tasten, bis die Nummer erscheint.\n2) Unter dem Barcode, auf einem Aufkleber vorne oder seitlich.\nGib die ganze Nummer inklusive Buchstabe ein — Strom beginnt meist mit E, Gas mit G. Sie steht auch auf deiner Energierechnung oder im Online-Konto deines Anbieters." },
-      { q:"Automatisches Auslesen (P1-Reader / HomeWizard)", a:"Mit einem P1-Reader, Home Assistant oder einem anderen Reader kann dein Zähler seinen Stand selbst senden — dann fotografierst du nie wieder.\nMach zuerst eine Foto-Einreichung (setzt den Basiswert), dann Submit → ⚡ Have a P1 reader? → ⚙️ Automatic setup für Token und fertige Einrichtung.\nVollständige Schritt-für-Schritt-Anleitung: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
+      { q:"Automatisches Auslesen (P1-Reader / HomeWizard)", a:"Mit einem P1-Reader, Home Assistant oder einem anderen Reader kann dein Zähler seinen Stand selbst senden — dann fotografierst du nie wieder.\nMach zuerst eine Foto-Einreichung (setzt den Basiswert), dann Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup für Token und fertige Einrichtung.\nVollständige Schritt-für-Schritt-Anleitung: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"Wo füge ich den Setup-Code ein?", a:"In einem Terminal auf dem Dauergerät — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. Dort muss Node.js 18+ installiert sein.\nDu nutzt Home Assistant? Gar kein Terminal — installiere unser Add-on.\nSchritt für Schritt für jede Route: https://greenutilitylog.github.io/GreenUtilityLog/guide.html\nZu technisch? Mach einfach ein Foto — das funktioniert genauso gut." },
       { q:"Welche Zähler funktionieren?", a:"Fast jeder niederländische oder belgische Smart-Zähler mit P1-Anschluss. Niederländische Zähler senden offene Daten und laufen sofort. Belgische (Fluvius) Zähler sind verschlüsselt — gib den kostenlosen Fluvius-Schlüssel einmal in der HomeWizard-App ein, danach läuft alles gleich." },
       { q:"Brauche ich immer ein Foto?", a:"Für einen manuell eingegebenen Stand ist ein Foto nötig. Ein verbundener P1-Reader darf ohne Foto senden, weil sein Geräte-Token den Stand an dein Wallet bindet." },
@@ -5212,7 +5207,7 @@ const HELP_I18N = {
       { t:"Gagnez des B3TR", d:"Un relevé valide vous récompense en B3TR sur testnet. Suivez votre total sur Home et votre place au classement." },
     ], faqs:[
       { q:"Où trouver le numéro de mon compteur ?", a:"Deux endroits sur le compteur :\n1) Sur le petit écran — appuyez sur les boutons jusqu'à voir le numéro.\n2) Sous le code-barres, sur une étiquette à l'avant ou sur le côté.\nSaisissez tout le numéro avec la lettre — l'électricité commence souvent par E, le gaz par G. Il figure aussi sur votre facture ou votre compte en ligne fournisseur." },
-      { q:"Lecture automatique (lecteur P1 / HomeWizard)", a:"Avec un lecteur P1, Home Assistant ou un autre lecteur, votre compteur envoie son relevé lui-même — vous ne photographiez plus.\nFaites d'abord une soumission photo (fixe votre base), puis Submit → ⚡ Have a P1 reader? → ⚙️ Automatic setup pour le jeton et la configuration prête.\nGuide complet pas à pas : https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
+      { q:"Lecture automatique (lecteur P1 / HomeWizard)", a:"Avec un lecteur P1, Home Assistant ou un autre lecteur, votre compteur envoie son relevé lui-même — vous ne photographiez plus.\nFaites d'abord une soumission photo (fixe votre base), puis Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup pour le jeton et la configuration prête.\nGuide complet pas à pas : https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"Où coller le code de configuration ?", a:"Dans un terminal sur l\u2019appareil qui reste allumé — Windows : PowerShell · Mac : Terminal · Pi/NAS : SSH. Il faut Node.js 18+.\nVous utilisez Home Assistant ? Aucun terminal — installez notre add-on.\nPas à pas pour chaque route : https://greenutilitylog.github.io/GreenUtilityLog/guide.html\nTrop technique ? Prenez simplement une photo." },
       { q:"Quels compteurs fonctionnent ?", a:"Presque tout compteur intelligent néerlandais ou belge avec un port P1. Les compteurs néerlandais envoient des données ouvertes et marchent directement. Les compteurs belges (Fluvius) sont chiffrés — saisissez une fois la clé Fluvius gratuite dans l'app HomeWizard, puis tout fonctionne pareil." },
       { q:"Faut-il toujours une photo ?", a:"Une photo est requise pour un relevé saisi à la main. Un lecteur P1 connecté peut envoyer sans photo, car son jeton d'appareil lie le relevé à votre wallet." },
@@ -5231,7 +5226,7 @@ const HELP_I18N = {
       { t:"Gana B3TR", d:"Una lectura válida te premia con B3TR en testnet. Mira tu total en Home y tu puesto en la clasificación." },
     ], faqs:[
       { q:"¿Dónde encuentro el número de mi contador?", a:"Dos sitios en el contador:\n1) En la pantallita — pulsa los botones hasta que aparezca el número.\n2) Bajo el código de barras, en una pegatina delante o al lado.\nIntroduce el número completo con la letra — la luz suele empezar por E, el gas por G. También está en tu factura o en la cuenta online de tu comercializadora." },
-      { q:"Lectura automática (lector P1 / HomeWizard)", a:"Con un lector P1, Home Assistant u otro lector, tu contador envía su lectura solo — ya no fotografías más.\nHaz primero un envío con foto (fija tu base), luego Submit → ⚡ Have a P1 reader? → ⚙️ Automatic setup para el token y la configuración lista.\nGuía completa paso a paso: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
+      { q:"Lectura automática (lector P1 / HomeWizard)", a:"Con un lector P1, Home Assistant u otro lector, tu contador envía su lectura solo — ya no fotografías más.\nHaz primero un envío con foto (fija tu base), luego Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup para el token y la configuración lista.\nGuía completa paso a paso: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"¿Dónde pego el código de configuración?", a:"En una terminal en el dispositivo que queda encendido — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. Necesita Node.js 18+.\n¿Usas Home Assistant? Ninguna terminal — instala nuestro add-on.\nPaso a paso para cada ruta: https://greenutilitylog.github.io/GreenUtilityLog/guide.html\n¿Demasiado técnico? Solo haz una foto." },
       { q:"¿Qué contadores funcionan?", a:"Casi cualquier contador inteligente neerlandés o belga con puerto P1. Los neerlandeses envían datos abiertos y funcionan directamente. Los belgas (Fluvius) van cifrados — introduce una vez la clave gratuita de Fluvius en la app HomeWizard y luego funciona igual." },
       { q:"¿Siempre necesito una foto?", a:"Se requiere foto para una lectura escrita a mano. Un lector P1 conectado puede enviar sin foto, porque su token de dispositivo vincula la lectura a tu wallet." },
@@ -5906,10 +5901,10 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selUtil, subs, baselines]);
 
-  // Cloudflare Turnstile (anti-bot): render the widget on the Submit tab when a
+  // Cloudflare Turnstile (anti-bot): render the widget on the Meter and Eco tabs when a
   // site key is set; its token rides along with each /reward submission.
   useEffect(() => {
-    if (!TURNSTILE_SITE_KEY || tab !== "submit") return;
+    if (!TURNSTILE_SITE_KEY || (tab !== "submit" && tab !== "eco")) return;
     let stop = false;
     const render = () => {
       if (stop || !window.turnstile) return;
@@ -6526,6 +6521,7 @@ export default function App() {
           {!noAccess && <>
           {tab==="home"      && <HomeScreen b3tr={b3tr} walletB3tr={walletB3tr} streak={streak} subs={subs} setTab={setTab} wallet={wallet} onOpenReader={() => { setStartOnReader(true); setTab("submit"); }} T={T}/>}
           {tab==="submit"    && <SubmitScreen startOnReader={startOnReader} onStartedReader={() => setStartOnReader(false)} rewardFactor={rewardFactor} u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} dualTariff={dualTariff} fixBasis={fixBasis} fixBusy={fixBusy} runFixBasis={runFixBasis} dismissFixBasis={() => setFixBasis(null)} setDualTariff={setDualTariff} regLow={regLow} setRegLow={setRegLow} regNormal={regNormal} setRegNormal={setRegNormal} photoRegister={regHint[selUtil] || null} busy={busy} usage={usage} reward={reward} days={daysSinceLast()} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab} onEcoSubmit={handleEcoSubmit} ecoBusy={ecoBusy} ecoUsedThisWeek={ecoUsedThisWeek} ecoCooldownMs={ecoCooldownMs} onMeterAutoSubmit={handleMeterAutoSubmit} meterAutoBusy={meterAutoBusy} onRegisterMeter={(utils) => openRegistration(utils, true)}/>}
+          {tab==="eco"       && <EcoScreen T={T} wallet={wallet} setShowWallet={openConnectModal} onSubmit={handleEcoSubmit} busy={ecoBusy} usedThisWeek={ecoUsedThisWeek} cooldownMs={ecoCooldownMs} rewardFactor={rewardFactor} />}
           {tab==="progress"  && <ProgressScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}
           {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} walletDomain={accountDomain || null} pass={passInfo.pass} setTab={setTab} onOpenSettings={()=>setTab("settings")} onOpenHelp={()=>setShowHelp(true)} onOpenFeedback={()=>setShowFeedback(true)} onToast={showToast} T={T}/>}
@@ -6538,7 +6534,7 @@ export default function App() {
               a new tester's first impression was otherwise a tab holding an empty
               graph. It reappears the moment there's something to plot, and stays
               visible while you're standing on it so the nav never loses its place. */}
-          {[{id:"home",icon:"🏠",label:"Home"},{id:"submit",icon:"📸",label:"Submit"},{id:"progress",icon:"📈",label:"Progress"},{id:"profile",icon:"👤",label:"Profile"}].filter(n=>n.show!==false).map(n=>(
+          {[{id:"home",icon:"🏠",label:"Home"},{id:"submit",icon:"📸",label:"Meter"},{id:"eco",icon:"🌿",label:"Eco"},{id:"progress",icon:"📈",label:"Progress"},{id:"profile",icon:"👤",label:"Profile"}].filter(n=>n.show!==false).map(n=>(
             <button key={n.id} className={`nitem ${tab===n.id || (n.id==="profile" && (tab==="settings" || tab==="history")) ?"active":""}`} onClick={()=>setTab(n.id)}>
               <div className="nicon">{n.icon}</div>
               <div className="nlabel">{n.label}</div>

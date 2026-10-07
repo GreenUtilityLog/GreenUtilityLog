@@ -50,7 +50,7 @@ L["en"] = dict(
   baseline_t="First, once: set your starting point",
   baseline_b="Whichever route you pick, do <strong>one normal photo submission</strong> in the app first. That tells the app where your meter started — without it, automatic readings can't be paid out.",
   token=[
-    ("Copy your device token", 'In the app: <span class="k">Submit → ⚡ Have a P1 reader? → ⚙️ Automatic setup → “Get my device token”</span>. Copy it.',
+    ("Copy your device token", 'In the app: <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → “Get my device token”</span>. Copy it.',
      "What it is", 'A long code that says “these readings belong to my wallet”. Keep it private — anyone holding it can send readings in your name.'),
   ],
   a_intro="Two ways. Our integration is the easiest and works with <em>any</em> meter Home Assistant already shows you; the YAML does the same by hand if you'd rather not install anything.",
@@ -136,7 +136,7 @@ L["nl"] = dict(
   baseline_t="Eerst, eenmalig: zet je startpunt",
   baseline_b="Welke route je ook kiest, doe eerst <strong>één gewone foto-inzending</strong> in de app. Daarmee weet de app waar je meter begon — zonder dat kunnen automatische standen niet uitbetalen.",
   token=[
-    ("Kopieer je device-token", 'In de app: <span class="k">Submit → ⚡ Have a P1 reader? → ⚙️ Automatic setup → “Get my device token”</span>. Kopieer ’m.',
+    ("Kopieer je device-token", 'In de app: <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → “Get my device token”</span>. Kopieer ’m.',
      "Wat het is", 'Een lange code die zegt: “deze standen horen bij mijn wallet”. Houd ’m privé — wie ’m heeft kan standen op jouw naam insturen.'),
   ],
   a_intro='Twee manieren. Onze integratie is de makkelijkste en werkt met <em>elke</em> meter die Home Assistant al toont; de YAML doet hetzelfde handmatig als je liever niets installeert.',
@@ -222,7 +222,7 @@ L["de"] = dict(
   baseline_t="Zuerst, einmalig: Startpunkt setzen",
   baseline_b="Egal welche Route: mach zuerst <strong>eine normale Foto-Einreichung</strong> in der App. Damit weiß die App, wo dein Zähler startete — sonst können automatische Stände nicht ausgezahlt werden.",
   token=[
-    ("Geräte-Token kopieren", 'In der App: <span class="k">Submit → ⚡ Have a P1 reader? → ⚙️ Automatic setup → „Get my device token“</span>. Kopieren.',
+    ("Geräte-Token kopieren", 'In der App: <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → „Get my device token“</span>. Kopieren.',
      "Was das ist", 'Ein langer Code, der sagt: „diese Stände gehören zu meinem Wallet“. Halte ihn privat — wer ihn hat, kann Stände in deinem Namen senden.'),
   ],
   a_intro='Zwei Wege. Unsere Integration ist am einfachsten und funktioniert mit <em>jedem</em> Zähler, den Home Assistant schon anzeigt; das YAML macht dasselbe von Hand, falls du nichts installieren willst.',
@@ -308,7 +308,7 @@ L["fr"] = dict(
   baseline_t="D'abord, une fois : fixez votre point de départ",
   baseline_b="Quelle que soit la route, faites d'abord <strong>une soumission photo normale</strong> dans l'app. L'app sait ainsi où votre compteur a démarré — sinon les relevés automatiques ne peuvent pas être payés.",
   token=[
-    ("Copiez votre jeton", 'Dans l\'app : <span class="k">Submit → ⚡ Have a P1 reader? → ⚙️ Automatic setup → « Get my device token »</span>. Copiez-le.',
+    ("Copiez votre jeton", 'Dans l\'app : <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → « Get my device token »</span>. Copiez-le.',
      "Ce que c'est", 'Un long code qui dit « ces relevés appartiennent à mon wallet ». Gardez-le privé — celui qui l\'a peut envoyer des relevés en votre nom.'),
   ],
   a_intro="Deux façons. Notre intégration est la plus simple et fonctionne avec <em>n'importe quel</em> compteur que Home Assistant affiche déjà ; le YAML fait la même chose à la main si vous préférez ne rien installer.",
@@ -394,7 +394,7 @@ L["es"] = dict(
   baseline_t="Primero, una vez: fija tu punto de partida",
   baseline_b="Elijas la ruta que elijas, haz primero <strong>un envío con foto normal</strong> en la app. Así la app sabe dónde empezó tu contador — sin eso las lecturas automáticas no pueden pagarse.",
   token=[
-    ("Copia tu token", 'En la app: <span class="k">Submit → ⚡ Have a P1 reader? → ⚙️ Automatic setup → «Get my device token»</span>. Cópialo.',
+    ("Copia tu token", 'En la app: <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → «Get my device token»</span>. Cópialo.',
      "Qué es", 'Un código largo que dice «estas lecturas son de mi wallet». Mantenlo privado — quien lo tenga puede enviar lecturas en tu nombre.'),
   ],
   a_intro='Dos formas. Nuestra integración es la más fácil y funciona con <em>cualquier</em> contador que Home Assistant ya muestre; el YAML hace lo mismo a mano si prefieres no instalar nada.',

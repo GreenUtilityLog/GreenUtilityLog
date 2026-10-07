@@ -14,7 +14,7 @@ Zero dependencies — just Node ≥ 18 (or Docker).
 
 ## Before you start
 1. In the HomeWizard Energy app: **Settings → Meters → your P1 → turn on “Local API.”**
-2. In the GreenUtilityLog app: **Submit → Electricity → ⚙️ Automatic setup → “Get my device token.”** (Do one photo submission first to set your baseline.)
+2. In the GreenUtilityLog app: **Meter → ⚙️ Automatic setup → “Get my device token.”** (Do one photo submission first to set your baseline.)
 
 ## Run it — pick one
 

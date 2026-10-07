@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "GreenUtilityLog",
-        "description": "Send your meter reading automatically, so you never photograph the meter again.\n\nGet your token in the app: Submit → Have a P1 reader? → Automatic setup → “Get my device token”. Do one photo submission first — that sets your starting point.",
+        "description": "Send your meter reading automatically, so you never photograph the meter again.\n\nGet your token in the app: Meter → Have a P1 reader? → Automatic setup → “Get my device token”. Do one photo submission first — that sets your starting point.",
         "data": {
           "token": "Device token",
           "source_entity": "Meter reading (cumulative kWh)",

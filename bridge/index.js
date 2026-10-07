@@ -149,7 +149,7 @@ async function ensureToken() {
   }
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   const answer = await new Promise((res) =>
-    rl.question("\nPaste your device token (app → Submit → Automatic setup): ", res));
+    rl.question("\nPaste your device token (app → Meter → Automatic setup): ", res));
   rl.close();
   TOKEN = String(answer || "").trim();
   if (!TOKEN) { console.error("No token given — nothing to do."); return false; }
