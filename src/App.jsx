@@ -662,9 +662,6 @@ const UTILS_PHRASE = UTIL_WORDS.length === 1
   ? `your ${UTIL_WORDS[0]} meter`
   : `your ${UTIL_WORDS.slice(0, -1).join(", ")} & ${UTIL_WORDS[UTIL_WORDS.length - 1]} meters`;
 
-// A chart of a single point says nothing, so the tab stays out of the way until
-// there are at least two readings to draw a line between.
-const CHARTS_MIN_SUBS = 2;
 
 // ── Conservation-based reward (MUST match server/config.js) ───────────────────
 // We reward USING LESS, not using more:
@@ -737,6 +734,7 @@ const TIERS = [
 ];
 function getTier(b3tr){ return TIERS.find(t => b3tr >= t.min && b3tr <= t.max) || TIERS[0]; }
 const tierColor = (t, T) => (T === DARK ? t.dark : t.color);
+const TIER_ICONS = { Moon: "🌙", Sun: "☀️", Star: "⭐", Gold: "🥇", Platinum: "💎" };
 
 // Consecutive-day streak based on submission dates ("YYYY-MM-DD"). The streak
 // is allowed to end today OR yesterday, so it isn't reported as broken just
@@ -2321,7 +2319,7 @@ function HomeScreen({ b3tr, walletB3tr, streak, subs, setTab, wallet, onOpenRead
           const myS = subs.filter(s => s.type === u.id);
           const tot = myS.reduce((a,s) => a+(parseFloat(s.b3tr)||0), 0);
           return (
-            <div role="button" tabIndex={0} key={u.id} className="ucard" onClick={() => setTab("charts")}>
+            <div role="button" tabIndex={0} key={u.id} className="ucard" onClick={() => setTab("progress")}>
               <div className="ucard-icon" style={{background:getColorBg(u.id, T),border:`1px solid ${T[u.id+"Border"]||T.green4}`,color:T[u.id]||T.green2}}>{UTIL_ICONS[u.id]}</div>
               <div className="ucard-name">{u.label}</div>
               <div className="ucard-reads">{myS.length} readings logged</div>
@@ -3375,7 +3373,9 @@ const CO2_PER_UNIT_UI = { electric: 400, gas: 1900, water: 0.34, solar: 400 };
 const ECO_CO2_PER_CLAIM = 200;   // grams per eco-mode run (≈0.5 kWh saved)
 const ECO_KWH_PER_CLAIM = 0.5;
 
-function ChartsScreen({ subs, T }) {
+// part: "impact" = only the three impact tiles, "charts" = only the charts below
+// them (both used inside Progress); none = the whole screen.
+function ChartsScreen({ subs, T, part }) {
   const mono = "'SF Mono',Menlo,'Courier New',monospace";
   const usageOf = (s) => { const u = parseFloat(s.cur) - parseFloat(s.prev); return Number.isFinite(u) && u > 0 ? +u.toFixed(2) : 0; };
   const meterSubs = subs.filter(s => s.type !== "eco" && usageOf(s) > 0);
@@ -3428,12 +3428,26 @@ function ChartsScreen({ subs, T }) {
     </div>
   );
 
+  if (part === "impact") return (
+    <div style={{display:"grid",gridTemplateColumns:"repeat(3, minmax(0, 1fr))",gap:8,margin:"0 14px 12px"}}>
+      {[{ icon: "🌍", v: co2Label, k: "CO₂ avoided" }, { icon: "⚡", v: `${kwhSaved.toFixed(kwhSaved >= 100 ? 0 : 1)} kWh`, k: "Saved" }, { icon: "🔥", v: `${streak} ${streak === 1 ? "day" : "days"}`, k: "Streak" }].map(x => (
+        <div key={x.k} className="pstat" style={{padding:"10px 6px"}}>
+          <div style={{fontSize:17}}>{x.icon}</div>
+          <div className="pstat-val" style={{fontSize:16,marginTop:3}}>{x.v}</div>
+          <div className="pstat-key">{x.k}</div>
+        </div>
+      ))}
+    </div>
+  );
+
   if (!subs.length) return (
     <>
-      <div className="sub-header">
-        <div className="sub-title">Analytics</div>
-        <div className="sub-sub">Your impact and trends</div>
-      </div>
+      {!part && (
+        <div className="sub-header">
+          <div className="sub-title">Analytics</div>
+          <div className="sub-sub">Your impact and trends</div>
+        </div>
+      )}
       <div className="chart-card" style={{textAlign:"center",padding:"28px 16px"}}>
         <div style={{fontSize:26,marginBottom:8}}>📊</div>
         <div style={{fontSize:12,fontWeight:700,color:T.text,marginBottom:4}}>No data yet</div>
@@ -3444,18 +3458,20 @@ function ChartsScreen({ subs, T }) {
 
   return (
     <>
-      <div className="sub-header">
-        <div className="sub-title">Analytics</div>
-        <div className="sub-sub">Your impact and trends</div>
-      </div>
+      {!part && (
+        <div className="sub-header">
+          <div className="sub-title">Analytics</div>
+          <div className="sub-sub">Your impact and trends</div>
+        </div>
+      )}
 
       {/* Impact headline — the numbers that tell the sustainability story */}
-      <div className="pstat-row">
+      {!part && <div className="pstat-row">
         <Tile icon="🌍" val={co2Label.split(" ")[0]} unit={co2Label.split(" ")[1] + " CO₂e"} label="Emissions avoided" />
         <Tile icon="⚡" val={kwhSaved.toFixed(1)} unit="kWh" label="Energy saved" sub="vs efficiency target" />
         <Tile icon="🪙" val={totalB3TR.toFixed(2)} unit="B3TR" label="Total earned" sub={ecoB3TR > 0 ? `${(totalB3TR - ecoB3TR).toFixed(2)} meters · ${ecoB3TR.toFixed(2)} eco` : undefined} />
         <Tile icon="🔥" val={streak} unit={streak === 1 ? "day" : "days"} label="Streak" sub={`${subs.length} submission${subs.length === 1 ? "" : "s"}`} />
-      </div>
+      </div>}
 
       {/* Usage vs the efficiency target — the core conservation view */}
       {UTILS.map(u => {
@@ -3560,7 +3576,10 @@ function ChartsScreen({ subs, T }) {
   );
 }
 
-function LeaderboardScreen({ b3tr, streak, subs, wallet, T }) {
+// Progress: how you're doing — tier, impact, goals, then usage / leaderboard /
+// badges behind one switch. Charts and Rank used to be two tabs that repeated the
+// same totals; this is both, once.
+function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
   const currentTier = getTier(b3tr);
   const nextTier = TIERS[TIERS.indexOf(currentTier) + 1];
   const progressPercent = nextTier ? Math.min(100, Math.round((b3tr - currentTier.min) / (nextTier.min - currentTier.min) * 100)) : 100;
@@ -3624,96 +3643,118 @@ function LeaderboardScreen({ b3tr, streak, subs, wallet, T }) {
   const weekB3tr = weekSubs.reduce((a, s) => a + (Number(s.b3tr) || 0), 0).toFixed(2);
   
   const badges = [
-    { id: "early", name: "Early Adopter", icon: "🚀", unlocked: subs.length > 0 },
-    { id: "100sub", name: "Century Club", icon: "💯", unlocked: subs.length >= 100 },
-    { id: "7day", name: "Week Warrior", icon: "🔥", unlocked: streak >= 7 },
-    { id: "20day", name: "Legend", icon: "👑", unlocked: streak >= 20 },
-    { id: "250b3tr", name: "B3TR Whale", icon: "🐋", unlocked: b3tr >= 250 },
-    { id: "rank1", name: "Champion", icon: "🏆", unlocked: isLive && board.length > 1 && myRank === 1 && myBoardB3tr > 0 },
+    { id: "early", name: "Early adopter", icon: "🚀", how: "first reading", unlocked: subs.length > 0 },
+    { id: "7day", name: "Week warrior", icon: "🔥", how: "7-day streak", unlocked: streak >= 7 },
+    { id: "100sub", name: "Century club", icon: "💯", how: "100 readings", unlocked: subs.length >= 100 },
+    { id: "20day", name: "Legend", icon: "👑", how: "20-day streak", unlocked: streak >= 20 },
+    { id: "250b3tr", name: "B3TR whale", icon: "🐋", how: "250 B3TR", unlocked: b3tr >= 250 },
+    { id: "rank1", name: "Champion", icon: "🏆", how: "rank #1", unlocked: isLive && board.length > 1 && myRank === 1 && myBoardB3tr > 0 },
+  ];
+  const [view, setView] = useState("usage");
+  const label = { fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".8px", color: T.textSoft };
+  const card = { background: T.card, border: `1px solid ${T.border}`, borderRadius: 10 };
+  const meterReadings = subs.filter(s => s.type !== "eco").length;
+  const goals = [
+    streak < 7
+      ? { icon: "🔥", label: "7-day streak", left: `${7 - streak} ${7 - streak === 1 ? "day" : "days"} to go` }
+      : { icon: "👑", label: "20-day streak", left: streak >= 20 ? "Reached ✓" : `${20 - streak} days to go` },
+    { icon: "🏆", label: "Top 3", left: !isLive ? "—" : myRank <= 3 ? "You're in it ✓" : `${myRank - 3} ${myRank - 3 === 1 ? "place" : "places"} to go` },
+    { icon: "💯", label: "Century club", left: meterReadings >= 100 ? "Reached ✓" : `${100 - meterReadings} readings to go` },
   ];
 
   return (
     <>
       <div className="sub-header">
-        <div className="sub-title">Rank</div>
-        <div className="sub-sub">Tiers, goals and the leaderboard</div>
+        <div className="sub-title">Progress</div>
+        <div className="sub-sub">Your impact, rank and goals</div>
       </div>
-      <div className="lb-hero" style={{marginTop:0}}>
-        <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginBottom:10}}>Your Rank & Tier</div>
-        <div className="lb-hero-rank">{isLive ? `#${myRank}` : "#–"}</div>
-        <div style={{fontSize:12,fontWeight:700,color:tierColor(currentTier, T),marginTop:8}}>{currentTier.name} Tier</div>
-        <div style={{fontSize:11,color:T.textSoft,marginTop:5}}>{(isLive ? myBoardB3tr : b3tr).toFixed(2)} B3TR · {streak} day streak</div>
 
-        <div style={{fontSize:10,fontWeight:700,color:T.green3,marginTop:10,display:"flex",alignItems:"center",gap:6}}>
-          {!isLive ? "Rankings appear once the on-chain leaderboard loads" : myRank === 1 ? "🏆 Top of the leaderboard" : `↑ ${gapToNext.toFixed(2)} B3TR to reach #${myRank - 1}`}
-        </div>
-
-        {nextTier && (
-          <div style={{marginTop:14,width:"100%"}}>
-            <div style={{fontSize:10,fontWeight:700,color:T.textMid,marginBottom:6}}>Progress to {nextTier.name} Tier</div>
-            <div style={{width:"100%",height:6,background:T.border,borderRadius:6,overflow:"hidden"}}>
-              <div style={{width:`${progressPercent}%`,height:"100%",background:T.green3,transition:"width 0.3s"}}/>
+      <div style={{ ...card, margin: "0 14px 12px", padding: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+            <span aria-hidden="true" style={{ fontSize: 30, lineHeight: 1 }}>{TIER_ICONS[currentTier.name] || "🌙"}</span>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: T.text }}>{currentTier.name} tier</div>
+              <div style={{ fontSize: 12, color: T.textSoft, marginTop: 2 }}>
+                {chain.status === "loading" ? "Loading the leaderboard…" : isLive ? `Rank #${myRank} of ${board.length}` : "Rank appears once rewards are on chain"}
+              </div>
             </div>
-            <div style={{fontSize:10,color:T.textSoft,marginTop:4,textAlign:"center"}}>{progressPercent}% • Need {b3trNeeded.toFixed(2)} more B3TR</div>
           </div>
-        )}
-      </div>
-
-      <div className="sec" style={{marginTop:20}}><div className="sec-line"/><div className="sec-txt">🎯 Next Goals</div><div className="sec-line"/></div>
-      <div style={{margin:"0 14px 14px",padding:14,background:T.card,border:`1px solid ${T.border}`,borderRadius:10}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-          <div style={{fontSize:11,fontWeight:700,color:T.text}}>100 B3TR Achievement</div>
-          <div style={{fontSize:11,fontWeight:700,color:T.green3}}>{to100 > 0 ? `${to100.toFixed(2)} away` : "Achieved ✓"}</div>
+          {nextTier && (
+            <div style={{ textAlign: "right", flexShrink: 0 }}>
+              <div style={label}>Next</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: T.text, marginTop: 2 }}>{TIER_ICONS[nextTier.name] || ""} {nextTier.name}</div>
+            </div>
+          )}
         </div>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-          <div style={{fontSize:11,fontWeight:700,color:T.text}}>#1 Global Rank</div>
-          <div style={{fontSize:11,fontWeight:700,color:T.green3}}>{!isLive ? "—" : myRank === 1 ? "You're #1!" : `${myRank - 1} spots away`}</div>
+        <div role="progressbar" aria-label={nextTier ? `Progress to ${nextTier.name} tier` : "Top tier"} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent}
+          style={{ height: 8, borderRadius: 999, background: T.bgAlt, overflow: "hidden", marginTop: 12 }}>
+          <div style={{ width: `${progressPercent}%`, height: "100%", background: T.green3, transition: "width .3s" }} />
         </div>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div style={{fontSize:11,fontWeight:700,color:T.text}}>30-Day Streak</div>
-          <div style={{fontSize:11,fontWeight:700,color:T.green3}}>{Math.max(0, 30-streak)} days away</div>
+        <div style={{ fontSize: 12, color: T.textMid, marginTop: 8 }}>
+          {nextTier ? <><b>{b3trNeeded.toFixed(2)} B3TR</b> to go · {progressPercent}%</> : "Top tier reached 🎉"}
         </div>
       </div>
 
-      <div className="sec"><div className="sec-line"/><div className="sec-txt">📊 This Week</div><div className="sec-line"/></div>
-      <div style={{margin:"0 14px 14px",padding:14,background:T.card,border:`1px solid ${T.border}`,borderRadius:10}}>
-        <div style={{fontSize:10,fontWeight:700,color:T.green3,marginBottom:8}}>✓ +{weekB3tr} B3TR</div>
-        <div style={{fontSize:10,fontWeight:700,color:T.green3,marginBottom:8}}>✓ +{weekSubs.length} submissions</div>
-        <div style={{fontSize:10,fontWeight:700,color:T.green3}}>✓ Avg: {(weekB3tr/7).toFixed(2)} B3TR/day</div>
-      </div>
+      <ChartsScreen subs={subs} T={T} part="impact" />
 
-      <div className="sec"><div className="sec-line"/><div className="sec-txt">🏅 Achievements</div><div className="sec-line"/></div>
-      <div style={{margin:"0 14px 14px",display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
-        {badges.map(b => (
-          <div key={b.id} style={{padding:12,background:b.unlocked?T.card:T.bgAlt,border:`1px solid ${b.unlocked?T.border:T.textSoft}`,borderRadius:6,textAlign:"center",opacity:b.unlocked?1:0.5}}>
-            <div style={{fontSize:24,marginBottom:4}}>{b.icon}</div>
-            <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.8px",color:T.textSoft}}>{b.name}</div>
+      <div style={{ ...card, margin: "0 14px 12px", padding: 14 }}>
+        <div style={{ ...label, marginBottom: 10 }}>Next goals</div>
+        {goals.map((g, i) => (
+          <div key={g.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, fontSize: 13, marginTop: i ? 10 : 0 }}>
+            <span style={{ fontWeight: 700, color: T.text }}>{g.icon} {g.label}</span>
+            <span style={{ fontWeight: 700, color: T.green3, textAlign: "right" }}>{g.left}</span>
           </div>
         ))}
       </div>
 
-      <div className="sec"><div className="sec-line"/><div className="sec-txt">Global Leaderboard</div><div className="sec-line"/></div>
-      <div style={{margin:"0 14px 10px",display:"flex",alignItems:"center",justifyContent:"center",gap:7,fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:chain.status==="live"?T.green3:T.textSoft}}>
-        {chain.status==="loading"
-          ? <><span className="spin-sm" style={{width:9,height:9,borderColor:`${T.border}`,borderTopColor:T.green3}}/> Loading on-chain rankings…</>
-          : chain.status==="live"
-            ? <><span style={{width:6,height:6,borderRadius:"50%",background:T.green3,animation:"pulse 2.5s infinite"}}/> Live · {board.length} on-chain participants{chain.truncated ? " (top, more exist)" : ""}</>
-            : <>● Only you for now — {chain.reason==="unset_appid" ? "rankings aren't available right now" : "live rankings load once submissions are on-chain"}</>
-        }
+      <div role="tablist" aria-label="Details" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 3, padding: 3, margin: "0 14px 12px", background: T.bgAlt, borderRadius: 6 }}>
+        {[["usage", "Usage"], ["board", "Leaderboard"], ["badges", "Badges"]].map(([id, name]) => {
+          const on = view === id;
+          return (
+            <button key={id} type="button" role="tab" aria-selected={on} onClick={() => setView(id)}
+              style={{ minHeight: 40, border: "none", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: on ? 800 : 700, background: on ? T.card : "transparent", color: on ? T.text : T.textSoft }}>
+              {name}
+            </button>
+          );
+        })}
       </div>
-      {board.slice(0, 25).map(item => (
-        <div key={item.isMe ? "me" : (item.rawAddr || item.name)} className={`lb-item ${item.isMe ? 'me' : ''}`}>
-          <div className="lb-rank">{item.rank}</div>
-          <div style={{flex:1}}>
-            <div className="lb-name">{item.name} {item.isMe && item.name !== "You" && <span style={{fontSize:9,fontWeight:700,background:T.green1,color:"#fff",borderRadius:6,padding:"1px 4px",letterSpacing:".8px"}}>YOU</span>}</div>
-            <div style={{fontSize:9,color:T.textSoft,fontFamily:"'SF Mono',monospace"}}>{item.addr}</div>
-          </div>
-          <div style={{textAlign:"right"}}>
-            <div className="lb-b3tr">+{Number(item.b3tr).toFixed(item.count!=null ? 2 : (item.isMe ? 2 : 1))}</div>
-            <div style={{fontSize:9,color:T.textSoft}}>{item.count!=null ? `📸 ${item.count}` : `🔥 ${item.streak}d`}</div>
-          </div>
+
+      {view === "usage" && <ChartsScreen subs={subs} T={T} part="charts" />}
+
+      {view === "board" && (<>
+        <div style={{ margin: "0 14px 8px", fontSize: 11, color: chain.status === "live" ? T.green3 : T.textSoft, fontWeight: 700 }}>
+          {chain.status === "loading" ? "Loading on-chain rankings…"
+            : chain.status === "live" ? `Live · ${board.length} on-chain participants${chain.truncated ? " (top, more exist)" : ""}`
+            : (chain.reason === "unset_appid" ? "Rankings aren't available right now" : "Only you for now — live rankings load once rewards are on chain")}
         </div>
-      ))}
+        <div style={{ ...card, margin: "0 14px 12px", overflow: "hidden" }}>
+          {board.slice(0, 25).map((item, i, arr) => (
+            <div key={item.isMe ? "me" : (item.rawAddr || item.name)} style={{ display: "grid", gridTemplateColumns: "28px 1fr auto", gap: 10, alignItems: "center", minHeight: 52, padding: "0 14px", background: item.isMe ? (T.green5 || T.bgAlt) : "transparent", borderBottom: i < arr.length - 1 ? `1px solid ${T.border}` : "none" }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: T.textSoft }}>{item.rank}</div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: item.isMe ? 13 : 12, fontWeight: 700, color: T.text, fontFamily: item.isMe ? undefined : "'SF Mono',Menlo,monospace" }}>{item.isMe ? "You" : item.name}</div>
+                <div style={{ fontSize: 11, color: T.textSoft }}>
+                  {item.count != null ? `${item.count} ${item.count === 1 ? "reward" : "rewards"}` : `${streak}-day streak`}{item.isMe ? ` · ${shortAddr(wallet)}` : ""}
+                </div>
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: T.text }}>{Number(item.b3tr).toFixed(2)}</div>
+            </div>
+          ))}
+        </div>
+      </>)}
+
+      {view === "badges" && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8, margin: "0 14px 12px" }}>
+          {badges.map(b => (
+            <div key={b.id} style={{ background: T.card, border: b.unlocked ? `2px solid ${T.green3}` : `1px solid ${T.border}`, borderRadius: 10, padding: "12px 6px", textAlign: "center" }}>
+              <div aria-hidden="true" style={{ fontSize: 26, opacity: b.unlocked ? 1 : .3, filter: b.unlocked ? "none" : "grayscale(1)" }}>{b.icon}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: T.text, marginTop: 4 }}>{b.name}</div>
+              <div style={{ fontSize: 10, color: T.textSoft, marginTop: 2 }}>{b.unlocked ? "Earned" : b.how}</div>
+            </div>
+          ))}
+        </div>
+      )}
     </>
   );
 }
@@ -4882,7 +4923,7 @@ function saveProfile(w, p) {
   try { localStorage.setItem(profileKey(w), JSON.stringify(p)); return true; } catch { return false; }
 }
 
-function ProfileHero({ wallet, domain, tier, onToast, T }) {
+function ProfileHero({ wallet, domain, tier, summary, role, onToast, T }) {
   const [profile, setProfile] = useState(() => loadProfile(wallet));
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(profile);
@@ -4916,6 +4957,7 @@ function ProfileHero({ wallet, domain, tier, onToast, T }) {
         </div>
         <div style={{minWidth:0,flex:1}}>
           <div className="pname" style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{editing ? (draft.name.trim() || domain || "My Account") : title}</div>
+          {summary && !editing && <div style={{fontSize:12,color:T.textMid,marginTop:3}}>{summary}</div>}
           <div style={{fontSize:10,color:T.textSoft,fontFamily:mono,marginTop:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
             {wallet ? (profile.name && domain ? `${domain} · ${shortAddr(wallet)}` : shortAddr(wallet)) : "Not connected"}
           </div>
@@ -4967,7 +5009,10 @@ function ProfileHero({ wallet, domain, tier, onToast, T }) {
           </div>
         </div>
       ) : (
-        <div style={{display:"inline-block",fontSize:10,fontWeight:700,background:T.bgAlt,color:tierColor(tier, T),border:`1px solid ${T.border}`,borderRadius:6,padding:"3px 7px",marginTop:12,textTransform:"uppercase",letterSpacing:".8px"}}>{tier.name} Tier</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:12}}>
+          <span style={{fontSize:10.5,fontWeight:800,background:T.bgAlt,color:tierColor(tier, T),border:`1px solid ${T.border}`,borderRadius:999,padding:"4px 10px",textTransform:"uppercase",letterSpacing:".6px"}}>{TIER_ICONS[tier.name] || ""} {tier.name} tier</span>
+          {role && <span style={{fontSize:10.5,fontWeight:800,background:T.green5||T.bgAlt,color:T.green3,border:`1px solid ${T.green4||T.border}`,borderRadius:999,padding:"4px 10px",textTransform:"uppercase",letterSpacing:".6px"}}>🎟️ {role}</span>}
+        </div>
       )}
     </div>
   );
@@ -5004,108 +5049,86 @@ function NoAccessScreen({ wallet, T, onSwitch, onToast }) {
   );
 }
 
-function ProfileScreen({ b3tr, subs, wallet, walletDomain, setShowWallet, dark, setDark, setOnboarded, onEditMeters, onEditSolar, meters, isAdmin, onOpenAdmin, onOpenHelp, onOpenFeedback, onToast, onReset, T }) {
+// A list row that is a real button (keyboard and screen readers reach it).
+function RowButton({ icon, label, sub, right, danger, onClick, T, last }) {
+  return (
+    <button type="button" onClick={onClick}
+      style={{display:"flex",alignItems:"center",gap:12,width:"100%",minHeight:56,padding:"0 14px",border:"none",borderBottom:last?"none":`1px solid ${T.border}`,background:"transparent",textAlign:"left",cursor:"pointer",color:T.text,font:"inherit"}}>
+      <span aria-hidden="true" style={{width:32,height:32,flexShrink:0,borderRadius:6,background:T.bgAlt,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}}>{icon}</span>
+      <span style={{flex:1,minWidth:0,display:"flex",flexDirection:"column",gap:1}}>
+        <span style={{fontSize:13,fontWeight:700,color:danger?T.gas:T.text}}>{label}</span>
+        {sub && <span style={{fontSize:11,color:T.textSoft,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sub}</span>}
+      </span>
+      {right ?? <span aria-hidden="true" style={{color:T.textSoft,fontSize:18}}>›</span>}
+    </button>
+  );
+}
+const listCard = (T) => ({ margin: "0 14px 12px", background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, overflow: "hidden" });
+
+// Profile: you. Settings live one tap away (⚙️), not on this page.
+function ProfileScreen({ b3tr, subs, wallet, walletDomain, pass, setTab, onOpenSettings, onOpenHelp, onOpenFeedback, onToast, T }) {
   const tier = getTier(b3tr);
+  const readings = subs.filter(s => s.type !== "eco").length;
+  const first = subs.reduce((m, s) => { const t = s.submittedAt || localDayTs(s.date) || 0; return t && (!m || t < m) ? t : m; }, 0);
+  const summary = `${b3tr.toFixed(2)} B3TR earned · ${readings} ${readings === 1 ? "reading" : "readings"}${first ? ` · since ${new Date(first).toLocaleDateString([], { month: "short", year: "numeric" })}` : ""}`;
   return (
     <>
-      <div className="sub-header">
-        <div className="sub-title">Profile</div>
-        <div className="sub-sub">Your account and settings</div>
+      <div className="sub-header" style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between",gap:10}}>
+        <div>
+          <div className="sub-title">Profile</div>
+          <div className="sub-sub">You on Green Utility Log</div>
+        </div>
+        <button type="button" onClick={onOpenSettings} aria-label="Settings" className="dark-toggle" style={{width:44,height:44,fontSize:18,background:T.card}}>⚙️</button>
       </div>
-      <ProfileHero wallet={wallet} domain={walletDomain} tier={tier} onToast={onToast} T={T} />
-      
-      <div className="pstat-row">
-        {[{v:b3tr.toFixed(2),k:"B3TR Earned"},{v:subs.length,k:"Submissions"}].map(x=>(
-          <div key={x.k} className="pstat"><div className="pstat-val">{x.v}</div><div className="pstat-key">{x.k}</div></div>
-        ))}
+      <ProfileHero wallet={wallet} domain={walletDomain} tier={tier} summary={wallet ? summary : ""} role={pass?.tier || ""} onToast={onToast} T={T} />
+      <div style={listCard(T)}>
+        <RowButton T={T} icon="🧾" label="History" sub={subs.length ? `All ${subs.length} readings and payouts` : "Your readings and payouts"} onClick={() => setTab("history")} />
+        <RowButton T={T} icon="❓" label="Help" sub="Guide, FAQ and the P1 setup" onClick={onOpenHelp} />
+        <RowButton T={T} icon="✉️" label="Send feedback" sub="A bug, or an idea" onClick={onOpenFeedback} last />
+      </div>
+    </>
+  );
+}
+
+function SettingsScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, setOnboarded, onEditMeters, onEditSolar, meters, isAdmin, onOpenAdmin, onOpenReader, onToast, onReset, onBack, T }) {
+  const meterNo = (meters?.electric || "").trim();
+  const group = (title) => <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,margin:"14px 18px 6px"}}>{title}</div>;
+  return (
+    <>
+      <div style={{display:"flex",alignItems:"center",gap:10,padding:"14px 14px 2px"}}>
+        <button type="button" onClick={onBack} aria-label="Back to profile" className="dark-toggle" style={{width:44,height:44,fontSize:18,background:T.card}}>‹</button>
+        <div className="sub-title">Settings</div>
       </div>
 
-      <div className="sec"><div className="sec-line"/><div className="sec-txt">Settings</div><div className="sec-line"/></div>
-      <div role="button" tabIndex={0} className="setting-row" onClick={()=>setDark(d=>!d)}>
-        <div className="sr-left">
-          <div className="sr-icon">🌙</div>
-          <div><div className="sr-label">Dark Mode</div><div className="sr-sub">{dark ? "On" : "Off"}</div></div>
-        </div>
-        <div className="sr-right"><Toggle on={dark} label="Dark mode" onToggle={(e)=>{ e?.stopPropagation?.(); setDark(d=>!d); }}/></div>
-      </div>
-      <div role="button" tabIndex={0} className="setting-row" onClick={onEditMeters}>
-        <div className="sr-left">
-          <div className="sr-icon">🔢</div>
-          <div><div className="sr-label">Meters & Baselines</div><div className="sr-sub">{UTILS.map(u => u.label).join(", ")}</div></div>
-        </div>
-        <div className="sr-right" style={{fontSize:11,color:T.textSoft}}>→</div>
-      </div>
-      {SOLAR_UTILS.length > 0 && (() => {
-        const solarNo = (meters?.solar || "").trim();
-        return (
-          <div role="button" tabIndex={0} className="setting-row" onClick={onEditSolar}>
-            <div className="sr-left">
-              <div className="sr-icon">☀️</div>
-              <div><div className="sr-label">Solar Panels</div><div className="sr-sub">{solarNo ? `Meter #${solarNo}` : "Add solar panels (optional)"}</div></div>
-            </div>
-            <div className="sr-right" style={{fontSize:11,fontWeight:solarNo?400:700,color:solarNo?T.textSoft:T.green3}}>{solarNo ? "→" : "Add"}</div>
-          </div>
-        );
-      })()}
-
-      <div className="sec"><div className="sec-line"/><div className="sec-txt">Export</div><div className="sec-line"/></div>
-      <div role="button" tabIndex={0} className="setting-row" onClick={async () => { const ok = await generateMonthlyPDF(b3tr, subs); onToast?.(ok ? "📄 Report downloaded" : "❌ Couldn't generate the report"); }}>
-        <div className="sr-left">
-          <div className="sr-icon">📄</div>
-          <div><div className="sr-label">Download Monthly Report</div><div className="sr-sub">PDF with stats, trends, and proof</div></div>
-        </div>
-        <div className="sr-right"><span style={{fontSize:11,fontWeight:700,color:T.green3}}>Export</span></div>
+      {group("Appearance")}
+      <div style={listCard(T)}>
+        <RowButton T={T} icon="🌙" label="Dark mode" sub={dark ? "On" : "Off"} onClick={() => setDark(d => !d)} last
+          right={<span aria-hidden="true" className={`toggle ${dark ? "on" : ""}`} style={{display:"inline-block"}}><span className="toggle-dot"/></span>} />
       </div>
 
-      <div className="sec" style={{marginTop:20}}><div className="sec-line"/><div className="sec-txt">Support</div><div className="sec-line"/></div>
-      <div role="button" tabIndex={0} className="setting-row" onClick={onOpenHelp}>
-        <div className="sr-left">
-          <div className="sr-icon">❓</div>
-          <div><div className="sr-label">Help &amp; FAQ</div><div className="sr-sub">{NETWORK === "mainnet" ? "How to earn B3TR & troubleshoot" : "How to test, earn B3TR & troubleshoot"}</div></div>
-        </div>
-        <div className="sr-right" style={{fontSize:11,color:T.textSoft}}>→</div>
-      </div>
-      <div role="button" tabIndex={0} className="setting-row" onClick={onOpenFeedback}>
-        <div className="sr-left">
-          <div className="sr-icon">✉️</div>
-          <div><div className="sr-label">Send Feedback</div><div className="sr-sub">Report a bug or share an idea</div></div>
-        </div>
-        <div className="sr-right" style={{fontSize:11,fontWeight:700,color:T.green3}}>Send</div>
+      {group("Meter")}
+      <div style={listCard(T)}>
+        <RowButton T={T} icon="🔢" label="Meter and starting point" sub={meterNo ? `${meterNo} · electricity` : "Register your meter"} onClick={onEditMeters} />
+        {SOLAR_UTILS.length > 0 && <RowButton T={T} icon="☀️" label="Solar panels" sub={(meters?.solar || "").trim() ? `Meter #${meters.solar}` : "Add solar panels (optional)"} onClick={onEditSolar} />}
+        <RowButton T={T} icon="⚡" label="Automatic reading" sub="P1 reader or Home Assistant" onClick={onOpenReader} last />
       </div>
 
-      <div className="sec" style={{marginTop:20}}><div className="sec-line"/><div className="sec-txt">Account</div><div className="sec-line"/></div>
-      <div role="button" tabIndex={0} className="setting-row" onClick={() => setShowWallet(true)}>
-        <div className="sr-left">
-          <div className="sr-icon">💼</div>
-          <div><div className="sr-label">Wallet</div><div className="sr-sub">{wallet || "Not connected"}</div></div>
-        </div>
-        <div className="sr-right" style={{fontSize:10,color:T.green3}}>{wallet ? "Switch" : "Connect"}</div>
+      {group("Your data")}
+      <div style={listCard(T)}>
+        <RowButton T={T} icon="📄" label="Monthly report" sub="Download as PDF" last
+          onClick={async () => { const ok = await generateMonthlyPDF(b3tr, subs); onToast?.(ok ? "📄 Report downloaded" : "❌ Couldn't generate the report"); }} />
       </div>
-      <div role="button" tabIndex={0} className="setting-row" style={{marginBottom:isAdmin?5:14}} onClick={() => setOnboarded(false)}>
-        <div className="sr-left">
-          <div className="sr-icon">🎓</div>
-          <div><div className="sr-label">View Tutorial</div><div className="sr-sub">Re-watch the onboarding guide</div></div>
-        </div>
-        <div className="sr-right" style={{fontSize:11,color:T.textSoft}}>→</div>
+
+      {group("Account")}
+      <div style={listCard(T)}>
+        <RowButton T={T} icon="💼" label="Wallet" sub={wallet ? `${shortAddr(wallet)} · switch wallet` : "Connect a wallet"} onClick={() => setShowWallet(true)} />
+        <RowButton T={T} icon="🎓" label="Tutorial" sub="See the introduction again" onClick={() => setOnboarded(false)} last={!isAdmin} />
+        {isAdmin && <RowButton T={T} icon="🛡️" label="Admin panel" sub="Participants, roles and the pot" onClick={onOpenAdmin} />}
+        {isAdmin && <RowButton T={T} icon="🗑️" label="Reset this app" sub="Clears this phone only — rewards stay on chain" danger last
+          onClick={() => { if (window.confirm("Reset all app data on this phone and disconnect? Your rewards stay on the blockchain.")) onReset?.(); }} />}
       </div>
-      {isAdmin && (
-        <div role="button" tabIndex={0} className="setting-row" style={{marginBottom:5,borderColor:T.green4}} onClick={onOpenAdmin}>
-          <div className="sr-left">
-            <div className="sr-icon">🛡️</div>
-            <div><div className="sr-label">Admin · Participants</div><div className="sr-sub">Read-only on-chain monitor</div></div>
-          </div>
-          <div className="sr-right" style={{fontSize:11,color:T.green3}}>Open</div>
-        </div>
-      )}
-      {isAdmin && (
-        <div role="button" tabIndex={0} className="setting-row" style={{marginBottom:14,borderColor:T.gasBorder}} onClick={() => { if (window.confirm("Reset all app data and disconnect? This clears local meters, baselines and history for a fresh test. (On-chain rewards stay on the blockchain.)")) onReset?.(); }}>
-          <div className="sr-left">
-            <div className="sr-icon">🔄</div>
-            <div><div className="sr-label">Reset app data</div><div className="sr-sub">Admin/testing — clears local data &amp; disconnects</div></div>
-          </div>
-          <div className="sr-right" style={{fontSize:11,fontWeight:700,color:T.gas}}>Reset</div>
-        </div>
-      )}
+
+      <div style={{fontSize:11,color:T.textSoft,textAlign:"center",margin:"8px 0 18px"}}>Green Utility Log · {NETWORK_LABEL}</div>
     </>
   );
 }
@@ -6474,9 +6497,6 @@ export default function App() {
               <button className="dark-toggle" onClick={() => setShowHelp(true)} aria-label="Help and FAQ" title="Help & FAQ">
                 ❓
               </button>
-              <button className="dark-toggle" onClick={toggleDark} aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}>
-                {dark ? '☀️' : '🌙'}
-              </button>
               {/* Connect button — opens dapp-kit's wallet modal
                   (VeWorld, WalletConnect/mobile QR) via useWalletModal. */}
               <button
@@ -6502,19 +6522,14 @@ export default function App() {
               The server decides (admins always pass), and refuses payouts as well, so
               this is the honest front of a rule that holds either way. */}
           {noAccess && <NoAccessScreen wallet={wallet} T={T} onSwitch={openConnectModal} onToast={showToast} />}
-          {wallet && passInfo.pass && (tab==="profile") && (
-            <div style={{margin:"0 14px 12px",background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"11px 13px",fontSize:11.5,color:T.textMid,lineHeight:1.6}}>
-              🎟️ <b style={{color:T.green3}}>Access pass #{passInfo.pass.no}</b> · {passInfo.pass.tier}
-            </div>
-          )}
 
           {!noAccess && <>
           {tab==="home"      && <HomeScreen b3tr={b3tr} walletB3tr={walletB3tr} streak={streak} subs={subs} setTab={setTab} wallet={wallet} onOpenReader={() => { setStartOnReader(true); setTab("submit"); }} T={T}/>}
           {tab==="submit"    && <SubmitScreen startOnReader={startOnReader} onStartedReader={() => setStartOnReader(false)} rewardFactor={rewardFactor} u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} dualTariff={dualTariff} fixBasis={fixBasis} fixBusy={fixBusy} runFixBasis={runFixBasis} dismissFixBasis={() => setFixBasis(null)} setDualTariff={setDualTariff} regLow={regLow} setRegLow={setRegLow} regNormal={regNormal} setRegNormal={setRegNormal} photoRegister={regHint[selUtil] || null} busy={busy} usage={usage} reward={reward} days={daysSinceLast()} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab} onEcoSubmit={handleEcoSubmit} ecoBusy={ecoBusy} ecoUsedThisWeek={ecoUsedThisWeek} ecoCooldownMs={ecoCooldownMs} onMeterAutoSubmit={handleMeterAutoSubmit} meterAutoBusy={meterAutoBusy} onRegisterMeter={(utils) => openRegistration(utils, true)}/>}
-          {tab==="charts"    && <ChartsScreen subs={subs} T={T}/>}
-          {tab==="leaderboard" && <LeaderboardScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}
+          {tab==="progress"  && <ProgressScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}
-          {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} walletDomain={accountDomain || null} setShowWallet={openConnectModal} dark={dark} setDark={toggleDark} setOnboarded={setOnboarded} onEditMeters={()=>openRegistration(REQUIRED_UTILS, true)} onEditSolar={()=>openRegistration(SOLAR_UTILS, true)} meters={meters} isAdmin={isAdmin} onOpenAdmin={()=>setShowAdmin(true)} onOpenHelp={()=>setShowHelp(true)} onOpenFeedback={()=>setShowFeedback(true)} onToast={showToast} onReset={resetApp} T={T}/>}
+          {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} walletDomain={accountDomain || null} pass={passInfo.pass} setTab={setTab} onOpenSettings={()=>setTab("settings")} onOpenHelp={()=>setShowHelp(true)} onOpenFeedback={()=>setShowFeedback(true)} onToast={showToast} T={T}/>}
+          {tab==="settings"  && <SettingsScreen b3tr={b3tr} subs={subs} wallet={wallet} setShowWallet={openConnectModal} dark={dark} setDark={toggleDark} setOnboarded={setOnboarded} onEditMeters={()=>openRegistration(REQUIRED_UTILS, true)} onEditSolar={()=>openRegistration(SOLAR_UTILS, true)} meters={meters} isAdmin={isAdmin} onOpenAdmin={()=>setShowAdmin(true)} onOpenReader={() => { setStartOnReader(true); setTab("submit"); }} onToast={showToast} onReset={resetApp} onBack={()=>setTab("profile")} T={T}/>}
           </>}
         </div>
 
@@ -6523,8 +6538,8 @@ export default function App() {
               a new tester's first impression was otherwise a tab holding an empty
               graph. It reappears the moment there's something to plot, and stays
               visible while you're standing on it so the nav never loses its place. */}
-          {[{id:"home",icon:"🏠",label:"Home"},{id:"submit",icon:"📸",label:"Submit"},{id:"charts",icon:"📊",label:"Charts",show:subs.length>=CHARTS_MIN_SUBS||tab==="charts"},{id:"leaderboard",icon:"🏆",label:"Rank"},{id:"profile",icon:"👤",label:"Profile"}].filter(n=>n.show!==false).map(n=>(
-            <button key={n.id} className={`nitem ${tab===n.id?"active":""}`} onClick={()=>setTab(n.id)}>
+          {[{id:"home",icon:"🏠",label:"Home"},{id:"submit",icon:"📸",label:"Submit"},{id:"progress",icon:"📈",label:"Progress"},{id:"profile",icon:"👤",label:"Profile"}].filter(n=>n.show!==false).map(n=>(
+            <button key={n.id} className={`nitem ${tab===n.id || (n.id==="profile" && (tab==="settings" || tab==="history")) ?"active":""}`} onClick={()=>setTab(n.id)}>
               <div className="nicon">{n.icon}</div>
               <div className="nlabel">{n.label}</div>
             </button>
