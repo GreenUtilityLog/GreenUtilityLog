@@ -356,8 +356,12 @@ async function cycle() {
       if (reading == null) { log("couldn't find a total import kWh — is this a HomeWizard P1? (or use --url=)"); return false; }
       split = tariffSplit(data);
     }
-    await push(reading);
-    saveConfig({ lastPushAt: Date.now() });
+    const body = await push(reading);
+    // The server says when a reading can next be paid (its cooldown). --due then
+    // pushes at that hour instead of up to 11 hours later.
+    let nextAt = null;
+    try { const n = Number(JSON.parse(body || "{}").nextAt); if (Number.isFinite(n) && n > 0) nextAt = n; } catch {}
+    saveConfig({ lastPushAt: Date.now(), nextAt });
     log(`pushed ${reading} kWh ✓${split}`);
     return true;
   } catch (e) {
@@ -524,8 +528,13 @@ async function main() {
   // A last push "in the future" (the clock was set back) counts as due, or this
   // would stay silent until the clock caught up — days, possibly.
   {
-    const last = Number(readSaved().lastPushAt) || 0;
-    if (DUE && ONCE && last <= Date.now() && Date.now() - last < DUE_AFTER_MS) process.exit(0);
+    const saved = readSaved();
+    const last = Number(saved.lastPushAt) || 0;
+    const next = Number(saved.nextAt) || 0;
+    // Due 11 hours after the last push — or earlier, when the server said a reading
+    // can be paid sooner than that.
+    const dueAt = Math.min(last + DUE_AFTER_MS, next > last ? next : Infinity);
+    if (DUE && ONCE && last <= Date.now() && Date.now() < dueAt) process.exit(0);
   }
   const src = READ_URL ? `reader ${READ_URL}` : (FIXED_IP ? `HomeWizard ${FIXED_IP}` : "HomeWizard (auto-discover)");
   if (!/^https:/i.test(INGEST)) log("WARNING: GUL_INGEST_URL is not https — your token would be sent in cleartext. Use the default https endpoint.");
