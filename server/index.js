@@ -147,7 +147,9 @@ app.get("/health", async (req, res) => {
     captcha: captchaEnabled(),
     corsLocked: !ALLOWED_ORIGINS.includes("*"),
     // Access passes: whether earning is gated, and how many have been issued.
-    requirePass: REQUIRE_PASS,
+    // Who may use this version: "roles" (only wallets with a role) or "everyone".
+    access: accessMode(),
+    requirePass: rolesRequired(),
     passCount: store.passCount(),
     // Submissions whose photo the app couldn't auto-confirm. All were paid — this is
     // a counter, not a queue. Also the cheapest way to tell from outside whether a
@@ -262,8 +264,22 @@ async function isPerson(addr) {
   if (personCache.size > 5000) personCache.delete(personCache.keys().next().value);
   return v;
 }
+// Who may use THIS version (each server — mainnet, testnet — has its own list):
+// "roles" = only wallets with a role (a pass), "everyone" = anyone. An admin flips
+// it in the admin panel; until then REQUIRE_PASS (on by default) decides. Roles are
+// labels for the admin's overview: a tester on the test server, a user on mainnet.
+const ROLES = ["tester", "user"];
+function accessMode() {
+  const m = store.getSetting("access");
+  return m === "everyone" || m === "roles" ? m : (REQUIRE_PASS ? "roles" : "everyone");
+}
+const rolesRequired = () => accessMode() === "roles";
+const isAdminWallet = (addr) => ADMIN_USER_WALLETS.includes(String(addr || "").toLowerCase());
+
 async function accessOk(addr) {
-  if (!REQUIRE_PASS || store.hasPass(addr)) return true;
+  // Admins always get in, whatever the switch says — they have to be able to turn
+  // it back, and to test the version they run.
+  if (!rolesRequired() || store.hasPass(addr) || isAdminWallet(addr)) return true;
   return PASSPORT_GRANTS_ACCESS ? isPerson(addr) : false;
 }
 async function passBlock(addr) {
@@ -451,7 +467,7 @@ app.post("/admin/lookup", async (req, res) => {
     ...snap,
     banned: isAddr(target) ? banned(target) : null,
     // Access pass, so the admin sees in one place why a wallet can or can't earn.
-    requirePass: REQUIRE_PASS,
+    requirePass: rolesRequired(),
     pass: isAddr(target) ? store.getPass(target) : null,
     // Every meter registered to this wallet (incl. ones added but not yet submitted).
     meters: isAddr(target) ? store.metersForWallet(target) : [],
@@ -519,18 +535,34 @@ app.post("/admin/pass", async (req, res) => {
   if (!isAddr(target)) return res.status(400).json({ error: "invalid target wallet" });
   const grant = req.body.grant !== false; // default: issue
   if (grant) {
-    const pass = store.grantPass(target, { tier: req.body.tier, note: req.body.note, by: a.addr });
-    return res.json({ ok: true, targetWallet: target.toLowerCase(), pass, requirePass: REQUIRE_PASS, passCount: store.passCount() });
+    // A role from the list, or none given (keeps the current one / "tester").
+    const raw = req.body.tier == null ? "" : String(req.body.tier);
+    if (raw && !ROLES.includes(raw)) return res.status(400).json({ error: `role must be one of: ${ROLES.join(", ")}` });
+    const pass = store.grantPass(target, { tier: raw || undefined, note: req.body.note, by: a.addr });
+    return res.json({ ok: true, targetWallet: target.toLowerCase(), pass, requirePass: rolesRequired(), passCount: store.passCount() });
   }
   const had = store.revokePass(target);
-  res.json({ ok: true, targetWallet: target.toLowerCase(), pass: null, revoked: had, requirePass: REQUIRE_PASS, passCount: store.passCount() });
+  res.json({ ok: true, targetWallet: target.toLowerCase(), pass: null, revoked: had, requirePass: rolesRequired(), passCount: store.passCount() });
+});
+
+// Who may use this version: "roles" (only wallets with a role) or "everyone".
+// Stored with the rest of this server's state, so it survives a restart.
+app.post("/admin/access", async (req, res) => {
+  const a = await verifyAdmin(req, "/admin/access");
+  if (!a.ok) return res.status(a.code).json({ error: a.error });
+  const mode = String(req.body.mode || "");
+  if (mode !== "roles" && mode !== "everyone") return res.status(400).json({ error: "mode must be roles or everyone" });
+  store.setSetting("access", mode);
+  await store.flush();
+  console.log(`[access] ${shortAddr(a.addr)} set access to ${mode}`);
+  res.json({ ok: true, access: mode, requirePass: rolesRequired(), roles: ROLES });
 });
 
 // Every issued pass, for the admin overview.
 app.post("/admin/passes", async (req, res) => {
   const a = await verifyAdmin(req, "/admin/passes");
   if (!a.ok) return res.status(a.code).json({ error: a.error });
-  res.json({ ok: true, requirePass: REQUIRE_PASS, passes: store.listPasses() });
+  res.json({ ok: true, requirePass: rolesRequired(), access: accessMode(), roles: ROLES, passes: store.listPasses() });
 });
 
 // ── Admin: VeBetterDAO bot signalling ────────────────────────────────────────
@@ -1120,7 +1152,10 @@ app.post("/wallet/seen", async (req, res) => {
   res.json({
     ok: true,
     nextAt,
-    requirePass: REQUIRE_PASS,
+    // Admins always get in (see accessOk); the app also shows them the admin panel.
+    isAdmin: isAdminWallet(address),
+    access: accessMode(),
+    requirePass: rolesRequired(),
     hasPass: await accessOk(address),
     pass: pass ? { no: pass.no, tier: pass.tier, issuedAt: pass.issuedAt } : null,
   });

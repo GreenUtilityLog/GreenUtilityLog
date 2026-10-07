@@ -28,7 +28,7 @@ const REDIS_KEY = process.env.STATE_KEY || "greenutilitylog:state";
 // `passes` is the access-pass registry (address → pass); `passesInit` records that the
 // one-time grandfathering has run, so turning REQUIRE_PASS on can't silently cut off
 // every existing tester — and can't re-grant a pass an admin has since revoked.
-const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {}, autoPaid: {}, payLog: [], prints: [], payDays: {}, meterRegs: {} };
+const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {}, autoPaid: {}, payLog: [], prints: [], payDays: {}, meterRegs: {}, settings: {} };
 // A fresh copy each time. Spreading EMPTY copies only its top level: every
 // "empty" state then shared EMPTY's own maps, so writing to one wrote to all of
 // them — and to the next "empty" state read from Redis.
@@ -725,6 +725,9 @@ export const store = {
   prints: () => (Array.isArray(state.prints) ? state.prints : []),
   takeOnce,
   releaseOnce,
+  // Admin-set switches that must survive restarts (e.g. who may use this version).
+  getSetting: (k) => (isMap(state.settings) && Object.prototype.hasOwnProperty.call(state.settings, k) ? state.settings[k] : undefined),
+  setSetting: (k, v) => { if (!isMap(state.settings)) state.settings = {}; state.settings[k] = v; persist(); },
   // False while a durable store failed to load at boot — callers must refuse payouts
   // until it recovers, so anti-farming state is never bypassed or overwritten.
   // loaded: the durable state was read, so writing is safe. ready: also the last
