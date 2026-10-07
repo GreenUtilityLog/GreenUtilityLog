@@ -1121,7 +1121,13 @@ app.post("/meter-ingest", (req, res) => {
     at: Date.now(),
     source: "push",
   });
-  res.json({ ok: true });
+  // When a reading can next be paid. The free-plan server sleeps between pushes,
+  // so a reading that arrives during the cooldown is only paid when the NEXT one
+  // arrives — the reader uses this to send that one as soon as it can count.
+  const now = Date.now();
+  const last = store.getCooldown(`${String(link.address).toLowerCase()}:${pickUtility(link.utility)}`);
+  const payableNow = !last || last + COOLDOWN_MS <= now;
+  res.json({ ok: true, nextAt: payableNow ? now + COOLDOWN_MS : last + COOLDOWN_MS });
   // Pay it now, rather than waiting for the owner to open the app and tap. After
   // the response: a reader (or Home Assistant, with a 20 s timeout) shouldn't wait
   // for a transaction receipt. Cooldown, staleness and every other rule apply as

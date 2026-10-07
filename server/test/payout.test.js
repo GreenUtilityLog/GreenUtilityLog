@@ -293,3 +293,19 @@ describe("almost no usage", () => {
     assert.ok(r.body.amount > 3, `amount ${r.body.amount}`);
   });
 });
+
+describe("a reader is told when its next reading can be paid", () => {
+  let srv, token;
+  before(async () => {
+    srv = await startServer({ state: stateWithBaseline(), env: { AUTO_CLAIM_ON_PUSH: "off", COOLDOWN_MS: "72000000" } });
+    token = (await srv.post("/meter/pair", { address: WALLET, meterNo: METER })).body.token;
+  });
+  after(async () => { await srv.stop(); });
+
+  test("payable now: the next one is a cooldown from now", async () => {
+    const r = await srv.post("/meter-ingest", { token, reading: 1008 });
+    assert.equal(r.status, 200);
+    const left = r.body.nextAt - Date.now();
+    assert.ok(left > 71000000 && left <= 72000000, String(left));
+  });
+});

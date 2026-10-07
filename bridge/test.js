@@ -196,3 +196,24 @@ test("runs at the same moment never lose the saved token", async () => {
   }
   reader.close(); backend.close();
 });
+
+test("--due pushes as soon as the server said a reading can be paid, even within 11 hours", async () => {
+  const reader = await fake(hw);
+  let n = 0, nextAt = 0;
+  const backend = await fake((req, res) => { req.resume(); req.on("end", () => { n++; res.end(JSON.stringify({ ok: true, nextAt })); }); });
+  const flags = ["--once", "--due", `--ip=127.0.0.1:${reader.address().port}`, `--ingest=http://127.0.0.1:${backend.address().port}/meter-ingest`];
+  const cfg = join(dir, ".gul-bridge-127.json");
+  const c = JSON.parse(readFileSync(cfg, "utf8")); c.lastPushAt = Date.now() - 12 * 3600e3; require("node:fs").writeFileSync(cfg, JSON.stringify(c));
+  nextAt = Date.now() + 2000;                     // the server: payable again in 2 s
+  assert.equal((await run(flags)).code, 0);
+  assert.equal(n, 1);
+  assert.equal((await run(flags)).code, 0);       // not yet
+  assert.equal(n, 1);
+  await new Promise((r) => setTimeout(r, 2200));
+  nextAt = Date.now() + 20 * 3600e3;
+  assert.equal((await run(flags)).code, 0);       // now it may: sent, 2 s after the last push
+  assert.equal(n, 2);
+  assert.equal((await run(flags)).code, 0);       // and then 11 h again
+  assert.equal(n, 2);
+  reader.close(); backend.close();
+});
