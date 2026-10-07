@@ -1263,7 +1263,6 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .logo-mark{width:30px;height:30px;border-radius:4px;background:linear-gradient(135deg,${T.green1},${T.green2});display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;box-shadow:0 2px 8px ${T.shadow};font-weight:700;font-size:11px;}
 .logo-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;font-weight:800;color:${T.text};letter-spacing:-0.5px;line-height:1;}
 .hdr-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;}
-@media (max-width:430px){.hdr{padding:12px;gap:8px;}.logo{gap:8px;}.logo-name{font-size:13px;letter-spacing:-0.6px;}.hdr-actions{gap:5px;}.dark-toggle{width:34px;height:34px;}}
 .dark-toggle{width:40px;height:40px;border-radius:3px;background:transparent;border:1px solid ${T.border};display:flex;align-items:center;justify-content:center;cursor:pointer;color:${T.textMid};transition:all .15s;flex-shrink:0;font-size:14px;}
 .dark-toggle:hover{border-color:${T.green3};color:${T.green3};}
 .wallet-pill{display:flex;align-items:center;gap:6px;background:transparent;border:1px solid ${T.border};border-radius:3px;padding:5px 9px;cursor:pointer;transition:all .15s;flex-shrink:0;font-size:11px;font-weight:600;}
@@ -1272,6 +1271,10 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .wdot.off{background:${T.textSoft};animation:none;}
 @keyframes wpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.25;transform:scale(.65)}}
 .waddr{font-family:'SF Mono',Menlo,'Courier New',monospace;font-size:10px;color:${T.textMid};letter-spacing:0;}
+/* Phones: the name may take two lines rather than be cut to "Green Utility L",
+   the buttons shrink a little, and the online dot only shows when OFFLINE.
+   AFTER the rules it overrides — placed before them, it lost and did nothing. */
+@media (max-width:430px){.hdr{padding:10px 12px;gap:8px;}.logo{gap:8px;}.logo-name{white-space:normal;font-size:14px;letter-spacing:-0.4px;line-height:1.1;}.hdr-actions{gap:6px;}.dark-toggle{width:36px;height:36px;}.hdr-online.is-online{display:none!important;}.wallet-pill{padding:5px 7px;}}
 
 .hero{margin:16px 14px 0;border-radius:5px;border:1px solid ${T.border};background:${T.card};padding:22px;position:relative;overflow:hidden;box-shadow:0 2px 6px ${T.shadow};}
 .hero-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2.4px;color:${T.textSoft};margin-bottom:12px;}
@@ -6257,7 +6260,7 @@ export default function App() {
               </div>
             </div>
             <div className="hdr-actions">
-              <div title={online ? "Online" : "Offline"} aria-label={online ? "Online" : "Offline"} style={{display:"flex",alignItems:"center",justifyContent:"center",width:30,height:30,borderRadius:3,border:`1px solid ${online?T.green4:T.gasBorder}`,background:online?T.green5:T.gasBg,flexShrink:0}}>
+              <div className={`hdr-online ${online ? "is-online" : ""}`} title={online ? "Online" : "Offline"} aria-label={online ? "Online" : "Offline"} style={{display:"flex",alignItems:"center",justifyContent:"center",width:30,height:30,borderRadius:3,border:`1px solid ${online?T.green4:T.gasBorder}`,background:online?T.green5:T.gasBg,flexShrink:0}}>
                 <div style={{width:7,height:7,borderRadius:"50%",background:online?T.green3:T.gas,animation:online?"pulse 2.5s infinite":"none"}}/>
               </div>
               <button className="dark-toggle" onClick={() => setShowHelp(true)} aria-label="Help and FAQ" title="Help & FAQ">
