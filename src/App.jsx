@@ -2169,13 +2169,135 @@ function HistItem({ s, T }) {
   );
 }
 
-function HomeScreen({ b3tr, walletB3tr, streak, subs, setTab, T }) {
+// "today 19:13", "yesterday 08:52", "tomorrow 15:20", else "8 Oct 15:20".
+function fmtWhen(ts) {
+  const d = new Date(ts), now = new Date();
+  const dayDiff = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000);
+  const t = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  if (dayDiff === 0) return `today ${t}`;
+  if (dayDiff === -1) return `yesterday ${t}`;
+  if (dayDiff === 1) return `tomorrow ${t}`;
+  return `${d.toLocaleDateString([], { day: "numeric", month: "short" })} ${t}`;
+}
+const subTs = (s) => s.submittedAt || localDayTs(s.date) || 0;
+
+// Today at a glance: what was paid, when the next reward can come, whether the
+// reader is alive, and the week — the questions behind "my reading wasn't sent".
+function TodayPanel({ subs, wallet, setTab, onOpenReader, T }) {
+  const [reader, setReader] = useState(null); // null = not asked; { paired, fresh, at }
+  useEffect(() => {
+    if (!wallet || !REWARD_API) { setReader(null); return; }
+    let stop = false;
+    let token = "";
+    try { token = localStorage.getItem(`gul_mtoken_${wallet.toLowerCase()}`) || ""; } catch { /* no storage */ }
+    fetchT(`${REWARD_API.replace(/\/$/, "")}/meter/latest?address=${wallet}`, token ? { headers: { "x-device-token": token } } : undefined)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        if (stop || !d) return;
+        const at = d.reading?.at || d.lastPayout?.at || 0;
+        setReader({ paired: !!d.paired, needsToken: !!d.needsToken, at, fresh: !!at && Date.now() - at < 48 * 3600e3 });
+      })
+      .catch(() => {});
+    return () => { stop = true; };
+  }, [wallet]);
+
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const weekStart = todayStart - ((now.getDay() + 6) % 7) * 86400000;     // Monday
+  const paid = (subs || []).filter(s => s.status === "confirmed" && (Number(s.b3tr) || 0) > 0);
+  const today = paid.filter(s => subTs(s) >= todayStart);
+  const todayB3tr = today.reduce((a, s) => a + (Number(s.b3tr) || 0), 0);
+  const lastToday = today.reduce((m, s) => (subTs(s) > subTs(m || {}) ? s : m), null);
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const start = weekStart + i * 86400000;
+    const v = paid.filter(s => s.type !== "eco" && subTs(s) >= start && subTs(s) < start + 86400000).reduce((a, s) => a + (Number(s.b3tr) || 0), 0);
+    return { label: ["M", "T", "W", "T", "F", "S", "S"][i], name: new Date(start).toLocaleDateString([], { weekday: "long" }), v, past: start < todayStart, isToday: start === todayStart };
+  });
+  const weekB3tr = paid.filter(s => subTs(s) >= weekStart).reduce((a, s) => a + (Number(s.b3tr) || 0), 0);
+  const weekDays = days.filter(d => d.v > 0).length;
+  const missed = days.filter(d => d.past && d.v === 0 && paid.some(s => s.type !== "eco" && subTs(s) < weekStart + days.indexOf(d) * 86400000));
+  const nextAt = Object.prototype.hasOwnProperty.call(SERVER_NEXT_AT, "electric")
+    ? (Number(SERVER_NEXT_AT.electric) || 0)
+    : (() => { const last = paid.filter(s => s.type === "electric").reduce((m, s) => Math.max(m, subTs(s)), 0); return last ? last + RULES.cooldownMs : 0; })();
+  const max = Math.max(1, ...days.map(d => d.v));
+  const card = { background: T.card, border: `1px solid ${T.border}`, borderRadius: 8, padding: "12px" };
+  const label = { fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".8px", color: T.textSoft };
+
+  if (!wallet) return null;
+  return (
+    <div style={{ margin: "0 14px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ background: T.heroFrom, border: T === DARK ? `1px solid ${T.border}` : "none", borderRadius: 10, padding: "16px", color: "#fff" }}>
+        <div style={{ ...label, color: "rgba(255,255,255,.7)" }}>Today</div>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, marginTop: 6 }}>
+          <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: "-.5px" }}>
+            {todayB3tr > 0 ? `+${todayB3tr.toFixed(2)}` : "—"} <span style={{ fontSize: 13, fontWeight: 700 }}>B3TR</span>
+          </div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,.75)", textAlign: "right", lineHeight: 1.4 }}>
+            {lastToday ? <>paid {new Date(subTs(lastToday)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}<br />{lastToday.type === "eco" ? "eco bonus" : "meter reading"}</> : "nothing paid yet today"}
+          </div>
+        </div>
+        <div style={{ height: 1, background: "rgba(255,255,255,.18)", margin: "12px 0" }} />
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 12 }}>
+          <span style={{ color: "rgba(255,255,255,.75)" }}>Next reward possible</span>
+          <span style={{ fontWeight: 800 }}>{nextAt > Date.now() ? fmtWhen(nextAt) : "now"}</span>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
+        <button type="button" onClick={onOpenReader} style={{ ...card, textAlign: "left", cursor: "pointer", font: "inherit", color: T.text }}>
+          <div style={{ ...label, display: "flex", alignItems: "center", gap: 6 }}>
+            <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "50%", background: !reader?.paired ? T.border : reader.fresh || reader.needsToken ? T.green3 : T.electric }} />
+            Reader
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 800, marginTop: 6 }}>
+            {!reader ? "…" : !reader.paired ? "Not set up" : reader.needsToken ? "Connected" : reader.fresh ? "Connected" : "No new reading"}
+          </div>
+          <div style={{ fontSize: 10.5, color: T.textSoft, marginTop: 2 }}>
+            {!reader?.paired ? "set one up — no photos needed" : reader.at ? `last ${fmtWhen(reader.at)}` : "connected on another device"}
+          </div>
+        </button>
+        <div style={card}>
+          <div style={label}>This week</div>
+          <div style={{ fontSize: 14, fontWeight: 800, marginTop: 6, color: T.text }}>{weekB3tr.toFixed(2)} B3TR</div>
+          <div style={{ fontSize: 10.5, color: T.textSoft, marginTop: 2 }}>{weekDays} of 7 days</div>
+        </div>
+      </div>
+
+      <div style={card}>
+        <div style={{ display: "flex", justifyContent: "space-between" }}>
+          <span style={label}>Daily rewards</span><span style={{ ...label, letterSpacing: ".4px" }}>Mon – Sun</span>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 6, alignItems: "end", height: 72, marginTop: 10 }}>
+          {days.map((d, i) => (
+            <div key={i} title={`${d.name}: ${d.v.toFixed(2)} B3TR`} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", gap: 4, height: "100%" }}>
+              <div style={{ width: "100%", borderRadius: 4, height: d.v > 0 ? Math.round(10 + (d.v / max) * 42) : 4, background: d.v > 0 ? (T.green3 || T.eco) : T.border, outline: d.isToday ? `2px solid ${T.green4 || T.border}` : "none", outlineOffset: 2 }} />
+              <div style={{ fontSize: 10, fontWeight: d.isToday ? 800 : 700, color: d.isToday ? T.text : T.textSoft }}>{d.label}</div>
+            </div>
+          ))}
+        </div>
+        {missed.length > 0 && (
+          <div style={{ fontSize: 10.5, color: T.textSoft, marginTop: 8, lineHeight: 1.5 }}>
+            {missed.map(d => d.name).join(", ")}: no reward — no reading could be paid that day. With a reader, keep its computer on around the time shown above.
+          </div>
+        )}
+      </div>
+
+      <button type="button" onClick={() => setTab("submit")} style={{ minHeight: 48, borderRadius: 8, border: "none", background: T.green2, color: T === DARK ? T.bg : "#fff", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>
+        📸 Submit a reading
+      </button>
+    </div>
+  );
+}
+
+function HomeScreen({ b3tr, walletB3tr, streak, subs, setTab, wallet, onOpenReader, T }) {
   return (
     <>
       <div className="sub-header">
         <div className="sub-title">Dashboard</div>
         <div className="sub-sub">Your sustainability stats</div>
       </div>
+
+      <TodayPanel subs={subs} wallet={wallet} setTab={setTab} onOpenReader={onOpenReader} T={T} />
       
       <div className="hero">
         <div className="hero-label">Total B3TR Earned</div>
@@ -2433,20 +2555,10 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
   const scaleMismatch = !!latest?.canRebaseline && gapKwh != null
     && gapKwh > USAGE_RANGES.electric.max * MAX_SPAN_DAYS;
   const busyAny = sending || !!autoBusy;
-  // "today 19:13", "yesterday 08:52", "tomorrow 15:20", else "8 Oct 15:20".
   // Split for the timeline: the day on one line, the time under it.
   const dayTime = (ts) => {
     const w = fmtWhen(ts), t = new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     return { day: w.slice(0, w.length - t.length).trim(), time: t };
-  };
-  const fmtWhen = (ts) => {
-    const d = new Date(ts), now = new Date();
-    const dayDiff = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000);
-    const t = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    if (dayDiff === 0) return `today ${t}`;
-    if (dayDiff === -1) return `yesterday ${t}`;
-    if (dayDiff === 1) return `tomorrow ${t}`;
-    return `${d.toLocaleDateString([], { day: "numeric", month: "short" })} ${t}`;
   };
   const lastPayout = latest?.lastPayout || null;
   const paidThis = !!(lastPayout && rd && Number(lastPayout.reading) === Number(rd.reading));
@@ -2780,7 +2892,7 @@ ${fetchCmd(`--token=${token} --install --url=http://<reader-ip>/api/v1/data${ING
 
 function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading, setReading, prevRead, setPrevRead,
   dualTariff, setDualTariff, regLow, setRegLow, regNormal, setRegNormal, photoRegister,
-  fixBasis, fixBusy, runFixBasis, dismissFixBasis, busy, usage, reward, days, handleSubmit, verifyKey, wallet, setShowWallet, subs, meters, T, setTab, onEcoSubmit, ecoBusy, ecoUsedThisWeek, ecoCooldownMs, onMeterAutoSubmit, meterAutoBusy, onRegisterMeter }) {
+  fixBasis, fixBusy, runFixBasis, dismissFixBasis, busy, usage, reward, days, handleSubmit, verifyKey, wallet, setShowWallet, subs, meters, T, setTab, onEcoSubmit, ecoBusy, ecoUsedThisWeek, ecoCooldownMs, onMeterAutoSubmit, meterAutoBusy, onRegisterMeter, startOnReader = false, onStartedReader }) {
   const meterNo  = (meters?.[selUtil] || "").trim();
   // Submittable when current ≥ previous (equal = zero usage = valid, max reward).
   const _r = parseFloat(reading), _p = parseFloat(prevRead);
@@ -2804,8 +2916,9 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
   // a reader. The type/reader path (auto meter ingestion) is electricity-only, so for
   // other utilities we show only the photo path.
   const autoAvailable = selUtil === "electric";
-  const [method, setMethod] = useState("photo"); // "photo" | "type"
+  const [method, setMethod] = useState(startOnReader && autoAvailable ? "type" : "photo"); // "photo" | "type"
   useEffect(() => { if (!autoAvailable) setMethod("photo"); }, [autoAvailable]);
+  useEffect(() => { if (startOnReader) onStartedReader?.(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // Most people never connect a reader, so don't make everyone choose between two
   // methods. The Photo/Auto switch only appears once a reader has actually been
   // paired (its device token is cached); otherwise the default path is just Photo,
@@ -2896,6 +3009,18 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
         );
       })()}
 
+      {/* Which tariff register this photo has to show — said BEFORE the photo is
+          taken, where it can still be acted on (the server refuses the other one). */}
+      {photoRegister && (
+        <div role="note" style={{display:"flex",gap:10,alignItems:"flex-start",margin:"0 14px 12px",padding:"11px 12px",background:T.electricBg||T.bgAlt,border:`1px solid ${T.electricBorder||T.border}`,borderRadius:8}}>
+          <span aria-hidden="true" style={{fontSize:16,lineHeight:"20px"}}>📸</span>
+          <div style={{fontSize:12,color:T.text,lineHeight:1.5}}>
+            <b>This time, photograph {photoRegister === 1 ? "1.8.1 (low tariff)" : photoRegister === 2 ? "1.8.2 (normal tariff)" : `register ${photoRegister}`}.</b>{" "}
+            Wait until your display shows it — your last photo showed the other one.
+          </div>
+        </div>
+      )}
+
       <div id="gul-photo-step">
       <VerifyZone key={verifyKey} utilId={selUtil} reading={reading} prevRead={prevRead} subs={subs} meterNo={meterNo} T={T}
         onOcrReading={(v) => { if (!String(reading).trim()) setReading(String(v)); }}
@@ -2937,11 +3062,7 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
                     the two take turns: each time, photograph the one your last photo didn’t show. Keep 1.8.1 and 1.8.2
                     in their own boxes — each one only counts up.
                   </span>
-                  {photoRegister && (
-                    <span style={{ display: "block", marginTop: 6, padding: "6px 8px", fontSize: 11, fontWeight: 700, lineHeight: 1.5, color: T.text, background: T.bg, border: `1px dashed ${T.border || T.electricBorder}`, borderRadius: 6 }}>
-                      📸 This time, photograph <span style={{ fontFamily: "'SF Mono',Menlo,monospace" }}>{photoRegister === 1 ? "1.8.1" : photoRegister === 2 ? "1.8.2" : `register ${photoRegister}`}</span> — wait until your display shows it.
-                    </span>
-                  )}
+
                 </div>
               </>
             ) : (
@@ -5349,6 +5470,8 @@ export default function App() {
   }, []);
 
   const [tab, setTab]               = useState("home");
+  // Home's Reader tile opens the Submit screen on the reader view.
+  const [startOnReader, setStartOnReader] = useState(false);
   // Wallet connection is handled by VeChain dapp-kit (VeWorld / WalletConnect
   // mobile). useWallet() exposes the connected address and the
   // requestTransaction() signer; useWalletModal() opens the connect dialog.
@@ -5362,6 +5485,12 @@ export default function App() {
   // checks that the registers take turns — see /reward), refreshed after a payout.
   const [regHint, setRegHint]       = useState({});
   const [regTick, setRegTick]       = useState(0);
+  // The server knows this meter has tariff registers (it says which to photograph
+  // next): open the two-register fields instead of making the user find the box.
+  useEffect(() => {
+    if (regHint.electric) setDualTariffRef.current?.(true);
+  }, [regHint]);
+  const setDualTariffRef = useRef(null);
 
   // Pre-fill meter numbers an admin assigned to this wallet on the server, so a user
   // who can't find their meter number doesn't have to enter it. Only fills EMPTY slots
@@ -5498,6 +5627,7 @@ export default function App() {
   // So both are entered, `reading` stays the total everything downstream works on,
   // and the parts ride along to the server, which re-derives the sum itself.
   const [dualTariff, setDualTariff] = useState(false);
+  setDualTariffRef.current = setDualTariff;
   // Set when a submission is refused purely because the stored starting point covers
   // one tariff register and the reading covers both. Holds what the one-time
   // reconciliation needs, including the photo, which has to prove the meter again.
@@ -6365,8 +6495,8 @@ export default function App() {
           )}
 
           {!noAccess && <>
-          {tab==="home"      && <HomeScreen b3tr={b3tr} walletB3tr={walletB3tr} streak={streak} subs={subs} setTab={setTab} T={T}/>}
-          {tab==="submit"    && <SubmitScreen rewardFactor={rewardFactor} u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} dualTariff={dualTariff} fixBasis={fixBasis} fixBusy={fixBusy} runFixBasis={runFixBasis} dismissFixBasis={() => setFixBasis(null)} setDualTariff={setDualTariff} regLow={regLow} setRegLow={setRegLow} regNormal={regNormal} setRegNormal={setRegNormal} photoRegister={regHint[selUtil] || null} busy={busy} usage={usage} reward={reward} days={daysSinceLast()} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab} onEcoSubmit={handleEcoSubmit} ecoBusy={ecoBusy} ecoUsedThisWeek={ecoUsedThisWeek} ecoCooldownMs={ecoCooldownMs} onMeterAutoSubmit={handleMeterAutoSubmit} meterAutoBusy={meterAutoBusy} onRegisterMeter={(utils) => openRegistration(utils, true)}/>}
+          {tab==="home"      && <HomeScreen b3tr={b3tr} walletB3tr={walletB3tr} streak={streak} subs={subs} setTab={setTab} wallet={wallet} onOpenReader={() => { setStartOnReader(true); setTab("submit"); }} T={T}/>}
+          {tab==="submit"    && <SubmitScreen startOnReader={startOnReader} onStartedReader={() => setStartOnReader(false)} rewardFactor={rewardFactor} u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} dualTariff={dualTariff} fixBasis={fixBasis} fixBusy={fixBusy} runFixBasis={runFixBasis} dismissFixBasis={() => setFixBasis(null)} setDualTariff={setDualTariff} regLow={regLow} setRegLow={setRegLow} regNormal={regNormal} setRegNormal={setRegNormal} photoRegister={regHint[selUtil] || null} busy={busy} usage={usage} reward={reward} days={daysSinceLast()} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab} onEcoSubmit={handleEcoSubmit} ecoBusy={ecoBusy} ecoUsedThisWeek={ecoUsedThisWeek} ecoCooldownMs={ecoCooldownMs} onMeterAutoSubmit={handleMeterAutoSubmit} meterAutoBusy={meterAutoBusy} onRegisterMeter={(utils) => openRegistration(utils, true)}/>}
           {tab==="charts"    && <ChartsScreen subs={subs} T={T}/>}
           {tab==="leaderboard" && <LeaderboardScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}
