@@ -7,7 +7,7 @@ import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import express from "express";
 import cors from "cors";
 import { COOLDOWN_MS } from "./config.js";
-import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, REQUIRE_PASS, PASSPORT_GRANTS_ACCESS, ECO_REWARD, ECO_MAX_PER_WEEK, ECO_COOLDOWN_MS, ECO_APPLIANCES, ecoWeekKey, RATES, UNITS, pickUtility, pickAnyUtility, isEnabledUtility } from "./config.js";
+import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, REQUIRE_PASS, PASSPORT_GRANTS_ACCESS, ECO_REWARD, ECO_MAX_PER_WEEK, ECO_COOLDOWN_MS, ECO_APPLIANCES, ecoWeekKey, RATES, UNITS, pickUtility, pickAnyUtility, isEnabledUtility, MAX_PAYOUT_PER_SUBMISSION, ENABLED_UTILITIES } from "./config.js";
 import { validateSubmission } from "./verify.js";
 import { verifyPhoto, checkReadingOnPhoto, readingCheckMode, meterNoOnPhoto, meterNoCheckMode, photoPrint, printDistance } from "./media.js";
 import { store } from "./store.js";
@@ -126,6 +126,17 @@ app.get("/health", async (req, res) => {
     ocrProviders: ocrProviders(),
     // How this week's B3TR is being spread: rewards are paid at `factor` × the rates.
     rewardBudget: await budgetState().catch(() => null),
+    // The rules the app shows before anyone takes a photo, so its previews and
+    // timers follow this deployment (e.g. a cautious mainnet start with a lower cap)
+    // instead of numbers built into the app.
+    rules: {
+      cooldownMs: COOLDOWN_MS,
+      maxPayout: MAX_PAYOUT_PER_SUBMISSION,
+      ecoReward: ECO_REWARD,
+      ecoMaxPerWeek: ECO_MAX_PER_WEEK,
+      ecoCooldownMs: ECO_COOLDOWN_MS,
+      utilities: [...ENABLED_UTILITIES],
+    },
     // Whether the typed reading must be on the photo (off without an OCR provider).
     readingCheck: readingCheckMode(ocrEnabled()),
     // Which site names signatures arrive with, to fill CERT_DOMAINS from.
@@ -1098,8 +1109,17 @@ app.post("/wallet/seen", async (req, res) => {
   // it holds a pass — no extra round-trip, and no separate endpoint that would leak
   // the whole pass list. Only ever reports on the wallet that asked.
   const pass = store.getPass(address);
+  // When this wallet may submit again, per enabled utility (0 = now). The app used
+  // to find out only after the photo, the crop, the OCR and the signature.
+  const now = Date.now();
+  const nextAt = {};
+  for (const u of ENABLED_UTILITIES) {
+    const last = store.getCooldown(`${address.toLowerCase()}:${u}`);
+    nextAt[u] = last && last + COOLDOWN_MS > now ? last + COOLDOWN_MS : 0;
+  }
   res.json({
     ok: true,
+    nextAt,
     requirePass: REQUIRE_PASS,
     hasPass: await accessOk(address),
     pass: pass ? { no: pass.no, tier: pass.tier, issuedAt: pass.issuedAt } : null,

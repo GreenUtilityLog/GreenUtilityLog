@@ -2,6 +2,18 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
+// The page's description and link preview mention testnet only on a testnet build
+// (VITE_NETWORK, set per build by the deploy; a local build is testnet).
+const networkMeta = () => ({
+  name: 'network-meta',
+  transformIndexHtml(html) {
+    const mainnet = process.env.VITE_NETWORK === 'mainnet'
+    return html
+      .replaceAll('__NETWORK_NOTE__', mainnet ? '' : ' Testnet beta.')
+      .replaceAll('__NETWORK_NOTE_OG__', mainnet ? '' : ' Testnet beta — test tokens, no real value.')
+  },
+})
+
 export default defineConfig({
   // The deploy also builds a test copy under /GreenUtilityLog/testnet/ (VITE_BASE).
   base: process.env.VITE_BASE || '/GreenUtilityLog/',
@@ -19,6 +31,7 @@ export default defineConfig({
   },
   plugins: [
     react(),
+    networkMeta(),
     // VeChain libraries (vechain-kit, dapp-kit, sdk-core, WalletConnect)
     // expect Node globals/builtins that don't exist in the browser.
     // Without these the site shows a blank page or "Buffer is not defined".

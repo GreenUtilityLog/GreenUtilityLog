@@ -47,15 +47,15 @@ Log your meters, earn B3TR for saving energy.
 **Short description**
 ```
 Green Utility Log turns everyday energy habits into on-chain rewards. Snap your
-electric, gas, water and solar meter readings, verify them, and earn B3TR on
+electricity meter reading (or connect a P1 reader), verify it, and earn B3TR on
 VeChain for tracking — and reducing — your consumption.
 ```
 
 **Full description**
 ```
 Green Utility Log is a sustainability app that rewards people for monitoring and
-lowering their household utility usage. Users photograph their electric, gas,
-water and solar meters; each reading is verified and logged on VeChain, building
+lowering their household electricity usage. Users photograph their electricity
+meter, or send the reading automatically from a P1 reader; each reading is verified and logged on VeChain, building
 a transparent history of consumption over time.
 
 Every verified submission earns B3TR through VeBetterDAO's X2Earn program,
@@ -65,13 +65,13 @@ verification, daily streaks, a global leaderboard, charts of your consumption
 trends, offline logging with later sync, and an exportable monthly PDF report.
 
 By making utility tracking effortless and rewarding, Green Utility Log nudges
-households toward measurable energy and water savings.
+households toward measurable energy savings.
 ```
 
 **Sustainability impact** (vaak gevraagd)
 ```
-Encourages households to reduce electricity, gas and water consumption through
-habit tracking, streaks and rewards, and supports solar adoption. Produces
+Encourages households to reduce electricity consumption through habit
+tracking, streaks and rewards. Produces
 verifiable, time-stamped consumption data on-chain, making personal energy
 savings measurable and rewardable.
 ```

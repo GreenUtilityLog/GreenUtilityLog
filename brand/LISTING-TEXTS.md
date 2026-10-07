@@ -5,16 +5,16 @@
 **Korte beschrijving (1–2 zinnen)**
 ```
 Green Utility Log beloont je voor het bijhouden én verlagen van je
-energieverbruik. Maak een foto van je elektriciteits-, gas-, water- of
-zonnemeter, laat de stand verifiëren en verdien B3TR op VeChain.
+stroomverbruik. Maak een foto van je elektriciteitsmeter (of koppel je P1-meter),
+laat de stand verifiëren en verdien B3TR op VeChain.
 ```
 
 **Volledige beschrijving**
 ```
 Green Utility Log is een duurzaamheidsapp die mensen beloont voor het monitoren
-en verminderen van hun huishoudelijke nutsverbruik. Gebruikers fotograferen hun
-elektriciteits-, gas-, water- en zonnemeter; elke stand wordt geverifieerd en
-op VeChain vastgelegd, waardoor een transparante verbruiksgeschiedenis ontstaat.
+en verminderen van hun stroomverbruik. Gebruikers fotograferen hun
+elektriciteitsmeter of sturen de stand automatisch via een P1-meter; elke stand
+wordt geverifieerd en op VeChain vastgelegd, waardoor een transparante verbruiksgeschiedenis ontstaat.
 
 Elke geverifieerde inzending levert B3TR op via het X2Earn-programma van
 VeBetterDAO. Zo worden kleine, herhaalbare groene acties — je meters checken,
@@ -24,14 +24,14 @@ klassement, grafieken van je verbruikstrends, offline loggen met latere synchro-
 nisatie, en een exporteerbaar maandrapport (PDF).
 
 Door het bijhouden van nutsverbruik moeiteloos én belonend te maken, stimuleert
-Green Utility Log huishoudens tot meetbare energie- en waterbesparing.
+Green Utility Log huishoudens tot meetbare energiebesparing.
 ```
 
 **Engelse versie (indien het formulier Engels vraagt)**
 ```
 Green Utility Log rewards people for tracking — and reducing — their household
-utility usage. Users photograph their electricity, gas, water and solar meters;
-each reading is verified and logged on VeChain, building a transparent
+electricity usage. Users photograph their electricity meter, or send the reading
+automatically from a P1 smart-meter reader; each reading is verified and logged on VeChain, building a transparent
 consumption history over time. Every verified submission earns B3TR through
 VeBetterDAO's X2Earn program, turning small repeatable green actions into real
 rewards. Features: AI-assisted meter verification, daily streaks, a global
@@ -60,7 +60,7 @@ Beloningen worden per geverifieerde meterinzending uitgekeerd in B3TR vanuit de
 X2EarnRewardsPool van VeBetterDAO, via de reward-distributor van de app.
 
 • Actie → beloning: gebruikers verdienen B3TR door een geldige meterstand in te
-  sturen (elektriciteit, gas, water of zon). Elke inzending bevat een
+  sturen (elektriciteit). Elke inzending bevat een
   proof-payload die de duurzame actie beschrijft, zodat de uitkering verifieer-
   baar aan een echte handeling is gekoppeld.
 
