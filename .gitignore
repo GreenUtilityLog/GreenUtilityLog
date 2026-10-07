@@ -19,3 +19,8 @@ server/state.json.tmp
 __pycache__/
 *.py[cod]
 .pytest_cache/
+
+# The bridge's log and per-server copies of its settings (.gul-bridge-<server>.json).
+.gul-bridge*.json
+.gul-bridge*.log*
+.gul-bridge*.tmp

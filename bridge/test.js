@@ -44,7 +44,7 @@ test("pushes the tariff sum and exits 0", async () => {
   assert.equal(r.code, 0, r.out);
   assert.deepEqual(got, { token: "t1", reading: 300.75 });
   assert.match(r.out, /pushed 300\.75 kWh ✓ \(low 100\.5 \+ normal 200\.25\)/);
-  assert.ok(existsSync(join(dir, ".gul-bridge.log")), "every run is logged next to the script");
+  assert.ok(existsSync(join(dir, ".gul-bridge-127.log")), "every run is logged next to the script");
 });
 
 test("waits out a backend that is still waking up", async () => {
@@ -89,9 +89,9 @@ test("a nonsense --interval falls back to twice a day", async () => {
 
 test("the token file stays private", () => {
   if (process.platform === "win32") return;
-  const mode = require("node:fs").statSync(join(dir, ".gul-bridge.json")).mode & 0o777;
+  const mode = require("node:fs").statSync(join(dir, ".gul-bridge-127.json")).mode & 0o777;
   assert.equal(mode, 0o600);
-  assert.equal(JSON.parse(readFileSync(join(dir, ".gul-bridge.json"), "utf8")).token, "t1");
+  assert.equal(JSON.parse(readFileSync(join(dir, ".gul-bridge-127.json"), "utf8")).token, "t1");
 });
 
 test("--install on Mac/Linux adds one cron line, keeps the rest, and --uninstall removes it", async () => {
@@ -133,7 +133,7 @@ test("--due pushes only when the last reading is 11 hours old, and retries a fai
   let n = 0, fail = true;
   const backend = await fake((req, res) => { req.resume(); req.on("end", () => { n++; if (fail) { res.statusCode = 401; res.end("{}"); } else res.end("{}"); }); });
   const flags = ["--once", "--due", `--ip=127.0.0.1:${reader.address().port}`, `--ingest=http://127.0.0.1:${backend.address().port}/meter-ingest`];
-  const cfg = join(dir, ".gul-bridge.json");
+  const cfg = join(dir, ".gul-bridge-127.json");
   const set = (lastPushAt) => { const c = JSON.parse(readFileSync(cfg, "utf8")); c.lastPushAt = lastPushAt; require("node:fs").writeFileSync(cfg, JSON.stringify(c)); };
 
   set(Date.now() - 12 * 3600e3);
@@ -152,5 +152,47 @@ test("--due pushes only when the last reading is 11 hours old, and retries a fai
   assert.equal(n, 3);
   assert.equal(r.out, "");
   assert.ok(JSON.parse(readFileSync(cfg, "utf8")).token, "the token survives the timestamp being saved");
+  reader.close(); backend.close();
+});
+
+test("a clock set back doesn't silence --due until it catches up", async () => {
+  const reader = await fake(hw);
+  let n = 0;
+  const backend = await fake((req, res) => { req.resume(); req.on("end", () => { n++; res.end("{}"); }); });
+  const flags = ["--once", "--due", `--ip=127.0.0.1:${reader.address().port}`, `--ingest=http://127.0.0.1:${backend.address().port}/meter-ingest`];
+  const cfg = join(dir, ".gul-bridge-127.json");
+  const c = JSON.parse(readFileSync(cfg, "utf8")); c.lastPushAt = Date.now() + 30 * 86400e3;
+  require("node:fs").writeFileSync(cfg, JSON.stringify(c));
+  const r = await run(flags);
+  assert.equal(r.code, 0, r.out);
+  assert.equal(n, 1, "a last push 'in the future' counts as due");
+  reader.close(); backend.close();
+});
+
+test("--token with a space instead of = still works, and a bare --token is refused", async () => {
+  const reader = await fake(hw);
+  const seen = [];
+  const backend = await fake((req, res) => { let b = ""; req.on("data", (d) => (b += d)); req.on("end", () => { seen.push(JSON.parse(b).token); res.end("{}"); }); });
+  const flags = ["--once", `--ip=127.0.0.1:${reader.address().port}`, `--ingest=http://127.0.0.1:${backend.address().port}/meter-ingest`];
+  let r = await run(["--token", "spaced", ...flags]);
+  assert.equal(r.code, 0, r.out);
+  assert.deepEqual(seen, ["spaced"]);
+  r = await run([...flags, "--token"]);
+  assert.equal(r.code, 1);
+  assert.match(r.out, /--token needs a value/);
+  assert.equal(seen.length, 1, "nothing was sent");
+  assert.equal(JSON.parse(readFileSync(join(dir, ".gul-bridge-127.json"), "utf8")).token, "spaced", "the saved token is untouched");
+  reader.close(); backend.close();
+});
+
+test("runs at the same moment never lose the saved token", async () => {
+  const reader = await fake(hw);
+  const backend = await fake((req, res) => { req.resume(); req.on("end", () => res.end("{}")); });
+  const flags = ["--once", `--ip=127.0.0.1:${reader.address().port}`, `--ingest=http://127.0.0.1:${backend.address().port}/meter-ingest`];
+  const cfg = join(dir, ".gul-bridge-127.json");
+  for (let round = 0; round < 8; round++) {
+    await Promise.all(Array.from({ length: 6 }, () => run(flags)));
+    assert.equal(JSON.parse(readFileSync(cfg, "utf8")).token, "spaced", `round ${round}`);
+  }
   reader.close(); backend.close();
 });

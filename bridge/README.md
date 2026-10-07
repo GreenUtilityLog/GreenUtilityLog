@@ -41,12 +41,19 @@ curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &&
 node gul.js --install
 ```
 
-Registers a Windows scheduled task that runs `--once` twice a day: no window, no
-admin rights, and it survives a reboot. `node gul.js --uninstall` removes it again.
-On Linux and macOS it prints the command to put in cron or a systemd timer instead.
+Windows: registers a scheduled task (no admin rights, survives a reboot). Linux and
+macOS: adds one line to your own crontab. Either way it runs every hour with
+`--once --due`, which only sends when the last reading is 11 hours old — twice a day
+in practice, and caught up within the hour after the computer was off.
+`node gul.js --uninstall` removes it again.
 
-Nothing needs to stay running between those two runs — a reading only has to be
-under 48 hours old when you claim it, so twice a day leaves room for two missed runs.
+Nothing needs to stay running between runs — a reading only has to be under 48 hours
+old, so twice a day leaves room for missed runs. Every run is written to
+`.gul-bridge.log` next to `gul.js`.
+
+Sending to the app's **test copy** as well? Give that install its `--ingest=…` (the
+test app's setup line already does). It gets its own saved token, log and schedule,
+so the two don't replace each other.
 
 **Docker:**
 ```bash
@@ -57,7 +64,8 @@ docker run -d --name gul-bridge --network host -e GUL_TOKEN=your-device-token gu
 
 Leave it running, or schedule it as above. It pushes your meter total twice a day.
 Your reading shows up in
-the app under **“Auto-received”** → tap **Submit — no photo** to claim.
+the app under **“Auto-received”** and is paid automatically when it arrives (at most
+once a day).
 
 ## Options
 

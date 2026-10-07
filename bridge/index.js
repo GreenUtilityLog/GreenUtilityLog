@@ -39,43 +39,74 @@
 const http = require("node:http");
 const https = require("node:https");
 const dgram = require("node:dgram");
-const { readFileSync, writeFileSync, appendFileSync, statSync, renameSync } = require("node:fs");
+const { readFileSync, writeFileSync, appendFileSync, statSync, renameSync, chmodSync, realpathSync } = require("node:fs");
 const { createInterface } = require("node:readline");
 const { basename, join } = require("node:path");
 const { spawnSync } = require("node:child_process");
 
-// --name=value, or a bare --flag. Unknown flags are ignored rather than fatal: a
-// stray argument shouldn't stop someone's meter from reporting.
+// --name=value, --name value, or a bare --flag. Unknown flags are ignored rather
+// than fatal: a stray argument shouldn't stop someone's meter from reporting. A
+// flag that needs a value but got none is an error, though: `--token abc` used to
+// save the token "1" over the good one, and every push after that was refused.
+const VALUE_FLAGS = new Set(["token", "ip", "interval", "url", "field", "ingest"]);
 const FLAGS = {};
-for (const a of process.argv.slice(2)) {
-  const m = /^--([a-z-]+)(?:=(.*))?$/i.exec(a);
-  if (m) FLAGS[m[1].toLowerCase()] = m[2] === undefined ? "1" : m[2];
+const MISSING_VALUE = [];
+{
+  const argv = process.argv.slice(2);
+  for (let i = 0; i < argv.length; i++) {
+    const m = /^--([a-z-]+)(?:=(.*))?$/i.exec(argv[i]);
+    if (!m) continue;
+    const k = m[1].toLowerCase();
+    if (m[2] !== undefined) FLAGS[k] = m[2];
+    else if (!VALUE_FLAGS.has(k)) FLAGS[k] = "1";
+    else if (argv[i + 1] !== undefined && !argv[i + 1].startsWith("--")) FLAGS[k] = argv[++i];
+    else MISSING_VALUE.push(k);
+  }
 }
+
+const pick = (flag, env, fallback = "") =>
+  String(FLAGS[flag] ?? process.env[env] ?? fallback).trim();
+
+// MUST match BRIDGE_DEFAULT_API in src/network.js.
+const DEFAULT_INGEST = "https://greenutilitylog-rewards.onrender.com/meter-ingest";
+const INGEST = pick("ingest", "GUL_INGEST_URL", DEFAULT_INGEST);
+// Sending to another server than the default (the test copy of the app, say) gets
+// its own saved token, log, scheduled task and cron line. One machine can then
+// report to both, instead of the second install silently replacing the first.
+const SUFFIX = INGEST === DEFAULT_INGEST ? "" : "-" + (() => {
+  try { return new URL(INGEST).hostname.split(".")[0].toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 40) || "other"; }
+  catch { return "other"; }
+})();
 
 // The token is remembered next to this file, so the second run needs no arguments at
 // all. Only the token: everything else is either discovered or has a sensible default.
 const HERE = __dirname;
 const SELF = basename(process.argv[1] || "index.js");
-const CONFIG_FILE = join(HERE, ".gul-bridge.json");
+const CONFIG_FILE = join(HERE, `.gul-bridge${SUFFIX}.json`);
 function readSaved() {
   try { return JSON.parse(readFileSync(CONFIG_FILE, "utf8")) || {}; } catch { return {}; }
 }
-// The saved settings: the token, and when a reading last went through. Written
-// whole each time, keeping whatever else is in the file.
+// The saved settings: the token, and when a reading last went through. Written to a
+// temporary file and renamed over the old one, so a run that reads it at the same
+// moment (a re-install while the hourly job runs) or a crash halfway never sees a
+// half-written file — reading one as {} and writing that back is how the token got
+// lost. The token this run uses is written every time for the same reason.
 function saveConfig(patch) {
-  // 0600: the token is a credential — anyone holding it can submit readings for this
-  // wallet. Ignored on Windows, which has no POSIX modes, but free to ask for.
-  try { writeFileSync(CONFIG_FILE, JSON.stringify({ ...readSaved(), ...patch }, null, 2), { mode: 0o600 }); return true; }
-  catch { return false; }  // read-only dir (Docker) — not worth failing over
+  try {
+    const tmp = `${CONFIG_FILE}.${process.pid}.tmp`;
+    const data = { ...readSaved(), ...(TOKEN ? { token: TOKEN } : {}), ...patch };
+    // 0600: the token is a credential — anyone holding it can submit readings for
+    // this wallet. Ignored on Windows, which has no POSIX modes, but free to ask for.
+    writeFileSync(tmp, JSON.stringify(data, null, 2), { mode: 0o600 });
+    renameSync(tmp, CONFIG_FILE);
+    try { chmodSync(CONFIG_FILE, 0o600); } catch {}   // also tightens an older 0644 file
+    return true;
+  } catch { return false; }  // read-only dir (Docker) — not worth failing over
 }
 const saveToken = (token) => saveConfig({ token });
 const SAVED = readSaved();
 
-const pick = (flag, env, fallback = "") =>
-  String(FLAGS[flag] ?? process.env[env] ?? fallback).trim();
-
 let TOKEN = pick("token", "GUL_TOKEN", SAVED.token || "");
-const INGEST = pick("ingest", "GUL_INGEST_URL", "https://greenutilitylog-rewards.onrender.com/meter-ingest");
 const FIXED_IP = pick("ip", "HW_IP");
 // Twelve hours, not one. A reading can only be claimed once per COOLDOWN_MS (20h)
 // and /meter-ingest keeps only the newest value, so 23 of 24 hourly pushes are
@@ -110,7 +141,10 @@ async function ensureToken() {
     return true;
   }
   if (!process.stdin.isTTY) {
-    console.error("No device token. Pass --token=YOUR_TOKEN, or set GUL_TOKEN.");
+    // Also into the log: a scheduled run has no window, and cron throws stderr away.
+    const msg = "No device token. Pass --token=YOUR_TOKEN, or set GUL_TOKEN.";
+    console.error(msg);
+    toFile(`${new Date().toISOString()} ${msg}`);
     return false;
   }
   const rl = createInterface({ input: process.stdin, output: process.stdout });
@@ -127,7 +161,7 @@ async function ensureToken() {
 // runs with no window, so without a log there is nothing to look at when a reading
 // doesn't arrive. Kept small: rotated to .old at 256 KB. A read-only folder
 // (Docker) just means no log file, never a failure.
-const LOG_FILE = join(HERE, ".gul-bridge.log");
+const LOG_FILE = join(HERE, `.gul-bridge${SUFFIX}.log`);
 function toFile(line) {
   try {
     try { if (statSync(LOG_FILE).size > 256 * 1024) renameSync(LOG_FILE, LOG_FILE + ".old"); } catch {}
@@ -356,7 +390,7 @@ function keptFlags() {
 function taskCommand(action) {
   const node = process.execPath;                 // the node that is running us
   const script = process.argv[1];                // this file, wherever it was saved
-  const name = "GreenUtilityLog";
+  const name = TASK_NAME;
   if (action === "uninstall") return ["schtasks", ["/Delete", "/TN", name, "/F"]];
   // Carry over whatever this run was told about WHERE to read and send. Only the
   // token is saved to disk; --ip, --url, --field and --ingest are not, so a task
@@ -365,8 +399,11 @@ function taskCommand(action) {
   // twice a day, with nobody watching.
   const keep = keptFlags();
   // schtasks wants the whole command as ONE argument.
-  const run = `"${node}" "${script}" --once${keep ? " " + keep : ""}`;
-  return ["schtasks", ["/Create", "/TN", name, "/TR", run, "/SC", "HOURLY", "/MO", "12", "/F"]];
+  // Every hour with --due, like cron: it only pushes once the last reading is 11 h
+  // old, so twice a day in practice — but a run that failed (the PC just woke and
+  // Wi-Fi wasn't back yet) is tried again the next hour instead of 12 hours later.
+  const run = `"${node}" "${script}" --once --due${keep ? " " + keep : ""}`;
+  return ["schtasks", ["/Create", "/TN", name, "/TR", run, "/SC", "HOURLY", "/MO", "1", "/F"]];
 }
 
 // A task made by schtasks /Create keeps Windows' defaults: it only starts on mains
@@ -374,7 +411,7 @@ function taskCommand(action) {
 // no reading for days. The ScheduledTasks PowerShell module (Windows 8+) can change
 // both. Best effort: the task already exists and works on mains power either way.
 function relaxPowerSettings() {
-  const ps = "Set-ScheduledTask -TaskName GreenUtilityLog -Settings (New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries) | Out-Null";
+  const ps = `Set-ScheduledTask -TaskName ${TASK_NAME} -Settings (New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries) | Out-Null`;
   const r = spawnSync("powershell", ["-NoProfile", "-NonInteractive", "-Command", ps], { encoding: "utf8" });
   if (r.status === 0) log("also set to run on battery, and to catch up a run missed while the PC was asleep.");
   else log("note: could not allow the task on battery power — it runs when the PC is plugged in.");
@@ -383,13 +420,26 @@ function relaxPowerSettings() {
 // Mac, Linux, Raspberry Pi: the same idea with cron — one line in the user's own
 // crontab, marked so it can be found again, replaced on a re-install and removed
 // by --uninstall. Everything else in that crontab is kept exactly as it was.
-const CRON_MARK = "# GreenUtilityLog";
+const TASK_NAME = `GreenUtilityLog${SUFFIX}`;
+const CRON_MARK = `# GreenUtilityLog${SUFFIX}`;
+// The node to put in the cron line. process.execPath is the RESOLVED path, which
+// for Homebrew is a versioned Cellar folder that `brew upgrade` deletes — cron then
+// fails every hour, silently. The path the shell finds (/opt/homebrew/bin/node, a
+// symlink that follows upgrades) is used instead when it is the same program.
+function stableNodePath() {
+  try {
+    const r = spawnSync("sh", ["-c", "command -v node"], { encoding: "utf8" });
+    const p = (r.stdout || "").trim();
+    if (p && realpathSync(p) === realpathSync(process.execPath)) return p;
+  } catch {}
+  return process.execPath;
+}
 function manageCron(action) {
   // Single-quoted for sh: a space in a path or an & in --url would otherwise split
   // or background the command. ' itself becomes '\''.
   const q = (v) => `'${String(v).replace(/'/g, "'\\''")}'`;
   const keep = ["ip", "url", "field", "ingest", "interval"].filter((k) => FLAGS[k] && FLAGS[k] !== "1").map((k) => q(`--${k}=${FLAGS[k]}`)).join(" ");
-  const cmd = `${q(process.execPath)} ${q(process.argv[1])} --once --due${keep ? " " + keep : ""}`;
+  const cmd = `${q(stableNodePath())} ${q(process.argv[1])} --once --due${keep ? " " + keep : ""}`;
   // Every hour, but --due makes it push only when the last reading is 11 h old:
   // twice a day in practice, and caught up within the hour when the machine wakes.
   // Output goes to .gul-bridge.log already; without the redirect cron mails it.
@@ -409,7 +459,12 @@ function manageCron(action) {
     log(`could not read your crontab: ${(cur.stderr || "").trim()}`);
     return manual();
   }
-  const lines = existing.split("\n").filter((l) => l.trim() && !l.includes(CRON_MARK));
+  // Exactly this marker at the end of the line: the default one is a prefix of a
+  // per-server one, and installing one must leave the other alone. --uninstall
+  // without --ingest removes every one of ours: "stop all of it" is what it means.
+  const everything = action === "uninstall" && !FLAGS.ingest && !process.env.GUL_INGEST_URL;
+  const ours = (l) => (everything ? /# GreenUtilityLog(-[a-z0-9-]+)?$/.test(l.trimEnd()) : l.trimEnd().endsWith(CRON_MARK));
+  const lines = existing.split("\n").filter((l) => l.trim() && !ours(l));
   if (action === "install") lines.push(line);
   const w = spawnSync("crontab", ["-"], { input: lines.join("\n") + "\n", encoding: "utf8" });
   if (w.status !== 0) {
@@ -443,6 +498,11 @@ function manageTask(action) {
 }
 
 async function main() {
+  if (MISSING_VALUE.length) {
+    const msg = `--${MISSING_VALUE[0]} needs a value, like --${MISSING_VALUE[0]}=… — nothing was changed.`;
+    console.error(msg); toFile(`${new Date().toISOString()} ${msg}`);
+    process.exit(1);
+  }
   if (FLAGS.uninstall === "1") process.exit(manageTask("uninstall"));
   if (FLAGS.install === "1") {
     // A task is useless without a token: it runs unattended and cannot ask.
@@ -454,14 +514,19 @@ async function main() {
     // whether any of it worked. One cycle here makes the setup verifiable the
     // moment it finishes.
     if (code === 0) {
-      log("sending one reading now, so you can see it arrive…");
+      log("sending one reading now, so you can see it arrive… (the server may need up to a minute to wake up)");
       if (!(await cycle())) log(`the schedule is set, but this first reading failed (see above). Details of every run: ${LOG_FILE}`);
     }
     process.exit(code);
   }
   if (!(await ensureToken())) process.exit(1);
   // Not due yet: stay silent, or the log gets a line every hour for nothing.
-  if (DUE && ONCE && Date.now() - (Number(readSaved().lastPushAt) || 0) < DUE_AFTER_MS) process.exit(0);
+  // A last push "in the future" (the clock was set back) counts as due, or this
+  // would stay silent until the clock caught up — days, possibly.
+  {
+    const last = Number(readSaved().lastPushAt) || 0;
+    if (DUE && ONCE && last <= Date.now() && Date.now() - last < DUE_AFTER_MS) process.exit(0);
+  }
   const src = READ_URL ? `reader ${READ_URL}` : (FIXED_IP ? `HomeWizard ${FIXED_IP}` : "HomeWizard (auto-discover)");
   if (!/^https:/i.test(INGEST)) log("WARNING: GUL_INGEST_URL is not https — your token would be sent in cleartext. Use the default https endpoint.");
   log(`GreenUtilityLog bridge starting — ${src}, pushing every ${INTERVAL_MS / 1000}s to ${INGEST}`);

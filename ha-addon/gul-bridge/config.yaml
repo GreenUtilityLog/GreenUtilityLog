@@ -1,5 +1,5 @@
 name: GreenUtilityLog Meter Bridge
-version: "1.0.1"
+version: "1.1.0"
 slug: gul_bridge
 description: Sends your smart-meter reading to GreenUtilityLog automatically — no terminal, no scripts.
 url: https://github.com/GreenUtilityLog/GreenUtilityLog/tree/main/bridge
@@ -19,7 +19,7 @@ options:
   hw_ip: ""
   read_url: ""
   read_field: ""
-  ingest_url: "https://greenutilitylog-rewards.onrender.com/meter-ingest"
+  ingest_url: ""
 schema:
   # Device token from the app: Submit → Electricity → Automatic setup.
   token: str
@@ -31,5 +31,7 @@ schema:
   read_url: str?
   # Optional: dot-path to the kWh value in that JSON (auto-detected when empty).
   read_field: str?
-  # Where readings are sent. Leave as-is unless you run your own backend.
-  ingest_url: str
+  # Where readings are sent. Leave empty for the app's own server (it follows the
+  # bridge's default, so it moves with the app); fill in only for the test copy of
+  # the app or your own backend.
+  ingest_url: str?

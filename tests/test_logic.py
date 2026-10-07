@@ -282,3 +282,53 @@ def test_a_later_success_clears_an_earlier_error():
     asyncio.run(run())
     assert pusher.last_error is None
     assert pusher.last_reading == 8421.3
+
+
+# ── a backend that is still waking up ────────────────────────────────────────
+
+def _sequence(*steps):
+    """A session whose successive POSTs answer with these statuses / raise these."""
+    session = MagicMock()
+    ctxs = []
+    for step in steps:
+        if isinstance(step, BaseException):
+            ctxs.append(step)
+            continue
+        resp = MagicMock()
+        resp.status = step
+        resp.text = AsyncMock(return_value="{}")
+        ctx = MagicMock()
+        ctx.__aenter__ = AsyncMock(return_value=resp)
+        ctx.__aexit__ = AsyncMock(return_value=False)
+        ctxs.append(ctx)
+    session.post = MagicMock(side_effect=ctxs)
+    return session
+
+
+def test_a_waking_backend_is_tried_again_and_then_succeeds():
+    session = _sequence(503, TimeoutError(), 200)
+    pusher = asyncio.run(_push(FakeHass({METER: FakeState("8421.3")}), _entry(), session))
+    assert session.post.call_count == 3
+    assert pusher.last_error is None
+    assert pusher.last_reading == 8421.3
+
+
+def test_a_refused_token_is_not_retried():
+    session = _sequence(401, 200)
+    pusher = asyncio.run(_push(FakeHass({METER: FakeState("8421.3")}), _entry(), session))
+    assert session.post.call_count == 1
+    assert "401" in pusher.last_error
+
+
+def test_a_timeout_is_named_on_the_sensor():
+    """str(TimeoutError()) is empty — the sensor used to show no error at all."""
+    session = _sequence(TimeoutError(), TimeoutError(), TimeoutError())
+    pusher = asyncio.run(_push(FakeHass({METER: FakeState("8421.3")}), _entry(), session))
+    assert session.post.call_count == 3
+    assert "TimeoutError" in pusher.last_error
+
+
+def test_the_timeout_allows_a_cold_start():
+    session = _session()
+    asyncio.run(_push(FakeHass({METER: FakeState("8421.3")}), _entry(), session))
+    assert session.post.call_args[1]["timeout"].total >= 90

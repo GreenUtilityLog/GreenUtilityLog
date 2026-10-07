@@ -65,8 +65,11 @@ node --test bridge/test.js               # bridge tests
 
 ## ⚙️ Configuration
 
-- **App** — constants at the top of `src/App.jsx`: `NETWORK` (testnet/mainnet),
-  `VEBETTER_APP_ID`, `ADMIN_WALLETS`, `REWARD_API` (backend URL), `FEEDBACK_EMAIL`.
+- **App** — the network and backend are build settings (`VITE_NETWORK`,
+  `VITE_REWARD_API`), set per build in `.github/workflows/deploy.yml` and read in
+  `src/network.js`. Constants at the top of `src/App.jsx`: `VEBETTER_APP_ID`,
+  `ADMIN_WALLETS`, `FEEDBACK_EMAIL`, `TURNSTILE_SITE_KEY`. Reward rules (cooldown,
+  caps, eco bonus) come from the backend's `/health`, so they are set in one place.
 - **Backend** — environment variables, every one listed with its default in
   [`server/env.example`](server/env.example). Details in [`server/README.md`](server/README.md),
   deploying in [`docs/DEPLOY_BACKEND.md`](docs/DEPLOY_BACKEND.md).

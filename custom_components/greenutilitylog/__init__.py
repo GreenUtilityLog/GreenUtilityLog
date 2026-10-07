@@ -11,6 +11,7 @@ in the UI whether pushing actually works.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable
 from datetime import timedelta
 from typing import Any
@@ -32,6 +33,9 @@ from .const import (
     DEFAULT_INTERVAL_MINUTES,
     DOMAIN,
     LOGGER,
+    PUSH_RETRY_WAIT_SECONDS,
+    PUSH_TIMEOUT_SECONDS,
+    PUSH_TRIES,
 )
 
 PLATFORMS: list[Platform] = [Platform.SENSOR]
@@ -109,21 +113,32 @@ class GreenUtilityLogPusher:
 
         url = opts.get(CONF_INGEST_URL) or DEFAULT_INGEST_URL
         session = async_get_clientsession(self.hass)
-        try:
-            async with session.post(
-                url,
-                json={"token": opts[CONF_TOKEN], "reading": reading},
-                timeout=aiohttp.ClientTimeout(total=20),
-            ) as resp:
-                if resp.status >= 400:
+        # The public backend sleeps between pushes (free plan) and takes 30-60 s to
+        # wake, and with two pushes a day nearly every push is the one that wakes
+        # it. So: 90 s per try, and two more tries for what passes on its own (a
+        # timeout, 429, 502-504). A refused token or reading fails at once.
+        for attempt in range(1, PUSH_TRIES + 1):
+            retry = False
+            try:
+                async with session.post(
+                    url,
+                    json={"token": opts[CONF_TOKEN], "reading": reading},
+                    timeout=aiohttp.ClientTimeout(total=PUSH_TIMEOUT_SECONDS),
+                ) as resp:
+                    if resp.status < 400:
+                        break
                     body = (await resp.text())[:200]
                     self.last_error = f"server said {resp.status}: {body}"
-                    LOGGER.warning("GreenUtilityLog: push rejected — %s", self.last_error)
-                    return
-        except Exception as err:  # noqa: BLE001 — a push failure must never break HA
-            self.last_error = str(err)
-            LOGGER.warning("GreenUtilityLog: could not reach the server — %s", err)
-            return
+                    retry = resp.status in (429, 502, 503, 504)
+            except Exception as err:  # noqa: BLE001 — a push failure must never break HA
+                # str(TimeoutError()) is "", which left the sensor showing no error.
+                self.last_error = f"could not reach the server ({str(err) or type(err).__name__})"
+                retry = True
+            if not retry or attempt == PUSH_TRIES:
+                LOGGER.warning("GreenUtilityLog: push failed — %s", self.last_error)
+                return
+            LOGGER.debug("GreenUtilityLog: %s — trying again (%s/%s)", self.last_error, attempt, PUSH_TRIES)
+            await asyncio.sleep(PUSH_RETRY_WAIT_SECONDS)
 
         self.last_reading = reading
         self.last_success = dt_util.utcnow()
