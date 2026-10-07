@@ -3,17 +3,35 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Clickjacking protection: this page signs wallet certificates/transactions, so
-       it must never be embedded in a frame by a phishing site. (X-Frame-Options can
-       only be sent as a header; frame-ancestors is the meta-tag equivalent.) -->
-  <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'none'">
+  <!-- Clickjacking protection: this page asks for wallet signatures, so it must
+       never work inside another site's frame, where a phishing page could lay its
+       own buttons over ours. GitHub Pages can't send X-Frame-Options or a CSP
+       header, and browsers ignore frame-ancestors in a meta tag — so this script
+       does it: inside a frame the app is hidden behind a link that opens it in its
+       own window, and nothing of it can be clicked. -->
+  <style>html[data-framed] #root{display:none!important}</style>
+  <script>
+    (function () {
+      var framed;
+      try { framed = window.self !== window.top; } catch (e) { framed = true; }
+      if (!framed) return;
+      document.documentElement.setAttribute('data-framed', '');
+      document.addEventListener('DOMContentLoaded', function () {
+        var a = document.createElement('a');
+        a.href = location.href; a.target = '_blank'; a.rel = 'noopener';
+        a.textContent = 'Open Green Utility Log in its own window';
+        a.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;font:600 16px system-ui,sans-serif;color:#fff;background:#1a3326;z-index:2147483647';
+        document.body.appendChild(a);
+      });
+    })();
+  </script>
   <meta name="theme-color" content="#1a3326">
-  <meta name="description" content="Snap your electricity meter, log usage, earn B3TR for saving energy. A VeBetterDAO x2earn app on VeChain. Testnet beta.">
+  <meta name="description" content="Snap your electricity meter, log usage, earn B3TR for saving energy. A VeBetterDAO x2earn app on VeChain.__NETWORK_NOTE__">
   <title>Green Utility Log</title>
   <!-- Social link-preview card. og-image.png lives in public/ so it publishes at the
        site root. Update the absolute URL if you host on a different path/domain. -->
   <meta property="og:title" content="Green Utility Log — earn B3TR for saving energy">
-  <meta property="og:description" content="Snap your electricity meter, log usage, earn B3TR. A VeBetterDAO x2earn app on VeChain. Testnet beta — test tokens, no real value.">
+  <meta property="og:description" content="Snap your electricity meter, log usage, earn B3TR. A VeBetterDAO x2earn app on VeChain.__NETWORK_NOTE_OG__">
   <meta property="og:image" content="https://greenutilitylog.github.io/GreenUtilityLog/og-image.png">
   <meta property="og:type" content="website">
   <meta name="twitter:card" content="summary_large_image">

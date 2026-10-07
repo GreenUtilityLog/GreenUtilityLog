@@ -20,12 +20,12 @@ const APP_ORIGIN =
 // white screen) so it can be diagnosed. Harmless when everything works.
 // ════════════════════════════════════════════════════════════════════════════
 function describeError(err) {
-  if (err == null) return 'Onbekende fout (null/undefined)'
+  if (err == null) return 'Unknown error (null/undefined)'
   if (typeof err === 'string') return err
   const parts = []
   // Firefox's error.stack does NOT include the name/message, so show it explicitly.
   if (err.name || err.message) {
-    parts.push((err.name || 'Error') + ': ' + (err.message || '(geen melding)'))
+    parts.push((err.name || 'Error') + ': ' + (err.message || '(no message)'))
   } else {
     try { parts.push(JSON.stringify(err)) } catch { parts.push(String(err)) }
   }
@@ -40,7 +40,7 @@ function showError(label, err) {
   const detail = describeError(err)
   root.innerHTML =
     '<div style="font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;max-width:900px;margin:24px auto;padding:20px;border:2px solid #b00020;border-radius:10px;background:#fff5f5;color:#1a1a1a">' +
-    '<h2 style="margin:0 0 8px;color:#b00020">Opstartfout (diagnose)</h2>' +
+    '<h2 style="margin:0 0 8px;color:#b00020">The app could not start</h2>' +
     '<p style="margin:0 0 12px">' + String(label) + '</p>' +
     '<pre style="white-space:pre-wrap;word-break:break-word;background:#fff;border:1px solid #f0c0c0;border-radius:6px;padding:12px;margin:0;font:12px/1.4 monospace;color:#b00020">' +
     String(detail).replace(/&/g, '&amp;').replace(/</g, '&lt;') +
@@ -68,8 +68,8 @@ class ErrorBoundary extends React.Component {
     if (!this.state.error) return this.props.children
     return (
       <div style={{ font: '14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif', maxWidth: 900, margin: '24px auto', padding: 20, border: '2px solid #b00020', borderRadius: 10, background: '#fff5f5', color: '#1a1a1a' }}>
-        <h2 style={{ margin: '0 0 8px', color: '#b00020' }}>Er ging iets mis</h2>
-        <p style={{ margin: '0 0 12px' }}>De app liep tegen een fout aan. Probeer de pagina te vernieuwen.</p>
+        <h2 style={{ margin: '0 0 8px', color: '#b00020' }}>Something went wrong</h2>
+        <p style={{ margin: '0 0 12px' }}>The app ran into an error. Please reload the page.</p>
         <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', background: '#fff', border: '1px solid #f0c0c0', borderRadius: 6, padding: 12, margin: 0, font: '12px/1.4 monospace', color: '#b00020' }}>
           {describeError(this.state.error)}
         </pre>
@@ -113,10 +113,17 @@ try {
       </DAppKitProvider>
     </ErrorBoundary>,
   )
-  setTimeout(() => {
+  // Once the app is on screen, a late error (a refused clipboard copy, a storage
+  // write a private window blocks) must not replace it with the startup-error page:
+  // mark the root as mounted at the first paint, not four seconds later.
+  const markMounted = () => {
     const root = document.getElementById('root')
-    if (root && root.children.length > 0) root.dataset.appMounted = '1'
-  }, 4000)
+    if (root && root.children.length > 0) { root.dataset.appMounted = '1'; return true }
+    return false
+  }
+  const poll = () => { if (!markMounted()) requestAnimationFrame(poll) }
+  requestAnimationFrame(poll)
+  setTimeout(markMounted, 4000)
 } catch (err) {
-  showError('Crash tijdens opstarten (createRoot/render):', err)
+  showError('Crash during startup (createRoot/render):', err)
 }
