@@ -21,8 +21,8 @@ meter again. Home Assistant already reads your meter — whatever your country u
    **cumulative kWh** (the value that keeps counting up — not current power), and
    choose how often to send.
 
-That's it. Your reading then appears in the app under **“Auto-received”**, where you
-tap **Submit — no photo**.
+That's it. Your reading then appears in the app under **“Auto-received”** and is paid
+automatically when it arrives (at most once a day) — nothing to tap.
 
 ## What you get
 

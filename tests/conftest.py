@@ -162,3 +162,16 @@ except BaseException:  # noqa: BLE001
     for _name in [m for m in sys.modules if m == "homeassistant" or m.startswith("homeassistant.")]:
         del sys.modules[_name]
     _install_homeassistant_stubs()
+
+
+import pytest  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _no_retry_wait(monkeypatch):
+    """Retries wait 20 s between tries in real life; not in a test run."""
+    try:
+        import custom_components.greenutilitylog as integration
+    except Exception:  # noqa: BLE001 — the harness-only suite may import it differently
+        return
+    monkeypatch.setattr(integration, "PUSH_RETRY_WAIT_SECONDS", 0, raising=False)

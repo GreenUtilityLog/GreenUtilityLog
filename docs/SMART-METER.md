@@ -96,8 +96,9 @@ scheduler that submits paired meters automatically.
   token→wallet binding **and** an existing meter baseline (the meter must be
   registered + baselined by one normal photo submission first, so a device can't
   invent a meter or its starting value). All the usual rules still apply
-  (cooldown, monotonic reading, plausibility bounds, per-payout cap). In the app:
-  the **Submit — no photo** button on the smart-meter card.
+  (cooldown, monotonic reading, plausibility bounds, per-payout cap). With
+  `AUTO_CLAIM_ON_PUSH` (on by default) a pushed reading is paid as it arrives; the
+  app's smart-meter card shows it as paid, or offers **Claim now**.
 - **Step 3 (done):** hands-off scheduled auto-submit. Set `AUTO_SUBMIT_MS` on the
   backend (ms between sweeps, ≥ 60000) and it walks every paired meter and submits
   its latest pushed reading automatically — no app, no per-submit signature (the

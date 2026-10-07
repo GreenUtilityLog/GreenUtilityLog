@@ -20,18 +20,16 @@ photos · honest testnet copy · analytics dashboard · error toasts you can rea
 ### Anti-farming (the important part)
 | What | Where | Set to |
 |---|---|---|
-| Cooldown — server (enforcing) | **Render** env `COOLDOWN_MS` | `72000000`  (20h) |
-| Cooldown — app (the UI timer) | `src/App.jsx` line 695 `const COOLDOWN_MS` | `20 * 60 * 60 * 1000` |
+| Cooldown | **Render** env `COOLDOWN_MS` (default `72000000`, 20h) | the app reads it from `/health` — nothing to change in the code |
 | Durable anti-farm state | **Render** env `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` | free Upstash Redis (else every redeploy wipes cooldowns/used-photo hashes) |
 
-> ⚠️ Cooldown must be set in **both** places. Server-only = testers see a raw error
-> instead of a timer. App-only = the limit is bypassable. For a small closed group you
-> may leave it at 0; for a public link, turn it on.
+> The app shows the time left before anyone takes a photo, from the server's own
+> numbers (`/wallet/seen`), so there is only one place to set it.
 
 ### Optional but recommended
 | What | Where | Note |
 |---|---|---|
-| Captcha (anti-bot) | Cloudflare Turnstile → `src/App.jsx` line 97 `TURNSTILE_SITE_KEY` = site key · **Render** `TURNSTILE_SECRET` = secret | free; both halves needed |
+| Captcha (anti-bot) | Cloudflare Turnstile → `src/App.jsx` `TURNSTILE_SITE_KEY` = site key · **Render** `TURNSTILE_SECRET` = secret | free; both halves needed |
 | Better meter OCR | **Render** `ANTHROPIC_API_KEY` (+ optional `OCR_CLAUDE_MODEL=claude-haiku-4-5`) | reads meters far better than in-browser OCR; also enables the AI photo-authenticity check. Costs ~½¢/photo on haiku |
 | Lock CORS | **Render** `ALLOWED_ORIGIN` = `https://greenutilitylog.github.io` | replaces the open `*` |
 | Smart-meter push (beta) | nothing — always on | pair a P1/HAN reader or Home Assistant to auto-send readings. See `docs/SMART-METER.md` |
@@ -49,19 +47,22 @@ photos · honest testnet copy · analytics dashboard · error toasts you can rea
 
 > **Current, step-by-step plan (Dutch): [`docs/MAINNET.md`](docs/MAINNET.md).** The table below is the original outline.
 
-| What | Where | Set to |
-|---|---|---|
-| Network | `src/App.jsx` line 16 `const NETWORK` | `"mainnet"` |
-| App id | `src/App.jsx` `VEBETTER_APP_ID` | your **mainnet** app id after mainnet registration |
-| Render | env `NETWORK=mainnet`, `APP_ID=<mainnet id>` | |
-| Distributor | a **mainnet** wallet with the role + VTHO; fund the mainnet pool with real B3TR | |
-| Treasury safety | add a per-day distribution cap before loading a mainnet key | not built yet — ask me |
+Everything for mainnet — the second Render service, the build switch in
+`deploy.yml`, the distributor, the closed start — is in `docs/MAINNET.md`. In short:
+
+| What | Where |
+|---|---|
+| App network + backend | `.github/workflows/deploy.yml`: `MAIN_NETWORK: mainnet`, `MAINNET_API` |
+| Backend | a second Render service with `NETWORK=mainnet` and its own `STATE_KEY` |
+| App id | the same as testnet when registered under exactly "Green Utility Log" |
+| Distributor | a mainnet wallet with the distributor role and some VTHO |
+| Treasury safety | payouts follow the weekly allocation (`REWARD_SCALING`), each is capped (`MAX_PAYOUT_PER_SUBMISSION`, `MAX_REWARD`), and the pool only holds what VeBetterDAO allocates — keep extra deposits small |
 
 Faucet auto-hides on mainnet; the exposed test-only faucet address is testnet-only.
 
 ---
 
 ## The one-line summary
-**To open the public tester beta:** set `COOLDOWN_MS` in Render + `src/App.jsx`, add the
-two Upstash env vars, run the 4 sanity checks, then share the link. Everything else is
+**To open the public tester beta:** check `COOLDOWN_MS` in Render, add the two Upstash
+env vars, run the 4 sanity checks, then share the link. Everything else is
 optional polish or mainnet-only.

@@ -56,6 +56,8 @@ Render → **New → Web Service** → deze repository.
 | `REQUIRE_PASS` | niet invullen (staat standaard aan): alleen wallets met een pas worden uitbetaald |
 | `PASSPORT_GRANTS_ACCESS` | `false` — anders komt elke VeBetterDAO-gebruiker met een passport er zonder pas in |
 | `ADMIN_WALLETS` | alleen **jouw** wallet-adres (meerdere: met komma's) |
+| `DISTRIBUTOR_ADDRESS` | alleen bij `DISTRIBUTOR_MNEMONIC`: welk adres uit die woorden de distributor is |
+| `CERT_DOMAINS` | `greenutilitylog.github.io` — handtekeningen van andere sites worden dan geweigerd |
 
 **Alleen jij op mainnet (besloten start):** met de drie regels hierboven wordt op mainnet
 alleen uitbetaald aan wallets met een pas, en alleen jij kunt passen uitdelen. De database
@@ -75,6 +77,12 @@ In één pull request:
 - `.github/workflows/deploy.yml`: `MAIN_NETWORK: mainnet` en `MAINNET_API: <adres>`.
 - `bridge/index.js` + `src/network.js` (`BRIDGE_DEFAULT_API`): standaardserver → mainnet;
   de testnetapp zet dan zelf `--ingest=<testnet>` in zijn installatieregel.
+- Ook naar mainnet: `DEFAULT_INGEST_URL` in `custom_components/greenutilitylog/const.py`
+  en de YAML in `docs/build_guide.py` (alle 5 talen). De add-on volgt de bridge vanzelf.
+- **Testers met een P1-reader:** hun geplande taak stuurt daarna naar mainnet, waar hun
+  testnet-token wordt geweigerd. Zij doen één keer: `node gul.js --uninstall` (haalt de
+  oude taak weg) en plakken dan de installatieregel uit de testnet-app opnieuw (die heeft
+  `--ingest=<testnet>` en krijgt een eigen taak).
 - Home Assistant-integratie en add-on: standaardserver → mainnet.
 - Handleiding: “testnet / testtokens” eruit, link naar de testversie erin.
 

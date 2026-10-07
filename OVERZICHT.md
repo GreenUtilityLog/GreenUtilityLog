@@ -5,9 +5,11 @@ Beide deployen automatisch vanaf branch **`main`**.
 
 ## 🌐 Frontend (de app)
 - **Live:** https://greenutilitylog.github.io/GreenUtilityLog/
+- **Testkopie:** https://greenutilitylog.github.io/GreenUtilityLog/testnet/ (oranje strook "TESTNET"; altijd testnet)
 - **Host:** GitHub Pages — auto-deploy via `.github/workflows/deploy.yml` bij elke commit op `main`
 - **Belangrijkste code:**
-  - `src/App.jsx` — de hele app (UI, reward-flow, thema's, `REWARD_API`)
+  - `src/App.jsx` — de hele app (UI, reward-flow, thema's)
+  - `src/network.js` — welk netwerk en welke server een build gebruikt (`VITE_NETWORK`, `VITE_REWARD_API`, gezet in `deploy.yml`)
   - `src/main.jsx` — wallet-verbinding (VeChain dapp-kit, netwerk)
 
 ## ⚙️ Backend (reward-server)

@@ -19,19 +19,19 @@ scripts, no YAML**. Install it, paste your token, press Start.
    then **Start**.
 4. Open the **Log** tab — you should see `pushed 8421.3 kWh ✓`.
 
-Your reading then appears in the app under **"Auto-received"** → tap
-**"Submit — no photo"**.
+Your reading then appears in the app under **"Auto-received"** and is paid
+automatically when it arrives (at most once a day) — nothing to tap.
 
 ## Options
 
 | Option | Default | What it does |
 |---|---|---|
 | `token` | — (required) | Your device token from the app |
-| `interval_sec` | `3600` | Seconds between pushes (min 60) |
+| `interval_sec` | `43200` (12 h) | Seconds between pushes (min 60) |
 | `hw_ip` | auto-discover | Your HomeWizard's IP — only needed if discovery fails |
 | `read_url` | — | Read from **any** HTTP/JSON reader instead of a HomeWizard |
 | `read_field` | auto-detect | Dot-path to the kWh value in that JSON |
-| `ingest_url` | public backend | Leave as-is unless you run your own backend |
+| `ingest_url` | empty = the app's server | Fill in only for the app's test copy or your own backend |
 
 ## Not a HomeWizard?
 
@@ -48,3 +48,6 @@ shown in the app's Automatic setup.
   recognise; set **read_field** to the dot-path of the cumulative kWh value.
 - **Nothing in the app** — check the token, and that you did one photo submission
   first to set the baseline.
+- **"no answer from the server (timeout)" once in a while** — the server sleeps
+  between readings and takes up to a minute to wake; the add-on tries again by
+  itself.

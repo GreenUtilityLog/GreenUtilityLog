@@ -13,7 +13,6 @@ if [ -z "${TOKEN}" ] || [ "${TOKEN}" = "null" ]; then
 fi
 
 export GUL_TOKEN="${TOKEN}"
-export GUL_INGEST_URL="$(bashio::config 'ingest_url')"
 export INTERVAL_SEC="$(bashio::config 'interval_sec')"
 
 # Optional fields: only export when actually filled in, so the bridge falls back to
@@ -21,6 +20,7 @@ export INTERVAL_SEC="$(bashio::config 'interval_sec')"
 if bashio::config.has_value 'hw_ip'; then export HW_IP="$(bashio::config 'hw_ip')"; fi
 if bashio::config.has_value 'read_url'; then export READ_URL="$(bashio::config 'read_url')"; fi
 if bashio::config.has_value 'read_field'; then export READ_FIELD="$(bashio::config 'read_field')"; fi
+if bashio::config.has_value 'ingest_url'; then export GUL_INGEST_URL="$(bashio::config 'ingest_url')"; fi
 
 if bashio::config.has_value 'read_url'; then
   bashio::log.info "Reading from ${READ_URL}"
