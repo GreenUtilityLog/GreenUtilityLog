@@ -3694,27 +3694,85 @@ function FlaggedPanel({ T, address, onAdminApi }) {
 //
 // Note this is a different thing from the VeBetterDAO passport below: that one is
 // VeBetterDAO's bot check on the whole ecosystem, this one is our own guest list.
+// Who may use THIS version (this server; mainnet and the test copy each have their
+// own): only wallets with a role, or everyone. Admins always get in. Reading the
+// current setting needs no signature (/health); changing it does.
+function AccessModePanel({ T, onAdminApi, onToast }) {
+  const [mode, setMode] = useState(null);   // "roles" | "everyone" | null (unknown)
+  const [busy, setBusy] = useState("");
+  useEffect(() => {
+    if (!REWARD_API) return;
+    let stop = false;
+    fetchT(`${REWARD_API.replace(/\/$/, "")}/health`).then(r => (r.ok ? r.json() : null))
+      .then(h => { if (!stop && (h?.access === "roles" || h?.access === "everyone")) setMode(h.access); })
+      .catch(() => {});
+    return () => { stop = true; };
+  }, []);
+  const set = async (m) => {
+    if (m === mode) return;
+    setBusy(m);
+    try {
+      const d = await onAdminApi("/admin/access", { mode: m });
+      setMode(d.access);
+      onToast?.(d.access === "roles" ? "🔒 Only wallets with a role can use this version now" : "🔓 Everyone can use this version now");
+    } catch (e) {
+      onToast?.(`❌ ${e?.message || "could not change access"}`);
+    } finally { setBusy(""); }
+  };
+  const opt = (m, label, sub) => {
+    const on = mode === m;
+    return (
+      <button type="button" onClick={() => set(m)} disabled={!!busy} aria-pressed={on}
+        style={{flex:1,minWidth:0,textAlign:"left",background:on ? (T.green5 || T.bgAlt) : T.card,border:`1px solid ${on ? (T.green3 || T.border) : T.border}`,borderRadius:6,padding:"9px 10px",cursor:busy ? "default" : "pointer",opacity:busy && busy !== m ? .6 : 1}}>
+        <div style={{fontSize:12,fontWeight:800,color:T.text}}>{busy === m ? "…" : (on ? "● " : "○ ")}{label}</div>
+        <div style={{fontSize:10,color:T.textSoft,marginTop:2,lineHeight:1.4}}>{sub}</div>
+      </button>
+    );
+  };
+  return (
+    <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:6,padding:"11px 12px",marginBottom:12}}>
+      <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".6px",color:T.textSoft,marginBottom:8}}>
+        🔐 Who can use this version · {NETWORK_LABEL}
+      </div>
+      <div style={{display:"flex",gap:8}}>
+        {opt("roles", "Only with a role", "Testers and users you added. Everyone else sees a 'no access' screen.")}
+        {opt("everyone", "Everyone", "Any wallet can use the app and earn.")}
+      </div>
+      <div style={{fontSize:10,color:T.textSoft,marginTop:8,lineHeight:1.5}}>
+        {mode ? "Admins always get in. Give someone a role: search their wallet below → Role." : "Couldn't read the current setting — choosing one still works."}
+      </div>
+    </div>
+  );
+}
+
+const ROLE_OPTIONS = [
+  { id: "tester", label: "Tester" },
+  { id: "user",   label: "User" },
+];
+
 function AccessPassPanel({ T, address, onAdminApi, onToast }) {
   const [state, setState] = useState({ status: "idle" });
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState("");
+  const [role, setRole] = useState("tester");
 
   const load = async () => {
     setState({ status: "loading" });
     try {
       const d = await onAdminApi("/admin/lookup", { targetWallet: address });
       setState({ status: "live", pass: d.pass || null, requirePass: !!d.requirePass });
+      if (ROLE_OPTIONS.some(r => r.id === d.pass?.tier)) setRole(d.pass.tier);
     } catch (e) {
       setState({ status: "error", error: e?.message || "request failed" });
     }
   };
 
-  const act = async (grant) => {
+  const act = async (grant, tier = role) => {
     setBusy(grant ? "grant" : "revoke");
     try {
-      const d = await onAdminApi("/admin/pass", { targetWallet: address, grant, ...(grant && note.trim() ? { note: note.trim() } : {}) });
+      const d = await onAdminApi("/admin/pass", { targetWallet: address, grant, ...(grant ? { tier } : {}), ...(grant && note.trim() ? { note: note.trim() } : {}) });
       setState((s) => ({ ...s, status: "live", pass: d.pass || null, requirePass: !!d.requirePass }));
-      onToast?.(grant ? `🎟️ Pass #${d.pass?.no} issued` : "🎟️ Pass withdrawn");
+      onToast?.(grant ? `🎟️ ${d.pass?.tier === "user" ? "User" : "Tester"} role given (pass #${d.pass?.no})` : "🎟️ Role withdrawn");
       setNote("");
     } catch (e) {
       onToast?.(`❌ ${e?.message || "action failed"}`);
@@ -3729,17 +3787,17 @@ function AccessPassPanel({ T, address, onAdminApi, onToast }) {
   if (state.status === "idle") {
     return (
       <div style={box}>
-        <div style={head}>🎟️ Access pass</div>
-        <div style={{ fontSize:10.5, color: T.textSoft, lineHeight: 1.6, marginBottom: 10 }}>Who may earn. Anyone can use the app; only pass holders get paid.</div>
-        <button onClick={load} style={btn("transparent", T.textMid, false)}>🎟️ Check pass</button>
+        <div style={head}>🎟️ Role</div>
+        <div style={{ fontSize:10.5, color: T.textSoft, lineHeight: 1.6, marginBottom: 10 }}>Tester or user. With "Only with a role" on, only wallets with a role can use this version and earn.</div>
+        <button onClick={load} style={btn("transparent", T.textMid, false)}>🎟️ Check role</button>
       </div>
     );
   }
-  if (state.status === "loading") return <div style={box}><div style={head}>🎟️ Access pass</div><div style={{ fontSize: 11, color: T.textSoft }}>Loading…</div></div>;
+  if (state.status === "loading") return <div style={box}><div style={head}>🎟️ Role</div><div style={{ fontSize: 11, color: T.textSoft }}>Loading…</div></div>;
   if (state.status === "error") {
     return (
       <div style={box}>
-        <div style={head}>🎟️ Access pass</div>
+        <div style={head}>🎟️ Role</div>
         <div style={{ fontSize: 11, color: T.text, marginBottom: 10 }}>⚠️ {state.error}</div>
         <button onClick={load} style={btn("transparent", T.textMid, false)}>Retry</button>
       </div>
@@ -3749,7 +3807,7 @@ function AccessPassPanel({ T, address, onAdminApi, onToast }) {
   const p = state.pass;
   return (
     <div style={box}>
-      <div style={head}>🎟️ Access pass</div>
+      <div style={head}>🎟️ Role</div>
       {p ? (
         <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, padding: "10px 12px", marginBottom: 10 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
@@ -3763,9 +3821,23 @@ function AccessPassPanel({ T, address, onAdminApi, onToast }) {
         </div>
       ) : (
         <div style={{ fontSize: 11, color: T.textMid, marginBottom: 10, lineHeight: 1.6 }}>
-          No pass. {state.requirePass ? <b>This wallet cannot earn.</b> : "Passes are currently switched off, so this wallet can still earn."}
+          No role. {state.requirePass ? <b>This wallet can't use this version.</b> : "This version is open to everyone, so this wallet can still use it."}
         </div>
       )}
+
+      <div role="radiogroup" aria-label="Role" style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+        {ROLE_OPTIONS.map(r => {
+          const on = role === r.id;
+          return (
+            <button key={r.id} type="button" role="radio" aria-checked={on}
+              onClick={() => { setRole(r.id); if (p && p.tier !== r.id) act(true, r.id); }}
+              disabled={!!busy}
+              style={{ ...btn(on ? (T.green3 || "#2e7d5b") : "transparent", on ? "#fff" : T.textMid, !!busy), flex: 1 }}>
+              {r.label}
+            </button>
+          );
+        })}
+      </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         {!p && (
@@ -3773,13 +3845,13 @@ function AccessPassPanel({ T, address, onAdminApi, onToast }) {
             style={{ flex: 1, minWidth: 140, boxSizing: "border-box", background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, padding: "8px 10px", fontSize: 12, color: T.text, outline: "none" }} />
         )}
         {p
-          ? <button disabled={busy === "revoke"} onClick={() => act(false)} style={btn("transparent", T.textMid, busy === "revoke")}>{busy === "revoke" ? "…" : "Withdraw pass"}</button>
-          : <button disabled={busy === "grant"} onClick={() => act(true)} style={btn(T.green3 || "#2e7d5b", "#fff", busy === "grant")}>{busy === "grant" ? "…" : "🎟️ Issue pass"}</button>}
+          ? <button disabled={busy === "revoke"} onClick={() => act(false)} style={btn("transparent", T.textMid, busy === "revoke")}>{busy === "revoke" ? "…" : "Withdraw role"}</button>
+          : <button disabled={busy === "grant"} onClick={() => act(true)} style={btn(T.green3 || "#2e7d5b", "#fff", busy === "grant")}>{busy === "grant" ? "…" : `🎟️ Give ${role === "user" ? "user" : "tester"} role`}</button>}
       </div>
 
       {!state.requirePass && (
         <div style={{ fontSize:9.5, color: T.textSoft, marginTop: 8, lineHeight: 1.6 }}>
-          Passes aren't enforced yet — set <span style={{ fontFamily: mono }}>REQUIRE_PASS=true</span> in the backend to make them required. On the first boot after that, every wallet the backend already knows keeps earning automatically.
+          This version is open to everyone right now. Switch to "Only with a role" at the top of the admin screen to make roles count.
         </div>
       )}
     </div>
@@ -4323,6 +4395,8 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
           ))}
         </div>
 
+        <AccessModePanel T={T} onAdminApi={onAdminApi} onToast={onToast} />
+
         <button onClick={() => setOpsOpen(o => !o)} style={{display:"flex",width:"100%",alignItems:"center",justifyContent:"space-between",background:T.card,border:`1px solid ${T.border}`,borderRadius:6,padding:"11px 14px",marginBottom:12,cursor:"pointer",color:T.text}}>
           <span style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".6px"}}>⚙️ Setup &amp; diagnostics</span>
           <span style={{color:T.textSoft,fontSize:13}}>{opsOpen ? "▲ hide" : "▼ show"}</span>
@@ -4696,6 +4770,37 @@ function ProfileHero({ wallet, domain, tier, onToast, T }) {
         </div>
       ) : (
         <div style={{display:"inline-block",fontSize:10,fontWeight:700,background:T.bgAlt,color:tierColor(tier, T),border:`1px solid ${T.border}`,borderRadius:2,padding:"3px 7px",marginTop:12,textTransform:"uppercase",letterSpacing:".8px"}}>{tier.name} Tier</div>
+      )}
+    </div>
+  );
+}
+
+// Shown instead of the app to a wallet without a role, while this version is set
+// to "Only with a role". The address is what the team needs to give one.
+function NoAccessScreen({ wallet, T, onSwitch, onToast }) {
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(wallet); onToast?.("📋 Address copied"); }
+    catch { onToast?.("Couldn't copy here — select the address and copy it by hand."); }
+  };
+  return (
+    <div style={{margin:"24px 16px",padding:"22px 18px",background:T.card,border:`1px solid ${T.border}`,borderRadius:10,textAlign:"center"}}>
+      <div style={{fontSize:34,lineHeight:1}} aria-hidden="true">🔒</div>
+      <h2 style={{fontSize:17,fontWeight:800,color:T.text,margin:"12px 0 6px"}}>
+        {NETWORK === "mainnet" ? "Not open yet" : "This test version is for testers"}
+      </h2>
+      <p style={{fontSize:12.5,color:T.textMid,lineHeight:1.6,margin:"0 0 14px"}}>
+        {NETWORK === "mainnet"
+          ? "Green Utility Log is opening in steps. Your wallet doesn't have access yet."
+          : "Only wallets the team has given a tester role can use it."}
+        {" "}Send the team this address to ask for access:
+      </p>
+      <div style={{fontFamily:"'SF Mono',Menlo,monospace",fontSize:11.5,color:T.text,background:T.bgAlt,border:`1px solid ${T.border}`,borderRadius:6,padding:"9px 10px",wordBreak:"break-all",userSelect:"all"}}>{wallet}</div>
+      <div style={{display:"flex",gap:8,marginTop:12}}>
+        <button type="button" onClick={copy} style={{flex:1,padding:"11px",fontSize:12,fontWeight:800,color:"#fff",background:T.green2,border:"none",borderRadius:6,cursor:"pointer"}}>Copy address</button>
+        <button type="button" onClick={onSwitch} style={{flex:1,padding:"11px",fontSize:12,fontWeight:700,color:T.textMid,background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,cursor:"pointer"}}>Use another wallet</button>
+      </div>
+      {MAIN_APP_URL && NETWORK !== "mainnet" && (
+        <p style={{fontSize:11,color:T.textSoft,marginTop:14}}>Looking for the app itself? <a href={MAIN_APP_URL} style={{color:T.green3,fontWeight:700}}>Open Green Utility Log</a></p>
       )}
     </div>
   );
@@ -5139,7 +5244,7 @@ export default function App() {
   const [meters, setMeters]         = useState({ electric:"", gas:"", water:"", solar:"" });
   // Access pass, reported by the backend on connect. `required:false` is the normal
   // case today — the gate is off unless REQUIRE_PASS is set.
-  const [passInfo, setPassInfo]     = useState({ required: false, has: true, pass: null });
+  const [passInfo, setPassInfo]     = useState({ required: false, has: true, pass: null, isAdmin: false });
   const [dark, setDark]             = useState(getInitialDark);
   const T = dark ? DARK : LIGHT;
   const CSS = makeCSS(T);
@@ -5182,6 +5287,9 @@ export default function App() {
   // requestTransaction() signer; useWalletModal() opens the connect dialog.
   const { account, accountDomain, requestTransaction, requestCertificate, disconnect } = useWallet();
   const wallet = account || null;
+  // The server's answer about THIS wallet; reset when another one connects, so a
+  // wallet never shows the previous one's access.
+  const noAccess = !!wallet && passInfo.required && !passInfo.has;
 
   // Which tariff register the server wants on the next photo, per utility (it
   // checks that the registers take turns — see /reward), refreshed after a payout.
@@ -5227,6 +5335,7 @@ export default function App() {
   // on-chain. Fire-and-forget; failure is harmless.
   useEffect(() => {
     for (const k of Object.keys(SERVER_NEXT_AT)) delete SERVER_NEXT_AT[k];   // another wallet's
+    setPassInfo({ required: false, has: true, pass: null, isAdmin: false });
     if (!wallet || !REWARD_API) return;
     const list = Object.entries(meters || {}).filter(([, v]) => String(v || "").trim()).map(([k, v]) => `${k}:${v}`);
     fetchT(`${REWARD_API.replace(/\/$/, "")}/wallet/seen`, {
@@ -5239,7 +5348,7 @@ export default function App() {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (!d) return;
-        setPassInfo({ required: !!d.requirePass, has: d.hasPass !== false, pass: d.pass || null });
+        setPassInfo({ required: !!d.requirePass, has: d.hasPass !== false, pass: d.pass || null, isAdmin: !!d.isAdmin });
         // When this wallet may submit again, from the server — so the photo zone says
         // "next submission in 6h" BEFORE the photo, the crop and the signature.
         if (d.nextAt && typeof d.nextAt === "object") {
@@ -6178,25 +6287,24 @@ export default function App() {
             </div>
           )}
 
-          {/* Say it before they act, not after. A wallet without a pass can still use
-              everything — it just won't be paid — so this is a notice, not a wall. */}
-          {wallet && passInfo.required && !passInfo.has && (tab==="home" || tab==="submit") && (
-            <div style={{margin:"0 14px 12px",background:T.gasBg,border:`1px solid ${T.gasBorder}`,borderRadius:8,padding:"11px 13px",fontSize:11.5,color:T.text,lineHeight:1.6}}>
-              🎟️ <b>No access pass yet.</b> You can try everything out, but rewards are only paid to wallets with a pass — or with a VeBetterDAO passport that counts you as a person. Ask an admin to add yours — they'll need this address.
-            </div>
-          )}
+          {/* "Only with a role": a wallet without one gets this instead of the app.
+              The server decides (admins always pass), and refuses payouts as well, so
+              this is the honest front of a rule that holds either way. */}
+          {noAccess && <NoAccessScreen wallet={wallet} T={T} onSwitch={openConnectModal} onToast={showToast} />}
           {wallet && passInfo.pass && (tab==="profile") && (
             <div style={{margin:"0 14px 12px",background:T.card,border:`1px solid ${T.border}`,borderRadius:8,padding:"11px 13px",fontSize:11.5,color:T.textMid,lineHeight:1.6}}>
               🎟️ <b style={{color:T.green3}}>Access pass #{passInfo.pass.no}</b> · {passInfo.pass.tier}
             </div>
           )}
 
+          {!noAccess && <>
           {tab==="home"      && <HomeScreen b3tr={b3tr} walletB3tr={walletB3tr} streak={streak} subs={subs} setTab={setTab} T={T}/>}
           {tab==="submit"    && <SubmitScreen rewardFactor={rewardFactor} u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} dualTariff={dualTariff} fixBasis={fixBasis} fixBusy={fixBusy} runFixBasis={runFixBasis} dismissFixBasis={() => setFixBasis(null)} setDualTariff={setDualTariff} regLow={regLow} setRegLow={setRegLow} regNormal={regNormal} setRegNormal={setRegNormal} photoRegister={regHint[selUtil] || null} busy={busy} usage={usage} reward={reward} days={daysSinceLast()} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab} onEcoSubmit={handleEcoSubmit} ecoBusy={ecoBusy} ecoUsedThisWeek={ecoUsedThisWeek} ecoCooldownMs={ecoCooldownMs} onMeterAutoSubmit={handleMeterAutoSubmit} meterAutoBusy={meterAutoBusy} onRegisterMeter={(utils) => openRegistration(utils, true)}/>}
           {tab==="charts"    && <ChartsScreen subs={subs} T={T}/>}
           {tab==="leaderboard" && <LeaderboardScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}
           {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} walletDomain={accountDomain || null} setShowWallet={openConnectModal} dark={dark} setDark={toggleDark} setOnboarded={setOnboarded} onEditMeters={()=>openRegistration(REQUIRED_UTILS, true)} onEditSolar={()=>openRegistration(SOLAR_UTILS, true)} meters={meters} isAdmin={isAdmin} onOpenAdmin={()=>setShowAdmin(true)} onOpenHelp={()=>setShowHelp(true)} onOpenFeedback={()=>setShowFeedback(true)} onToast={showToast} onReset={resetApp} T={T}/>}
+          </>}
         </div>
 
         <div className="bnav">

@@ -59,11 +59,15 @@ Render → **New → Web Service** → deze repository.
 | `DISTRIBUTOR_ADDRESS` | alleen bij `DISTRIBUTOR_MNEMONIC`: welk adres uit die woorden de distributor is |
 | `CERT_DOMAINS` | `greenutilitylog.github.io` — handtekeningen van andere sites worden dan geweigerd |
 
-**Alleen jij op mainnet (besloten start):** met de drie regels hierboven wordt op mainnet
-alleen uitbetaald aan wallets met een pas, en alleen jij kunt passen uitdelen. De database
-voor mainnet begint leeg, dus niemand krijgt automatisch een pas. Geef jezelf een pas in het
-adminpaneel (Pass → je eigen adres). Anderen kunnen de app openen maar krijgen niets, tot
-jij ze een pas geeft. Testers blijven op `/testnet/`.
+**Alleen jij op mainnet (besloten start):** zo staat mainnet op "Alleen met rol". Wallets
+zonder rol zien een slotscherm en worden niet uitbetaald. Jij komt er als admin altijd in.
+De database voor mainnet begint leeg, dus niemand anders heeft al een rol.
+
+**Rollen en de schakelaar (per versie):** in het adminpaneel staat bovenaan
+**"Who can use this version"**: *Only with a role* of *Everyone*. Elke versie (mainnet en
+`/testnet/`) heeft zijn eigen schakelaar en zijn eigen lijst. Iemand een rol geven: zoek
+zijn wallet in het adminpaneel → **Role** → *Tester* of *User* → geven. Testers geef je
+een rol op de testversie; zo komen zij alleen daar binnen.
 
 Stuur mij daarna het **adres** van de nieuwe service (bijv. `https://….onrender.com`).
 Test: open `<adres>/health` → `network` moet `mainnet` zijn.
