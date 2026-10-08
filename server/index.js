@@ -20,6 +20,7 @@ import { verifyWalletCertificate, REQUIRE_CERT, CERT_MAX_AGE_MS, certDomainsSeen
 import { checkPhotoAuthenticity, aiPhotoCheckEnabled } from "./authenticity.js";
 import { verifyCaptcha, captchaEnabled } from "./captcha.js";
 import { enodeEnabled, enodeInfo, createMeterLink, fetchLatestReading } from "./enode.js";
+import { powerfoxEnabled, sealCredentials, openCredentials, fetchPowerfoxReading } from "./powerfox.js";
 
 const app = express();
 
@@ -177,6 +178,8 @@ app.get("/health", async (req, res) => {
     // Smart-meter sources: the free push path is always on; enode only when configured.
     meterIngest: true,
     enode: enodeInfo(),
+    // Powerfox: the server fetches readings from the Powerfox cloud itself.
+    powerfox: { enabled: powerfoxEnabled(), linked: powerfoxEnabled() ? store.allPowerfox().length : 0 },
     // Scheduled hands-off auto-submit (Step 3) — on when AUTO_SUBMIT_MS ≥ 60000.
     autoSubmit: Number(process.env.AUTO_SUBMIT_MS || 0) >= 60000,
     // Readers' readings are paid the moment they arrive (no tap in the app).
@@ -1100,6 +1103,75 @@ app.post("/meter/unpair", async (req, res) => {
   res.json({ ok: true, unpaired: !!existing });
 });
 
+// ── Powerfox: this server fetches the reading from the Powerfox cloud ───────
+// The wallet signs once; the Powerfox e-mail and password are checked against
+// Powerfox right away, then stored sealed (powerfox.js) and used for nothing but
+// reading the meter. The account feeds an ordinary meter link, so everything a
+// reader's reading goes through (baseline, cooldown, bounds, payout) applies.
+app.post("/meter/powerfox/link", async (req, res) => {
+  if (!powerfoxEnabled()) return res.status(503).json({ error: "the Powerfox connection isn't switched on for this server yet" });
+  if (!store.loaded()) return res.status(503).json({ error: notReadyMessage() });
+  const address = String(req.body.address || "");
+  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
+  if (banned(address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
+  {
+    const c = await requireBoundCert(req, ["Green Utility Log — link Powerfox"]);
+    if (!c.ok) return res.status(c.code).json({ error: c.error });
+  }
+  const email = String(req.body.email || "").trim();
+  const password = String(req.body.password || "");
+  if (!email || email.length > 200 || !password || password.length > 200) {
+    return res.status(400).json({ error: "fill in the e-mail and password of your Powerfox account" });
+  }
+  const meterNo = String(req.body.meterNo || "").trim();
+  if (!meterNo) return res.status(400).json({ error: "register your meter number first" });
+  const owner = store.meterOwner("electric", meterNo.toLowerCase());
+  if (owner && owner !== address.toLowerCase()) return res.status(403).json({ error: "this meter is registered to another wallet" });
+
+  const r = await fetchPowerfoxReading(email, password);
+  if (!r.ok) return res.status(r.code === "unreachable" ? 503 : 400).json({ error: r.error, code: r.code });
+
+  // The same meter link a P1 reader gets, so the app's status card, the payout on
+  // arrival and the timer sweep all work unchanged.
+  const existing = store.getLinkByAddress(address);
+  const token = existing ? existing.token : randomBytes(24).toString("hex");
+  const carried = existing && String(existing.meterNo || "").toLowerCase() === meterNo.toLowerCase()
+    ? { autoPaidAt: existing.autoPaidAt, rebasedAt: existing.rebasedAt, lastPayout: existing.lastPayout } : {};
+  const link = { ...carried, address: address.toLowerCase(), meterNo, utility: "electric", source: "powerfox", createdAt: existing?.createdAt || Date.now() };
+  store.setMeterLink(token, link);
+  store.setPowerfox(address, { cred: sealCredentials(email, password), token, linkedAt: Date.now(), lastPullAt: Date.now(), lastError: null });
+  if (!r.outdated) store.setLinkReading(address, { reading: r.reading, meterNo, at: r.at, source: "powerfox" });
+  await store.flush();
+  console.log(`[powerfox] ${shortAddr(address)} linked`);
+  res.json({ ok: true, token, reading: r.reading, at: r.at, outdated: r.outdated });
+  if (AUTO_CLAIM_ON_PUSH && !r.outdated) setImmediate(() => { autoSettle({ token, ...link }, "powerfox").catch(() => {}); });
+});
+
+// Forget the Powerfox account: the sealed credentials are deleted at once.
+app.post("/meter/powerfox/unlink", async (req, res) => {
+  const address = String(req.body.address || "");
+  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
+  {
+    const c = await requireBoundCert(req, ["Green Utility Log — unlink Powerfox"]);
+    if (!c.ok) return res.status(c.code).json({ error: c.error });
+  }
+  const had = store.delPowerfox(address);
+  await store.flush();
+  res.json({ ok: true, unlinked: had });
+});
+
+// Wake-up call for a server that sleeps between requests (free plan): a scheduled
+// GitHub workflow calls this every hour, and the Powerfox pull runs. No secret is
+// needed — it only starts work the server would do on its own, at most once every
+// ten minutes.
+let lastCronTick = 0;
+app.get("/cron/tick", async (req, res) => {
+  if (Date.now() - lastCronTick < 10 * 60 * 1000) return res.json({ ok: true, skipped: "ran recently" });
+  lastCronTick = Date.now();
+  const pulled = await powerfoxTick("cron").catch(() => 0);
+  res.json({ ok: true, powerfox: pulled });
+});
+
 // The endpoint a reader posts to. Token-authed (the token IS the secret binding to
 // a wallet) — deliberately no wallet cert, since an unattended device can't sign.
 app.post("/meter-ingest", (req, res) => {
@@ -1216,6 +1288,8 @@ app.get("/meter/latest", (req, res) => {
     // automatically" instead of offering a button for something already done.
     lastPayout: link?.lastPayout || null,
     autoClaimOnPush: AUTO_CLAIM_ON_PUSH,
+    // A Powerfox account fetched by this server: when, and the last problem if any.
+    powerfox: (() => { const pf = store.getPowerfox(address); return pf ? { linked: true, lastPullAt: pf.lastPullAt || null, lastError: pf.lastError || null } : null; })(),
   });
 });
 
@@ -1615,6 +1689,36 @@ async function autoSettle(link, why = "timer") {
     return null;
   }
 }
+
+// Fetch every linked Powerfox account's reading (at most hourly per account) and
+// settle it like a reader's push. Returns how many readings came in.
+let powerfoxBusy = false;
+async function powerfoxTick(why = "timer") {
+  if (!powerfoxEnabled() || powerfoxBusy || !store.ready()) return 0;
+  powerfoxBusy = true;
+  let n = 0;
+  try {
+    for (const acc of store.allPowerfox()) {
+      if (why !== "force" && Date.now() - (acc.lastPullAt || 0) < 50 * 60 * 1000) continue;
+      const link = acc.token ? store.getMeterLink(acc.token) : null;
+      const creds = openCredentials(acc.cred);
+      if (!link || !creds) {
+        store.setPowerfox(acc.address, { ...acc, lastPullAt: Date.now(), lastError: "reconnect Powerfox in the app" });
+        continue;
+      }
+      const r = await fetchPowerfoxReading(creds.user, creds.pass);
+      const rec = { cred: acc.cred, token: acc.token, linkedAt: acc.linkedAt, lastPullAt: Date.now(), lastError: r.ok ? (r.outdated ? "Powerfox reports an old reading — is the poweropti online?" : null) : r.error };
+      store.setPowerfox(acc.address, rec);
+      if (!r.ok || r.outdated) continue;
+      store.setLinkReading(acc.address, { reading: r.reading, meterNo: link.meterNo || null, at: r.at, source: "powerfox" });
+      n++;
+      if (AUTO_CLAIM_ON_PUSH) await autoSettle({ token: acc.token, ...link }, "powerfox").catch(() => {});
+    }
+  } finally { powerfoxBusy = false; }
+  return n;
+}
+setTimeout(() => { powerfoxTick().catch(() => {}); }, 45000).unref();
+setInterval(() => { powerfoxTick().catch(() => {}); }, 15 * 60 * 1000).unref();
 
 async function autoSubmitTick() {
   for (const link of store.allMeterLinks()) await autoSettle(link, "timer");

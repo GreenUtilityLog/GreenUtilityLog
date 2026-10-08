@@ -58,6 +58,7 @@ Render → **New → Web Service** → deze repository.
 | `ADMIN_WALLETS` | alleen **jouw** wallet-adres (meerdere: met komma's) |
 | `DISTRIBUTOR_ADDRESS` | alleen bij `DISTRIBUTOR_MNEMONIC`: welk adres uit die woorden de distributor is |
 | `CERT_DOMAINS` | `greenutilitylog.github.io` — handtekeningen van andere sites worden dan geweigerd |
+| `POWERFOX_SECRET` | een lange willekeurige sleutel (anders dan op testnet) — zet de Powerfox-koppeling aan |
 
 **Alleen jij op mainnet (besloten start):** zo staat mainnet op "Alleen met rol". Wallets
 zonder rol zien een slotscherm en worden niet uitbetaald. Jij komt er als admin altijd in.
@@ -81,6 +82,8 @@ In één pull request:
 - `.github/workflows/deploy.yml`: `MAIN_NETWORK: mainnet` en `MAINNET_API: <adres>`.
 - `bridge/index.js` + `src/network.js` (`BRIDGE_DEFAULT_API`): standaardserver → mainnet;
   de testnetapp zet dan zelf `--ingest=<testnet>` in zijn installatieregel.
+- `.github/workflows/wake.yml`: een tweede regel die ook de mainnet-server elk uur wekt
+  (nodig voor Powerfox zolang de server op het gratis plan staat).
 - Ook naar mainnet: `DEFAULT_INGEST_URL` in `custom_components/greenutilitylog/const.py`
   en de YAML in `docs/build_guide.py` (alle 5 talen). De add-on volgt de bridge vanzelf.
 - **Testers met een P1-reader:** hun geplande taak stuurt daarna naar mainnet, waar hun

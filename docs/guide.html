@@ -193,6 +193,7 @@
     <div class="route pick"><div><h3>I use Home Assistant</h3><p>Works with almost any meter HA already reads. Install our integration, or paste a few lines of YAML.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Easiest</span></div></div>
     <div class="route"><div><h3>I have a HomeWizard P1</h3><p>No Home Assistant needed. A small helper finds your meter on the network by itself.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Some tech</span></div></div>
     <div class="route"><div><h3>I have another P1 reader</h3><p>dsmr-reader, P1 Monitor, Shelly and friends — anything that serves its data as JSON.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span><span>Technical</span></div></div>
+    <div class="route pick"><div><h3>I have a Powerfox (poweropti)</h3><p>Common in Germany. We can fetch your reading from the Powerfox cloud — nothing to install, nothing to keep switched on.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Easiest</span></div></div>
     <div class="route"><div><h3>None of these</h3><p>Then keep photographing your meter. It works just as well and earns exactly the same. Nothing to set up.</p></div><div class="meter"><span>No setup</span></div></div>
   </div>
   <div class="note"><b>First, once: set your starting point</b>Whichever route you pick, do <strong>one normal photo submission</strong> in the app first. That tells the app where your meter started — without it, automatic readings can't be paid out.</div>
@@ -205,7 +206,7 @@
     <tr><td>🇸🇪 Sweden · 🇫🇮 Finland</td><td>HAN port (RJ12)</td><td>A P1/HAN reader, or Home Assistant.</td></tr>
     <tr><td>🇩🇰 Denmark</td><td>HAN (pin header, encrypted)</td><td>A reader with the right connector, or Home Assistant.</td></tr>
     <tr><td>🇳🇴 Norway</td><td>HAN (RJ45, M-BUS)</td><td>A Norwegian HAN reader + Home Assistant.</td></tr>
-    <tr><td>🇩🇪 Germany</td><td>Smart-Meter-Gateway / optical head</td><td>Home Assistant.</td></tr>
+    <tr><td>🇩🇪 Germany</td><td>Smart-Meter-Gateway / optical head</td><td>Powerfox poweropti: Route D. Otherwise Home Assistant.</td></tr>
     <tr><td>🇺🇸 United States</td><td>No socket — Zigbee radio (HAN)</td><td>A Rainforest EAGLE/RAVEn, switched on by your utility.</td></tr>
     <tr><td>Anywhere else</td><td>Varies</td><td>If Home Assistant reads your meter, Route A works.</td></tr>
   </table></div>
@@ -293,11 +294,54 @@
       <div class="see"><b>Expected output</b><span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
+  <h2>Route D — Powerfox (poweropti)</h2>
+  <p class="lede" style="font-size:15.5px">A poweropti reads your meter and sends the total to the Powerfox cloud. Below are three ways to get it to us — <strong>you need only one</strong>. Not sure? Take option 1.</p>
+  <div class="note"><b>First, in the Powerfox app</b>Switch on <strong>data transfer</strong> (Datenfreigabe). Without it Powerfox shares your readings with no one — not with us, and not with Home Assistant either.</div>
+  <h3 class="sub">Option 1 — We fetch it for you (easiest)</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Open Powerfox in the app</p>
+      <p>In the app: <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Powerfox</span> and pick <strong>“We fetch it for you”</strong>. Not there? Then this version doesn't offer it yet — use option 2 or 3.</p>
+      </li>
+      <li><p class="steptitle">Log in with your Powerfox account</p>
+      <p>Fill in the e-mail and password you use in the Powerfox app, tick the box and press <strong>Connect Powerfox</strong>. Your login is stored encrypted and is only used to read your meter. Tip: use a password you use nowhere else.</p>
+      </li>
+      <li><p class="steptitle">Done — your computer can stay off</p>
+      <p>Our server fetches your meter total from Powerfox about every hour and pays it like any reading. Want to stop? <strong>Disconnect Powerfox</strong> deletes your login at once.</p>
+      <div class="see"><b>Check it worked</b>The status at the top says <span class="k">✅ Connected — … kWh received</span>.</div>
+      </li>
+      </ol>
+  <h3 class="sub">Option 2 — On your own computer</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Get the terminal and Node.js ready</p>
+      <p>Do steps 2–4 of Route B first: open PowerShell or a terminal and check that Node.js 18 or newer is installed.</p>
+      </li>
+      <li><p class="steptitle">Paste one line, with your Powerfox e-mail</p>
+      <p>Put the e-mail of your Powerfox account in place of <span class="k">YOUR_POWERFOX_EMAIL</span>. It asks for your token and your Powerfox password once (the password is not shown as you type) and keeps both in a private file next to gul.js. Then it schedules itself, just like Route B. The computer has to be on at least once a day.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copy</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copy</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      </li>
+      <li><p class="steptitle">Check it worked</p>
+      <p>The helper prints what it pushed.</p>
+      <div class="see"><b>Expected output</b><span class="k">pushed 8421.3 kWh ✓</span></div>
+      </li>
+      </ol>
+  <h3 class="sub">Option 3 — With Home Assistant</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Add Powerfox to Home Assistant</p>
+      <p>In Home Assistant: <span class="k">Settings → Devices &amp; services → Add integration → Powerfox</span>. Log in with your Powerfox account.</p>
+      </li>
+      <li><p class="steptitle">Add our integration</p>
+      <p>Follow Route A, <em>“With our integration”</em>: add us to HACS, install, restart and paste your token.</p>
+      </li>
+      <li><p class="steptitle">Pick the Powerfox meter sensor</p>
+      <p>As the sensor, choose the Powerfox sensor <strong>Energy usage</strong> (kWh). A meter with two tariffs where that one stays empty? Make a helper that adds the high- and low-tariff sensors (<span class="k">Settings → Devices &amp; services → Helpers → Combine the state of several sensors → Sum</span>) and pick that one.</p>
+      </li>
+      </ol>
   <div class="note"><b>No machine that stays on?</b>You don’t need one. Missed a scheduled time because the computer was off? It sends as soon as the computer is on again — so a laptop you open now and then is enough. It is paid as soon as it arrives, at most once a day.</div>
   <h2>Finally: it pays by itself</h2>
   <ol class="steps">
       <li><p class="steptitle">Your reading appears by itself</p>
-      <p>In the app open <strong>Submit</strong>. Under <strong>“Auto-received”</strong> you'll see your meter total and when it arrived.</p>
+      <p>In the app open <strong>Meter</strong>. Under <strong>“Auto-received”</strong> you'll see your meter total and when it arrived.</p>
       </li>
       <li><p class="steptitle">It is paid by itself</p>
       <p>Nothing to tap: each reading is paid automatically when it arrives, at most once a day, and the app shows <strong>“✓ Paid”</strong>. Don't want to wait? <strong>Claim now</strong> does the same.</p>
@@ -320,6 +364,9 @@
     <tr><td>Nothing under “Auto-received”</td><td>The helper hasn’t pushed successfully yet. Look at its window, or open <span class="k">.gul-bridge.log</span> in the same folder as gul.js: every run writes either <span class="k">pushed … ✓</span> or the reason it failed.</td></tr>
     <tr><td>Not sure it is scheduled?</td><td>Windows: in PowerShell run <span class="k">schtasks /Query /TN GreenUtilityLog</span> — a line with <em>GreenUtilityLog</em> and a next run time means it is. Mac / Linux / Pi: <span class="k">crontab -l</span> should show a line ending in <em># GreenUtilityLog</em>. Nothing there? Paste the setup line once more.</td></tr>
     <tr><td>You set this up before 24 September</td><td>Paste the same line again once. The new helper waits for a server that is still waking up instead of giving up, writes every run to <span class="k">.gul-bridge.log</span>, and on Windows also runs on battery power.</td></tr>
+    <tr><td>Powerfox didn&#x27;t accept the e-mail and password</td><td>Use exactly the e-mail and password of the Powerfox app (watch for a typo or a space). Changed your Powerfox password? Option 1: <strong>Connect Powerfox</strong> again with the new one. Option 2: paste the setup line again — it asks for the password.</td></tr>
+    <tr><td>switch on data transfer (Datenfreigabe)</td><td>Powerfox refuses to share your readings. In the Powerfox app, switch on data transfer (Datenfreigabe), then try again.</td></tr>
+    <tr><td>Powerfox only has an old reading</td><td>Your poweropti hasn't sent anything to Powerfox for a while. Check in the Powerfox app that it is online (Wi-Fi, battery). Nothing is sent or paid until a fresh reading is there.</td></tr>
     <tr><td>already been corrected once</td><td>A meter’s starting point can be corrected once — every correction wipes the usage since the last payout. If it is wrong again, ask an admin via Send Feedback in the app.</td></tr>
   </table></div>
   <div class="note">Still stuck? Send a message with what the Log tab (or terminal) shows — it usually says exactly what's missing.</div>
@@ -332,6 +379,7 @@
     <div class="route pick"><div><h3>Ik gebruik Home Assistant</h3><p>Werkt met vrijwel elke meter die HA al uitleest. Installeer onze integratie, of plak een paar regels YAML.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Makkelijkst</span></div></div>
     <div class="route"><div><h3>Ik heb een HomeWizard P1</h3><p>Geen Home Assistant nodig. Een klein hulpprogramma vindt je meter zelf op het netwerk.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Beetje techniek</span></div></div>
     <div class="route"><div><h3>Ik heb een andere P1-reader</h3><p>dsmr-reader, P1 Monitor, Shelly en dergelijke — alles wat z’n data als JSON aanbiedt.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span><span>Technisch</span></div></div>
+    <div class="route pick"><div><h3>Ik heb een Powerfox (poweropti)</h3><p>Veel gebruikt in Duitsland. Wij kunnen je stand ophalen uit de Powerfox-cloud — niets installeren, niets dat aan hoeft te blijven.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Makkelijkst</span></div></div>
     <div class="route"><div><h3>Geen van deze</h3><p>Blijf dan je meter fotograferen. Dat werkt net zo goed en levert precies hetzelfde op. Niets in te stellen.</p></div><div class="meter"><span>Niets instellen</span></div></div>
   </div>
   <div class="note"><b>Eerst, eenmalig: zet je startpunt</b>Welke route je ook kiest, doe eerst <strong>één gewone foto-inzending</strong> in de app. Daarmee weet de app waar je meter begon — zonder dat kunnen automatische standen niet uitbetalen.</div>
@@ -344,7 +392,7 @@
     <tr><td>🇸🇪 Zweden · 🇫🇮 Finland</td><td>HAN-poort (RJ12)</td><td>Een P1/HAN-reader, of Home Assistant.</td></tr>
     <tr><td>🇩🇰 Denemarken</td><td>HAN (pin-header, versleuteld)</td><td>Een reader met de juiste connector, of Home Assistant.</td></tr>
     <tr><td>🇳🇴 Noorwegen</td><td>HAN (RJ45, M-BUS)</td><td>Een Noorse HAN-reader + Home Assistant.</td></tr>
-    <tr><td>🇩🇪 Duitsland</td><td>Smart-Meter-Gateway / optische kop</td><td>Home Assistant.</td></tr>
+    <tr><td>🇩🇪 Duitsland</td><td>Smart-Meter-Gateway / optische kop</td><td>Powerfox poweropti: Route D. Anders Home Assistant.</td></tr>
     <tr><td>🇺🇸 Verenigde Staten</td><td>Geen poort — Zigbee-radio (HAN)</td><td>Een Rainforest EAGLE/RAVEn, door je leverancier geactiveerd.</td></tr>
     <tr><td>Elders</td><td>Verschilt</td><td>Leest Home Assistant je meter, dan werkt Route A.</td></tr>
   </table></div>
@@ -432,11 +480,54 @@
       <div class="see"><b>Dit hoor je te zien</b><span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
+  <h2>Route D — Powerfox (poweropti)</h2>
+  <p class="lede" style="font-size:15.5px">Een poweropti leest je meter uit en stuurt de stand naar de Powerfox-cloud. Hieronder drie manieren om die bij ons te krijgen — <strong>je hebt er maar één nodig</strong>. Twijfel je? Neem optie 1.</p>
+  <div class="note"><b>Eerst, in de Powerfox-app</b>Zet <strong>gegevensoverdracht</strong> (Datenfreigabe) aan. Zonder dat deelt Powerfox je standen met niemand — niet met ons, en ook niet met Home Assistant.</div>
+  <h3 class="sub">Optie 1 — Wij halen het voor je op (makkelijkst)</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Open Powerfox in de app</p>
+      <p>In de app: <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Powerfox</span> en kies <strong>“We fetch it for you”</strong>. Staat die er niet? Dan biedt deze versie het nog niet aan — gebruik optie 2 of 3.</p>
+      </li>
+      <li><p class="steptitle">Log in met je Powerfox-account</p>
+      <p>Vul het e-mailadres en wachtwoord in waarmee je in de Powerfox-app inlogt, vink het vakje aan en druk op <strong>Connect Powerfox</strong>. Je inlog wordt versleuteld bewaard en alleen gebruikt om je meter uit te lezen. Tip: gebruik een wachtwoord dat je nergens anders gebruikt.</p>
+      </li>
+      <li><p class="steptitle">Klaar — je computer mag uit</p>
+      <p>Onze server haalt ongeveer elk uur je meterstand op bij Powerfox en betaalt die uit zoals elke stand. Stoppen? <strong>Disconnect Powerfox</strong> wist je inlog meteen.</p>
+      <div class="see"><b>Controleren of het werkt</b>Bovenaan staat <span class="k">✅ Connected — … kWh received</span>.</div>
+      </li>
+      </ol>
+  <h3 class="sub">Optie 2 — Op je eigen computer</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Terminal en Node.js klaarzetten</p>
+      <p>Doe eerst stap 2–4 van Route B: open PowerShell of een terminal en controleer dat Node.js 18 of nieuwer erop staat.</p>
+      </li>
+      <li><p class="steptitle">Plak één regel, met je Powerfox-e-mailadres</p>
+      <p>Zet het e-mailadres van je Powerfox-account op de plek van <span class="k">YOUR_POWERFOX_EMAIL</span>. Hij vraagt één keer om je token en je Powerfox-wachtwoord (het wachtwoord zie je niet terwijl je typt) en bewaart ze in een privébestand naast gul.js. Daarna plant hij zichzelf in, net als bij Route B. De computer moet minstens één keer per dag aan staan.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieer</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieer</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      </li>
+      <li><p class="steptitle">Controleren of het werkt</p>
+      <p>De helper laat zien wat hij heeft verstuurd.</p>
+      <div class="see"><b>Wat je ziet</b><span class="k">pushed 8421.3 kWh ✓</span></div>
+      </li>
+      </ol>
+  <h3 class="sub">Optie 3 — Met Home Assistant</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Powerfox toevoegen aan Home Assistant</p>
+      <p>In Home Assistant: <span class="k">Instellingen → Apparaten &amp; diensten → Integratie toevoegen → Powerfox</span>. Log in met je Powerfox-account.</p>
+      </li>
+      <li><p class="steptitle">Onze integratie toevoegen</p>
+      <p>Volg Route A, <em>“Met onze integratie”</em>: voeg ons toe aan HACS, installeer, herstart en plak je token.</p>
+      </li>
+      <li><p class="steptitle">Kies de meter-sensor van Powerfox</p>
+      <p>Kies als sensor de Powerfox-sensor <strong>Energy usage</strong> (Energieverbruik, kWh). Meter met twee tarieven en blijft die leeg? Maak een helper die de sensoren voor hoog en laag tarief optelt (<span class="k">Instellingen → Apparaten &amp; diensten → Helpers → Combineer de status van meerdere sensoren → Som</span>) en kies die.</p>
+      </li>
+      </ol>
   <div class="note"><b>Geen apparaat dat aan blijft?</b>Hoeft ook niet. Stond de computer uit op een geplande tijd? Dan stuurt hij de stand zodra de computer weer aan staat — een laptop die je af en toe openklapt is dus genoeg. Hij wordt uitbetaald zodra hij binnenkomt, hooguit één keer per dag.</div>
   <h2>Tot slot: het betaalt vanzelf uit</h2>
   <ol class="steps">
       <li><p class="steptitle">Je stand verschijnt vanzelf</p>
-      <p>Ga in de app naar <strong>Submit</strong>. Onder <strong>“Auto-received”</strong> zie je je meterstand en hoe laat die binnenkwam.</p>
+      <p>Ga in de app naar <strong>Meter</strong>. Onder <strong>“Auto-received”</strong> zie je je meterstand en hoe laat die binnenkwam.</p>
       </li>
       <li><p class="steptitle">Hij wordt vanzelf uitbetaald</p>
       <p>Niets te tikken: elke stand wordt automatisch uitbetaald zodra hij binnenkomt, hooguit één keer per dag, en de app laat <strong>“✓ Paid”</strong> zien. Geen zin om te wachten? <strong>Claim now</strong> doet hetzelfde.</p>
@@ -459,6 +550,9 @@
     <tr><td>Niets onder “Auto-received”</td><td>De helper heeft nog niets succesvol doorgestuurd. Kijk in zijn venster, of open <span class="k">.gul-bridge.log</span> in dezelfde map als gul.js: elke ronde schrijft óf <span class="k">pushed … ✓</span> óf de reden waarom het niet lukte.</td></tr>
     <tr><td>Weet je niet zeker of hij is ingepland?</td><td>Windows: typ in PowerShell <span class="k">schtasks /Query /TN GreenUtilityLog</span> — zie je een regel met <em>GreenUtilityLog</em> en een volgende starttijd, dan staat hij erin. Mac / Linux / Pi: <span class="k">crontab -l</span> hoort een regel te tonen die eindigt op <em># GreenUtilityLog</em>. Niets te zien? Plak de installatieregel nog één keer.</td></tr>
     <tr><td>Je stelde dit in vóór 24 september</td><td>Plak dezelfde regel nog één keer. De nieuwe helper wacht op een server die nog wakker wordt in plaats van op te geven, schrijft elke ronde naar <span class="k">.gul-bridge.log</span> en draait op Windows ook op de accu.</td></tr>
+    <tr><td>Powerfox didn&#x27;t accept the e-mail and password</td><td>Gebruik precies het e-mailadres en wachtwoord van de Powerfox-app (let op tikfouten of een spatie). Powerfox-wachtwoord veranderd? Optie 1: druk opnieuw op <strong>Connect Powerfox</strong> met het nieuwe. Optie 2: plak de installatieregel nog een keer — hij vraagt dan om het wachtwoord.</td></tr>
+    <tr><td>switch on data transfer (Datenfreigabe)</td><td>Powerfox weigert je standen te delen. Zet in de Powerfox-app gegevensoverdracht (Datenfreigabe) aan en probeer het opnieuw.</td></tr>
+    <tr><td>Powerfox only has an old reading</td><td>Je poweropti heeft al een tijd niets naar Powerfox gestuurd. Kijk in de Powerfox-app of hij online is (wifi, batterij). Er wordt niets verstuurd of uitbetaald tot er een verse stand is.</td></tr>
     <tr><td>already been corrected once</td><td>Het startpunt van een meter kan één keer worden gecorrigeerd — elke correctie wist het verbruik sinds de laatste uitbetaling. Klopt het weer niet, vraag het een admin via Send Feedback in de app.</td></tr>
   </table></div>
   <div class="note">Kom je er niet uit? Stuur een berichtje met wat er in het Log-tabblad (of de terminal) staat — daar staat meestal precies wat er mist.</div>
@@ -471,6 +565,7 @@
     <div class="route pick"><div><h3>Ich nutze Home Assistant</h3><p>Funktioniert mit fast jedem Zähler, den HA schon ausliest. Installiere unsere Integration oder füge ein paar Zeilen YAML ein.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Am einfachsten</span></div></div>
     <div class="route"><div><h3>Ich habe einen HomeWizard P1</h3><p>Kein Home Assistant nötig. Ein kleines Hilfsprogramm findet deinen Zähler selbst im Netzwerk.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Etwas Technik</span></div></div>
     <div class="route"><div><h3>Ich habe einen anderen P1-Reader</h3><p>dsmr-reader, P1 Monitor, Shelly und Co. — alles, was seine Daten als JSON anbietet.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span><span>Technisch</span></div></div>
+    <div class="route pick"><div><h3>Ich habe einen Powerfox (poweropti)</h3><p>In Deutschland weit verbreitet. Wir holen deinen Stand aus der Powerfox-Cloud — nichts installieren, nichts muss eingeschaltet bleiben.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Am einfachsten</span></div></div>
     <div class="route"><div><h3>Nichts davon</h3><p>Dann fotografiere deinen Zähler weiter. Das funktioniert genauso gut und bringt exakt dasselbe. Nichts einzurichten.</p></div><div class="meter"><span>Nichts einrichten</span></div></div>
   </div>
   <div class="note"><b>Zuerst, einmalig: Startpunkt setzen</b>Egal welche Route: mach zuerst <strong>eine normale Foto-Einreichung</strong> in der App. Damit weiß die App, wo dein Zähler startete — sonst können automatische Stände nicht ausgezahlt werden.</div>
@@ -483,7 +578,7 @@
     <tr><td>🇸🇪 Schweden · 🇫🇮 Finnland</td><td>HAN-Port (RJ12)</td><td>Ein P1/HAN-Reader, oder Home Assistant.</td></tr>
     <tr><td>🇩🇰 Dänemark</td><td>HAN (Pin-Header, verschlüsselt)</td><td>Ein Reader mit passendem Stecker, oder Home Assistant.</td></tr>
     <tr><td>🇳🇴 Norwegen</td><td>HAN (RJ45, M-BUS)</td><td>Ein norwegischer HAN-Reader + Home Assistant.</td></tr>
-    <tr><td>🇩🇪 Deutschland</td><td>Smart-Meter-Gateway / Lesekopf</td><td>Home Assistant.</td></tr>
+    <tr><td>🇩🇪 Deutschland</td><td>Smart-Meter-Gateway / Lesekopf</td><td>Powerfox poweropti: Route D. Sonst Home Assistant.</td></tr>
     <tr><td>🇺🇸 USA</td><td>Kein Port — Zigbee-Funk (HAN)</td><td>Ein Rainforest EAGLE/RAVEn, vom Versorger freigeschaltet.</td></tr>
     <tr><td>Anderswo</td><td>Unterschiedlich</td><td>Liest Home Assistant deinen Zähler, funktioniert Route A.</td></tr>
   </table></div>
@@ -571,11 +666,54 @@
       <div class="see"><b>Erwartete Ausgabe</b><span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
+  <h2>Route D — Powerfox (poweropti)</h2>
+  <p class="lede" style="font-size:15.5px">Ein poweropti liest deinen Zähler aus und schickt den Stand in die Powerfox-Cloud. Hier sind drei Wege, wie er zu uns kommt — <strong>du brauchst nur einen</strong>. Unsicher? Nimm Option 1.</p>
+  <div class="note"><b>Zuerst in der Powerfox-App</b>Schalte die <strong>Datenfreigabe</strong> ein. Ohne sie teilt Powerfox deine Zählerstände mit niemandem — weder mit uns noch mit Home Assistant.</div>
+  <h3 class="sub">Option 1 — Wir holen ihn für dich (am einfachsten)</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Powerfox in der App öffnen</p>
+      <p>In der App: <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Powerfox</span> und <strong>„We fetch it for you“</strong> wählen. Nicht da? Dann bietet diese Version es noch nicht an — nimm Option 2 oder 3.</p>
+      </li>
+      <li><p class="steptitle">Mit deinem Powerfox-Konto anmelden</p>
+      <p>Gib die E-Mail-Adresse und das Passwort ein, mit denen du dich in der Powerfox-App anmeldest, setz das Häkchen und tippe auf <strong>Connect Powerfox</strong>. Deine Anmeldedaten werden verschlüsselt gespeichert und nur zum Auslesen deines Zählers verwendet. Tipp: Nimm ein Passwort, das du sonst nirgends verwendest.</p>
+      </li>
+      <li><p class="steptitle">Fertig — dein Computer darf aus bleiben</p>
+      <p>Unser Server holt etwa stündlich deinen Zählerstand bei Powerfox ab und zahlt ihn aus wie jeden anderen Stand. Aufhören? <strong>Disconnect Powerfox</strong> löscht deine Anmeldedaten sofort.</p>
+      <div class="see"><b>Prüfen, ob es klappt</b>Oben steht <span class="k">✅ Connected — … kWh received</span>.</div>
+      </li>
+      </ol>
+  <h3 class="sub">Option 2 — Auf deinem eigenen Computer</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Terminal und Node.js vorbereiten</p>
+      <p>Mach zuerst die Schritte 2–4 von Route B: PowerShell oder ein Terminal öffnen und prüfen, ob Node.js 18 oder neuer installiert ist.</p>
+      </li>
+      <li><p class="steptitle">Eine Zeile einfügen, mit deiner Powerfox-E-Mail</p>
+      <p>Ersetze <span class="k">YOUR_POWERFOX_EMAIL</span> durch die E-Mail-Adresse deines Powerfox-Kontos. Es fragt einmal nach deinem Token und deinem Powerfox-Passwort (das Passwort wird beim Tippen nicht angezeigt) und speichert beides in einer privaten Datei neben gul.js. Danach plant es sich selbst ein, genau wie bei Route B. Der Computer muss mindestens einmal am Tag an sein.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieren</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieren</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      </li>
+      <li><p class="steptitle">Prüfen, ob es klappt</p>
+      <p>Das Hilfsprogramm zeigt, was es gesendet hat.</p>
+      <div class="see"><b>Das siehst du</b><span class="k">pushed 8421.3 kWh ✓</span></div>
+      </li>
+      </ol>
+  <h3 class="sub">Option 3 — Mit Home Assistant</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Powerfox in Home Assistant hinzufügen</p>
+      <p>In Home Assistant: <span class="k">Einstellungen → Geräte &amp; Dienste → Integration hinzufügen → Powerfox</span>. Mit deinem Powerfox-Konto anmelden.</p>
+      </li>
+      <li><p class="steptitle">Unsere Integration hinzufügen</p>
+      <p>Folge Route A, <em>„Mit unserer Integration“</em>: uns zu HACS hinzufügen, installieren, neu starten und deinen Token einfügen.</p>
+      </li>
+      <li><p class="steptitle">Den Zähler-Sensor von Powerfox wählen</p>
+      <p>Wähle als Sensor den Powerfox-Sensor <strong>Energy usage</strong> (Energieverbrauch, kWh). Zweitarifzähler und der bleibt leer? Leg einen Helfer an, der die Sensoren für Hoch- und Niedertarif addiert (<span class="k">Einstellungen → Geräte &amp; Dienste → Helfer → Kombiniere den Zustand mehrerer Sensoren → Summe</span>), und wähle den.</p>
+      </li>
+      </ol>
   <div class="note"><b>Kein Gerät, das durchläuft?</b>Brauchst du nicht. War der Computer zu einem geplanten Zeitpunkt aus? Dann sendet er, sobald der Computer wieder an ist — ein Laptop, den du ab und zu aufklappst, reicht also. Er wird ausgezahlt, sobald er ankommt, höchstens einmal am Tag.</div>
   <h2>Zum Schluss: es zahlt sich von selbst aus</h2>
   <ol class="steps">
       <li><p class="steptitle">Dein Stand erscheint von selbst</p>
-      <p>Geh in der App auf <strong>Submit</strong>. Unter <strong>„Auto-received“</strong> siehst du deinen Zählerstand und wann er ankam.</p>
+      <p>Geh in der App auf <strong>Meter</strong>. Unter <strong>„Auto-received“</strong> siehst du deinen Zählerstand und wann er ankam.</p>
       </li>
       <li><p class="steptitle">Er wird von selbst ausgezahlt</p>
       <p>Nichts zu tippen: jeder Stand wird automatisch ausgezahlt, sobald er ankommt, höchstens einmal am Tag, und die App zeigt <strong>„✓ Paid“</strong>. Keine Lust zu warten? <strong>Claim now</strong> macht dasselbe.</p>
@@ -598,6 +736,9 @@
     <tr><td>Nichts unter „Auto-received“</td><td>Das Hilfsprogramm hat noch nichts erfolgreich gesendet. Schau in sein Fenster oder öffne <span class="k">.gul-bridge.log</span> im selben Ordner wie gul.js: jede Runde schreibt entweder <span class="k">pushed … ✓</span> oder den Grund für den Fehlschlag.</td></tr>
     <tr><td>Nicht sicher, ob es eingeplant ist?</td><td>Windows: in PowerShell <span class="k">schtasks /Query /TN GreenUtilityLog</span> eingeben — eine Zeile mit <em>GreenUtilityLog</em> und einer nächsten Laufzeit heißt, es ist eingeplant. Mac / Linux / Pi: <span class="k">crontab -l</span> sollte eine Zeile zeigen, die auf <em># GreenUtilityLog</em> endet. Nichts da? Füge die Einrichtungszeile noch einmal ein.</td></tr>
     <tr><td>Vor dem 24. September eingerichtet</td><td>Füge dieselbe Zeile noch einmal ein. Das neue Hilfsprogramm wartet auf einen Server, der noch aufwacht, statt aufzugeben, schreibt jede Runde in <span class="k">.gul-bridge.log</span> und läuft unter Windows auch im Akkubetrieb.</td></tr>
+    <tr><td>Powerfox didn&#x27;t accept the e-mail and password</td><td>Nimm genau die E-Mail-Adresse und das Passwort der Powerfox-App (auf Tippfehler oder Leerzeichen achten). Powerfox-Passwort geändert? Option 1: noch einmal <strong>Connect Powerfox</strong> mit dem neuen. Option 2: die Einrichtungszeile noch einmal einfügen — sie fragt dann nach dem Passwort.</td></tr>
+    <tr><td>switch on data transfer (Datenfreigabe)</td><td>Powerfox gibt deine Zählerstände nicht frei. Schalte in der Powerfox-App die Datenfreigabe ein und versuch es noch einmal.</td></tr>
+    <tr><td>Powerfox only has an old reading</td><td>Dein poweropti hat seit einer Weile nichts an Powerfox gesendet. Prüf in der Powerfox-App, ob er online ist (WLAN, Batterie). Bis ein frischer Stand da ist, wird nichts gesendet oder ausgezahlt.</td></tr>
     <tr><td>already been corrected once</td><td>Der Startwert eines Zählers kann einmal korrigiert werden — jede Korrektur löscht den Verbrauch seit der letzten Auszahlung. Stimmt er wieder nicht, frag einen Admin über Send Feedback in der App.</td></tr>
   </table></div>
   <div class="note">Kommst du nicht weiter? Schick eine Nachricht mit dem Inhalt des Protokoll-Tabs (oder Terminals) — dort steht meist genau, was fehlt.</div>
@@ -610,6 +751,7 @@
     <div class="route pick"><div><h3>J'utilise Home Assistant</h3><p>Fonctionne avec presque tout compteur que HA lit déjà. Installez notre intégration, ou collez quelques lignes de YAML.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Le plus simple</span></div></div>
     <div class="route"><div><h3>J'ai un HomeWizard P1</h3><p>Pas besoin de Home Assistant. Un petit utilitaire trouve votre compteur tout seul sur le réseau.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Un peu technique</span></div></div>
     <div class="route"><div><h3>J'ai un autre lecteur P1</h3><p>dsmr-reader, P1 Monitor, Shelly et compagnie — tout ce qui expose ses données en JSON.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span><span>Technique</span></div></div>
+    <div class="route pick"><div><h3>J'ai un Powerfox (poweropti)</h3><p>Courant en Allemagne. Nous récupérons votre relevé dans le cloud Powerfox — rien à installer, rien à laisser allumé.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Le plus simple</span></div></div>
     <div class="route"><div><h3>Aucun des deux</h3><p>Continuez à photographier votre compteur. Ça marche aussi bien et rapporte exactement pareil. Rien à configurer.</p></div><div class="meter"><span>Rien à faire</span></div></div>
   </div>
   <div class="note"><b>D'abord, une fois : fixez votre point de départ</b>Quelle que soit la route, faites d'abord <strong>une soumission photo normale</strong> dans l'app. L'app sait ainsi où votre compteur a démarré — sinon les relevés automatiques ne peuvent pas être payés.</div>
@@ -622,7 +764,7 @@
     <tr><td>🇸🇪 Suède · 🇫🇮 Finlande</td><td>Port HAN (RJ12)</td><td>Un lecteur P1/HAN, ou Home Assistant.</td></tr>
     <tr><td>🇩🇰 Danemark</td><td>HAN (connecteur à broches, chiffré)</td><td>Un lecteur au bon connecteur, ou Home Assistant.</td></tr>
     <tr><td>🇳🇴 Norvège</td><td>HAN (RJ45, M-BUS)</td><td>Un lecteur HAN norvégien + Home Assistant.</td></tr>
-    <tr><td>🇩🇪 Allemagne</td><td>Smart-Meter-Gateway / tête optique</td><td>Home Assistant.</td></tr>
+    <tr><td>🇩🇪 Allemagne</td><td>Smart-Meter-Gateway / tête optique</td><td>Powerfox poweropti : Route D. Sinon Home Assistant.</td></tr>
     <tr><td>🇺🇸 États-Unis</td><td>Pas de prise — radio Zigbee (HAN)</td><td>Un Rainforest EAGLE/RAVEn, activé par votre fournisseur.</td></tr>
     <tr><td>Ailleurs</td><td>Variable</td><td>Si Home Assistant lit votre compteur, la Route A marche.</td></tr>
   </table></div>
@@ -710,11 +852,54 @@
       <div class="see"><b>Sortie attendue</b><span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
+  <h2>Route D — Powerfox (poweropti)</h2>
+  <p class="lede" style="font-size:15.5px">Un poweropti lit votre compteur et envoie le relevé au cloud Powerfox. Voici trois façons de nous le faire parvenir — <strong>une seule suffit</strong>. Vous hésitez ? Prenez l'option 1.</p>
+  <div class="note"><b>D'abord, dans l'app Powerfox</b>Activez le <strong>partage des données</strong> (Datenfreigabe). Sans cela, Powerfox ne partage vos relevés avec personne — ni avec nous, ni avec Home Assistant.</div>
+  <h3 class="sub">Option 1 — Nous le récupérons pour vous (le plus simple)</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Ouvrez Powerfox dans l'app</p>
+      <p>Dans l'app : <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Powerfox</span> et choisissez <strong>« We fetch it for you »</strong>. Absent ? Cette version ne le propose pas encore — prenez l'option 2 ou 3.</p>
+      </li>
+      <li><p class="steptitle">Connectez-vous avec votre compte Powerfox</p>
+      <p>Saisissez l'e-mail et le mot de passe de l'app Powerfox, cochez la case et appuyez sur <strong>Connect Powerfox</strong>. Vos identifiants sont conservés chiffrés et servent uniquement à lire votre compteur. Astuce : utilisez un mot de passe que vous n'utilisez nulle part ailleurs.</p>
+      </li>
+      <li><p class="steptitle">C'est fait — votre ordinateur peut rester éteint</p>
+      <p>Notre serveur récupère votre relevé chez Powerfox environ toutes les heures et le paie comme tout autre relevé. Arrêter ? <strong>Disconnect Powerfox</strong> efface vos identifiants aussitôt.</p>
+      <div class="see"><b>Vérifier</b>En haut s'affiche <span class="k">✅ Connected — … kWh received</span>.</div>
+      </li>
+      </ol>
+  <h3 class="sub">Option 2 — Sur votre propre ordinateur</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Préparez le terminal et Node.js</p>
+      <p>Faites d'abord les étapes 2 à 4 de la Route B : ouvrez PowerShell ou un terminal et vérifiez que Node.js 18 ou plus récent est installé.</p>
+      </li>
+      <li><p class="steptitle">Collez une ligne, avec votre e-mail Powerfox</p>
+      <p>Remplacez <span class="k">YOUR_POWERFOX_EMAIL</span> par l'e-mail de votre compte Powerfox. Il demande une fois votre jeton et votre mot de passe Powerfox (le mot de passe ne s'affiche pas pendant la saisie) et les garde dans un fichier privé à côté de gul.js. Ensuite il se planifie tout seul, comme pour la Route B. L'ordinateur doit être allumé au moins une fois par jour.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copier</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copier</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      </li>
+      <li><p class="steptitle">Vérifier</p>
+      <p>L'utilitaire affiche ce qu'il a envoyé.</p>
+      <div class="see"><b>Ce que vous voyez</b><span class="k">pushed 8421.3 kWh ✓</span></div>
+      </li>
+      </ol>
+  <h3 class="sub">Option 3 — Avec Home Assistant</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Ajoutez Powerfox à Home Assistant</p>
+      <p>Dans Home Assistant : <span class="k">Paramètres → Appareils et services → Ajouter une intégration → Powerfox</span>. Connectez-vous avec votre compte Powerfox.</p>
+      </li>
+      <li><p class="steptitle">Ajoutez notre intégration</p>
+      <p>Suivez la Route A, <em>« Avec notre intégration »</em> : ajoutez-nous à HACS, installez, redémarrez et collez votre jeton.</p>
+      </li>
+      <li><p class="steptitle">Choisissez le capteur compteur de Powerfox</p>
+      <p>Comme capteur, choisissez le capteur Powerfox <strong>Energy usage</strong> (consommation d'énergie, kWh). Compteur double tarif et celui-ci reste vide ? Créez une entrée qui additionne les capteurs heures pleines et heures creuses (<span class="k">Paramètres → Appareils et services → Entrées → Combiner l'état de plusieurs capteurs → Somme</span>) et choisissez-la.</p>
+      </li>
+      </ol>
   <div class="note"><b>Pas d’appareil qui reste allumé ?</b>Ce n’est pas nécessaire. L’ordinateur était éteint à l’heure prévue ? Il envoie dès qu’il est rallumé — un ordinateur portable que vous ouvrez de temps en temps suffit donc. Il est payé dès son arrivée, au plus une fois par jour.</div>
   <h2>Enfin : le paiement se fait tout seul</h2>
   <ol class="steps">
       <li><p class="steptitle">Votre relevé apparaît tout seul</p>
-      <p>Dans l'app, allez sur <strong>Submit</strong>. Sous <strong>« Auto-received »</strong> vous voyez votre relevé et l'heure d'arrivée.</p>
+      <p>Dans l'app, allez sur <strong>Meter</strong>. Sous <strong>« Auto-received »</strong> vous voyez votre relevé et l'heure d'arrivée.</p>
       </li>
       <li><p class="steptitle">Il est payé tout seul</p>
       <p>Rien à toucher : chaque relevé est payé automatiquement à son arrivée, au plus une fois par jour, et l'app affiche <strong>« ✓ Paid »</strong>. Pas envie d'attendre ? <strong>Claim now</strong> fait la même chose.</p>
@@ -737,6 +922,9 @@
     <tr><td>Rien sous « Auto-received »</td><td>L’utilitaire n’a encore rien envoyé avec succès. Regardez sa fenêtre, ou ouvrez <span class="k">.gul-bridge.log</span> dans le même dossier que gul.js : chaque cycle écrit soit <span class="k">pushed … ✓</span>, soit la raison de l’échec.</td></tr>
     <tr><td>Pas sûr qu’il soit planifié ?</td><td>Windows : dans PowerShell, tapez <span class="k">schtasks /Query /TN GreenUtilityLog</span> — une ligne avec <em>GreenUtilityLog</em> et une prochaine exécution signifie que c’est bon. Mac / Linux / Pi : <span class="k">crontab -l</span> doit afficher une ligne se terminant par <em># GreenUtilityLog</em>. Rien ? Collez la ligne d’installation une fois de plus.</td></tr>
     <tr><td>Installé avant le 24 septembre</td><td>Collez la même ligne une fois de plus. Le nouvel utilitaire attend un serveur qui se réveille au lieu d’abandonner, écrit chaque cycle dans <span class="k">.gul-bridge.log</span> et, sous Windows, fonctionne aussi sur batterie.</td></tr>
+    <tr><td>Powerfox didn&#x27;t accept the e-mail and password</td><td>Utilisez exactement l'e-mail et le mot de passe de l'app Powerfox (attention aux fautes de frappe et aux espaces). Mot de passe Powerfox changé ? Option 1 : <strong>Connect Powerfox</strong> à nouveau avec le nouveau. Option 2 : recollez la ligne d'installation — elle redemande le mot de passe.</td></tr>
+    <tr><td>switch on data transfer (Datenfreigabe)</td><td>Powerfox refuse de partager vos relevés. Dans l'app Powerfox, activez le partage des données (Datenfreigabe), puis réessayez.</td></tr>
+    <tr><td>Powerfox only has an old reading</td><td>Votre poweropti n'a rien envoyé à Powerfox depuis un moment. Vérifiez dans l'app Powerfox qu'il est en ligne (Wi-Fi, pile). Rien n'est envoyé ni payé tant qu'un relevé récent n'est pas là.</td></tr>
     <tr><td>already been corrected once</td><td>Le point de départ d’un compteur ne peut être corrigé qu’une fois — chaque correction efface la consommation depuis le dernier paiement. S’il est de nouveau faux, demandez à un admin via Send Feedback dans l’app.</td></tr>
   </table></div>
   <div class="note">Toujours bloqué ? Envoyez un message avec le contenu de l'onglet Journal (ou du terminal) — il dit généralement exactement ce qui manque.</div>
@@ -749,6 +937,7 @@
     <div class="route pick"><div><h3>Uso Home Assistant</h3><p>Funciona con casi cualquier contador que HA ya lee. Instala nuestra integración, o pega unas líneas de YAML.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Lo más fácil</span></div></div>
     <div class="route"><div><h3>Tengo un HomeWizard P1</h3><p>Sin Home Assistant. Un pequeño programa encuentra tu contador solo en la red.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Algo técnico</span></div></div>
     <div class="route"><div><h3>Tengo otro lector P1</h3><p>dsmr-reader, P1 Monitor, Shelly y similares — cualquiera que sirva sus datos en JSON.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span><span>Técnico</span></div></div>
+    <div class="route pick"><div><h3>Tengo un Powerfox (poweropti)</h3><p>Habitual en Alemania. Recogemos tu lectura de la nube de Powerfox — nada que instalar, nada que dejar encendido.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Lo más fácil</span></div></div>
     <div class="route"><div><h3>Ninguno</h3><p>Sigue fotografiando tu contador. Funciona igual de bien y da exactamente lo mismo. Nada que configurar.</p></div><div class="meter"><span>Sin configurar</span></div></div>
   </div>
   <div class="note"><b>Primero, una vez: fija tu punto de partida</b>Elijas la ruta que elijas, haz primero <strong>un envío con foto normal</strong> en la app. Así la app sabe dónde empezó tu contador — sin eso las lecturas automáticas no pueden pagarse.</div>
@@ -761,7 +950,7 @@
     <tr><td>🇸🇪 Suecia · 🇫🇮 Finlandia</td><td>Puerto HAN (RJ12)</td><td>Un lector P1/HAN, o Home Assistant.</td></tr>
     <tr><td>🇩🇰 Dinamarca</td><td>HAN (conector de pines, cifrado)</td><td>Un lector con el conector correcto, o Home Assistant.</td></tr>
     <tr><td>🇳🇴 Noruega</td><td>HAN (RJ45, M-BUS)</td><td>Un lector HAN noruego + Home Assistant.</td></tr>
-    <tr><td>🇩🇪 Alemania</td><td>Smart-Meter-Gateway / cabezal óptico</td><td>Home Assistant.</td></tr>
+    <tr><td>🇩🇪 Alemania</td><td>Smart-Meter-Gateway / cabezal óptico</td><td>Powerfox poweropti: Ruta D. Si no, Home Assistant.</td></tr>
     <tr><td>🇺🇸 Estados Unidos</td><td>Sin toma — radio Zigbee (HAN)</td><td>Un Rainforest EAGLE/RAVEn, activado por tu compañía.</td></tr>
     <tr><td>En otro lugar</td><td>Varía</td><td>Si Home Assistant lee tu contador, la Ruta A funciona.</td></tr>
   </table></div>
@@ -849,11 +1038,54 @@
       <div class="see"><b>Salida esperada</b><span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
+  <h2>Ruta D — Powerfox (poweropti)</h2>
+  <p class="lede" style="font-size:15.5px">Un poweropti lee tu contador y envía la lectura a la nube de Powerfox. Aquí tienes tres formas de que nos llegue — <strong>solo necesitas una</strong>. ¿Dudas? Elige la opción 1.</p>
+  <div class="note"><b>Primero, en la app de Powerfox</b>Activa la <strong>transferencia de datos</strong> (Datenfreigabe). Sin ella Powerfox no comparte tus lecturas con nadie — ni con nosotros ni con Home Assistant.</div>
+  <h3 class="sub">Opción 1 — La recogemos por ti (lo más fácil)</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Abre Powerfox en la app</p>
+      <p>En la app: <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Powerfox</span> y elige <strong>«We fetch it for you»</strong>. ¿No aparece? Esta versión aún no lo ofrece — usa la opción 2 o 3.</p>
+      </li>
+      <li><p class="steptitle">Inicia sesión con tu cuenta de Powerfox</p>
+      <p>Escribe el correo y la contraseña de la app de Powerfox, marca la casilla y pulsa <strong>Connect Powerfox</strong>. Tus datos de acceso se guardan cifrados y solo sirven para leer tu contador. Consejo: usa una contraseña que no uses en ningún otro sitio.</p>
+      </li>
+      <li><p class="steptitle">Listo — tu ordenador puede estar apagado</p>
+      <p>Nuestro servidor recoge tu lectura de Powerfox más o menos cada hora y la paga como cualquier otra lectura. ¿Quieres parar? <strong>Disconnect Powerfox</strong> borra tus datos de acceso al instante.</p>
+      <div class="see"><b>Comprueba que funciona</b>Arriba pone <span class="k">✅ Connected — … kWh received</span>.</div>
+      </li>
+      </ol>
+  <h3 class="sub">Opción 2 — En tu propio ordenador</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Prepara el terminal y Node.js</p>
+      <p>Haz primero los pasos 2–4 de la Ruta B: abre PowerShell o un terminal y comprueba que tienes Node.js 18 o más reciente.</p>
+      </li>
+      <li><p class="steptitle">Pega una línea, con tu correo de Powerfox</p>
+      <p>Cambia <span class="k">YOUR_POWERFOX_EMAIL</span> por el correo de tu cuenta de Powerfox. Te pide una vez tu token y tu contraseña de Powerfox (la contraseña no se ve al escribir) y los guarda en un archivo privado junto a gul.js. Después se programa solo, igual que en la Ruta B. El ordenador tiene que encenderse al menos una vez al día.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiar</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      </li>
+      <li><p class="steptitle">Comprueba que funciona</p>
+      <p>El programa muestra lo que ha enviado.</p>
+      <div class="see"><b>Lo que verás</b><span class="k">pushed 8421.3 kWh ✓</span></div>
+      </li>
+      </ol>
+  <h3 class="sub">Opción 3 — Con Home Assistant</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Añade Powerfox a Home Assistant</p>
+      <p>En Home Assistant: <span class="k">Ajustes → Dispositivos y servicios → Añadir integración → Powerfox</span>. Inicia sesión con tu cuenta de Powerfox.</p>
+      </li>
+      <li><p class="steptitle">Añade nuestra integración</p>
+      <p>Sigue la Ruta A, <em>«Con nuestra integración»</em>: añádenos a HACS, instala, reinicia y pega tu token.</p>
+      </li>
+      <li><p class="steptitle">Elige el sensor del contador de Powerfox</p>
+      <p>Como sensor, elige el sensor de Powerfox <strong>Energy usage</strong> (consumo de energía, kWh). ¿Contador de dos tarifas y ese se queda vacío? Crea un ayudante que sume los sensores de tarifa alta y baja (<span class="k">Ajustes → Dispositivos y servicios → Ayudantes → Combinar el estado de varios sensores → Suma</span>) y elige ese.</p>
+      </li>
+      </ol>
   <div class="note"><b>¿No tienes un equipo que quede encendido?</b>No hace falta. ¿El ordenador estaba apagado a la hora prevista? Envía en cuanto vuelve a encenderse — así que basta con un portátil que abres de vez en cuando. Se paga en cuanto llega, como mucho una vez al día.</div>
   <h2>Por último: se paga solo</h2>
   <ol class="steps">
       <li><p class="steptitle">Tu lectura aparece sola</p>
-      <p>En la app abre <strong>Submit</strong>. Bajo <strong>«Auto-received»</strong> verás tu lectura y cuándo llegó.</p>
+      <p>En la app abre <strong>Meter</strong>. Bajo <strong>«Auto-received»</strong> verás tu lectura y cuándo llegó.</p>
       </li>
       <li><p class="steptitle">Se paga solo</p>
       <p>Nada que tocar: cada lectura se paga automáticamente en cuanto llega, como mucho una vez al día, y la app muestra <strong>«✓ Paid»</strong>. ¿No quieres esperar? <strong>Claim now</strong> hace lo mismo.</p>
@@ -876,6 +1108,9 @@
     <tr><td>Nada en “Auto-received”</td><td>El programa aún no ha enviado nada con éxito. Mira su ventana, o abre <span class="k">.gul-bridge.log</span> en la misma carpeta que gul.js: cada ciclo escribe o bien <span class="k">pushed … ✓</span> o el motivo del fallo.</td></tr>
     <tr><td>¿No estás seguro de que esté programado?</td><td>Windows: en PowerShell escribe <span class="k">schtasks /Query /TN GreenUtilityLog</span> — una línea con <em>GreenUtilityLog</em> y una próxima ejecución significa que sí. Mac / Linux / Pi: <span class="k">crontab -l</span> debe mostrar una línea que termina en <em># GreenUtilityLog</em>. ¿No hay nada? Pega la línea de instalación una vez más.</td></tr>
     <tr><td>Lo configuraste antes del 24 de septiembre</td><td>Pega la misma línea una vez más. El nuevo programa espera a un servidor que aún se está despertando en lugar de rendirse, escribe cada ciclo en <span class="k">.gul-bridge.log</span> y en Windows también funciona con batería.</td></tr>
+    <tr><td>Powerfox didn&#x27;t accept the e-mail and password</td><td>Usa exactamente el correo y la contraseña de la app de Powerfox (cuidado con erratas o espacios). ¿Cambiaste la contraseña de Powerfox? Opción 1: pulsa otra vez <strong>Connect Powerfox</strong> con la nueva. Opción 2: vuelve a pegar la línea de instalación — te pedirá la contraseña.</td></tr>
+    <tr><td>switch on data transfer (Datenfreigabe)</td><td>Powerfox se niega a compartir tus lecturas. En la app de Powerfox, activa la transferencia de datos (Datenfreigabe) y vuelve a intentarlo.</td></tr>
+    <tr><td>Powerfox only has an old reading</td><td>Tu poweropti lleva un rato sin enviar nada a Powerfox. Comprueba en la app de Powerfox que está en línea (wifi, batería). No se envía ni se paga nada hasta que haya una lectura reciente.</td></tr>
     <tr><td>already been corrected once</td><td>El punto de partida de un contador solo se puede corregir una vez — cada corrección borra el consumo desde el último pago. Si vuelve a estar mal, pide ayuda a un admin con Send Feedback en la app.</td></tr>
   </table></div>
   <div class="note">¿Sigues atascado? Envía un mensaje con lo que muestra la pestaña Registro (o la terminal) — suele decir exactamente qué falta.</div>

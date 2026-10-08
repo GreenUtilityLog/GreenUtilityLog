@@ -1,5 +1,5 @@
 name: GreenUtilityLog Meter Bridge
-version: "1.1.0"
+version: "1.2.0"
 slug: gul_bridge
 description: Sends your smart-meter reading to GreenUtilityLog automatically — no terminal, no scripts.
 url: https://github.com/GreenUtilityLog/GreenUtilityLog/tree/main/bridge
@@ -20,6 +20,8 @@ options:
   read_url: ""
   read_field: ""
   ingest_url: ""
+  powerfox_email: ""
+  powerfox_password: ""
 schema:
   # Device token from the app: Meter → Automatic setup.
   token: str
@@ -35,3 +37,7 @@ schema:
   # bridge's default, so it moves with the app); fill in only for the test copy of
   # the app or your own backend.
   ingest_url: str?
+  # Optional: a Powerfox poweropti instead of a HomeWizard — your Powerfox
+  # account. The reading then comes from the Powerfox cloud.
+  powerfox_email: str?
+  powerfox_password: password?

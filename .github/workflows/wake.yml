@@ -1,0 +1,16 @@
+# Wakes the reward server once an hour. On Render's free plan the service sleeps
+# when nobody calls it, and a sleeping server can't fetch Powerfox readings or
+# pay a reading that arrived during the cooldown. /cron/tick only starts work the
+# server would do on its own, and runs it at most once every ten minutes.
+name: Wake the reward server
+on:
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:
+permissions: {}
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Testnet server
+        run: curl -fsS --max-time 150 https://greenutilitylog-rewards.onrender.com/cron/tick || echo "server did not answer"

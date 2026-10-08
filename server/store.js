@@ -28,7 +28,7 @@ const REDIS_KEY = process.env.STATE_KEY || "greenutilitylog:state";
 // `passes` is the access-pass registry (address → pass); `passesInit` records that the
 // one-time grandfathering has run, so turning REQUIRE_PASS on can't silently cut off
 // every existing tester — and can't re-grant a pass an admin has since revoked.
-const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {}, autoPaid: {}, payLog: [], prints: [], payDays: {}, meterRegs: {}, settings: {} };
+const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {}, autoPaid: {}, payLog: [], prints: [], payDays: {}, meterRegs: {}, settings: {}, powerfox: {} };
 // A fresh copy each time. Spreading EMPTY copies only its top level: every
 // "empty" state then shared EMPTY's own maps, so writing to one wrote to all of
 // them — and to the next "empty" state read from Redis.
@@ -534,6 +534,19 @@ export const store = {
   //   meterLinks:   token   -> { address, meterNo, createdAt }
   //   linkReadings: address -> { reading, meterNo, at, source }
   setMeterLink: (token, obj) => { state.meterLinks[token] = obj; persist(); },
+  // Powerfox accounts, per wallet: { cred (sealed, see powerfox.js), token (the
+  // meter link it feeds), linkedAt, lastPullAt, lastError }. Never the password.
+  getPowerfox: (addr) => {
+    const k = String(addr || "").toLowerCase();
+    return isMap(state.powerfox) && Object.prototype.hasOwnProperty.call(state.powerfox, k) ? state.powerfox[k] : null;
+  },
+  setPowerfox: (addr, obj) => { if (!isMap(state.powerfox)) state.powerfox = {}; state.powerfox[String(addr).toLowerCase()] = obj; persist(); },
+  delPowerfox: (addr) => {
+    const k = String(addr || "").toLowerCase();
+    if (isMap(state.powerfox) && Object.prototype.hasOwnProperty.call(state.powerfox, k)) { delete state.powerfox[k]; persist(); return true; }
+    return false;
+  },
+  allPowerfox: () => Object.entries(isMap(state.powerfox) ? state.powerfox : {}).map(([address, v]) => ({ address, ...v })),
   // Own keys only: a token of "__proto__" would otherwise find Object.prototype.
   getMeterLink: (token) => (Object.prototype.hasOwnProperty.call(state.meterLinks, token) ? state.meterLinks[token] : null),
   // Reverse lookup so a wallet re-pairing reuses/overwrites its own token rather

@@ -21,8 +21,14 @@ if bashio::config.has_value 'hw_ip'; then export HW_IP="$(bashio::config 'hw_ip'
 if bashio::config.has_value 'read_url'; then export READ_URL="$(bashio::config 'read_url')"; fi
 if bashio::config.has_value 'read_field'; then export READ_FIELD="$(bashio::config 'read_field')"; fi
 if bashio::config.has_value 'ingest_url'; then export GUL_INGEST_URL="$(bashio::config 'ingest_url')"; fi
+if bashio::config.has_value 'powerfox_email'; then
+  export GUL_POWERFOX_USER="$(bashio::config 'powerfox_email')"
+  export GUL_POWERFOX_PASS="$(bashio::config 'powerfox_password')"
+fi
 
-if bashio::config.has_value 'read_url'; then
+if bashio::config.has_value 'powerfox_email'; then
+  bashio::log.info "Reading Powerfox (${GUL_POWERFOX_USER}) from the Powerfox cloud"
+elif bashio::config.has_value 'read_url'; then
   bashio::log.info "Reading from ${READ_URL}"
 elif bashio::config.has_value 'hw_ip'; then
   bashio::log.info "Reading HomeWizard at ${HW_IP}"
