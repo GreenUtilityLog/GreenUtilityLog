@@ -27,6 +27,9 @@
 //   --url=…       read ANY reader that serves JSON over HTTP       (READ_URL)
 //   --field=…     dot-path to the kWh number in that JSON          (READ_FIELD)
 //   --ingest=…    override the backend                            (GUL_INGEST_URL)
+//   --powerfox=…  read a Powerfox poweropti via the Powerfox cloud: your
+//                 Powerfox e-mail; asks for the password once and keeps it in
+//                 the private settings file (GUL_POWERFOX_PASS for Docker)
 //   --once        push one reading and exit                       (ONCE=1)
 //   --install     run twice a day by itself (Windows Task Scheduler, cron elsewhere)
 //   --uninstall   remove that schedule again
@@ -128,6 +131,15 @@ const DUE_AFTER_MS = 11 * 60 * 60 * 1000;
 // is an optional dot-path to the cumulative-kWh number (auto-detected if omitted).
 const READ_URL = pick("url", "READ_URL");
 const READ_FIELD = pick("field", "READ_FIELD");
+// --powerfox=<e-mail> (or bare --powerfox: the account saved by an earlier run).
+// The password is never a flag in a scheduled task: it is asked once and kept in
+// the private settings file next to this script, like the device token.
+const POWERFOX = FLAGS.powerfox !== undefined || !!process.env.GUL_POWERFOX_USER;
+const PF = {
+  user: (FLAGS.powerfox && FLAGS.powerfox !== "1" ? FLAGS.powerfox : (process.env.GUL_POWERFOX_USER || SAVED.powerfoxUser || "")).trim(),
+  pass: String(FLAGS["powerfox-pass"] || process.env.GUL_POWERFOX_PASS || SAVED.powerfoxPass || ""),
+};
+let SAVED_PF_OK = !!(SAVED.powerfoxUser && SAVED.powerfoxPass && SAVED.powerfoxUser === PF.user && SAVED.powerfoxPass === PF.pass);
 
 // Nobody should have to read documentation to find out they forgot the token. When
 // there's a terminal to ask in, ask; when there isn't (Docker, a service), fail with
@@ -154,6 +166,34 @@ async function ensureToken() {
   TOKEN = String(answer || "").trim();
   if (!TOKEN) { console.error("No token given — nothing to do."); return false; }
   if (saveToken(TOKEN)) console.log(FLAGS.install === "1" ? "Saved.\n" : `Saved. Next time just run: node ${SELF}\n`);
+  return true;
+}
+
+// Powerfox needs the account's password once. Asked without echoing it to the
+// screen; a run with no terminal (a scheduled task) must already have it saved.
+async function ensurePowerfox() {
+  if (!POWERFOX) return true;
+  if (!PF.user) {
+    const msg = "No Powerfox e-mail. Run: node gul.js --powerfox=you@example.com --install";
+    console.error(msg); toFile(`${new Date().toISOString()} ${msg}`); return false;
+  }
+  // The setup line (e-mail written out, run in a terminal) always asks: that is
+  // also how a changed Powerfox password gets in. Enter keeps the saved one.
+  const setupLine = FLAGS.powerfox && FLAGS.powerfox !== "1" && !FLAGS["powerfox-pass"] && !process.env.GUL_POWERFOX_PASS;
+  if (PF.pass && !(setupLine && process.stdin.isTTY)) return true;
+  if (!process.stdin.isTTY) {
+    const msg = "No Powerfox password saved. Run the setup line once in a terminal: node gul.js --powerfox=" + PF.user + " --install";
+    console.error(msg); toFile(`${new Date().toISOString()} ${msg}`); return false;
+  }
+  const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true });
+  let muted = false;
+  rl._writeToOutput = (str) => { if (!muted) process.stdout.write(str); };
+  const keep = PF.pass ? ", Enter keeps the saved one" : "";
+  const answer = await new Promise((res) => { rl.question(`Powerfox password for ${PF.user} (not shown as you type${keep}): `, res); muted = true; });
+  rl.close(); process.stdout.write("\n");
+  PF.pass = String(answer || "") || PF.pass;
+  if (!PF.pass) { console.error("No password given — nothing to do."); return false; }
+  SAVED_PF_OK = SAVED.powerfoxUser === PF.user && SAVED.powerfoxPass === PF.pass;
   return true;
 }
 
@@ -236,16 +276,19 @@ function discover(timeoutMs = 5000) {
 }
 
 // ── HomeWizard read + push ───────────────────────────────────────────────────
-function getJson(url, timeoutMs = 8000) {
+function getJson(url, timeoutMs = 8000, headers = {}) {
   return new Promise((resolve, reject) => {
     const mod = String(url).toLowerCase().startsWith("https:") ? https : http; // honour https READ_URLs
-    const req = mod.get(url, { timeout: timeoutMs }, (res) => {
+    const req = mod.get(url, { timeout: timeoutMs, headers }, (res) => {
       let body = "";
       res.on("data", (c) => (body += c));
       res.on("end", () => {
         // A HomeWizard with its Local API switched off answers 403. Say that, rather
         // than trying to parse the refusal and blaming the JSON field.
-        if (res.statusCode === 403) return reject(new Error(`${url} said 403 — switch on "Local API" for this meter in the HomeWizard Energy app`));
+        if (res.statusCode === 403 && !headers.Authorization) return reject(new Error(`${url} said 403 — switch on "Local API" for this meter in the HomeWizard Energy app`));
+        if ((res.statusCode === 401 || res.statusCode === 403) && headers.Authorization) {
+          const e = new Error("Powerfox didn't accept the e-mail and password — run the setup line again"); e.auth = true; return reject(e);
+        }
         if (res.statusCode < 200 || res.statusCode >= 300) return reject(new Error(`${url} said ${res.statusCode}: ${short(body)}`));
         try { resolve(JSON.parse(body)); } catch { reject(new Error(`${url} did not return JSON: ${short(body)}`)); }
       });
@@ -298,6 +341,25 @@ function readGeneric(data, field) {
   for (const k of CANDIDATES) { const v = num(data?.[k]); if (v != null) return v; }
   return readTotal(data || {}); // fall back to HomeWizard-style t1+t2
 }
+// Powerfox (poweropti): the reading comes from the Powerfox cloud, with the
+// account's e-mail and password as basic auth. A_Plus is the meter total; some
+// meters only report the two tariff registers, then it is their sum. A refused
+// data transfer (switched off in the Powerfox app) is a 200 with StatusCode 412.
+const POWERFOX_API = String(process.env.GUL_POWERFOX_URL || "https://backend.powerfox.energy/api/2.0").replace(/\/$/, "");
+async function readPowerfox(user, pass) {
+  const auth = "Basic " + Buffer.from(`${user}:${pass}`, "utf8").toString("base64");
+  const d = await getJson(`${POWERFOX_API}/my/main/current?unit=kwh`, 20000, { Authorization: auth, Accept: "application/json" });
+  if (d && d.StatusCode === 412) throw new Error("Powerfox refused to share the data — switch on data transfer (Datenfreigabe) in the Powerfox app");
+  if (d && d.Outdated === true) { const e = new Error("Powerfox only has an old reading — is the poweropti online? Nothing sent."); e.stale = true; throw e; }
+  const n = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  if (n(d?.A_Plus) != null && d.A_Plus > 0) return { reading: d.A_Plus, split: n(d.A_Plus_HT) != null && n(d.A_Plus_NT) != null ? ` (low ${d.A_Plus_NT} + normal ${d.A_Plus_HT})` : "" };
+  if (n(d?.A_Plus_HT) != null || n(d?.A_Plus_NT) != null) {
+    const sum = +((n(d.A_Plus_HT) || 0) + (n(d.A_Plus_NT) || 0)).toFixed(3);
+    if (sum > 0) return { reading: sum, split: ` (low ${d.A_Plus_NT || 0} + normal ${d.A_Plus_HT || 0})` };
+  }
+  throw new Error("Powerfox sent no meter total — is your main device in the Powerfox app the electricity meter?");
+}
+
 function pushOnce(reading) {
   return new Promise((resolve, reject) => {
     const payload = JSON.stringify({ token: TOKEN, reading });
@@ -339,7 +401,10 @@ let lastIp = FIXED_IP || null;
 async function cycle() {
   try {
     let reading, split = "";
-    if (READ_URL) {
+    if (POWERFOX) {
+      ({ reading, split } = await readPowerfox(PF.user, PF.pass));
+      if (!SAVED_PF_OK) { saveConfig({ powerfoxUser: PF.user, powerfoxPass: PF.pass }); SAVED_PF_OK = true; }
+    } else if (READ_URL) {
       // Generic mode — any HTTP/JSON reader.
       const data = await getJson(READ_URL);
       reading = readGeneric(data, READ_FIELD);
@@ -365,8 +430,11 @@ async function cycle() {
     log(`pushed ${reading} kWh ✓${split}`);
     return true;
   } catch (e) {
+    // Powerfox down or the poweropti offline right now: keep the login anyway, so
+    // the scheduled runs can try again. Only a refused login is not kept.
+    if (POWERFOX && !e.auth && !SAVED_PF_OK && PF.user && PF.pass) { saveConfig({ powerfoxUser: PF.user, powerfoxPass: PF.pass }); SAVED_PF_OK = true; }
     log("cycle failed:", e?.message || e);
-    if (!READ_URL) lastIp = FIXED_IP || null; // re-discover next time in case the IP changed
+    if (!READ_URL && !POWERFOX) lastIp = FIXED_IP || null; // re-discover next time in case the IP changed
     return false;
   }
 }
@@ -385,9 +453,11 @@ async function cycle() {
 // disk, so anything scheduled has to be given these again or it quietly falls back
 // to auto-discovery — which is what fails for the people who needed --ip.
 function keptFlags() {
-  return ["ip", "url", "field", "ingest", "interval"]
+  return [...["ip", "url", "field", "ingest", "interval"]
     .filter((k) => FLAGS[k] && FLAGS[k] !== "1")
-    .map((k) => `--${k}=${FLAGS[k]}`)
+    .map((k) => `--${k}=${FLAGS[k]}`),
+    // Powerfox: only that it is Powerfox — the account comes from the settings file.
+    ...(POWERFOX ? ["--powerfox"] : [])]
     .join(" ");
 }
 
@@ -442,7 +512,7 @@ function manageCron(action) {
   // Single-quoted for sh: a space in a path or an & in --url would otherwise split
   // or background the command. ' itself becomes '\''.
   const q = (v) => `'${String(v).replace(/'/g, "'\\''")}'`;
-  const keep = ["ip", "url", "field", "ingest", "interval"].filter((k) => FLAGS[k] && FLAGS[k] !== "1").map((k) => q(`--${k}=${FLAGS[k]}`)).join(" ");
+  const keep = [...["ip", "url", "field", "ingest", "interval"].filter((k) => FLAGS[k] && FLAGS[k] !== "1").map((k) => q(`--${k}=${FLAGS[k]}`)), ...(POWERFOX ? ["--powerfox"] : [])].join(" ");
   const cmd = `${q(stableNodePath())} ${q(process.argv[1])} --once --due${keep ? " " + keep : ""}`;
   // Every hour, but --due makes it push only when the last reading is 11 h old:
   // twice a day in practice, and caught up within the hour when the machine wakes.
@@ -511,6 +581,7 @@ async function main() {
   if (FLAGS.install === "1") {
     // A task is useless without a token: it runs unattended and cannot ask.
     if (!(await ensureToken())) process.exit(1);
+    if (!(await ensurePowerfox())) process.exit(1);
     const code = manageTask("install");
     // And push once, right now. Scheduling alone sends nothing: the task first runs
     // at its next slot, which can be hours away, so someone who has just done
@@ -524,6 +595,7 @@ async function main() {
     process.exit(code);
   }
   if (!(await ensureToken())) process.exit(1);
+  if (!(await ensurePowerfox())) process.exit(1);
   // Not due yet: stay silent, or the log gets a line every hour for nothing.
   // A last push "in the future" (the clock was set back) counts as due, or this
   // would stay silent until the clock caught up — days, possibly.
@@ -536,7 +608,7 @@ async function main() {
     const dueAt = Math.min(last + DUE_AFTER_MS, next > last ? next : Infinity);
     if (DUE && ONCE && last <= Date.now() && Date.now() < dueAt) process.exit(0);
   }
-  const src = READ_URL ? `reader ${READ_URL}` : (FIXED_IP ? `HomeWizard ${FIXED_IP}` : "HomeWizard (auto-discover)");
+  const src = POWERFOX ? `Powerfox (${PF.user})` : READ_URL ? `reader ${READ_URL}` : (FIXED_IP ? `HomeWizard ${FIXED_IP}` : "HomeWizard (auto-discover)");
   if (!/^https:/i.test(INGEST)) log("WARNING: GUL_INGEST_URL is not https — your token would be sent in cleartext. Use the default https endpoint.");
   log(`GreenUtilityLog bridge starting — ${src}, pushing every ${INTERVAL_MS / 1000}s to ${INGEST}`);
   const ok = await cycle();

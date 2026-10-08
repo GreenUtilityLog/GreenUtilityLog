@@ -217,3 +217,76 @@ test("--due pushes as soon as the server said a reading can be paid, even within
   assert.equal(n, 2);
   reader.close(); backend.close();
 });
+
+// ── Powerfox (poweropti) via the Powerfox cloud ─────────────────────────────
+function fakePowerfox() {
+  const f = { answer: { Outdated: false, Watt: 200, Timestamp: Math.floor(Date.now() / 1000), A_Plus: 1004.5 } };
+  f.srv = http.createServer((req, res) => {
+    const auth = Buffer.from(String(req.headers.authorization || "").replace(/^Basic /, ""), "base64").toString();
+    res.setHeader("content-type", "application/json");
+    if (auth !== "me@example.de:pw-123") { res.statusCode = 401; return res.end("{}"); }
+    res.end(JSON.stringify(f.answer));
+  }).listen(0, "127.0.0.1");
+  return new Promise((r) => f.srv.on("listening", () => { f.url = `http://127.0.0.1:${f.srv.address().port}/api/2.0`; r(f); }));
+}
+
+test("--powerfox reads the meter total from the Powerfox cloud and keeps the login for later runs", async () => {
+  const pf = await fakePowerfox();
+  const seen = [];
+  const backend = await fake((req, res) => { let b = ""; req.on("data", (d) => (b += d)); req.on("end", () => { seen.push(JSON.parse(b).reading); res.end("{}"); }); });
+  const ingest = `--ingest=http://127.0.0.1:${backend.address().port}/meter-ingest`;
+  const env = { GUL_POWERFOX_URL: pf.url };
+  let r = await run(["--once", "--powerfox=me@example.de", "--powerfox-pass=pw-123", ingest], env);
+  assert.equal(r.code, 0, r.out);
+  assert.deepEqual(seen, [1004.5]);
+  const cfg = JSON.parse(readFileSync(join(dir, ".gul-bridge-127.json"), "utf8"));
+  assert.equal(cfg.powerfoxUser, "me@example.de");
+
+  pf.answer = { Outdated: false, Timestamp: Math.floor(Date.now() / 1000), A_Plus: 0, A_Plus_HT: 600.25, A_Plus_NT: 410.5 };
+  r = await run(["--once", "--powerfox", ingest], env);               // bare: the saved login
+  assert.equal(r.code, 0, r.out);
+  assert.equal(seen[1], 1010.75, "only tariff registers: their sum");
+
+  pf.answer = { StatusCode: 412 };
+  r = await run(["--once", "--powerfox", ingest], env);
+  assert.equal(r.code, 1);
+  assert.match(r.out, /switch on data transfer/);
+
+  pf.answer = { Outdated: true, A_Plus: 2000 };
+  r = await run(["--once", "--powerfox", ingest], env);
+  assert.equal(r.code, 1);
+  assert.match(r.out, /old reading/);
+  assert.equal(seen.length, 2, "nothing sent for a refused or outdated reading");
+  pf.srv.close(); backend.close();
+});
+
+test("a wrong Powerfox password is said plainly and not saved", async () => {
+  const pf = await fakePowerfox();
+  const backend = await fake((req, res) => { req.resume(); req.on("end", () => res.end("{}")); });
+  const fresh = mkdtempSync(join(tmpdir(), "gul pf "));
+  copyFileSync(join(__dirname, "index.js"), join(fresh, "gul.js"));
+  const p = spawn(process.execPath, [join(fresh, "gul.js"), "--once", "--token=t1", "--powerfox=me@example.de", "--powerfox-pass=wrong", `--ingest=http://127.0.0.1:${backend.address().port}/x`], { env: { ...process.env, GUL_POWERFOX_URL: pf.url, GUL_RETRY_WAIT_MS: "50" } });
+  let out = ""; p.stdout.on("data", (c) => (out += c)); p.stderr.on("data", (c) => (out += c));
+  const code = await new Promise((r) => p.on("exit", r));
+  assert.equal(code, 1);
+  assert.match(out, /didn't accept the e-mail and password/);
+  const cfg = JSON.parse(readFileSync(join(fresh, ".gul-bridge-127.json"), "utf8"));
+  assert.equal(cfg.powerfoxPass, undefined);
+  pf.srv.close(); backend.close();
+});
+
+test("the scheduled job says --powerfox but never carries the password", async () => {
+  const pf = await fakePowerfox();
+  const backend = await fake((req, res) => { req.resume(); req.on("end", () => res.end("{}")); });
+  const tabFile = join(dir, "crontab-pf.txt");
+  require("node:fs").writeFileSync(tabFile, "");
+  const binDir = mkdtempSync(join(tmpdir(), "fakecron"));
+  require("node:fs").writeFileSync(join(binDir, "crontab"), `#!/bin/sh\nif [ "$1" = "-l" ]; then cat "${tabFile}"; else cat > "${tabFile}"; fi\n`, { mode: 0o755 });
+  const r = await run(["--install", "--powerfox=me@example.de", "--powerfox-pass=pw-123", `--ingest=http://127.0.0.1:${backend.address().port}/meter-ingest`], { GUL_POWERFOX_URL: pf.url, PATH: `${binDir}:${process.env.PATH}` });
+  assert.equal(r.code, 0, r.out);
+  const tab = readFileSync(tabFile, "utf8");
+  assert.match(tab, / --powerfox /);
+  assert.doesNotMatch(tab, /pw-123/);
+  assert.doesNotMatch(tab, /me@example\.de/);
+  pf.srv.close(); backend.close();
+});

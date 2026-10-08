@@ -81,7 +81,7 @@ L["en"] = dict(
     ("Check it worked", 'The helper prints what it pushed.', "see", "Expected output", '<span class="k">pushed 8421.3 kWh ✓</span>'),
   ],
   claim=[
-    ("Your reading appears by itself", 'In the app open <strong>Submit</strong>. Under <strong>“Auto-received”</strong> you\'ll see your meter total and when it arrived.', None, None, None),
+    ("Your reading appears by itself", 'In the app open <strong>Meter</strong>. Under <strong>“Auto-received”</strong> you\'ll see your meter total and when it arrived.', None, None, None),
     ("It is paid by itself", 'Nothing to tap: each reading is paid automatically when it arrives, at most once a day, and the app shows <strong>“✓ Paid”</strong>. Don\'t want to wait? <strong>Claim now</strong> does the same.', None, None, None),
   ],
   s_country='Does this work where you live?',
@@ -167,7 +167,7 @@ L["nl"] = dict(
     ("Controleer of het werkte", 'Het hulpprogramma laat zien wat het verstuurd heeft.', "see", "Dit hoor je te zien", '<span class="k">pushed 8421.3 kWh ✓</span>'),
   ],
   claim=[
-    ("Je stand verschijnt vanzelf", 'Ga in de app naar <strong>Submit</strong>. Onder <strong>“Auto-received”</strong> zie je je meterstand en hoe laat die binnenkwam.', None, None, None),
+    ("Je stand verschijnt vanzelf", 'Ga in de app naar <strong>Meter</strong>. Onder <strong>“Auto-received”</strong> zie je je meterstand en hoe laat die binnenkwam.', None, None, None),
     ("Hij wordt vanzelf uitbetaald", 'Niets te tikken: elke stand wordt automatisch uitbetaald zodra hij binnenkomt, hooguit één keer per dag, en de app laat <strong>“✓ Paid”</strong> zien. Geen zin om te wachten? <strong>Claim now</strong> doet hetzelfde.', None, None, None),
   ],
   s_country='Werkt dit ook in jouw land?',
@@ -253,7 +253,7 @@ L["de"] = dict(
     ("Prüfen, ob es klappte", 'Das Hilfsprogramm zeigt, was es gesendet hat.', "see", "Erwartete Ausgabe", '<span class="k">pushed 8421.3 kWh ✓</span>'),
   ],
   claim=[
-    ("Dein Stand erscheint von selbst", 'Geh in der App auf <strong>Submit</strong>. Unter <strong>„Auto-received“</strong> siehst du deinen Zählerstand und wann er ankam.', None, None, None),
+    ("Dein Stand erscheint von selbst", 'Geh in der App auf <strong>Meter</strong>. Unter <strong>„Auto-received“</strong> siehst du deinen Zählerstand und wann er ankam.', None, None, None),
     ("Er wird von selbst ausgezahlt", 'Nichts zu tippen: jeder Stand wird automatisch ausgezahlt, sobald er ankommt, höchstens einmal am Tag, und die App zeigt <strong>„✓ Paid“</strong>. Keine Lust zu warten? <strong>Claim now</strong> macht dasselbe.', None, None, None),
   ],
   s_country='Funktioniert das in deinem Land?',
@@ -339,7 +339,7 @@ L["fr"] = dict(
     ("Vérifiez que ça a marché", 'L\'utilitaire affiche ce qu\'il a envoyé.', "see", "Sortie attendue", '<span class="k">pushed 8421.3 kWh ✓</span>'),
   ],
   claim=[
-    ("Votre relevé apparaît tout seul", 'Dans l\'app, allez sur <strong>Submit</strong>. Sous <strong>« Auto-received »</strong> vous voyez votre relevé et l\'heure d\'arrivée.', None, None, None),
+    ("Votre relevé apparaît tout seul", 'Dans l\'app, allez sur <strong>Meter</strong>. Sous <strong>« Auto-received »</strong> vous voyez votre relevé et l\'heure d\'arrivée.', None, None, None),
     ("Il est payé tout seul", 'Rien à toucher : chaque relevé est payé automatiquement à son arrivée, au plus une fois par jour, et l\'app affiche <strong>« ✓ Paid »</strong>. Pas envie d\'attendre ? <strong>Claim now</strong> fait la même chose.', None, None, None),
   ],
   s_country='Est-ce que ça marche chez vous ?',
@@ -425,7 +425,7 @@ L["es"] = dict(
     ("Comprueba que funcionó", 'El programa muestra lo que ha enviado.', "see", "Salida esperada", '<span class="k">pushed 8421.3 kWh ✓</span>'),
   ],
   claim=[
-    ("Tu lectura aparece sola", 'En la app abre <strong>Submit</strong>. Bajo <strong>«Auto-received»</strong> verás tu lectura y cuándo llegó.', None, None, None),
+    ("Tu lectura aparece sola", 'En la app abre <strong>Meter</strong>. Bajo <strong>«Auto-received»</strong> verás tu lectura y cuándo llegó.', None, None, None),
     ("Se paga solo", 'Nada que tocar: cada lectura se paga automáticamente en cuanto llega, como mucho una vez al día, y la app muestra <strong>«✓ Paid»</strong>. ¿No quieres esperar? <strong>Claim now</strong> hace lo mismo.', None, None, None),
   ],
   s_country='¿Funciona en tu país?',
@@ -458,6 +458,190 @@ L["es"] = dict(
   close="¿Sigues atascado? Envía un mensaje con lo que muestra la pestaña Registro (o la terminal) — suele decir exactamente qué falta.",
   foot="GreenUtilityLog · Guía para testers · Beta en testnet — tokens de prueba, sin valor real.",
 )
+
+# ─────────────────────────────── ROUTE D: POWERFOX ───────────────────────────────
+# A poweropti (Powerfox) reads German meters through the optical port and sends the
+# total to the Powerfox cloud. Three ways in, same as the app shows them: our server
+# fetches it (nothing to install), gul.js --powerfox on a computer, or Home Assistant.
+# Kept in one block so the five languages stay side by side; merged into L below.
+RUN_PF = dl("--powerfox=YOUR_POWERFOX_EMAIL --install")
+APP_PF = {
+  "en": "Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Powerfox",
+  "nl": "Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Powerfox",
+  "de": "Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Powerfox",
+  "fr": "Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Powerfox",
+  "es": "Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Powerfox",
+}
+PF = {}
+
+PF["en"] = dict(
+  route=("I have a Powerfox (poweropti)", "Common in Germany. We can fetch your reading from the Powerfox cloud — nothing to install, nothing to keep switched on.", 1, "Easiest"),
+  s_pf="Route D — Powerfox (poweropti)",
+  pf_intro="A poweropti reads your meter and sends the total to the Powerfox cloud. Below are three ways to get it to us — <strong>you need only one</strong>. Not sure? Take option 1.",
+  pf_first_t="First, in the Powerfox app",
+  pf_first_b="Switch on <strong>data transfer</strong> (Datenfreigabe). Without it Powerfox shares your readings with no one — not with us, and not with Home Assistant either.",
+  pf1_t="Option 1 — We fetch it for you (easiest)",
+  pf1=[
+    ("Open Powerfox in the app", f'In the app: <span class="k">{APP_PF["en"]}</span> and pick <strong>“We fetch it for you”</strong>. Not there? Then this version doesn\'t offer it yet — use option 2 or 3.', None, None, None),
+    ("Log in with your Powerfox account", "Fill in the e-mail and password you use in the Powerfox app, tick the box and press <strong>Connect Powerfox</strong>. Your login is stored encrypted and is only used to read your meter. Tip: use a password you use nowhere else.", None, None, None),
+    ("Done — your computer can stay off", "Our server fetches your meter total from Powerfox about every hour and pays it like any reading. Want to stop? <strong>Disconnect Powerfox</strong> deletes your login at once.", "see", "Check it worked", 'The status at the top says <span class="k">✅ Connected — … kWh received</span>.'),
+  ],
+  pf2_t="Option 2 — On your own computer",
+  pf2=[
+    ("Get the terminal and Node.js ready", "Do steps 2–4 of Route B first: open PowerShell or a terminal and check that Node.js 18 or newer is installed.", None, None, None),
+    ("Paste one line, with your Powerfox e-mail", 'Put the e-mail of your Powerfox account in place of <span class="k">YOUR_POWERFOX_EMAIL</span>. It asks for your token and your Powerfox password once (the password is not shown as you type) and keeps both in a private file next to gul.js. Then it schedules itself, just like Route B. The computer has to be on at least once a day.', "code2", RUN_PF, CAPS),
+    ("Check it worked", "The helper prints what it pushed.", "see", "Expected output", '<span class="k">pushed 8421.3 kWh ✓</span>'),
+  ],
+  pf3_t="Option 3 — With Home Assistant",
+  pf3=[
+    ("Add Powerfox to Home Assistant", 'In Home Assistant: <span class="k">Settings → Devices &amp; services → Add integration → Powerfox</span>. Log in with your Powerfox account.', None, None, None),
+    ("Add our integration", "Follow Route A, <em>“With our integration”</em>: add us to HACS, install, restart and paste your token.", None, None, None),
+    ("Pick the Powerfox meter sensor", 'As the sensor, choose the Powerfox sensor <strong>Energy usage</strong> (kWh). A meter with two tariffs where that one stays empty? Make a helper that adds the high- and low-tariff sensors (<span class="k">Settings → Devices &amp; services → Helpers → Combine the state of several sensors → Sum</span>) and pick that one.', None, None, None),
+  ],
+  de_row="Powerfox poweropti: Route D. Otherwise Home Assistant.",
+  trouble=[
+    ("Powerfox didn't accept the e-mail and password", 'Use exactly the e-mail and password of the Powerfox app (watch for a typo or a space). Changed your Powerfox password? Option 1: <strong>Connect Powerfox</strong> again with the new one. Option 2: paste the setup line again — it asks for the password.'),
+    ("switch on data transfer (Datenfreigabe)", "Powerfox refuses to share your readings. In the Powerfox app, switch on data transfer (Datenfreigabe), then try again."),
+    ("Powerfox only has an old reading", "Your poweropti hasn't sent anything to Powerfox for a while. Check in the Powerfox app that it is online (Wi-Fi, battery). Nothing is sent or paid until a fresh reading is there."),
+  ],
+)
+
+PF["nl"] = dict(
+  route=("Ik heb een Powerfox (poweropti)", "Veel gebruikt in Duitsland. Wij kunnen je stand ophalen uit de Powerfox-cloud — niets installeren, niets dat aan hoeft te blijven.", 1, "Makkelijkst"),
+  s_pf="Route D — Powerfox (poweropti)",
+  pf_intro="Een poweropti leest je meter uit en stuurt de stand naar de Powerfox-cloud. Hieronder drie manieren om die bij ons te krijgen — <strong>je hebt er maar één nodig</strong>. Twijfel je? Neem optie 1.",
+  pf_first_t="Eerst, in de Powerfox-app",
+  pf_first_b="Zet <strong>gegevensoverdracht</strong> (Datenfreigabe) aan. Zonder dat deelt Powerfox je standen met niemand — niet met ons, en ook niet met Home Assistant.",
+  pf1_t="Optie 1 — Wij halen het voor je op (makkelijkst)",
+  pf1=[
+    ("Open Powerfox in de app", f'In de app: <span class="k">{APP_PF["nl"]}</span> en kies <strong>“We fetch it for you”</strong>. Staat die er niet? Dan biedt deze versie het nog niet aan — gebruik optie 2 of 3.', None, None, None),
+    ("Log in met je Powerfox-account", "Vul het e-mailadres en wachtwoord in waarmee je in de Powerfox-app inlogt, vink het vakje aan en druk op <strong>Connect Powerfox</strong>. Je inlog wordt versleuteld bewaard en alleen gebruikt om je meter uit te lezen. Tip: gebruik een wachtwoord dat je nergens anders gebruikt.", None, None, None),
+    ("Klaar — je computer mag uit", "Onze server haalt ongeveer elk uur je meterstand op bij Powerfox en betaalt die uit zoals elke stand. Stoppen? <strong>Disconnect Powerfox</strong> wist je inlog meteen.", "see", "Controleren of het werkt", 'Bovenaan staat <span class="k">✅ Connected — … kWh received</span>.'),
+  ],
+  pf2_t="Optie 2 — Op je eigen computer",
+  pf2=[
+    ("Terminal en Node.js klaarzetten", "Doe eerst stap 2–4 van Route B: open PowerShell of een terminal en controleer dat Node.js 18 of nieuwer erop staat.", None, None, None),
+    ("Plak één regel, met je Powerfox-e-mailadres", 'Zet het e-mailadres van je Powerfox-account op de plek van <span class="k">YOUR_POWERFOX_EMAIL</span>. Hij vraagt één keer om je token en je Powerfox-wachtwoord (het wachtwoord zie je niet terwijl je typt) en bewaart ze in een privébestand naast gul.js. Daarna plant hij zichzelf in, net als bij Route B. De computer moet minstens één keer per dag aan staan.', "code2", RUN_PF, CAPS),
+    ("Controleren of het werkt", "De helper laat zien wat hij heeft verstuurd.", "see", "Wat je ziet", '<span class="k">pushed 8421.3 kWh ✓</span>'),
+  ],
+  pf3_t="Optie 3 — Met Home Assistant",
+  pf3=[
+    ("Powerfox toevoegen aan Home Assistant", 'In Home Assistant: <span class="k">Instellingen → Apparaten &amp; diensten → Integratie toevoegen → Powerfox</span>. Log in met je Powerfox-account.', None, None, None),
+    ("Onze integratie toevoegen", "Volg Route A, <em>“Met onze integratie”</em>: voeg ons toe aan HACS, installeer, herstart en plak je token.", None, None, None),
+    ("Kies de meter-sensor van Powerfox", 'Kies als sensor de Powerfox-sensor <strong>Energy usage</strong> (Energieverbruik, kWh). Meter met twee tarieven en blijft die leeg? Maak een helper die de sensoren voor hoog en laag tarief optelt (<span class="k">Instellingen → Apparaten &amp; diensten → Helpers → Combineer de status van meerdere sensoren → Som</span>) en kies die.', None, None, None),
+  ],
+  de_row="Powerfox poweropti: Route D. Anders Home Assistant.",
+  trouble=[
+    ("Powerfox didn't accept the e-mail and password", 'Gebruik precies het e-mailadres en wachtwoord van de Powerfox-app (let op tikfouten of een spatie). Powerfox-wachtwoord veranderd? Optie 1: druk opnieuw op <strong>Connect Powerfox</strong> met het nieuwe. Optie 2: plak de installatieregel nog een keer — hij vraagt dan om het wachtwoord.'),
+    ("switch on data transfer (Datenfreigabe)", "Powerfox weigert je standen te delen. Zet in de Powerfox-app gegevensoverdracht (Datenfreigabe) aan en probeer het opnieuw."),
+    ("Powerfox only has an old reading", "Je poweropti heeft al een tijd niets naar Powerfox gestuurd. Kijk in de Powerfox-app of hij online is (wifi, batterij). Er wordt niets verstuurd of uitbetaald tot er een verse stand is."),
+  ],
+)
+
+PF["de"] = dict(
+  route=("Ich habe einen Powerfox (poweropti)", "In Deutschland weit verbreitet. Wir holen deinen Stand aus der Powerfox-Cloud — nichts installieren, nichts muss eingeschaltet bleiben.", 1, "Am einfachsten"),
+  s_pf="Route D — Powerfox (poweropti)",
+  pf_intro="Ein poweropti liest deinen Zähler aus und schickt den Stand in die Powerfox-Cloud. Hier sind drei Wege, wie er zu uns kommt — <strong>du brauchst nur einen</strong>. Unsicher? Nimm Option 1.",
+  pf_first_t="Zuerst in der Powerfox-App",
+  pf_first_b="Schalte die <strong>Datenfreigabe</strong> ein. Ohne sie teilt Powerfox deine Zählerstände mit niemandem — weder mit uns noch mit Home Assistant.",
+  pf1_t="Option 1 — Wir holen ihn für dich (am einfachsten)",
+  pf1=[
+    ("Powerfox in der App öffnen", f'In der App: <span class="k">{APP_PF["de"]}</span> und <strong>„We fetch it for you“</strong> wählen. Nicht da? Dann bietet diese Version es noch nicht an — nimm Option 2 oder 3.', None, None, None),
+    ("Mit deinem Powerfox-Konto anmelden", "Gib die E-Mail-Adresse und das Passwort ein, mit denen du dich in der Powerfox-App anmeldest, setz das Häkchen und tippe auf <strong>Connect Powerfox</strong>. Deine Anmeldedaten werden verschlüsselt gespeichert und nur zum Auslesen deines Zählers verwendet. Tipp: Nimm ein Passwort, das du sonst nirgends verwendest.", None, None, None),
+    ("Fertig — dein Computer darf aus bleiben", "Unser Server holt etwa stündlich deinen Zählerstand bei Powerfox ab und zahlt ihn aus wie jeden anderen Stand. Aufhören? <strong>Disconnect Powerfox</strong> löscht deine Anmeldedaten sofort.", "see", "Prüfen, ob es klappt", 'Oben steht <span class="k">✅ Connected — … kWh received</span>.'),
+  ],
+  pf2_t="Option 2 — Auf deinem eigenen Computer",
+  pf2=[
+    ("Terminal und Node.js vorbereiten", "Mach zuerst die Schritte 2–4 von Route B: PowerShell oder ein Terminal öffnen und prüfen, ob Node.js 18 oder neuer installiert ist.", None, None, None),
+    ("Eine Zeile einfügen, mit deiner Powerfox-E-Mail", 'Ersetze <span class="k">YOUR_POWERFOX_EMAIL</span> durch die E-Mail-Adresse deines Powerfox-Kontos. Es fragt einmal nach deinem Token und deinem Powerfox-Passwort (das Passwort wird beim Tippen nicht angezeigt) und speichert beides in einer privaten Datei neben gul.js. Danach plant es sich selbst ein, genau wie bei Route B. Der Computer muss mindestens einmal am Tag an sein.', "code2", RUN_PF, CAPS),
+    ("Prüfen, ob es klappt", "Das Hilfsprogramm zeigt, was es gesendet hat.", "see", "Das siehst du", '<span class="k">pushed 8421.3 kWh ✓</span>'),
+  ],
+  pf3_t="Option 3 — Mit Home Assistant",
+  pf3=[
+    ("Powerfox in Home Assistant hinzufügen", 'In Home Assistant: <span class="k">Einstellungen → Geräte &amp; Dienste → Integration hinzufügen → Powerfox</span>. Mit deinem Powerfox-Konto anmelden.', None, None, None),
+    ("Unsere Integration hinzufügen", "Folge Route A, <em>„Mit unserer Integration“</em>: uns zu HACS hinzufügen, installieren, neu starten und deinen Token einfügen.", None, None, None),
+    ("Den Zähler-Sensor von Powerfox wählen", 'Wähle als Sensor den Powerfox-Sensor <strong>Energy usage</strong> (Energieverbrauch, kWh). Zweitarifzähler und der bleibt leer? Leg einen Helfer an, der die Sensoren für Hoch- und Niedertarif addiert (<span class="k">Einstellungen → Geräte &amp; Dienste → Helfer → Kombiniere den Zustand mehrerer Sensoren → Summe</span>), und wähle den.', None, None, None),
+  ],
+  de_row="Powerfox poweropti: Route D. Sonst Home Assistant.",
+  trouble=[
+    ("Powerfox didn't accept the e-mail and password", 'Nimm genau die E-Mail-Adresse und das Passwort der Powerfox-App (auf Tippfehler oder Leerzeichen achten). Powerfox-Passwort geändert? Option 1: noch einmal <strong>Connect Powerfox</strong> mit dem neuen. Option 2: die Einrichtungszeile noch einmal einfügen — sie fragt dann nach dem Passwort.'),
+    ("switch on data transfer (Datenfreigabe)", "Powerfox gibt deine Zählerstände nicht frei. Schalte in der Powerfox-App die Datenfreigabe ein und versuch es noch einmal."),
+    ("Powerfox only has an old reading", "Dein poweropti hat seit einer Weile nichts an Powerfox gesendet. Prüf in der Powerfox-App, ob er online ist (WLAN, Batterie). Bis ein frischer Stand da ist, wird nichts gesendet oder ausgezahlt."),
+  ],
+)
+
+PF["fr"] = dict(
+  route=("J'ai un Powerfox (poweropti)", "Courant en Allemagne. Nous récupérons votre relevé dans le cloud Powerfox — rien à installer, rien à laisser allumé.", 1, "Le plus simple"),
+  s_pf="Route D — Powerfox (poweropti)",
+  pf_intro="Un poweropti lit votre compteur et envoie le relevé au cloud Powerfox. Voici trois façons de nous le faire parvenir — <strong>une seule suffit</strong>. Vous hésitez ? Prenez l'option 1.",
+  pf_first_t="D'abord, dans l'app Powerfox",
+  pf_first_b="Activez le <strong>partage des données</strong> (Datenfreigabe). Sans cela, Powerfox ne partage vos relevés avec personne — ni avec nous, ni avec Home Assistant.",
+  pf1_t="Option 1 — Nous le récupérons pour vous (le plus simple)",
+  pf1=[
+    ("Ouvrez Powerfox dans l'app", f'Dans l\'app : <span class="k">{APP_PF["fr"]}</span> et choisissez <strong>« We fetch it for you »</strong>. Absent ? Cette version ne le propose pas encore — prenez l\'option 2 ou 3.', None, None, None),
+    ("Connectez-vous avec votre compte Powerfox", "Saisissez l'e-mail et le mot de passe de l'app Powerfox, cochez la case et appuyez sur <strong>Connect Powerfox</strong>. Vos identifiants sont conservés chiffrés et servent uniquement à lire votre compteur. Astuce : utilisez un mot de passe que vous n'utilisez nulle part ailleurs.", None, None, None),
+    ("C'est fait — votre ordinateur peut rester éteint", "Notre serveur récupère votre relevé chez Powerfox environ toutes les heures et le paie comme tout autre relevé. Arrêter ? <strong>Disconnect Powerfox</strong> efface vos identifiants aussitôt.", "see", "Vérifier", 'En haut s\'affiche <span class="k">✅ Connected — … kWh received</span>.'),
+  ],
+  pf2_t="Option 2 — Sur votre propre ordinateur",
+  pf2=[
+    ("Préparez le terminal et Node.js", "Faites d'abord les étapes 2 à 4 de la Route B : ouvrez PowerShell ou un terminal et vérifiez que Node.js 18 ou plus récent est installé.", None, None, None),
+    ("Collez une ligne, avec votre e-mail Powerfox", 'Remplacez <span class="k">YOUR_POWERFOX_EMAIL</span> par l\'e-mail de votre compte Powerfox. Il demande une fois votre jeton et votre mot de passe Powerfox (le mot de passe ne s\'affiche pas pendant la saisie) et les garde dans un fichier privé à côté de gul.js. Ensuite il se planifie tout seul, comme pour la Route B. L\'ordinateur doit être allumé au moins une fois par jour.', "code2", RUN_PF, CAPS),
+    ("Vérifier", "L'utilitaire affiche ce qu'il a envoyé.", "see", "Ce que vous voyez", '<span class="k">pushed 8421.3 kWh ✓</span>'),
+  ],
+  pf3_t="Option 3 — Avec Home Assistant",
+  pf3=[
+    ("Ajoutez Powerfox à Home Assistant", 'Dans Home Assistant : <span class="k">Paramètres → Appareils et services → Ajouter une intégration → Powerfox</span>. Connectez-vous avec votre compte Powerfox.', None, None, None),
+    ("Ajoutez notre intégration", "Suivez la Route A, <em>« Avec notre intégration »</em> : ajoutez-nous à HACS, installez, redémarrez et collez votre jeton.", None, None, None),
+    ("Choisissez le capteur compteur de Powerfox", 'Comme capteur, choisissez le capteur Powerfox <strong>Energy usage</strong> (consommation d\'énergie, kWh). Compteur double tarif et celui-ci reste vide ? Créez une entrée qui additionne les capteurs heures pleines et heures creuses (<span class="k">Paramètres → Appareils et services → Entrées → Combiner l\'état de plusieurs capteurs → Somme</span>) et choisissez-la.', None, None, None),
+  ],
+  de_row="Powerfox poweropti : Route D. Sinon Home Assistant.",
+  trouble=[
+    ("Powerfox didn't accept the e-mail and password", 'Utilisez exactement l\'e-mail et le mot de passe de l\'app Powerfox (attention aux fautes de frappe et aux espaces). Mot de passe Powerfox changé ? Option 1 : <strong>Connect Powerfox</strong> à nouveau avec le nouveau. Option 2 : recollez la ligne d\'installation — elle redemande le mot de passe.'),
+    ("switch on data transfer (Datenfreigabe)", "Powerfox refuse de partager vos relevés. Dans l'app Powerfox, activez le partage des données (Datenfreigabe), puis réessayez."),
+    ("Powerfox only has an old reading", "Votre poweropti n'a rien envoyé à Powerfox depuis un moment. Vérifiez dans l'app Powerfox qu'il est en ligne (Wi-Fi, pile). Rien n'est envoyé ni payé tant qu'un relevé récent n'est pas là."),
+  ],
+)
+
+PF["es"] = dict(
+  route=("Tengo un Powerfox (poweropti)", "Habitual en Alemania. Recogemos tu lectura de la nube de Powerfox — nada que instalar, nada que dejar encendido.", 1, "Lo más fácil"),
+  s_pf="Ruta D — Powerfox (poweropti)",
+  pf_intro="Un poweropti lee tu contador y envía la lectura a la nube de Powerfox. Aquí tienes tres formas de que nos llegue — <strong>solo necesitas una</strong>. ¿Dudas? Elige la opción 1.",
+  pf_first_t="Primero, en la app de Powerfox",
+  pf_first_b="Activa la <strong>transferencia de datos</strong> (Datenfreigabe). Sin ella Powerfox no comparte tus lecturas con nadie — ni con nosotros ni con Home Assistant.",
+  pf1_t="Opción 1 — La recogemos por ti (lo más fácil)",
+  pf1=[
+    ("Abre Powerfox en la app", f'En la app: <span class="k">{APP_PF["es"]}</span> y elige <strong>«We fetch it for you»</strong>. ¿No aparece? Esta versión aún no lo ofrece — usa la opción 2 o 3.', None, None, None),
+    ("Inicia sesión con tu cuenta de Powerfox", "Escribe el correo y la contraseña de la app de Powerfox, marca la casilla y pulsa <strong>Connect Powerfox</strong>. Tus datos de acceso se guardan cifrados y solo sirven para leer tu contador. Consejo: usa una contraseña que no uses en ningún otro sitio.", None, None, None),
+    ("Listo — tu ordenador puede estar apagado", "Nuestro servidor recoge tu lectura de Powerfox más o menos cada hora y la paga como cualquier otra lectura. ¿Quieres parar? <strong>Disconnect Powerfox</strong> borra tus datos de acceso al instante.", "see", "Comprueba que funciona", 'Arriba pone <span class="k">✅ Connected — … kWh received</span>.'),
+  ],
+  pf2_t="Opción 2 — En tu propio ordenador",
+  pf2=[
+    ("Prepara el terminal y Node.js", "Haz primero los pasos 2–4 de la Ruta B: abre PowerShell o un terminal y comprueba que tienes Node.js 18 o más reciente.", None, None, None),
+    ("Pega una línea, con tu correo de Powerfox", 'Cambia <span class="k">YOUR_POWERFOX_EMAIL</span> por el correo de tu cuenta de Powerfox. Te pide una vez tu token y tu contraseña de Powerfox (la contraseña no se ve al escribir) y los guarda en un archivo privado junto a gul.js. Después se programa solo, igual que en la Ruta B. El ordenador tiene que encenderse al menos una vez al día.', "code2", RUN_PF, CAPS),
+    ("Comprueba que funciona", "El programa muestra lo que ha enviado.", "see", "Lo que verás", '<span class="k">pushed 8421.3 kWh ✓</span>'),
+  ],
+  pf3_t="Opción 3 — Con Home Assistant",
+  pf3=[
+    ("Añade Powerfox a Home Assistant", 'En Home Assistant: <span class="k">Ajustes → Dispositivos y servicios → Añadir integración → Powerfox</span>. Inicia sesión con tu cuenta de Powerfox.', None, None, None),
+    ("Añade nuestra integración", "Sigue la Ruta A, <em>«Con nuestra integración»</em>: añádenos a HACS, instala, reinicia y pega tu token.", None, None, None),
+    ("Elige el sensor del contador de Powerfox", 'Como sensor, elige el sensor de Powerfox <strong>Energy usage</strong> (consumo de energía, kWh). ¿Contador de dos tarifas y ese se queda vacío? Crea un ayudante que sume los sensores de tarifa alta y baja (<span class="k">Ajustes → Dispositivos y servicios → Ayudantes → Combinar el estado de varios sensores → Suma</span>) y elige ese.', None, None, None),
+  ],
+  de_row="Powerfox poweropti: Ruta D. Si no, Home Assistant.",
+  trouble=[
+    ("Powerfox didn't accept the e-mail and password", 'Usa exactamente el correo y la contraseña de la app de Powerfox (cuidado con erratas o espacios). ¿Cambiaste la contraseña de Powerfox? Opción 1: pulsa otra vez <strong>Connect Powerfox</strong> con la nueva. Opción 2: vuelve a pegar la línea de instalación — te pedirá la contraseña.'),
+    ("switch on data transfer (Datenfreigabe)", "Powerfox se niega a compartir tus lecturas. En la app de Powerfox, activa la transferencia de datos (Datenfreigabe) y vuelve a intentarlo."),
+    ("Powerfox only has an old reading", "Tu poweropti lleva un rato sin enviar nada a Powerfox. Comprueba en la app de Powerfox que está en línea (wifi, batería). No se envía ni se paga nada hasta que haya una lectura reciente."),
+  ],
+)
+
+# Merge: the card goes before "none of these" (always last), Germany names Route D,
+# and the Powerfox messages join the trouble table before its last row.
+for _c, _p in PF.items():
+    _d = L[_c]
+    _d["routes"].insert(len(_d["routes"]) - 1, _p["route"])
+    _d["country_rows"] = [(a, b, _p["de_row"]) if a.startswith("🇩🇪") else (a, b, x) for a, b, x in _d["country_rows"]]
+    _d["trouble"][-1:-1] = _p["trouble"]
+    _d.update({k: v for k, v in _p.items() if k not in ("route", "de_row", "trouble")})
 
 COPY = {"en":"Copy","nl":"Kopieer","de":"Kopieren","fr":"Copier","es":"Copiar"}
 
@@ -526,6 +710,11 @@ def render(code, d):
     # route B / C
     r.append(f'  <h2>{d["s_b"]}</h2>\n  {steps(d["b"])}')
     r.append(f'  <h2>{d["s_c"]}</h2>\n  <p class="lede" style="font-size:15.5px">{d["c_intro"]}</p>\n  {steps(d["c"])}')
+    # route D — Powerfox: three ways in, pick one
+    r.append(f'  <h2>{d["s_pf"]}</h2>\n  <p class="lede" style="font-size:15.5px">{d["pf_intro"]}</p>')
+    r.append(f'  <div class="note"><b>{d["pf_first_t"]}</b>{d["pf_first_b"]}</div>')
+    for k in ("pf1", "pf2", "pf3"):
+        r.append(f'  <h3 class="sub">{d[k + "_t"]}</h3>\n  {steps(d[k])}')
     # Sits right before "claim it in the app", because that is where a reader with no
     # Pi or NAS decides this is not for them. It is, and always was — a reading only
     # has to be under 48 hours old at the moment it is claimed.
