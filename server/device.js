@@ -18,8 +18,9 @@
 
 import { createHash } from "node:crypto";
 
-// 0 switches the check off. Two leaves room for someone who replaced a wallet.
-export const DEVICE_MAX_WALLETS = Number(process.env.DEVICE_MAX_WALLETS || 2);
+// One wallet per phone. 0 switches the check off; a higher number leaves room
+// for, say, a household that shares one phone.
+export const DEVICE_MAX_WALLETS = Number(process.env.DEVICE_MAX_WALLETS || 1);
 export const DEVICE_FP_FLAG = Number(process.env.DEVICE_FP_FLAG || 4);
 
 const short = (s) => createHash("sha256").update(s).digest("hex").slice(0, 32);
