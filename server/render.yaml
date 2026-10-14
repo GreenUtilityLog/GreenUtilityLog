@@ -10,7 +10,8 @@ services:
     plan: free
     buildCommand: npm install
     startCommand: npm start
-    healthCheckPath: /health
+    # /livez answers at once; /health waits for the chain and can be slow.
+    healthCheckPath: /livez
     envVars:
       - key: NETWORK
         value: testnet

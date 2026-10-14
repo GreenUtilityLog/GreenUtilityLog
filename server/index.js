@@ -104,11 +104,21 @@ app.use((req, res, next) => {
 // fresh deploy from a free-plan instance that merely woke from sleep.
 const STARTED_AT = new Date().toISOString();
 
+// Liveness for Render's health check (render.yaml healthCheckPath): answers at
+// once. /health asks the chain six questions first, and when the VeChain node is
+// slow those answers take longer than Render waits — a deploy then fails on a
+// perfectly healthy server, which is what happened to the deploy of PR #117.
+app.get("/livez", (req, res) => res.json({ ok: true }));
+
+// The chain answers in /health are worth waiting for, but not forever.
+const CHAIN_DIAG_MS = 8000;
+const withTimeout = (p, ms, fallback) => Promise.race([p, new Promise((r) => setTimeout(() => r(fallback), ms).unref?.())]);
+
 app.get("/health", async (req, res) => {
   // On-chain self-diagnosis: poolB3TR is the app's available reward funds;
   // distributorAuthorized says whether our wallet holds the reward-distributor
   // role. false on either one explains a reverting distributeReward instantly.
-  const chain = await chainDiagnostics().catch(() => ({ poolB3TR: null, distributorAuthorized: null }));
+  const chain = await withTimeout(chainDiagnostics().catch(() => null), CHAIN_DIAG_MS, null) || { poolB3TR: null, distributorAuthorized: null };
   res.json({
     ok: true,
     // Which commit is actually running. "Did my backend redeploy?" has come up after
