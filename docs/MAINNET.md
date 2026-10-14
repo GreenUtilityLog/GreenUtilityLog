@@ -40,6 +40,7 @@ gegevens in de browser; de testnetversie toont een oranje strook “TESTNET”.
 ## Stap 5 — Tweede Render-service (jij, ± 5 minuten)
 Render → **New → Web Service** → deze repository.
 - **Root Directory:** `server` · **Build:** `npm install` · **Start:** `npm start`
+- **Health Check Path** (onder Advanced): `/livez` — `/health` wacht op de chain en kan te traag zijn voor Render
 - **Plan:** met echt geld raad ik een betaald plan aan (slaapt niet); gratis kan ook.
 - **Environment:**
 
