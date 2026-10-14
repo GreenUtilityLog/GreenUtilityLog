@@ -19,6 +19,7 @@ import { ocrImage, ocrEnabled, ocrProviders } from "./ocr.js";
 import { verifyWalletCertificate, REQUIRE_CERT, CERT_MAX_AGE_MS, certDomainsSeen } from "./auth.js";
 import { checkPhotoAuthenticity, aiPhotoCheckEnabled } from "./authenticity.js";
 import { verifyCaptcha, captchaEnabled } from "./captcha.js";
+import { deviceKeys, DEVICE_MAX_WALLETS, DEVICE_FP_FLAG } from "./device.js";
 import { enodeEnabled, enodeInfo, createMeterLink, fetchLatestReading } from "./enode.js";
 import { powerfoxEnabled, sealCredentials, openCredentials, fetchPowerfoxReading } from "./powerfox.js";
 
@@ -146,6 +147,8 @@ app.get("/health", async (req, res) => {
     aiPhotoCheck: aiPhotoCheckEnabled(),
     photoArchive: photoStoreEnabled(),
     captcha: captchaEnabled(),
+    // One phone, many wallets (device.js): refused past maxWallets per phone, 0 = off.
+    device: { maxWallets: DEVICE_MAX_WALLETS, fingerprintFlag: DEVICE_FP_FLAG, known: store.deviceCount() },
     corsLocked: !ALLOWED_ORIGINS.includes("*"),
     // Access passes: whether earning is gated, and how many have been issued.
     // Who may use this version: "roles" (only wallets with a role) or "everyone".
@@ -413,6 +416,32 @@ async function verifyAdmin(req, path) {
 const isAddr = (a) => /^0x[0-9a-fA-F]{40}$/.test(String(a || ""));
 // Truncate a wallet address for logs — pseudonymous PII shouldn't sit in plaintext logs.
 const shortAddr = (a) => { const s = String(a || ""); return s.length > 12 ? `${s.slice(0, 6)}…${s.slice(-4)}` : s; };
+
+// Device recognition (device.js). Runs after the wallet signature, so only a wallet
+// that proved itself is ever recorded against a device. Returns an error to refuse
+// with, or null; what is only worth an admin's look goes into `flags`.
+function deviceGate(addr, device, flags) {
+  const a = String(addr).toLowerCase();
+  if (isAdminWallet(a)) return null;          // admins test with several wallets
+  const { install, fp } = deviceKeys(device);
+  if (!install) flags.push("the app sent no device id");
+  else {
+    const w = store.linkDevice(install, a);
+    const pos = w.indexOf(a);
+    if (DEVICE_MAX_WALLETS > 0 && (pos === -1 || pos >= DEVICE_MAX_WALLETS)) {
+      store.addFlag(`device-${a.slice(2, 10)}-${Date.now()}`, a,
+        `refused: this phone was already used by ${w.filter((x) => x !== a).map(shortAddr).join(", ")}`);
+      return `this phone is already used by ${DEVICE_MAX_WALLETS} other wallet${DEVICE_MAX_WALLETS === 1 ? "" : "s"} — one person, one wallet`;
+    }
+    const others = w.filter((x) => x !== a);
+    if (others.length) flags.push(`phone shared with ${others.map(shortAddr).join(", ")}`);
+  }
+  if (fp && DEVICE_FP_FLAG > 0) {
+    const others = store.linkDevice(fp, a).filter((x) => x !== a);
+    if (others.length >= DEVICE_FP_FLAG) flags.push(`same device fingerprint as ${others.length} other wallets`);
+  }
+  return null;
+}
 
 // Archive a submission photo for later admin review. Best-effort and non-blocking:
 // uploads a downscaled thumbnail to R2 and records it in the retention index. Any
@@ -800,6 +829,10 @@ app.post("/reward", async (req, res) => {
     if (!c.ok) return res.status(c.code).json({ error: c.error });
   }
 
+  // 1c) One phone, many wallets (device.js).
+  const deviceFlags = [];
+  { const refuse = deviceGate(req.body.address, req.body.device, deviceFlags); if (refuse) return res.status(403).json({ error: refuse, device: true }); }
+
   // Claim the in-flight lock SYNCHRONOUSLY, before any await, or two concurrent
   // requests both pass the has() check and double-pay (TOCTOU). Everything after
   // runs in the try so every early return still releases the lock in finally.
@@ -908,7 +941,7 @@ app.post("/reward", async (req, res) => {
     const reasons = [];
     if (readingFlag) reasons.push(readingFlag);
     if (v.nearZero) reasons.push(v.nearZero);
-    reasons.push(...sybilFlags);
+    reasons.push(...sybilFlags, ...deviceFlags);
     if (req.body.clientFlagged) reasons.push(req.body.flagReason || "client checks were inconclusive");
     if (photo?.exif && !photo.exif.hasExif) reasons.push("photo carried no EXIF capture date");
     // Worth seeing: the figure paid on was a sum, and the photo could only vouch for
@@ -960,6 +993,8 @@ app.post("/eco-action", async (req, res) => {
     const c = await requireBoundCert(req, ["confirm eco-mode bonus", `Appliance: ${appliance}`]);
     if (!c.ok) return res.status(c.code).json({ error: c.error });
   }
+  const deviceFlags = [];
+  { const refuse = deviceGate(addr, req.body.device, deviceFlags); if (refuse) return res.status(403).json({ error: refuse, device: true }); }
 
   // Two limits: max ECO_MAX_PER_WEEK per CALENDAR week (Mon–Sun, resets Monday
   // morning) and at least ECO_COOLDOWN_MS (24h) between two claims.
@@ -1006,8 +1041,9 @@ app.post("/eco-action", async (req, res) => {
     store.addEcoClaim(addr, Date.now());
     recordPayout(ECO_REWARD);
     store.addPrint(req.body.address, "eco", print);
-    if (near && near.d <= PRINT_FLAG) {
-      try { store.addFlag(txid, req.body.address, `eco photo resembles one paid to ${shortAddr(near.a)} (${near.d}/64)`); } catch {}
+    const ecoFlags = [...(near && near.d <= PRINT_FLAG ? [`eco photo resembles one paid to ${shortAddr(near.a)} (${near.d}/64)`] : []), ...deviceFlags];
+    if (ecoFlags.length) {
+      try { store.addFlag(txid, req.body.address, ecoFlags.join("; ")); } catch {}
     }
     committed = true; // payout landed — keep the reserved photo hash + recorded claim
     await store.flush(); // make the claim + burnt hash durable before responding

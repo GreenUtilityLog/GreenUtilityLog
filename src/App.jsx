@@ -1026,6 +1026,50 @@ async function uploadablePhoto(file) {
 // waking from sleep can take a minute, and without one the app sat on "OCR…" or
 // "Submitting…" for good. Payouts get longer: they wait for the chain.
 const PAYOUT_MS = 120000;
+// ── Device recognition (see server/device.js) ──────────────────────────────────
+// One phone with a handful of wallets is the cheapest way to farm, so payouts carry
+// two things about the phone: a random install id kept in this app's storage (the
+// same for every wallet used here), and a SHA-256 of what the browser reports about
+// the hardware. Only these two values leave the phone; neither says who you are.
+let devicePromise = null;
+const toHex = (bytes) => [...bytes].map((x) => x.toString(16).padStart(2, "0")).join("");
+function deviceInfo() {
+  if (!devicePromise) devicePromise = (async () => {
+    let id = "";
+    try { id = localStorage.getItem("gul_device_id") || ""; } catch { /* no storage */ }
+    if (!/^[0-9a-f]{32}$/.test(id)) {
+      const b = new Uint8Array(16);
+      crypto.getRandomValues(b);
+      id = toHex(b);
+      try { localStorage.setItem("gul_device_id", id); } catch { /* no storage */ }
+    }
+    let fp = "";
+    try {
+      // Sorted: some Android phones swap width and height when turned.
+      const parts = [[screen.width, screen.height].sort((a, b) => a - b), screen.colorDepth, window.devicePixelRatio,
+        Intl.DateTimeFormat().resolvedOptions().timeZone, navigator.language, navigator.platform,
+        navigator.hardwareConcurrency, navigator.deviceMemory, navigator.maxTouchPoints];
+      try {
+        const gl = document.createElement("canvas").getContext("webgl");
+        const ext = gl && gl.getExtension("WEBGL_debug_renderer_info");
+        if (ext) parts.push(gl.getParameter(ext.UNMASKED_VENDOR_WEBGL), gl.getParameter(ext.UNMASKED_RENDERER_WEBGL));
+      } catch { /* no WebGL */ }
+      try {
+        const c = document.createElement("canvas");
+        c.width = 220; c.height = 30;
+        const x = c.getContext("2d");
+        x.textBaseline = "top"; x.font = "16px Arial";
+        x.fillStyle = "#f60"; x.fillRect(100, 1, 62, 20);
+        x.fillStyle = "#069"; x.fillText("GreenUtilityLog 1.8.0 kWh", 2, 2);
+        parts.push(c.toDataURL());
+      } catch { /* no canvas */ }
+      fp = toHex(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(parts)))));
+    } catch { /* no crypto.subtle: the install id alone */ }
+    return fp ? { id, fp } : { id };
+  })();
+  return devicePromise;
+}
+
 async function fetchT(url, opts = {}, ms = 30000) {
   if (opts.signal || typeof AbortSignal === "undefined" || typeof AbortSignal.timeout !== "function") return fetch(url, opts);
   try {
@@ -5997,7 +6041,7 @@ export default function App() {
             const res = await fetchT(`${REWARD_API.replace(/\/$/, "")}/reward`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ utility: item.type, reading: item.cur, prevRead: item.prev, meterNo: item.meterNo, address: wallet, photo: item.photo, photoMime: item.photoMime || "", certificate, clientFlagged: !!item.flagged, flagReason: item.flagReason || "", ocrNums: item.ocrNums || [], meterNoConfirmed: item.meterNoConfirmed ?? null, avgUsage: item.avgUsage ?? null, captchaToken: "" }),
+              body: JSON.stringify({ utility: item.type, reading: item.cur, prevRead: item.prev, meterNo: item.meterNo, address: wallet, photo: item.photo, photoMime: item.photoMime || "", certificate, clientFlagged: !!item.flagged, flagReason: item.flagReason || "", ocrNums: item.ocrNums || [], meterNoConfirmed: item.meterNoConfirmed ?? null, avgUsage: item.avgUsage ?? null, captchaToken: "", device: await deviceInfo() }),
             }, PAYOUT_MS);
             const data = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(data.error || `reward ${res.status}`);
@@ -6333,7 +6377,7 @@ export default function App() {
       const res = await fetchT(`${REWARD_API.replace(/\/$/, "")}/eco-action`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: wallet, appliance, photo: base64, photoMime: upload.type || "", certificate, captchaToken }),
+        body: JSON.stringify({ address: wallet, appliance, photo: base64, photoMime: upload.type || "", certificate, captchaToken, device: await deviceInfo() }),
       }, PAYOUT_MS);
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `eco service error ${res.status}`);
@@ -6550,7 +6594,7 @@ export default function App() {
         const res = await fetchT(`${REWARD_API.replace(/\/$/, "")}/reward`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ utility: selUtil, reading, prevRead, ...(registers ? { registers } : {}), meterNo, address: wallet, photo: photo?.base64 || "", photoMime: photo?.mime || "", certificate, clientFlagged: !photoConfirmed || anom.anomaly, flagReason, ocrNums: photo?.ocrNums || [], meterNoConfirmed: photo?.meterNoConfirmed ?? null, avgUsage: anom.avg ?? null, captchaToken }),
+          body: JSON.stringify({ utility: selUtil, reading, prevRead, ...(registers ? { registers } : {}), meterNo, address: wallet, photo: photo?.base64 || "", photoMime: photo?.mime || "", certificate, clientFlagged: !photoConfirmed || anom.anomaly, flagReason, ocrNums: photo?.ocrNums || [], meterNoConfirmed: photo?.meterNoConfirmed ?? null, avgUsage: anom.avg ?? null, captchaToken, device: await deviceInfo() }),
         }, PAYOUT_MS);
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || `Reward service error ${res.status}`);
