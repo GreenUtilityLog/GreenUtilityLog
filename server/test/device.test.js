@@ -34,9 +34,9 @@ describe("device recognition", () => {
   before(async () => { srv = await startServer({ state: state() }); });
   after(async () => { await srv.stop(); });
 
-  test("is announced in /health", async () => {
+  test("is announced in /health: one wallet per phone", async () => {
     const h = await srv.get("/health");
-    assert.equal(h.body.device.maxWallets, 2);
+    assert.equal(h.body.device.maxWallets, 1);
   });
 
   test("the first wallet on a phone is paid", async () => {
@@ -44,26 +44,18 @@ describe("device recognition", () => {
     assert.equal(r.status, 200, JSON.stringify(r.body));
   });
 
-  test("a second wallet on the same phone is paid, and flagged", async () => {
+  test("a second wallet on the same phone is refused", async () => {
     const r = await submit(srv, 1, PHONE);
-    assert.equal(r.status, 200, JSON.stringify(r.body));
-    const st = await srv.waitForState((s) => Object.values(s.flags || {}).some((f) => f.addr === W[1].toLowerCase()));
-    assert.ok(st);
-    assert.match(flagsFor(srv, W[1]), /phone shared with 0x1111/);
-  });
-
-  test("a third wallet on the same phone is refused", async () => {
-    const r = await submit(srv, 2, PHONE);
     assert.equal(r.status, 403);
     assert.equal(r.body.device, true);
-    assert.match(r.body.error, /already used by 2 other wallets/);
-    await srv.waitForState((s) => Object.values(s.flags || {}).some((f) => f.addr === W[2].toLowerCase()));
-    assert.match(flagsFor(srv, W[2]), /refused: this phone was already used/);
+    assert.match(r.body.error, /already used by 1 other wallet —/);
+    await srv.waitForState((s) => Object.values(s.flags || {}).some((f) => f.addr === W[1].toLowerCase()));
+    assert.match(flagsFor(srv, W[1]), /refused: this phone was already used by 0x1111/);
   });
 
-  test("and keeps being refused — the first wallets keep their place", async () => {
-    const r = await submit(srv, 2, PHONE);
-    assert.equal(r.status, 403);
+  test("and keeps being refused — the first wallet keeps its place", async () => {
+    assert.equal((await submit(srv, 1, PHONE)).status, 403);
+    assert.equal((await submit(srv, 0, { ...PHONE })).status === 403, false);
   });
 
   test("no device id is paid, but flagged", async () => {
@@ -78,6 +70,22 @@ describe("device recognition", () => {
     const raw = JSON.stringify(srv.readState().devices);
     assert.ok(!raw.includes(PHONE.id));
     assert.ok(Object.keys(srv.readState().devices).every((k) => /^[if]:[0-9a-f]{32}$/.test(k)));
+  });
+});
+
+describe("two wallets per phone allowed", () => {
+  let srv;
+  before(async () => { srv = await startServer({ state: state(), env: { DEVICE_MAX_WALLETS: "2" } }); });
+  after(async () => { await srv.stop(); });
+
+  test("the second wallet is paid and flagged, the third refused", async () => {
+    assert.equal((await submit(srv, 0, PHONE)).status, 200);
+    assert.equal((await submit(srv, 1, PHONE)).status, 200);
+    await srv.waitForState((s) => Object.values(s.flags || {}).some((f) => f.addr === W[1].toLowerCase()));
+    assert.match(flagsFor(srv, W[1]), /phone shared with 0x1111/);
+    const r = await submit(srv, 2, PHONE);
+    assert.equal(r.status, 403);
+    assert.match(r.body.error, /already used by 2 other wallets/);
   });
 });
 
