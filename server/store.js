@@ -28,7 +28,7 @@ const REDIS_KEY = process.env.STATE_KEY || "greenutilitylog:state";
 // `passes` is the access-pass registry (address → pass); `passesInit` records that the
 // one-time grandfathering has run, so turning REQUIRE_PASS on can't silently cut off
 // every existing tester — and can't re-grant a pass an admin has since revoked.
-const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {}, autoPaid: {}, payLog: [], prints: [], payDays: {}, meterRegs: {}, settings: {}, powerfox: {} };
+const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {}, autoPaid: {}, payLog: [], prints: [], payDays: {}, meterRegs: {}, settings: {}, powerfox: {}, devices: {} };
 // A fresh copy each time. Spreading EMPTY copies only its top level: every
 // "empty" state then shared EMPTY's own maps, so writing to one wrote to all of
 // them — and to the next "empty" state read from Redis.
@@ -41,6 +41,10 @@ const SEEN_MAX = 2000;
 // Same reasoning for the flagged-submission log: one entry per flagged payout,
 // forever, would grow state without bound.
 const FLAG_MAX = 2000;
+// Device keys (see device.js): bounded like the seen-roster, least recently used
+// first out, and a key never lists more wallets than DEVICE_KEY_WALLETS.
+const DEVICE_MAX = 5000;
+const DEVICE_KEY_WALLETS = 16;
 
 async function redisCmd(cmd) {
   const res = await fetch(R_URL, {
@@ -546,6 +550,26 @@ export const store = {
     if (isMap(state.powerfox) && Object.prototype.hasOwnProperty.call(state.powerfox, k)) { delete state.powerfox[k]; persist(); return true; }
     return false;
   },
+  // ── Devices ───────────────────────────────────────────────────────────────
+  // Which wallets used one device key, in the order they first did. Returns that
+  // list (the wallet included). Order matters: the first wallets on a device are
+  // the ones that keep working when the limit is reached.
+  linkDevice: (key, addr) => {
+    const a = String(addr).toLowerCase();
+    if (!key || !/^0x[0-9a-f]{40}$/.test(a)) return [];
+    if (!isMap(state.devices)) state.devices = {};
+    const prev = Object.prototype.hasOwnProperty.call(state.devices, key) && Array.isArray(state.devices[key]?.w) ? state.devices[key].w : [];
+    const w = prev.includes(a) ? prev : [...prev, a].slice(0, DEVICE_KEY_WALLETS);
+    state.devices[key] = { w, at: Date.now() };
+    const keys = Object.keys(state.devices);
+    if (keys.length > DEVICE_MAX) {
+      keys.sort((x, y) => (state.devices[x]?.at || 0) - (state.devices[y]?.at || 0));
+      for (const k of keys.slice(0, keys.length - DEVICE_MAX)) delete state.devices[k];
+    }
+    persist();
+    return w;
+  },
+  deviceCount: () => (isMap(state.devices) ? Object.keys(state.devices).length : 0),
   allPowerfox: () => Object.entries(isMap(state.powerfox) ? state.powerfox : {}).map(([address, v]) => ({ address, ...v })),
   // Own keys only: a token of "__proto__" would otherwise find Object.prototype.
   getMeterLink: (token) => (Object.prototype.hasOwnProperty.call(state.meterLinks, token) ? state.meterLinks[token] : null),
