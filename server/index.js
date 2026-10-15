@@ -22,6 +22,7 @@ import { verifyCaptcha, captchaEnabled } from "./captcha.js";
 import { deviceKeys, DEVICE_MAX_WALLETS, DEVICE_FP_FLAG } from "./device.js";
 import { enodeEnabled, enodeInfo, createMeterLink, fetchLatestReading } from "./enode.js";
 import { powerfoxEnabled, sealCredentials, openCredentials, fetchPowerfoxReading } from "./powerfox.js";
+import { fetchTibberReading } from "./tibber.js";
 
 const app = express();
 
@@ -193,6 +194,8 @@ app.get("/health", async (req, res) => {
     enode: enodeInfo(),
     // Powerfox: the server fetches readings from the Powerfox cloud itself.
     powerfox: { enabled: powerfoxEnabled(), linked: powerfoxEnabled() ? store.allPowerfox().length : 0 },
+    // Tibber Pulse: same idea, a personal token instead of a login (tibber.js).
+    tibber: { enabled: powerfoxEnabled(), linked: powerfoxEnabled() ? store.allTibber().length : 0 },
     // Scheduled hands-off auto-submit (Step 3) — on when AUTO_SUBMIT_MS ≥ 60000.
     autoSubmit: Number(process.env.AUTO_SUBMIT_MS || 0) >= 60000,
     // Readers' readings are paid the moment they arrive (no tap in the app).
@@ -1206,6 +1209,59 @@ app.post("/meter/powerfox/unlink", async (req, res) => {
   res.json({ ok: true, unlinked: had });
 });
 
+// ── Tibber: this server fetches the reading from the Tibber cloud ───────────
+// Same shape as Powerfox: the wallet signs once, the personal access token is
+// tried against Tibber right away, then kept sealed and used only to read the
+// meter. It feeds an ordinary meter link, so every payout rule applies.
+app.post("/meter/tibber/link", async (req, res) => {
+  if (!powerfoxEnabled()) return res.status(503).json({ error: "the Tibber connection isn't switched on for this server yet" });
+  if (!store.loaded()) return res.status(503).json({ error: notReadyMessage() });
+  const address = String(req.body.address || "");
+  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
+  if (banned(address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
+  {
+    const c = await requireBoundCert(req, ["Green Utility Log — link Tibber"]);
+    if (!c.ok) return res.status(c.code).json({ error: c.error });
+  }
+  const tibberToken = String(req.body.tibberToken || "").trim();
+  if (!/^[A-Za-z0-9._~+/=-]{20,400}$/.test(tibberToken)) {
+    return res.status(400).json({ error: "paste the personal access token from developer.tibber.com" });
+  }
+  const meterNo = String(req.body.meterNo || "").trim();
+  if (!meterNo) return res.status(400).json({ error: "register your meter number first" });
+  const owner = store.meterOwner("electric", meterNo.toLowerCase());
+  if (owner && owner !== address.toLowerCase()) return res.status(403).json({ error: "this meter is registered to another wallet" });
+
+  const r = await fetchTibberReading(tibberToken);
+  if (!r.ok) return res.status(r.code === "unreachable" ? 503 : 400).json({ error: r.error, code: r.code });
+
+  const existing = store.getLinkByAddress(address);
+  const token = existing ? existing.token : randomBytes(24).toString("hex");
+  const carried = existing && String(existing.meterNo || "").toLowerCase() === meterNo.toLowerCase()
+    ? { autoPaidAt: existing.autoPaidAt, rebasedAt: existing.rebasedAt, lastPayout: existing.lastPayout } : {};
+  const link = { ...carried, address: address.toLowerCase(), meterNo, utility: "electric", source: "tibber", createdAt: existing?.createdAt || Date.now() };
+  store.setMeterLink(token, link);
+  store.setTibber(address, { cred: sealCredentials("tibber", tibberToken), token, homeId: r.homeId, linkedAt: Date.now(), lastPullAt: Date.now(), lastError: null });
+  store.setLinkReading(address, { reading: r.reading, meterNo, at: r.at, source: "tibber" });
+  await store.flush();
+  console.log(`[tibber] ${shortAddr(address)} linked`);
+  res.json({ ok: true, token, reading: r.reading, at: r.at });
+  if (AUTO_CLAIM_ON_PUSH) setImmediate(() => { autoSettle({ token, ...link }, "tibber").catch(() => {}); });
+});
+
+// Forget the Tibber token: deleted at once.
+app.post("/meter/tibber/unlink", async (req, res) => {
+  const address = String(req.body.address || "");
+  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
+  {
+    const c = await requireBoundCert(req, ["Green Utility Log — unlink Tibber"]);
+    if (!c.ok) return res.status(c.code).json({ error: c.error });
+  }
+  const had = store.delTibber(address);
+  await store.flush();
+  res.json({ ok: true, unlinked: had });
+});
+
 // Wake-up call for a server that sleeps between requests (free plan): a scheduled
 // GitHub workflow calls this every hour, and the Powerfox pull runs. No secret is
 // needed — it only starts work the server would do on its own, at most once every
@@ -1215,7 +1271,8 @@ app.get("/cron/tick", async (req, res) => {
   if (Date.now() - lastCronTick < 10 * 60 * 1000) return res.json({ ok: true, skipped: "ran recently" });
   lastCronTick = Date.now();
   const pulled = await powerfoxTick("cron").catch(() => 0);
-  res.json({ ok: true, powerfox: pulled });
+  const tibber = await tibberTick("cron").catch(() => 0);
+  res.json({ ok: true, powerfox: pulled, tibber });
 });
 
 // The endpoint a reader posts to. Token-authed (the token IS the secret binding to
@@ -1336,6 +1393,7 @@ app.get("/meter/latest", (req, res) => {
     autoClaimOnPush: AUTO_CLAIM_ON_PUSH,
     // A Powerfox account fetched by this server: when, and the last problem if any.
     powerfox: (() => { const pf = store.getPowerfox(address); return pf ? { linked: true, lastPullAt: pf.lastPullAt || null, lastError: pf.lastError || null } : null; })(),
+    tibber: (() => { const tb = store.getTibber(address); return tb ? { linked: true, lastPullAt: tb.lastPullAt || null, lastError: tb.lastError || null } : null; })(),
   });
 });
 
@@ -1763,8 +1821,34 @@ async function powerfoxTick(why = "timer") {
   } finally { powerfoxBusy = false; }
   return n;
 }
-setTimeout(() => { powerfoxTick().catch(() => {}); }, 45000).unref();
-setInterval(() => { powerfoxTick().catch(() => {}); }, 15 * 60 * 1000).unref();
+
+// The same for Tibber accounts (tibber.js).
+let tibberBusy = false;
+async function tibberTick(why = "timer") {
+  if (!powerfoxEnabled() || tibberBusy || !store.ready()) return 0;
+  tibberBusy = true;
+  let n = 0;
+  try {
+    for (const acc of store.allTibber()) {
+      if (why !== "force" && Date.now() - (acc.lastPullAt || 0) < 50 * 60 * 1000) continue;
+      const link = acc.token ? store.getMeterLink(acc.token) : null;
+      const creds = openCredentials(acc.cred);
+      if (!link || !creds) {
+        store.setTibber(acc.address, { ...acc, lastPullAt: Date.now(), lastError: "reconnect Tibber in the app" });
+        continue;
+      }
+      const r = await fetchTibberReading(creds.pass);
+      store.setTibber(acc.address, { cred: acc.cred, token: acc.token, homeId: r.ok ? r.homeId : acc.homeId, linkedAt: acc.linkedAt, lastPullAt: Date.now(), lastError: r.ok ? null : r.error });
+      if (!r.ok) continue;
+      store.setLinkReading(acc.address, { reading: r.reading, meterNo: link.meterNo || null, at: r.at, source: "tibber" });
+      n++;
+      if (AUTO_CLAIM_ON_PUSH) await autoSettle({ token: acc.token, ...link }, "tibber").catch(() => {});
+    }
+  } finally { tibberBusy = false; }
+  return n;
+}
+setTimeout(() => { powerfoxTick().catch(() => {}); tibberTick().catch(() => {}); }, 45000).unref();
+setInterval(() => { powerfoxTick().catch(() => {}); tibberTick().catch(() => {}); }, 15 * 60 * 1000).unref();
 
 async function autoSubmitTick() {
   for (const link of store.allMeterLinks()) await autoSettle(link, "timer");

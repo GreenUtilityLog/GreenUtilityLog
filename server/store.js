@@ -28,7 +28,7 @@ const REDIS_KEY = process.env.STATE_KEY || "greenutilitylog:state";
 // `passes` is the access-pass registry (address → pass); `passesInit` records that the
 // one-time grandfathering has run, so turning REQUIRE_PASS on can't silently cut off
 // every existing tester — and can't re-grant a pass an admin has since revoked.
-const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {}, autoPaid: {}, payLog: [], prints: [], payDays: {}, meterRegs: {}, settings: {}, powerfox: {}, devices: {} };
+const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {}, autoPaid: {}, payLog: [], prints: [], payDays: {}, meterRegs: {}, settings: {}, powerfox: {}, tibber: {}, devices: {} };
 // A fresh copy each time. Spreading EMPTY copies only its top level: every
 // "empty" state then shared EMPTY's own maps, so writing to one wrote to all of
 // them — and to the next "empty" state read from Redis.
@@ -570,6 +570,19 @@ export const store = {
     return w;
   },
   deviceCount: () => (isMap(state.devices) ? Object.keys(state.devices).length : 0),
+  // Tibber accounts, per wallet: { cred (sealed token, see tibber.js), token (the
+  // meter link it feeds), homeId, linkedAt, lastPullAt, lastError }.
+  getTibber: (addr) => {
+    const k = String(addr || "").toLowerCase();
+    return isMap(state.tibber) && Object.prototype.hasOwnProperty.call(state.tibber, k) ? state.tibber[k] : null;
+  },
+  setTibber: (addr, obj) => { if (!isMap(state.tibber)) state.tibber = {}; state.tibber[String(addr).toLowerCase()] = obj; persist(); },
+  delTibber: (addr) => {
+    const k = String(addr || "").toLowerCase();
+    if (isMap(state.tibber) && Object.prototype.hasOwnProperty.call(state.tibber, k)) { delete state.tibber[k]; persist(); return true; }
+    return false;
+  },
+  allTibber: () => Object.entries(isMap(state.tibber) ? state.tibber : {}).map(([address, v]) => ({ address, ...v })),
   allPowerfox: () => Object.entries(isMap(state.powerfox) ? state.powerfox : {}).map(([address, v]) => ({ address, ...v })),
   // Own keys only: a token of "__proto__" would otherwise find Object.prototype.
   getMeterLink: (token) => (Object.prototype.hasOwnProperty.call(state.meterLinks, token) ? state.meterLinks[token] : null),
