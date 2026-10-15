@@ -2285,6 +2285,7 @@ function TodayPanel({ subs, wallet, setTab, onOpenReader, T }) {
     let stop = false;
     let token = "";
     try { token = localStorage.getItem(`gul_mtoken_${wallet.toLowerCase()}`) || ""; } catch { /* no storage */ }
+    if (!validDeviceToken(token)) token = "";
     fetchT(`${REWARD_API.replace(/\/$/, "")}/meter/latest?address=${wallet}`, token ? { headers: { "x-device-token": token } } : undefined)
       .then(r => (r.ok ? r.json() : null))
       .then(d => {
@@ -2439,6 +2440,23 @@ function HomeScreen({ b3tr, walletB3tr, streak, subs, setTab, wallet, onOpenRead
   );
 }
 
+// A device token is 24 random bytes in hex (server: /meter/pair). The token goes
+// into shell commands and YAML the user pastes, so anything else — a tampered
+// localStorage entry, an odd server answer — is never rendered or sent.
+const validDeviceToken = (t) => /^[0-9a-f]{48}$/.test(String(t || ""));
+
+// Our Home Assistant integration sends to the bridge's default server unless told
+// otherwise. A build with its own backend (INGEST_FLAG set: mainnet, say) has to
+// say so, or readings land on the wrong server and are never paid.
+function IngestUrlStep({ API }) {
+  if (!INGEST_FLAG) return null;
+  return (
+    <li>In the same setup screen, set <b>Server address</b> to{" "}
+      <span style={{ fontFamily: "'SF Mono',Menlo,monospace", wordBreak: "break-all" }}>{`${API}/meter-ingest`}</span>{" "}
+      — the integration's default is a different server.</li>
+  );
+}
+
 // ── Smart-meter card (beta) ──────────────────────────────────────────────────
 // The friendly, photoless path. Everyday users just type their current reading and
 // tap one button — no camera, no OCR. Under the hood the value goes to the same
@@ -2519,7 +2537,7 @@ function TibberSetup({ T, API, wallet, meterNo, token, latest, health, onLinked,
           {tb?.linked ? (<>
             <div style={{ fontSize: 12.5, fontWeight: 800, color: T.text }}>✅ Tibber is connected</div>
             <div style={{ fontSize: 11, color: T.textSoft, marginTop: 4, lineHeight: 1.5 }}>
-              We fetch your reading every hour{tb.lastPullAt ? ` — last time ${fmtWhen(tb.lastPullAt)}` : ""}. Payouts follow automatically.
+              We fetch your reading every hour{tb.lastPullAt ? ` — last time ${fmtWhen(tb.lastPullAt)}` : ""}. Payouts follow automatically — after your first photo submission, which sets the starting point (until then, automatic readings are not paid).
             </div>
             {tb.lastError && <div style={{ fontSize: 11, color: T.gas, marginTop: 6, lineHeight: 1.5 }}>⚠️ {tb.lastError}</div>}
             <button type="button" disabled={busy} onClick={disconnect} style={{ marginTop: 10, minHeight: 40, padding: "0 12px", borderRadius: 6, border: `1px solid ${T.border}`, background: "transparent", color: T.textMid, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
@@ -2549,11 +2567,17 @@ function TibberSetup({ T, API, wallet, meterNo, token, latest, health, onLinked,
             <li>In Home Assistant: <b>Settings → Devices &amp; services → Add integration → Tibber</b>. Paste your Tibber token.</li>
             <li>Add <b>our</b> integration (HACS → custom repository <span style={{ fontFamily: "'SF Mono',Menlo,monospace" }}>GreenUtilityLog/GreenUtilityLog</span> → GreenUtilityLog).</li>
             <li>Paste your device token: <span style={{ fontFamily: "'SF Mono',Menlo,monospace", wordBreak: "break-all" }}>{token}</span></li>
+            <IngestUrlStep API={API} />
             <li>Pick the Tibber sensor <b>Last meter consumption</b> (kWh) — the meter's own total.</li>
           </ol>
           <button type="button" onClick={() => copy(token, "tbtok")} style={{ marginTop: 8, padding: "6px 10px", fontSize: 11, fontWeight: 700, borderRadius: 6, border: "none", background: copied === "tbtok" ? T.green3 : T.textSoft, color: "#fff", cursor: "pointer" }}>
             {copied === "tbtok" ? "✓ Token copied" : "Copy token"}
           </button>
+          {INGEST_FLAG && (
+            <button type="button" onClick={() => copy(`${API}/meter-ingest`, "tburl")} style={{ marginTop: 8, marginLeft: 6, padding: "6px 10px", fontSize: 11, fontWeight: 700, borderRadius: 6, border: "none", background: copied === "tburl" ? T.green3 : T.textSoft, color: "#fff", cursor: "pointer" }}>
+              {copied === "tburl" ? "✓ Address copied" : "Copy server address"}
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -2645,7 +2669,7 @@ ${fetchCmd(`--token=${token} --powerfox=YOUR_POWERFOX_EMAIL --install${INGEST_FL
           {pf?.linked ? (<>
             <div style={{ fontSize: 12.5, fontWeight: 800, color: T.text }}>✅ Powerfox is connected</div>
             <div style={{ fontSize: 11, color: T.textSoft, marginTop: 4, lineHeight: 1.5 }}>
-              We fetch your reading every hour{pf.lastPullAt ? ` — last time ${fmtWhen(pf.lastPullAt)}` : ""}. Payouts follow automatically.
+              We fetch your reading every hour{pf.lastPullAt ? ` — last time ${fmtWhen(pf.lastPullAt)}` : ""}. Payouts follow automatically — after your first photo submission, which sets the starting point (until then, automatic readings are not paid).
             </div>
             {pf.lastError && <div style={{ fontSize: 11, color: T.gas, marginTop: 6, lineHeight: 1.5 }}>⚠️ {pf.lastError}</div>}
             <button type="button" disabled={busy} onClick={disconnect} style={{ marginTop: 10, minHeight: 40, padding: "0 12px", borderRadius: 6, border: `1px solid ${T.border}`, background: "transparent", color: T.textMid, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
@@ -2698,11 +2722,20 @@ ${fetchCmd(`--token=${token} --powerfox=YOUR_POWERFOX_EMAIL --install${INGEST_FL
             <li>In Home Assistant: <b>Settings → Devices &amp; services → Add integration → Powerfox</b>. Log in with your Powerfox account.</li>
             <li>Add <b>our</b> integration (HACS → custom repository <span style={{ fontFamily: "'SF Mono',Menlo,monospace" }}>GreenUtilityLog/GreenUtilityLog</span> → GreenUtilityLog).</li>
             <li>Paste your device token: <span style={{ fontFamily: "'SF Mono',Menlo,monospace", wordBreak: "break-all" }}>{token}</span></li>
-            <li>Pick the Powerfox sensor <b>Energy usage</b> (kWh). Meter with two tariffs and that one stays empty? Make a helper that adds the high- and low-tariff sensors, and pick that.</li>
+            <IngestUrlStep API={API} />
+            {/* Not "Combine the state of several sensors": that helper's state_class
+                is measurement, and our integration refuses a sensor that can reset.
+                A sensor group of the two total_increasing registers stays one. */}
+            <li>Pick the Powerfox sensor <b>Energy usage</b> (kWh). Meter with two tariffs and that one stays empty? Add the high- and low-tariff sensors together with <b>Settings → Devices &amp; services → Helpers → Create helper → Group → Sensor group</b>, type <b>Sum</b>, and pick that group.</li>
           </ol>
           <button type="button" onClick={() => copy(token, "pftok")} style={{ marginTop: 8, padding: "6px 10px", fontSize: 11, fontWeight: 700, borderRadius: 6, border: "none", background: copied === "pftok" ? T.green3 : T.textSoft, color: "#fff", cursor: "pointer" }}>
             {copied === "pftok" ? "✓ Token copied" : "Copy token"}
           </button>
+          {INGEST_FLAG && (
+            <button type="button" onClick={() => copy(`${API}/meter-ingest`, "pfurl")} style={{ marginTop: 8, marginLeft: 6, padding: "6px 10px", fontSize: 11, fontWeight: 700, borderRadius: 6, border: "none", background: copied === "pfurl" ? T.green3 : T.textSoft, color: "#fff", cursor: "pointer" }}>
+              {copied === "pfurl" ? "✓ Address copied" : "Copy server address"}
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -2760,7 +2793,8 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
   }, [API]);
   useEffect(() => {
     if (!tkKey) { setToken(""); return; }
-    try { setToken(localStorage.getItem(tkKey) || ""); } catch { /* no storage */ }
+    // An invalid stored token counts as none: pairing again replaces it.
+    try { const t = localStorage.getItem(tkKey) || ""; setToken(validDeviceToken(t) ? t : ""); } catch { /* no storage */ }
   }, [tkKey]);
   useEffect(() => {
     if (!open || !wallet) return;
@@ -2779,6 +2813,7 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
     const r = await fetchT(`${API}/meter/pair`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: wallet, meterNo: meterNo || "", certificate }) });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || `pairing failed (${r.status})`);
+    if (!validDeviceToken(d.token)) throw new Error("pairing failed (the server sent an unexpected device token)");
     setToken(d.token);
     try { localStorage.setItem(tkKey, d.token); } catch { /* no storage */ }
     return d.token;
@@ -2802,7 +2837,8 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || `pairing failed (${r.status})`);
-      const changed = d.token && d.token !== token;
+      if (!validDeviceToken(d.token)) throw new Error("re-linking failed (the server sent an unexpected device token)");
+      const changed = d.token !== token;
       setToken(d.token);
       try { localStorage.setItem(tkKey, d.token); } catch { /* no storage */ }
       setRelinked(changed ? "new" : "same");
@@ -3129,7 +3165,9 @@ ${fetchCmd(`--token=${token} --tasmota=TASMOTA_IP --install${INGEST_FLAG}`)}
 #   HACS → ⋮ → Custom repositories → add (type: Integration):
 #   https://github.com/GreenUtilityLog/GreenUtilityLog
 #   Then: Settings → Devices & services → Add integration → GreenUtilityLog.
-#   Paste your token, pick your meter sensor from the list. Done.
+#   Paste your token, pick your meter sensor from the list.${INGEST_FLAG ? `
+#   Set "Server address" to ${ingestUrl}
+#   (the integration's default is a different server).` : ""} Done.
 #
 # Prefer to wire it yourself instead? Use the YAML below.
 # configuration.yaml — works with (almost) any meter Home Assistant supports
@@ -3186,12 +3224,12 @@ ${fetchCmd(`--token=${token} --install --url=http://<reader-ip>/api/v1/data${ING
                             command — the Home Assistant route is YAML, same everywhere. */}
                         {device === "powerfox" && (
                           <PowerfoxSetup T={T} API={API} wallet={wallet} meterNo={meterNo} token={token} latest={latest} health={health}
-                            onLinked={(tk) => { if (tk && tk !== token) { setToken(tk); try { localStorage.setItem(tkKey, tk); } catch { /* no storage */ } } refreshLatest(); }}
+                            onLinked={(tk) => { if (validDeviceToken(tk) && tk !== token) { setToken(tk); try { localStorage.setItem(tkKey, tk); } catch { /* no storage */ } } refreshLatest(); }}
                             requestCertificate={requestCertificate} copy={copy} copied={copied} os={os} setOs={setOs} fetchCmd={fetchCmd} needNode={needNode} />
                         )}
                         {device === "tibber" && (
                           <TibberSetup T={T} API={API} wallet={wallet} meterNo={meterNo} token={token} latest={latest} health={health}
-                            onLinked={(tk) => { if (tk && tk !== token) { setToken(tk); try { localStorage.setItem(tkKey, tk); } catch { /* no storage */ } } refreshLatest(); }}
+                            onLinked={(tk) => { if (validDeviceToken(tk) && tk !== token) { setToken(tk); try { localStorage.setItem(tkKey, tk); } catch { /* no storage */ } } refreshLatest(); }}
                             requestCertificate={requestCertificate} copy={copy} copied={copied} />
                         )}
 
@@ -3307,7 +3345,7 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
   // paired (its device token is cached); otherwise the default path is just Photo,
   // with a quiet link at the bottom for anyone who wants to set a reader up.
   const hasReader = (() => {
-    try { return !!localStorage.getItem(`gul_mtoken_${String(wallet || "").toLowerCase()}`); } catch { return false; }
+    try { return validDeviceToken(localStorage.getItem(`gul_mtoken_${String(wallet || "").toLowerCase()}`)); } catch { return false; }
   })();
   const showMethodSwitch = autoAvailable && hasReader;
   const methodBtn = (active) => ({
@@ -5542,7 +5580,7 @@ const HELP_I18N = {
     ], faqs:[
       { q:"Where do I find my meter number?", a:"Two spots on the meter:\n1) On the little screen — press the meter's buttons until the number appears.\n2) Under the barcode, on a sticker on the front or side.\nEnter the whole number including the letter — electricity usually starts with E, gas with G. It's also on your energy bill or your supplier's online account." },
       { q:"Automatic reading (P1 reader / HomeWizard / Powerfox / Tibber)", a:"With a P1 reader, Home Assistant, or another reader, your meter can send its own reading — then you never photograph again.\nHave a Powerfox (poweropti) or a Tibber Pulse? Pick it in the setup: we can fetch your reading from their cloud, nothing to install.\nDo one photo submission first (it sets your baseline), then open Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup for your token and the ready-made setup.\nFull step-by-step guide for every setup: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
-      { q:"Where do I paste the setup code?", a:"In a terminal on the device that stays on — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. That device needs Node.js 18+.\nUsing Home Assistant? No terminal at all — install our add-on.\nStep-by-step with screenshots of every route: https://greenutilitylog.github.io/GreenUtilityLog/guide.html\nToo technical? Just take a photo — that works just as well." },
+      { q:"Where do I paste the setup code?", a:"In a terminal on the device that stays on — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. That device needs Node.js 18+.\nUsing Home Assistant? No terminal at all — install our integration via HACS. (The separate GreenUtilityLog Meter Bridge add-on runs the bridge on Home Assistant OS instead.)\nStep-by-step with screenshots of every route: https://greenutilitylog.github.io/GreenUtilityLog/guide.html\nToo technical? Just take a photo — that works just as well." },
       { q:"Which meters work?", a:"Netherlands and Belgium: almost any smart meter with a P1 port (Belgian Fluvius meters need the free Fluvius key in the HomeWizard app once).\nGermany: a Powerfox poweropti, or a Tasmota reading head (Hichi).\nSweden, Norway, Denmark, Finland: a Tibber Pulse.\nFrance, UK, Spain, Italy: no P1 port — for now only through Home Assistant.\nEverywhere: if Home Assistant shows your meter's kWh total, it works. And photos always work.\nAll the details per country: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"Do I always need a photo?", a:"A photo is required for a hand-entered reading. A connected P1 reader can submit without a photo, because its device token binds the reading to your wallet." },
       { q:"Is this real money?", a:"No. Everything runs on VeChain testnet, so the B3TR you earn are test tokens with no real value — perfect for trying things out safely." },
@@ -5556,12 +5594,12 @@ const HELP_I18N = {
     steps:[
       { t:"Verbind je wallet", d:"Tik op Connect en open VeWorld (op Testnet) of WalletConnect. Dit is een test-app — er wordt geen echt geld gebruikt." },
       { t:"Registreer je meters", d:"Voer het nummer van je stroommeter en de huidige stand (het startpunt) in." },
-      { t:"Doe een inzending", d:"Ga naar Submit, kies een meter, fotografeer 'm (de app leest het nummer), controleer en verstuur." },
+      { t:"Doe een inzending", d:"Ga naar Meter, fotografeer je meter (de app leest het nummer), controleer het en verstuur." },
       { t:"Verdien B3TR", d:"Een geldige stand levert B3TR op testnet op. Zie je totaal op Home en je positie in het klassement." },
     ], faqs:[
       { q:"Waar vind ik mijn meternummer?", a:"Twee plekken op de meter:\n1) Op het schermpje — druk op de knopjes tot het nummer verschijnt.\n2) Onder de streepjescode, op een sticker aan de voor- of zijkant.\nNeem het hele nummer over, mét de letter — stroom begint meestal met E, gas met G. Het staat ook op je energierekening of in je online account bij je leverancier." },
       { q:"Automatisch uitlezen (P1-reader / HomeWizard / Powerfox / Tibber)", a:"Met een P1-reader, Home Assistant of een andere reader kan je meter z’n eigen stand doorsturen — dan fotografeer je nooit meer.\nHeb je een Powerfox (poweropti) of een Tibber Pulse? Kies die in de instellingen: wij kunnen je stand uit hun cloud halen, niets te installeren.\nDoe eerst één foto-inzending (dat zet je baseline), ga dan naar Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup voor je token en de kant-en-klare instellingen.\nVolledige stap-voor-stap gids voor elke situatie: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
-      { q:"Waar plak ik de setup-code?", a:"In een terminal op het apparaat dat altijd aan staat — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. Daar moet Node.js 18+ op staan.\nGebruik je Home Assistant? Dan helemaal geen terminal — installeer onze add-on.\nStap voor stap voor elke route: https://greenutilitylog.github.io/GreenUtilityLog/guide.html\nTe technisch? Maak gewoon een foto — dat werkt net zo goed." },
+      { q:"Waar plak ik de setup-code?", a:"In een terminal op het apparaat dat altijd aan staat — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. Daar moet Node.js 18+ op staan.\nGebruik je Home Assistant? Dan helemaal geen terminal — installeer onze integratie via HACS. (De aparte add-on GreenUtilityLog Meter Bridge draait in plaats daarvan de bridge op Home Assistant OS.)\nStap voor stap voor elke route: https://greenutilitylog.github.io/GreenUtilityLog/guide.html\nTe technisch? Maak gewoon een foto — dat werkt net zo goed." },
       { q:"Welke meters werken?", a:"Nederland en België: bijna elke slimme meter met een P1-poort (Belgische Fluvius-meters hebben één keer de gratis Fluvius-sleutel in de HomeWizard-app nodig).\nDuitsland: een Powerfox poweropti, of een Tasmota-leeskop (Hichi).\nZweden, Noorwegen, Denemarken, Finland: een Tibber Pulse.\nFrankrijk, VK, Spanje, Italië: geen P1-poort — voorlopig alleen via Home Assistant.\nOveral: toont Home Assistant de kWh-stand van je meter, dan werkt het. En foto’s werken altijd.\nAlles per land: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"Heb ik altijd een foto nodig?", a:"Voor een handmatig ingevoerde stand is een foto verplicht. Een gekoppelde P1-reader mag zonder foto insturen, omdat zijn device-token de stand aan jouw wallet koppelt." },
       { q:"Is dit echt geld?", a:"Nee. Alles draait op VeChain testnet, dus de B3TR die je verdient zijn test-tokens zonder echte waarde — perfect om veilig te testen." },
@@ -5575,12 +5613,12 @@ const HELP_I18N = {
     steps:[
       { t:"Wallet verbinden", d:"Tippe auf Connect und öffne VeWorld (auf Testnet) oder WalletConnect. Dies ist eine Test-App — es wird kein echtes Geld verwendet." },
       { t:"Zähler registrieren", d:"Gib die Nummer deines Stromzählers und den aktuellen Stand (den Startwert) ein." },
-      { t:"Stand einreichen", d:"Geh zu Submit, wähle einen Zähler, fotografiere ihn (die App liest die Nummer), prüfe und sende." },
+      { t:"Stand einreichen", d:"Geh zu Meter, fotografiere deinen Zähler (die App liest die Zahl), prüfe sie und sende." },
       { t:"B3TR verdienen", d:"Ein gültiger Stand belohnt dich mit B3TR im Testnet. Sieh dein Gesamt auf Home und deine Position in der Rangliste." },
     ], faqs:[
       { q:"Wo finde ich meine Zählernummer?", a:"Zwei Stellen am Zähler:\n1) Auf dem kleinen Display — drücke die Tasten, bis die Nummer erscheint.\n2) Unter dem Barcode, auf einem Aufkleber vorne oder seitlich.\nGib die ganze Nummer inklusive Buchstabe ein — Strom beginnt meist mit E, Gas mit G. Sie steht auch auf deiner Energierechnung oder im Online-Konto deines Anbieters." },
       { q:"Automatisches Auslesen (P1-Reader / HomeWizard / Powerfox / Tibber)", a:"Mit einem P1-Reader, Home Assistant oder einem anderen Reader kann dein Zähler seinen Stand selbst senden — dann fotografierst du nie wieder.\nDu hast einen Powerfox (poweropti) oder einen Tibber Pulse? Wähl ihn in der Einrichtung: Wir holen deinen Stand aus deren Cloud, nichts zu installieren.\nMach zuerst eine Foto-Einreichung (setzt den Basiswert), dann Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup für Token und fertige Einrichtung.\nVollständige Schritt-für-Schritt-Anleitung: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
-      { q:"Wo füge ich den Setup-Code ein?", a:"In einem Terminal auf dem Dauergerät — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. Dort muss Node.js 18+ installiert sein.\nDu nutzt Home Assistant? Gar kein Terminal — installiere unser Add-on.\nSchritt für Schritt für jede Route: https://greenutilitylog.github.io/GreenUtilityLog/guide.html\nZu technisch? Mach einfach ein Foto — das funktioniert genauso gut." },
+      { q:"Wo füge ich den Setup-Code ein?", a:"In einem Terminal auf dem Dauergerät — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. Dort muss Node.js 18+ installiert sein.\nDu nutzt Home Assistant? Gar kein Terminal — installiere unsere Integration über HACS. (Das separate Add-on GreenUtilityLog Meter Bridge betreibt stattdessen die Bridge auf Home Assistant OS.)\nSchritt für Schritt für jede Route: https://greenutilitylog.github.io/GreenUtilityLog/guide.html\nZu technisch? Mach einfach ein Foto — das funktioniert genauso gut." },
       { q:"Welche Zähler funktionieren?", a:"Niederlande und Belgien: fast jeder Smart-Zähler mit P1-Anschluss (belgische Fluvius-Zähler brauchen einmal den kostenlosen Fluvius-Schlüssel in der HomeWizard-App).\nDeutschland: ein Powerfox poweropti oder ein Tasmota-Lesekopf (Hichi).\nSchweden, Norwegen, Dänemark, Finnland: ein Tibber Pulse.\nFrankreich, UK, Spanien, Italien: kein P1-Port — vorerst nur über Home Assistant.\nÜberall: Zeigt Home Assistant den kWh-Stand deines Zählers, funktioniert es. Und Fotos gehen immer.\nAlles pro Land: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"Brauche ich immer ein Foto?", a:"Für einen manuell eingegebenen Stand ist ein Foto nötig. Ein verbundener P1-Reader darf ohne Foto senden, weil sein Geräte-Token den Stand an dein Wallet bindet." },
       { q:"Ist das echtes Geld?", a:"Nein. Alles läuft im VeChain-Testnet, die B3TR sind Test-Token ohne realen Wert — ideal zum sicheren Ausprobieren." },
@@ -5594,12 +5632,12 @@ const HELP_I18N = {
     steps:[
       { t:"Connectez votre wallet", d:"Touchez Connect et ouvrez VeWorld (sur Testnet) ou WalletConnect. C'est une app de test — aucun fonds réel n'est utilisé." },
       { t:"Enregistrez vos compteurs", d:"Saisissez le numéro de votre compteur d'électricité et son relevé actuel (le point de départ)." },
-      { t:"Envoyez un relevé", d:"Allez dans Submit, choisissez un compteur, photographiez-le (l'app lit le numéro), vérifiez et envoyez." },
+      { t:"Envoyez un relevé", d:"Allez dans Meter, photographiez votre compteur (l'app lit le relevé), vérifiez-le et envoyez." },
       { t:"Gagnez des B3TR", d:"Un relevé valide vous récompense en B3TR sur testnet. Suivez votre total sur Home et votre place au classement." },
     ], faqs:[
       { q:"Où trouver le numéro de mon compteur ?", a:"Deux endroits sur le compteur :\n1) Sur le petit écran — appuyez sur les boutons jusqu'à voir le numéro.\n2) Sous le code-barres, sur une étiquette à l'avant ou sur le côté.\nSaisissez tout le numéro avec la lettre — l'électricité commence souvent par E, le gaz par G. Il figure aussi sur votre facture ou votre compte en ligne fournisseur." },
       { q:"Lecture automatique (lecteur P1 / HomeWizard / Powerfox / Tibber)", a:"Avec un lecteur P1, Home Assistant ou un autre lecteur, votre compteur envoie son relevé lui-même — vous ne photographiez plus.\nVous avez un Powerfox (poweropti) ou un Tibber Pulse ? Choisissez-le dans la configuration : nous récupérons votre relevé dans leur cloud, rien à installer.\nFaites d'abord une soumission photo (fixe votre base), puis Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup pour le jeton et la configuration prête.\nGuide complet pas à pas : https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
-      { q:"Où coller le code de configuration ?", a:"Dans un terminal sur l\u2019appareil qui reste allumé — Windows : PowerShell · Mac : Terminal · Pi/NAS : SSH. Il faut Node.js 18+.\nVous utilisez Home Assistant ? Aucun terminal — installez notre add-on.\nPas à pas pour chaque route : https://greenutilitylog.github.io/GreenUtilityLog/guide.html\nTrop technique ? Prenez simplement une photo." },
+      { q:"Où coller le code de configuration ?", a:"Dans un terminal sur l\u2019appareil qui reste allumé — Windows : PowerShell · Mac : Terminal · Pi/NAS : SSH. Il faut Node.js 18+.\nVous utilisez Home Assistant ? Aucun terminal — installez notre intégration via HACS. (L’add-on séparé GreenUtilityLog Meter Bridge fait plutôt tourner le bridge sur Home Assistant OS.)\nPas à pas pour chaque route : https://greenutilitylog.github.io/GreenUtilityLog/guide.html\nTrop technique ? Prenez simplement une photo." },
       { q:"Quels compteurs fonctionnent ?", a:"Pays-Bas et Belgique : presque tout compteur intelligent avec un port P1 (les compteurs belges Fluvius demandent une fois la clé Fluvius gratuite dans l'app HomeWizard).\nAllemagne : un Powerfox poweropti, ou une tête de lecture Tasmota (Hichi).\nSuède, Norvège, Danemark, Finlande : un Tibber Pulse.\nFrance, Royaume-Uni, Espagne, Italie : pas de port P1 — pour l'instant seulement via Home Assistant.\nPartout : si Home Assistant affiche le total kWh de votre compteur, ça marche. Et les photos marchent toujours.\nTout par pays : https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"Faut-il toujours une photo ?", a:"Une photo est requise pour un relevé saisi à la main. Un lecteur P1 connecté peut envoyer sans photo, car son jeton d'appareil lie le relevé à votre wallet." },
       { q:"Est-ce de l'argent réel ?", a:"Non. Tout tourne sur le testnet VeChain ; les B3TR gagnés sont des jetons de test sans valeur réelle — parfait pour essayer en toute sécurité." },
@@ -5613,12 +5651,12 @@ const HELP_I18N = {
     steps:[
       { t:"Conecta tu wallet", d:"Toca Connect y abre VeWorld (en Testnet) o WalletConnect. Es una app de prueba — no se usa dinero real." },
       { t:"Registra tus contadores", d:"Introduce el número de tu contador de luz y su lectura actual (el punto de partida)." },
-      { t:"Envía una lectura", d:"Ve a Submit, elige un contador, fotografíalo (la app lee el número), revísalo y envía." },
+      { t:"Envía una lectura", d:"Ve a Meter, fotografía tu contador (la app lee la lectura), revísala y envía." },
       { t:"Gana B3TR", d:"Una lectura válida te premia con B3TR en testnet. Mira tu total en Home y tu puesto en la clasificación." },
     ], faqs:[
       { q:"¿Dónde encuentro el número de mi contador?", a:"Dos sitios en el contador:\n1) En la pantallita — pulsa los botones hasta que aparezca el número.\n2) Bajo el código de barras, en una pegatina delante o al lado.\nIntroduce el número completo con la letra — la luz suele empezar por E, el gas por G. También está en tu factura o en la cuenta online de tu comercializadora." },
       { q:"Lectura automática (lector P1 / HomeWizard / Powerfox / Tibber)", a:"Con un lector P1, Home Assistant u otro lector, tu contador envía su lectura solo — ya no fotografías más.\n¿Tienes un Powerfox (poweropti) o un Tibber Pulse? Elígelo en la configuración: recogemos tu lectura de su nube, nada que instalar.\nHaz primero un envío con foto (fija tu base), luego Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup para el token y la configuración lista.\nGuía completa paso a paso: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
-      { q:"¿Dónde pego el código de configuración?", a:"En una terminal en el dispositivo que queda encendido — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. Necesita Node.js 18+.\n¿Usas Home Assistant? Ninguna terminal — instala nuestro add-on.\nPaso a paso para cada ruta: https://greenutilitylog.github.io/GreenUtilityLog/guide.html\n¿Demasiado técnico? Solo haz una foto." },
+      { q:"¿Dónde pego el código de configuración?", a:"En una terminal en el dispositivo que queda encendido — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. Necesita Node.js 18+.\n¿Usas Home Assistant? Ninguna terminal — instala nuestra integración vía HACS. (El add-on aparte GreenUtilityLog Meter Bridge ejecuta en cambio el bridge en Home Assistant OS.)\nPaso a paso para cada ruta: https://greenutilitylog.github.io/GreenUtilityLog/guide.html\n¿Demasiado técnico? Solo haz una foto." },
       { q:"¿Qué contadores funcionan?", a:"Países Bajos y Bélgica: casi cualquier contador inteligente con puerto P1 (los belgas de Fluvius necesitan una vez la clave gratuita de Fluvius en la app HomeWizard).\nAlemania: un Powerfox poweropti, o un cabezal Tasmota (Hichi).\nSuecia, Noruega, Dinamarca, Finlandia: un Tibber Pulse.\nFrancia, Reino Unido, España, Italia: sin puerto P1 — por ahora solo con Home Assistant.\nEn todas partes: si Home Assistant muestra el total kWh de tu contador, funciona. Y las fotos siempre funcionan.\nTodo por país: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"¿Siempre necesito una foto?", a:"Se requiere foto para una lectura escrita a mano. Un lector P1 conectado puede enviar sin foto, porque su token de dispositivo vincula la lectura a tu wallet." },
       { q:"¿Es dinero real?", a:"No. Todo corre en el testnet de VeChain; los B3TR son tokens de prueba sin valor real — perfecto para probar con seguridad." },
