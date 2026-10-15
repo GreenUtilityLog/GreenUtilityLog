@@ -55,7 +55,7 @@ Render → **New → Web Service** → deze repository.
 | `NETWORK` | `mainnet` |
 | `DISTRIBUTOR_PRIVATE_KEY` | sleutel van de distributor-wallet (of `DISTRIBUTOR_MNEMONIC`) |
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | van een **nieuwe, eigen** Upstash-database voor mainnet — niet die van testnet (zie hieronder) |
-| `STATE_KEY` | `greenutilitylog:mainnet` — **belangrijk**: houdt test- en echte gegevens ook gescheiden als er per ongeluk toch één database wordt gebruikt |
+| `STATE_KEY` | `greenutilitylog:mainnet` — **verplicht**: houdt test- en echte gegevens gescheiden; zonder "mainnet" in de sleutel weigert de mainnet-server te starten |
 | `ALLOWED_ORIGIN` | `https://greenutilitylog.github.io` |
 | `ANTHROPIC_API_KEY` | sterk aangeraden: controle stand + meternummer op de foto |
 | `MAX_PAYOUT_PER_SUBMISSION` | `1` voor de eerste week (veilige start), daarna weghalen (= 4) |
