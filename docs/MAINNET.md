@@ -59,7 +59,7 @@ Render → **New → Web Service** → deze repository.
 | `ADMIN_WALLETS` | alleen **jouw** wallet-adres (meerdere: met komma's) |
 | `DISTRIBUTOR_ADDRESS` | alleen bij `DISTRIBUTOR_MNEMONIC`: welk adres uit die woorden de distributor is |
 | `CERT_DOMAINS` | `greenutilitylog.github.io` — handtekeningen van andere sites worden dan geweigerd |
-| `POWERFOX_SECRET` | een lange willekeurige sleutel (anders dan op testnet) — zet de Powerfox-koppeling aan |
+| `POWERFOX_SECRET` | een lange willekeurige sleutel (anders dan op testnet) — zet de Powerfox- én Tibber-koppeling aan |
 
 **Alleen jij op mainnet (besloten start):** zo staat mainnet op "Alleen met rol". Wallets
 zonder rol zien een slotscherm en worden niet uitbetaald. Jij komt er als admin altijd in.

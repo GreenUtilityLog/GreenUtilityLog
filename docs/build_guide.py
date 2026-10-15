@@ -643,6 +643,132 @@ for _c, _p in PF.items():
     _d["trouble"][-1:-1] = _p["trouble"]
     _d.update({k: v for k, v in _p.items() if k not in ("route", "de_row", "trouble")})
 
+# ──────────────────────────────── ROUTE E: TIBBER ────────────────────────────────
+# A Tibber Pulse reads the HAN/P1 port (Sweden, Norway, Denmark, Finland and more)
+# and sends it to Tibber. Two ways in, as the app shows them: our server fetches it
+# with the user's personal token, or Home Assistant's Tibber integration feeds ours.
+TB = {}
+TB["en"] = dict(
+  route=("I have a Tibber Pulse", "Common in Sweden, Norway, Denmark and Finland. We fetch your reading from Tibber with your personal token — nothing to install.", 1, "Easiest"),
+  s_tb="Route E — Tibber Pulse",
+  tb_intro="A Tibber Pulse reads your meter's HAN or P1 port and sends the total to Tibber. Two ways to get it to us — <strong>you need only one</strong>.",
+  tb1_t="Option 1 — We fetch it for you (easiest)",
+  tb1=[
+    ("Copy your Tibber token", 'Open <span class="k">developer.tibber.com</span>, sign in with your Tibber account, open <strong>Access token</strong> and copy your personal token.', None, None, None),
+    ("Paste it in the app", f'In the app: <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Tibber → “We fetch it for you”</span>. Paste the token, tick the box and press <strong>Connect Tibber</strong>. It can take up to 30 seconds. Not there? Then this version doesn\'t offer it yet — use option 2.', "see", "Check it worked", 'The app shows <span class="k">Connected — Tibber reports … kWh</span>. Check that this matches your meter\'s total.'),
+  ],
+  tb2_t="Option 2 — With Home Assistant",
+  tb2=[
+    ("Add Tibber to Home Assistant", '<span class="k">Settings → Devices &amp; services → Add integration → Tibber</span>. Paste your Tibber token.', None, None, None),
+    ("Add our integration and pick the sensor", 'Follow Route A, <em>“With our integration”</em>, and as the sensor choose the Tibber sensor <strong>Last meter consumption</strong> (kWh) — the meter\'s own total.', None, None, None),
+  ],
+  rows={"se": "Tibber Pulse: Route E. Otherwise a P1/HAN reader, or Home Assistant.", "dk": "Tibber Pulse: Route E. Otherwise a reader with the right connector, or Home Assistant.", "no": "Tibber Pulse: Route E. Otherwise a Norwegian HAN reader + Home Assistant."},
+  trouble=[
+    ("Tibber didn't accept this token", "Copy the token again from developer.tibber.com, without spaces. Made a new token there? Then the old one stops working: connect again with the new one."),
+    ("no Tibber Pulse found on this account", "The Pulse has to be set up in the Tibber app, on the same account as the token."),
+    ("your Pulse sends live data but no meter total", "Not every meter reports its total through the HAN port. Then use photos, or another reader."),
+  ],
+)
+TB["nl"] = dict(
+  route=("Ik heb een Tibber Pulse", "Veel gebruikt in Zweden, Noorwegen, Denemarken en Finland. Wij halen je stand bij Tibber op met je persoonlijke token — niets te installeren.", 1, "Makkelijkst"),
+  s_tb="Route E — Tibber Pulse",
+  tb_intro="Een Tibber Pulse leest de HAN- of P1-poort van je meter en stuurt de stand naar Tibber. Twee manieren om die bij ons te krijgen — <strong>je hebt er maar één nodig</strong>.",
+  tb1_t="Optie 1 — Wij halen het voor je op (makkelijkst)",
+  tb1=[
+    ("Kopieer je Tibber-token", 'Open <span class="k">developer.tibber.com</span>, log in met je Tibber-account, open <strong>Access token</strong> en kopieer je persoonlijke token.', None, None, None),
+    ("Plak hem in de app", 'In de app: <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Tibber → “We fetch it for you”</span>. Plak de token, vink het vakje aan en druk op <strong>Connect Tibber</strong>. Dat kan tot 30 seconden duren. Staat het er niet? Dan biedt deze versie het nog niet aan — gebruik optie 2.', "see", "Controleren of het werkt", 'De app toont <span class="k">Connected — Tibber reports … kWh</span>. Kijk of dat klopt met de stand op je meter.'),
+  ],
+  tb2_t="Optie 2 — Met Home Assistant",
+  tb2=[
+    ("Tibber toevoegen aan Home Assistant", '<span class="k">Instellingen → Apparaten &amp; diensten → Integratie toevoegen → Tibber</span>. Plak je Tibber-token.', None, None, None),
+    ("Onze integratie toevoegen en de sensor kiezen", 'Volg Route A, <em>“Met onze integratie”</em>, en kies als sensor de Tibber-sensor <strong>Last meter consumption</strong> (kWh) — de eigen meterstand van de meter.', None, None, None),
+  ],
+  rows={"se": "Tibber Pulse: Route E. Anders een P1/HAN-reader, of Home Assistant.", "dk": "Tibber Pulse: Route E. Anders een reader met de juiste connector, of Home Assistant.", "no": "Tibber Pulse: Route E. Anders een Noorse HAN-reader + Home Assistant."},
+  trouble=[
+    ("Tibber didn't accept this token", "Kopieer de token opnieuw van developer.tibber.com, zonder spaties. Heb je daar een nieuwe token gemaakt? Dan werkt de oude niet meer: koppel opnieuw met de nieuwe."),
+    ("no Tibber Pulse found on this account", "De Pulse moet in de Tibber-app zijn ingesteld, op hetzelfde account als de token."),
+    ("your Pulse sends live data but no meter total", "Niet elke meter geeft zijn totaal door via de HAN-poort. Gebruik dan foto's, of een andere reader."),
+  ],
+)
+TB["de"] = dict(
+  route=("Ich habe einen Tibber Pulse", "Verbreitet in Schweden, Norwegen, Dänemark und Finnland. Wir holen deinen Stand bei Tibber mit deinem persönlichen Token — nichts zu installieren.", 1, "Am einfachsten"),
+  s_tb="Route E — Tibber Pulse",
+  tb_intro="Ein Tibber Pulse liest die HAN- oder P1-Schnittstelle deines Zählers und schickt den Stand an Tibber. Zwei Wege, wie er zu uns kommt — <strong>du brauchst nur einen</strong>.",
+  tb1_t="Option 1 — Wir holen ihn für dich (am einfachsten)",
+  tb1=[
+    ("Tibber-Token kopieren", 'Öffne <span class="k">developer.tibber.com</span>, melde dich mit deinem Tibber-Konto an, öffne <strong>Access token</strong> und kopiere deinen persönlichen Token.', None, None, None),
+    ("In der App einfügen", 'In der App: <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Tibber → „We fetch it for you“</span>. Token einfügen, Häkchen setzen und auf <strong>Connect Tibber</strong> tippen. Das kann bis zu 30 Sekunden dauern. Nicht da? Dann bietet diese Version es noch nicht an — nimm Option 2.', "see", "Prüfen, ob es klappt", 'Die App zeigt <span class="k">Connected — Tibber reports … kWh</span>. Prüf, ob das zum Zählerstand passt.'),
+  ],
+  tb2_t="Option 2 — Mit Home Assistant",
+  tb2=[
+    ("Tibber in Home Assistant hinzufügen", '<span class="k">Einstellungen → Geräte &amp; Dienste → Integration hinzufügen → Tibber</span>. Tibber-Token einfügen.', None, None, None),
+    ("Unsere Integration hinzufügen und den Sensor wählen", 'Folge Route A, <em>„Mit unserer Integration“</em>, und wähle als Sensor den Tibber-Sensor <strong>Last meter consumption</strong> (kWh) — den eigenen Zählerstand.', None, None, None),
+  ],
+  rows={"se": "Tibber Pulse: Route E. Sonst ein P1/HAN-Reader, oder Home Assistant.", "dk": "Tibber Pulse: Route E. Sonst ein Reader mit passendem Stecker, oder Home Assistant.", "no": "Tibber Pulse: Route E. Sonst ein norwegischer HAN-Reader + Home Assistant."},
+  trouble=[
+    ("Tibber didn't accept this token", "Kopier den Token noch einmal von developer.tibber.com, ohne Leerzeichen. Dort einen neuen Token erstellt? Dann gilt der alte nicht mehr: mit dem neuen erneut verbinden."),
+    ("no Tibber Pulse found on this account", "Der Pulse muss in der Tibber-App eingerichtet sein, im selben Konto wie der Token."),
+    ("your Pulse sends live data but no meter total", "Nicht jeder Zähler meldet seinen Gesamtstand über die HAN-Schnittstelle. Dann Fotos verwenden, oder einen anderen Reader."),
+  ],
+)
+TB["fr"] = dict(
+  route=("J'ai un Tibber Pulse", "Courant en Suède, Norvège, Danemark et Finlande. Nous récupérons votre relevé chez Tibber avec votre jeton personnel — rien à installer.", 1, "Le plus simple"),
+  s_tb="Route E — Tibber Pulse",
+  tb_intro="Un Tibber Pulse lit le port HAN ou P1 de votre compteur et envoie le relevé à Tibber. Deux façons de nous le faire parvenir — <strong>une seule suffit</strong>.",
+  tb1_t="Option 1 — Nous le récupérons pour vous (le plus simple)",
+  tb1=[
+    ("Copiez votre jeton Tibber", 'Ouvrez <span class="k">developer.tibber.com</span>, connectez-vous avec votre compte Tibber, ouvrez <strong>Access token</strong> et copiez votre jeton personnel.', None, None, None),
+    ("Collez-le dans l'app", 'Dans l\'app : <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Tibber → « We fetch it for you »</span>. Collez le jeton, cochez la case et appuyez sur <strong>Connect Tibber</strong>. Cela peut prendre jusqu\'à 30 secondes. Absent ? Cette version ne le propose pas encore — prenez l\'option 2.', "see", "Vérifier", 'L\'app affiche <span class="k">Connected — Tibber reports … kWh</span>. Vérifiez que cela correspond à votre compteur.'),
+  ],
+  tb2_t="Option 2 — Avec Home Assistant",
+  tb2=[
+    ("Ajoutez Tibber à Home Assistant", '<span class="k">Paramètres → Appareils et services → Ajouter une intégration → Tibber</span>. Collez votre jeton Tibber.', None, None, None),
+    ("Ajoutez notre intégration et choisissez le capteur", 'Suivez la Route A, <em>« Avec notre intégration »</em>, et choisissez comme capteur le capteur Tibber <strong>Last meter consumption</strong> (kWh) — le total du compteur lui-même.', None, None, None),
+  ],
+  rows={"se": "Tibber Pulse : Route E. Sinon un lecteur P1/HAN, ou Home Assistant.", "dk": "Tibber Pulse : Route E. Sinon un lecteur au bon connecteur, ou Home Assistant.", "no": "Tibber Pulse : Route E. Sinon un lecteur HAN norvégien + Home Assistant."},
+  trouble=[
+    ("Tibber didn't accept this token", "Recopiez le jeton depuis developer.tibber.com, sans espaces. Vous y avez créé un nouveau jeton ? L'ancien ne marche plus : reconnectez-vous avec le nouveau."),
+    ("no Tibber Pulse found on this account", "Le Pulse doit être configuré dans l'app Tibber, sur le même compte que le jeton."),
+    ("your Pulse sends live data but no meter total", "Tous les compteurs n'envoient pas leur total par le port HAN. Utilisez alors des photos, ou un autre lecteur."),
+  ],
+)
+TB["es"] = dict(
+  route=("Tengo un Tibber Pulse", "Habitual en Suecia, Noruega, Dinamarca y Finlandia. Recogemos tu lectura de Tibber con tu token personal — nada que instalar.", 1, "Lo más fácil"),
+  s_tb="Ruta E — Tibber Pulse",
+  tb_intro="Un Tibber Pulse lee el puerto HAN o P1 de tu contador y envía la lectura a Tibber. Dos formas de que nos llegue — <strong>solo necesitas una</strong>.",
+  tb1_t="Opción 1 — La recogemos por ti (lo más fácil)",
+  tb1=[
+    ("Copia tu token de Tibber", 'Abre <span class="k">developer.tibber.com</span>, inicia sesión con tu cuenta de Tibber, abre <strong>Access token</strong> y copia tu token personal.', None, None, None),
+    ("Pégalo en la app", 'En la app: <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Tibber → «We fetch it for you»</span>. Pega el token, marca la casilla y pulsa <strong>Connect Tibber</strong>. Puede tardar hasta 30 segundos. ¿No aparece? Esta versión aún no lo ofrece — usa la opción 2.', "see", "Comprueba que funciona", 'La app muestra <span class="k">Connected — Tibber reports … kWh</span>. Comprueba que coincide con tu contador.'),
+  ],
+  tb2_t="Opción 2 — Con Home Assistant",
+  tb2=[
+    ("Añade Tibber a Home Assistant", '<span class="k">Ajustes → Dispositivos y servicios → Añadir integración → Tibber</span>. Pega tu token de Tibber.', None, None, None),
+    ("Añade nuestra integración y elige el sensor", 'Sigue la Ruta A, <em>«Con nuestra integración»</em>, y elige como sensor el sensor de Tibber <strong>Last meter consumption</strong> (kWh) — el total del propio contador.', None, None, None),
+  ],
+  rows={"se": "Tibber Pulse: Ruta E. Si no, un lector P1/HAN, o Home Assistant.", "dk": "Tibber Pulse: Ruta E. Si no, un lector con el conector correcto, o Home Assistant.", "no": "Tibber Pulse: Ruta E. Si no, un lector HAN noruego + Home Assistant."},
+  trouble=[
+    ("Tibber didn't accept this token", "Vuelve a copiar el token de developer.tibber.com, sin espacios. ¿Creaste allí un token nuevo? El antiguo deja de funcionar: vuelve a conectar con el nuevo."),
+    ("no Tibber Pulse found on this account", "El Pulse tiene que estar configurado en la app de Tibber, en la misma cuenta que el token."),
+    ("your Pulse sends live data but no meter total", "No todos los contadores envían su total por el puerto HAN. Usa entonces fotos, u otro lector."),
+  ],
+)
+
+# Merge: the card goes before "none of these", the Nordic rows name Route E, and the
+# Tibber messages join the trouble table before its last row.
+for _c, _p in TB.items():
+    _d = L[_c]
+    _d["routes"].insert(len(_d["routes"]) - 1, _p["route"])
+    _rows = []
+    for a, b, x in _d["country_rows"]:
+        if a.startswith("🇸🇪"): x = _p["rows"]["se"]
+        elif a.startswith("🇩🇰"): x = _p["rows"]["dk"]
+        elif a.startswith("🇳🇴"): x = _p["rows"]["no"]
+        _rows.append((a, b, x))
+    _d["country_rows"] = _rows
+    _d["trouble"][-1:-1] = _p["trouble"]
+    _d.update({k: v for k, v in _p.items() if k not in ("route", "rows", "trouble")})
+
 COPY = {"en":"Copy","nl":"Kopieer","de":"Kopieren","fr":"Copier","es":"Copiar"}
 
 def steps(items, code_label_default=""):
@@ -714,6 +840,10 @@ def render(code, d):
     r.append(f'  <h2>{d["s_pf"]}</h2>\n  <p class="lede" style="font-size:15.5px">{d["pf_intro"]}</p>')
     r.append(f'  <div class="note"><b>{d["pf_first_t"]}</b>{d["pf_first_b"]}</div>')
     for k in ("pf1", "pf2", "pf3"):
+        r.append(f'  <h3 class="sub">{d[k + "_t"]}</h3>\n  {steps(d[k])}')
+    # route E — Tibber: two ways in, pick one
+    r.append(f'  <h2>{d["s_tb"]}</h2>\n  <p class="lede" style="font-size:15.5px">{d["tb_intro"]}</p>')
+    for k in ("tb1", "tb2"):
         r.append(f'  <h3 class="sub">{d[k + "_t"]}</h3>\n  {steps(d[k])}')
     # Sits right before "claim it in the app", because that is where a reader with no
     # Pi or NAS decides this is not for them. It is, and always was — a reading only

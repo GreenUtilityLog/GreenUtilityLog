@@ -19,7 +19,8 @@
     "@vechain/sdk-network": "2.0.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
-    "express": "^4.22.3"
+    "express": "^4.22.3",
+    "ws": "^8.21.0"
   },
   "optionalDependencies": {
     "aws4fetch": "^1.0.20",
