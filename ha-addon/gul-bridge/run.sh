@@ -6,8 +6,8 @@ set -e
 
 TOKEN="$(bashio::config 'token')"
 if [ -z "${TOKEN}" ] || [ "${TOKEN}" = "null" ]; then
-  bashio::log.fatal "No device token set. Open the app → Meter → Electricity →"
-  bashio::log.fatal "Automatic setup → 'Get my device token', then paste it into"
+  bashio::log.fatal "No device token set. Open the app → Meter → ⚡ Have a P1 reader? →"
+  bashio::log.fatal "⚙️ Automatic setup → 'Get my device token', then paste it into"
   bashio::log.fatal "this add-on's Configuration tab and restart."
   bashio::exit.nok
 fi

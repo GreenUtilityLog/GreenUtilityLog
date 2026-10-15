@@ -1,5 +1,5 @@
 name: GreenUtilityLog Meter Bridge
-version: "1.3.0"
+version: "1.4.0"
 slug: gul_bridge
 description: Sends your smart-meter reading to GreenUtilityLog automatically — no terminal, no scripts.
 url: https://github.com/GreenUtilityLog/GreenUtilityLog/tree/main/bridge
@@ -24,7 +24,7 @@ options:
   powerfox_email: ""
   powerfox_password: ""
 schema:
-  # Device token from the app: Meter → Automatic setup.
+  # Device token from the app: Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup.
   token: str
   # Seconds between pushes (min 60, max once a minute is plenty for a meter).
   interval_sec: int(60,86400)
@@ -34,7 +34,8 @@ schema:
   read_url: str?
   # Optional: IP of a Tasmota IR reading head (e.g. Hichi) on the meter.
   tasmota_ip: str?
-  # Optional: dot-path to the kWh value in that JSON (auto-detected when empty).
+  # Optional: dot-path to the kWh value in that JSON (auto-detected when empty);
+  # a.b+c.d sends the sum of both, for two tariff registers.
   read_field: str?
   # Where readings are sent. Leave empty for the app's own server (it follows the
   # bridge's default, so it moves with the app); fill in only for the test copy of

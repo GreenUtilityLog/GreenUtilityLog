@@ -251,6 +251,7 @@
     url: &quot;https://greenutilitylog-rewards.onrender.com/meter-ingest&quot;
     method: POST
     content_type: &quot;application/json&quot;
+    timeout: 90  # seconds: the server can take a minute to wake up
     payload: &#x27;{&quot;token&quot;:&quot;YOUR_TOKEN&quot;,&quot;reading&quot;:{{ states(&quot;sensor.YOUR_ENTITY&quot;) | float }}}&#x27;
 
 # automations.yaml — twice a day (you can claim once per 20h)
@@ -265,7 +266,7 @@
       <p>In the <strong>HomeWizard Energy</strong> app: <span class="k">Settings → Meters → your P1 → Local API → ON</span>. This lets your own network read the meter.</p>
       </li>
       <li><p class="steptitle">Open PowerShell (or a terminal)</p>
-      <p><strong>Windows:</strong> press Start, type <em>PowerShell</em>, press Enter. <strong>Mac:</strong> open <em>Terminal</em>. <strong>Raspberry Pi / NAS:</strong> its own terminal, or over SSH. Everything below is typed into that window.</p>
+      <p><strong>Windows:</strong> press Start, type <em>PowerShell</em>, press Enter. <strong>Mac:</strong> open <em>Terminal</em>. <strong>Raspberry Pi / NAS:</strong> its own terminal, or over SSH. Everything below is typed into that window. On a Mac, stay in the home folder Terminal opens in (see step 5).</p>
       </li>
       <li><p class="steptitle">Check whether you already have Node</p>
       <p>Type this and press Enter. A version number — anything from <span class="k">v18</span> up — means you are set, and you can skip the next step. An error instead means Node isn’t installed yet.</p>
@@ -276,7 +277,7 @@
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copy</button><pre>winget install OpenJS.NodeJS.LTS</pre></div>
       </li>
       <li><p class="steptitle">Paste one line, press Enter</p>
-      <p>It downloads the helper and sends your first reading. It also schedules itself to report twice a day (Windows: Task Scheduler · Mac / Linux / Pi: cron), so you can close the window afterwards and it keeps working, even after a restart. This is the only time you run it.</p>
+      <p>It downloads the helper and sends your first reading. It also schedules itself to report twice a day (Windows: Task Scheduler · Mac / Linux / Pi: cron), so you can close the window afterwards and it keeps working, even after a restart. This is the only time you run it. <strong>Mac:</strong> paste it in a freshly opened Terminal, in your home folder — don’t <span class="k">cd</span> into Desktop, Documents or Downloads first: macOS doesn’t let the schedule (cron) read files there, so it would never run.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copy</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copy</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
@@ -286,24 +287,24 @@
       </li>
       </ol>
   <h2>Route C — Another reader (P1 reader, Tasmota reading head)</h2>
-  <p class="lede" style="font-size:15.5px">The same helper reads any device that serves its data as JSON over HTTP — you just tell it where. Do steps 2–4 of Route B first (terminal and Node); only the command below is different.</p>
+  <p class="lede" style="font-size:15.5px">The same helper reads any device on your network that serves the meter’s kWh total as JSON over HTTP, without a login — you just tell it where. Not every reader does: dsmr-reader’s API needs a key, and a Shelly counts its own energy, not the meter’s register. Do steps 2–4 of Route B first (terminal and Node); only the command below is different.</p>
   <ol class="steps">
       <li><p class="steptitle">Find your reader's data URL</p>
       <p>Open your reader's web page and look for the address that returns raw JSON (often something like <span class="k">/api/v1/data</span> or <span class="k">/api/v2/sm/actual</span>). Exact paths differ per brand — check your reader's own documentation.</p>
       </li>
       <li><p class="steptitle">Start the helper with that URL</p>
-      <p>Put your own address in place of the example one; it asks for your token itself. If the reading isn't found automatically, add <span class="k">--field=</span> with the dot-path to the kWh value in that JSON.</p>
+      <p>Put your own address in place of the example one; it asks for your token itself. If the reading isn't found automatically, add <span class="k">--field=</span> with the dot-path to the kWh value in that JSON. Only two tariff registers and no total (P1 Monitor, for one)? Join both paths with <span class="k">+</span> and it sends their sum, e.g. <span class="k">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copy</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copy</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
-      </li>
-      <li><p class="steptitle">Check it worked</p>
-      <p>The helper prints what it pushed.</p>
-      <div class="see"><b>Expected output</b><span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       <li><p class="steptitle">A Tasmota reading head (Hichi)?</p>
       <p>Use <span class="k">--tasmota=</span> with its IP instead of <span class="k">--url=</span>. The helper reads the meter total (<span class="k">Total_in</span>) by itself. Common on German, Austrian and Swiss meters.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copy</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copy</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      </li>
+      <li><p class="steptitle">Check it worked</p>
+      <p>The helper prints what it pushed.</p>
+      <div class="see"><b>Expected output</b><span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
   <h2>Route D — Powerfox (poweropti)</h2>
@@ -346,7 +347,7 @@
       <p>Follow Route A, <em>“With our integration”</em>: add us to HACS, install, restart and paste your token.</p>
       </li>
       <li><p class="steptitle">Pick the Powerfox meter sensor</p>
-      <p>As the sensor, choose the Powerfox sensor <strong>Energy usage</strong> (kWh). A meter with two tariffs where that one stays empty? Make a helper that adds the high- and low-tariff sensors (<span class="k">Settings → Devices &amp; services → Helpers → Combine the state of several sensors → Sum</span>) and pick that one.</p>
+      <p>As the sensor, choose the Powerfox sensor <strong>Energy usage</strong> (kWh). A meter with two tariffs where that one stays empty? Make a helper that adds the high- and low-tariff sensors (<span class="k">Settings → Devices &amp; services → Helpers → Create helper → Group → Sensor group</span>, type <strong>Sum</strong>; not “Combine the state of several sensors”, which our integration won’t take as a meter total) and pick that one.</p>
       </li>
       </ol>
   <h2>Route E — Tibber Pulse</h2>
@@ -374,10 +375,10 @@
   <h2>Finally: it pays by itself</h2>
   <ol class="steps">
       <li><p class="steptitle">Your reading appears by itself</p>
-      <p>In the app open <strong>Meter</strong>. Under <strong>“Auto-received”</strong> you'll see your meter total and when it arrived.</p>
+      <p>In the app open <strong>Meter</strong>. The <strong>⚡ Automatic reading</strong> panel says <span class="k">Connected — … kWh received</span>, with your meter total and when it arrived.</p>
       </li>
       <li><p class="steptitle">It is paid by itself</p>
-      <p>Nothing to tap: each reading is paid automatically when it arrives, at most once a day, and the app shows <strong>“✓ Paid”</strong>. Don't want to wait? <strong>Claim now</strong> does the same.</p>
+      <p>Nothing to tap: each reading is paid automatically when it arrives, at most once a day, and the panel’s <strong>Timeline</strong> shows <span class="k">Paid +… B3TR</span>. Don't want to wait? <strong>Claim now</strong> does the same.</p>
       </li>
       </ol>
   <div class="note flag"><b>🇧🇪 Belgium (Fluvius meters)</b>Digital Fluvius meters send encrypted data. Ask Fluvius for your free decryption key and enter it once in your reader's app — after that everything works the same.</div>
@@ -390,11 +391,11 @@
     <tr><td>couldn&#x27;t find a kWh number at …</td><td>Your reader’s JSON doesn’t use a name the helper knows. Add <span class="k">--field=</span> with the dot-path to the value, e.g. <span class="k">--field=electricity.import_kwh</span>.</td></tr>
     <tr><td>server said 401</td><td>The token is wrong or incomplete. Copy it again from the app and run <span class="k">node gul.js --token=… --install</span> once to replace the saved one.</td></tr>
     <tr><td>submit one photo reading first</td><td>Your meter has no starting point yet. Do one normal photo submission in the app — automatic readings never set the first value, so that a device cannot invent its own baseline. After that it pays out.</td></tr>
-    <tr><td>usage … is outside the plausible range</td><td>Almost always a <strong>double-tariff meter</strong>: the display keeps two registers (<span class="k">1.8.1</span> and <span class="k">1.8.2</span>) and your photo captured one of them, while your reader reports the total of both — so your starting point and your reader are on different scales. In the app, under <span class="k">Auto-received</span>, press <strong>&ldquo;Use this reading as my starting point&rdquo;</strong>. It pays nothing and only sets where counting begins. Possible until your first automatic payout.</td></tr>
+    <tr><td>usage … is outside the plausible range</td><td>Almost always a <strong>double-tariff meter</strong>: the display keeps two registers (<span class="k">1.8.1</span> and <span class="k">1.8.2</span>) and your photo captured one of them, while your reader reports the total of both — so your starting point and your reader are on different scales. In the app, in the <span class="k">⚡ Automatic reading</span> panel, press <strong>&ldquo;Use this reading as my starting point&rdquo;</strong>. It pays nothing and only sets where counting begins. Possible until your first automatic payout.</td></tr>
     <tr><td>this time photograph tariff register 2</td><td>Your meter shows two registers in turn and your photos take turns too: each time, photograph the one your last photo didn’t show. Wait until the display switches to the register the app names (<span class="k">1.8.1</span> or <span class="k">1.8.2</span>), then take the photo.</td></tr>
     <tr><td>tariff register 1 went down</td><td>Each register only counts up. Check that the low and normal tariff are each in their own box, in the same order as last time.</td></tr>
     <tr><td>the automatic reading is stale</td><td>A reading has to be under 48 hours old at the moment you claim it. The schedule tries every hour — look in <span class="k">.gul-bridge.log</span> next to <span class="k">gul.js</span> for why it failed, or run <span class="k">node gul.js --install</span> again. It is paid as soon as the log says <span class="k">pushed … ✓</span>.</td></tr>
-    <tr><td>Nothing under “Auto-received”</td><td>The helper hasn’t pushed successfully yet. Look at its window, or open <span class="k">.gul-bridge.log</span> in the same folder as gul.js: every run writes either <span class="k">pushed … ✓</span> or the reason it failed.</td></tr>
+    <tr><td>No reading in “⚡ Automatic reading”</td><td>The helper hasn’t pushed successfully yet. Look at its window, or open <span class="k">.gul-bridge.log</span> in the same folder as gul.js: every run writes either <span class="k">pushed … ✓</span> or the reason it failed.</td></tr>
     <tr><td>Not sure it is scheduled?</td><td>Windows: in PowerShell run <span class="k">schtasks /Query /TN GreenUtilityLog</span> — a line with <em>GreenUtilityLog</em> and a next run time means it is. Mac / Linux / Pi: <span class="k">crontab -l</span> should show a line ending in <em># GreenUtilityLog</em>. Nothing there? Paste the setup line once more.</td></tr>
     <tr><td>You set this up before 24 September</td><td>Paste the same line again once. The new helper waits for a server that is still waking up instead of giving up, writes every run to <span class="k">.gul-bridge.log</span>, and on Windows also runs on battery power.</td></tr>
     <tr><td>Powerfox didn&#x27;t accept the e-mail and password</td><td>Use exactly the e-mail and password of the Powerfox app (watch for a typo or a space). Changed your Powerfox password? Option 1: <strong>Connect Powerfox</strong> again with the new one. Option 2: paste the setup line again — it asks for the password.</td></tr>
@@ -474,6 +475,7 @@
     url: &quot;https://greenutilitylog-rewards.onrender.com/meter-ingest&quot;
     method: POST
     content_type: &quot;application/json&quot;
+    timeout: 90  # seconden: de server kan een minuut nodig hebben om wakker te worden
     payload: &#x27;{&quot;token&quot;:&quot;JOUW_TOKEN&quot;,&quot;reading&quot;:{{ states(&quot;sensor.JOUW_ENTITY&quot;) | float }}}&#x27;
 
 # automations.yaml — twee keer per dag (claimen kan 1x per 20 uur)
@@ -488,7 +490,7 @@
       <p>In de <strong>HomeWizard Energy</strong>-app: <span class="k">Instellingen → Meters → je P1 → Local API → AAN</span>. Hiermee mag je eigen netwerk de meter uitlezen.</p>
       </li>
       <li><p class="steptitle">PowerShell openen (of een terminal)</p>
-      <p><strong>Windows:</strong> druk op Start, typ <em>PowerShell</em>, Enter. <strong>Mac:</strong> open <em>Terminal</em>. <strong>Raspberry Pi / NAS:</strong> de terminal daar, of via SSH. Alles hieronder typ je in dat venster.</p>
+      <p><strong>Windows:</strong> druk op Start, typ <em>PowerShell</em>, Enter. <strong>Mac:</strong> open <em>Terminal</em>. <strong>Raspberry Pi / NAS:</strong> de terminal daar, of via SSH. Alles hieronder typ je in dat venster. Op een Mac: blijf in je thuismap, waar Terminal opent (zie stap 5).</p>
       </li>
       <li><p class="steptitle">Kijk of je Node al hebt</p>
       <p>Typ dit en druk op Enter. Krijg je een versienummer — alles vanaf <span class="k">v18</span> — dan ben je klaar en sla je de volgende stap over. Krijg je een foutmelding, dan staat Node er nog niet op.</p>
@@ -499,7 +501,7 @@
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieer</button><pre>winget install OpenJS.NodeJS.LTS</pre></div>
       </li>
       <li><p class="steptitle">Plak één regel, druk op Enter</p>
-      <p>Die haalt de helper op en stuurt meteen je eerste stand. Hij plant zichzelf ook in om twee keer per dag te rapporteren (Windows: Taakplanner · Mac / Linux / Pi: cron), dus je kunt het venster daarna gewoon sluiten — ook na een herstart blijft hij werken. Dit hoef je maar één keer te doen.</p>
+      <p>Die haalt de helper op en stuurt meteen je eerste stand. Hij plant zichzelf ook in om twee keer per dag te rapporteren (Windows: Taakplanner · Mac / Linux / Pi: cron), dus je kunt het venster daarna gewoon sluiten — ook na een herstart blijft hij werken. Dit hoef je maar één keer te doen. <strong>Mac:</strong> plak hem in een net geopende Terminal, in je thuismap — ga niet eerst met <span class="k">cd</span> naar Bureaublad, Documenten of Downloads: macOS laat de planning (cron) daar geen bestanden lezen, en dan draait hij nooit.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieer</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieer</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
@@ -509,24 +511,24 @@
       </li>
       </ol>
   <h2>Route C — Een andere reader (P1-reader, Tasmota-leeskop)</h2>
-  <p class="lede" style="font-size:15.5px">Hetzelfde hulpprogramma leest elk apparaat dat z’n data als JSON via HTTP aanbiedt — je zegt alleen waar. Doe eerst stap 2 t/m 4 van route B (terminal en Node); alleen het commando hieronder is anders.</p>
+  <p class="lede" style="font-size:15.5px">Hetzelfde hulpprogramma leest elk apparaat op je netwerk dat de kWh-stand van je meter als JSON via HTTP aanbiedt, zonder inlog — je zegt alleen waar. Niet elke reader doet dat: de API van dsmr-reader wil een sleutel, en een Shelly telt z’n eigen verbruik, niet het telwerk van de meter. Doe eerst stap 2 t/m 4 van route B (terminal en Node); alleen het commando hieronder is anders.</p>
   <ol class="steps">
       <li><p class="steptitle">Zoek de data-URL van je reader</p>
       <p>Open de webpagina van je reader en zoek het adres dat ruwe JSON teruggeeft (vaak zoiets als <span class="k">/api/v1/data</span> of <span class="k">/api/v2/sm/actual</span>). Exacte paden verschillen per merk — kijk in de documentatie van je reader.</p>
       </li>
       <li><p class="steptitle">Start het hulpprogramma met die URL</p>
-      <p>Zet je eigen adres op de plek van het voorbeeld; om je token vraagt hij zelf. Wordt de stand niet automatisch gevonden, zet er dan <span class="k">--field=</span> bij met het pad naar de kWh-waarde in die JSON.</p>
+      <p>Zet je eigen adres op de plek van het voorbeeld; om je token vraagt hij zelf. Wordt de stand niet automatisch gevonden, zet er dan <span class="k">--field=</span> bij met het pad naar de kWh-waarde in die JSON. Alleen twee tariefstanden en geen totaal (zoals bij P1 Monitor)? Zet beide paden aan elkaar met <span class="k">+</span>, dan stuurt hij de som, bijvoorbeeld <span class="k">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieer</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieer</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
-      </li>
-      <li><p class="steptitle">Controleer of het werkte</p>
-      <p>Het hulpprogramma laat zien wat het verstuurd heeft.</p>
-      <div class="see"><b>Dit hoor je te zien</b><span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       <li><p class="steptitle">Een Tasmota-leeskop (Hichi)?</p>
       <p>Gebruik <span class="k">--tasmota=</span> met het IP-adres in plaats van <span class="k">--url=</span>. Het hulpprogramma leest de meterstand (<span class="k">Total_in</span>) zelf. Veel gebruikt op Duitse, Oostenrijkse en Zwitserse meters.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieer</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieer</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      </li>
+      <li><p class="steptitle">Controleer of het werkte</p>
+      <p>Het hulpprogramma laat zien wat het verstuurd heeft.</p>
+      <div class="see"><b>Dit hoor je te zien</b><span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
   <h2>Route D — Powerfox (poweropti)</h2>
@@ -569,7 +571,7 @@
       <p>Volg Route A, <em>“Met onze integratie”</em>: voeg ons toe aan HACS, installeer, herstart en plak je token.</p>
       </li>
       <li><p class="steptitle">Kies de meter-sensor van Powerfox</p>
-      <p>Kies als sensor de Powerfox-sensor <strong>Energy usage</strong> (Energieverbruik, kWh). Meter met twee tarieven en blijft die leeg? Maak een helper die de sensoren voor hoog en laag tarief optelt (<span class="k">Instellingen → Apparaten &amp; diensten → Helpers → Combineer de status van meerdere sensoren → Som</span>) en kies die.</p>
+      <p>Kies als sensor de Powerfox-sensor <strong>Energy usage</strong> (Energieverbruik, kWh). Meter met twee tarieven en blijft die leeg? Maak een helper die de sensoren voor hoog en laag tarief optelt (<span class="k">Instellingen → Apparaten &amp; diensten → Helpers → Helper aanmaken → Groep → Sensorgroep</span>, type <strong>Som</strong>; niet “Combineer de status van meerdere sensoren”, die neemt onze integratie niet aan als meterstand) en kies die.</p>
       </li>
       </ol>
   <h2>Route E — Tibber Pulse</h2>
@@ -597,10 +599,10 @@
   <h2>Tot slot: het betaalt vanzelf uit</h2>
   <ol class="steps">
       <li><p class="steptitle">Je stand verschijnt vanzelf</p>
-      <p>Ga in de app naar <strong>Meter</strong>. Onder <strong>“Auto-received”</strong> zie je je meterstand en hoe laat die binnenkwam.</p>
+      <p>Ga in de app naar <strong>Meter</strong>. Het paneel <strong>⚡ Automatic reading</strong> meldt <span class="k">Connected — … kWh received</span>, met je meterstand en hoe laat die binnenkwam.</p>
       </li>
       <li><p class="steptitle">Hij wordt vanzelf uitbetaald</p>
-      <p>Niets te tikken: elke stand wordt automatisch uitbetaald zodra hij binnenkomt, hooguit één keer per dag, en de app laat <strong>“✓ Paid”</strong> zien. Geen zin om te wachten? <strong>Claim now</strong> doet hetzelfde.</p>
+      <p>Niets te tikken: elke stand wordt automatisch uitbetaald zodra hij binnenkomt, hooguit één keer per dag, en de <strong>Timeline</strong> in dat paneel toont <span class="k">Paid +… B3TR</span>. Geen zin om te wachten? <strong>Claim now</strong> doet hetzelfde.</p>
       </li>
       </ol>
   <div class="note flag"><b>🇧🇪 België (Fluvius-meters)</b>Digitale Fluvius-meters sturen versleutelde data. Vraag bij Fluvius je gratis decryptiesleutel op en voer die één keer in de app van je reader in — daarna werkt alles hetzelfde.</div>
@@ -613,11 +615,11 @@
     <tr><td>couldn&#x27;t find a kWh number at …</td><td>De JSON van je reader gebruikt geen naam die de helper kent. Zet er <span class="k">--field=</span> bij met het pad naar de waarde, bijvoorbeeld <span class="k">--field=electricity.import_kwh</span>.</td></tr>
     <tr><td>server said 401</td><td>De token klopt niet of is onvolledig. Kopieer hem opnieuw uit de app en draai één keer <span class="k">node gul.js --token=… --install</span> om de opgeslagen token te vervangen.</td></tr>
     <tr><td>submit one photo reading first</td><td>Je meter heeft nog geen startpunt. Doe één gewone foto-inzending in de app — automatische standen zetten nooit de eerste waarde, zodat een apparaat zijn eigen beginstand niet kan verzinnen. Daarna betaalt het uit.</td></tr>
-    <tr><td>usage … is outside the plausible range</td><td>Bijna altijd een <strong>dubbeltariefmeter</strong>: je display houdt twee registers bij (<span class="k">1.8.1</span> en <span class="k">1.8.2</span>) en je foto ving er één, terwijl je reader de som van allebei doorgeeft — startpunt en reader staan dus op een andere schaal. Gebruik in de app onder <span class="k">Auto-received</span> de knop <strong>&ldquo;Use this reading as my starting point&rdquo;</strong>. Die betaalt niets uit en zet alleen waar het tellen begint. Kan tot je eerste automatische uitbetaling.</td></tr>
+    <tr><td>usage … is outside the plausible range</td><td>Bijna altijd een <strong>dubbeltariefmeter</strong>: je display houdt twee registers bij (<span class="k">1.8.1</span> en <span class="k">1.8.2</span>) en je foto ving er één, terwijl je reader de som van allebei doorgeeft — startpunt en reader staan dus op een andere schaal. Gebruik in de app in het paneel <span class="k">⚡ Automatic reading</span> de knop <strong>&ldquo;Use this reading as my starting point&rdquo;</strong>. Die betaalt niets uit en zet alleen waar het tellen begint. Kan tot je eerste automatische uitbetaling.</td></tr>
     <tr><td>this time photograph tariff register 2</td><td>Je meter toont twee telwerken om de beurt, en je foto’s wisselen ook af: fotografeer elke keer het telwerk dat je vorige foto níet liet zien. Wacht tot het display het telwerk toont dat de app noemt (<span class="k">1.8.1</span> of <span class="k">1.8.2</span>) en maak dan de foto.</td></tr>
     <tr><td>tariff register 1 went down</td><td>Een telwerk telt alleen op. Controleer of laag en normaal tarief elk in hun eigen vak staan, in dezelfde volgorde als de vorige keer.</td></tr>
     <tr><td>the automatic reading is stale</td><td>Een stand moet jonger dan 48 uur zijn op het moment dat je claimt. Het schema probeert het elk uur — kijk in <span class="k">.gul-bridge.log</span> naast <span class="k">gul.js</span> waarom het misging, of draai <span class="k">node gul.js --install</span> opnieuw. Hij wordt betaald zodra daar <span class="k">pushed … ✓</span> staat.</td></tr>
-    <tr><td>Niets onder “Auto-received”</td><td>De helper heeft nog niets succesvol doorgestuurd. Kijk in zijn venster, of open <span class="k">.gul-bridge.log</span> in dezelfde map als gul.js: elke ronde schrijft óf <span class="k">pushed … ✓</span> óf de reden waarom het niet lukte.</td></tr>
+    <tr><td>Geen stand in “⚡ Automatic reading”</td><td>De helper heeft nog niets succesvol doorgestuurd. Kijk in zijn venster, of open <span class="k">.gul-bridge.log</span> in dezelfde map als gul.js: elke ronde schrijft óf <span class="k">pushed … ✓</span> óf de reden waarom het niet lukte.</td></tr>
     <tr><td>Weet je niet zeker of hij is ingepland?</td><td>Windows: typ in PowerShell <span class="k">schtasks /Query /TN GreenUtilityLog</span> — zie je een regel met <em>GreenUtilityLog</em> en een volgende starttijd, dan staat hij erin. Mac / Linux / Pi: <span class="k">crontab -l</span> hoort een regel te tonen die eindigt op <em># GreenUtilityLog</em>. Niets te zien? Plak de installatieregel nog één keer.</td></tr>
     <tr><td>Je stelde dit in vóór 24 september</td><td>Plak dezelfde regel nog één keer. De nieuwe helper wacht op een server die nog wakker wordt in plaats van op te geven, schrijft elke ronde naar <span class="k">.gul-bridge.log</span> en draait op Windows ook op de accu.</td></tr>
     <tr><td>Powerfox didn&#x27;t accept the e-mail and password</td><td>Gebruik precies het e-mailadres en wachtwoord van de Powerfox-app (let op tikfouten of een spatie). Powerfox-wachtwoord veranderd? Optie 1: druk opnieuw op <strong>Connect Powerfox</strong> met het nieuwe. Optie 2: plak de installatieregel nog een keer — hij vraagt dan om het wachtwoord.</td></tr>
@@ -697,6 +699,7 @@
     url: &quot;https://greenutilitylog-rewards.onrender.com/meter-ingest&quot;
     method: POST
     content_type: &quot;application/json&quot;
+    timeout: 90  # Sekunden: der Server braucht bis zu einer Minute zum Aufwachen
     payload: &#x27;{&quot;token&quot;:&quot;DEIN_TOKEN&quot;,&quot;reading&quot;:{{ states(&quot;sensor.DEINE_ENTITY&quot;) | float }}}&#x27;
 
 # automations.yaml — zweimal am Tag (einlösen geht alle 20 h)
@@ -711,7 +714,7 @@
       <p>In der <strong>HomeWizard Energy</strong>-App: <span class="k">Einstellungen → Zähler → dein P1 → Local API → EIN</span>. Damit darf dein Netzwerk den Zähler auslesen.</p>
       </li>
       <li><p class="steptitle">PowerShell öffnen (oder ein Terminal)</p>
-      <p><strong>Windows:</strong> Start drücken, <em>PowerShell</em> tippen, Enter. <strong>Mac:</strong> <em>Terminal</em> öffnen. <strong>Raspberry Pi / NAS:</strong> dessen Terminal oder per SSH. Alles Weitere tippst du in dieses Fenster.</p>
+      <p><strong>Windows:</strong> Start drücken, <em>PowerShell</em> tippen, Enter. <strong>Mac:</strong> <em>Terminal</em> öffnen. <strong>Raspberry Pi / NAS:</strong> dessen Terminal oder per SSH. Alles Weitere tippst du in dieses Fenster. Am Mac: bleib in deinem Benutzerordner, in dem Terminal öffnet (siehe Schritt 5).</p>
       </li>
       <li><p class="steptitle">Prüfen, ob du Node schon hast</p>
       <p>Tipp das und drück Enter. Eine Versionsnummer — alles ab <span class="k">v18</span> — heißt: passt, überspring den nächsten Schritt. Eine Fehlermeldung heißt: Node fehlt noch.</p>
@@ -722,7 +725,7 @@
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieren</button><pre>winget install OpenJS.NodeJS.LTS</pre></div>
       </li>
       <li><p class="steptitle">Eine Zeile einfügen, Enter drücken</p>
-      <p>Sie lädt das Hilfsprogramm und sendet sofort deinen ersten Stand. Es plant sich außerdem selbst, zweimal täglich zu melden (Windows: Aufgabenplanung · Mac / Linux / Pi: cron) — du kannst das Fenster danach schließen, auch nach einem Neustart läuft es weiter. Das machst du nur ein einziges Mal.</p>
+      <p>Sie lädt das Hilfsprogramm und sendet sofort deinen ersten Stand. Es plant sich außerdem selbst, zweimal täglich zu melden (Windows: Aufgabenplanung · Mac / Linux / Pi: cron) — du kannst das Fenster danach schließen, auch nach einem Neustart läuft es weiter. Das machst du nur ein einziges Mal. <strong>Mac:</strong> in einem frisch geöffneten Terminal einfügen, in deinem Benutzerordner — nicht vorher mit <span class="k">cd</span> in Schreibtisch, Dokumente oder Downloads wechseln: macOS lässt die Planung (cron) dort keine Dateien lesen, dann läuft sie nie.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieren</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieren</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
@@ -732,24 +735,24 @@
       </li>
       </ol>
   <h2>Route C — Ein anderer Reader (P1-Reader, Tasmota-Lesekopf)</h2>
-  <p class="lede" style="font-size:15.5px">Dasselbe Hilfsprogramm liest jedes Gerät, das seine Daten als JSON über HTTP anbietet — du sagst ihm nur wo. Mach zuerst Schritt 2–4 aus Route B (Terminal und Node); nur der Befehl unten ist anders.</p>
+  <p class="lede" style="font-size:15.5px">Dasselbe Hilfsprogramm liest jedes Gerät in deinem Netzwerk, das den kWh-Zählerstand als JSON über HTTP anbietet, ohne Anmeldung — du sagst ihm nur wo. Nicht jeder Reader tut das: die API von dsmr-reader verlangt einen Schlüssel, und ein Shelly zählt seine eigene Energie, nicht das Zählwerk des Zählers. Mach zuerst Schritt 2–4 aus Route B (Terminal und Node); nur der Befehl unten ist anders.</p>
   <ol class="steps">
       <li><p class="steptitle">Die Daten-URL deines Readers finden</p>
       <p>Öffne die Weboberfläche deines Readers und such die Adresse, die rohes JSON zurückgibt (oft etwas wie <span class="k">/api/v1/data</span> oder <span class="k">/api/v2/sm/actual</span>). Die genauen Pfade unterscheiden sich je Marke — schau in die Doku deines Readers.</p>
       </li>
       <li><p class="steptitle">Hilfsprogramm mit dieser URL starten</p>
-      <p>Setz deine eigene Adresse anstelle der Beispiel-URL; nach dem Token fragt es selbst. Wird der Stand nicht automatisch gefunden, ergänze <span class="k">--field=</span> mit dem Pfad zum kWh-Wert in diesem JSON.</p>
+      <p>Setz deine eigene Adresse anstelle der Beispiel-URL; nach dem Token fragt es selbst. Wird der Stand nicht automatisch gefunden, ergänze <span class="k">--field=</span> mit dem Pfad zum kWh-Wert in diesem JSON. Nur zwei Tarifregister und keine Summe (etwa bei P1 Monitor)? Verbinde beide Pfade mit <span class="k">+</span>, dann sendet es die Summe, z. B. <span class="k">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieren</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieren</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
-      </li>
-      <li><p class="steptitle">Prüfen, ob es klappte</p>
-      <p>Das Hilfsprogramm zeigt, was es gesendet hat.</p>
-      <div class="see"><b>Erwartete Ausgabe</b><span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       <li><p class="steptitle">Ein Tasmota-Lesekopf (Hichi)?</p>
       <p>Nimm <span class="k">--tasmota=</span> mit seiner IP statt <span class="k">--url=</span>. Das Hilfsprogramm liest den Zählerstand (<span class="k">Total_in</span>) selbst. Verbreitet an deutschen, österreichischen und Schweizer Zählern.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieren</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieren</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      </li>
+      <li><p class="steptitle">Prüfen, ob es klappte</p>
+      <p>Das Hilfsprogramm zeigt, was es gesendet hat.</p>
+      <div class="see"><b>Erwartete Ausgabe</b><span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
   <h2>Route D — Powerfox (poweropti)</h2>
@@ -792,7 +795,7 @@
       <p>Folge Route A, <em>„Mit unserer Integration“</em>: uns zu HACS hinzufügen, installieren, neu starten und deinen Token einfügen.</p>
       </li>
       <li><p class="steptitle">Den Zähler-Sensor von Powerfox wählen</p>
-      <p>Wähle als Sensor den Powerfox-Sensor <strong>Energy usage</strong> (Energieverbrauch, kWh). Zweitarifzähler und der bleibt leer? Leg einen Helfer an, der die Sensoren für Hoch- und Niedertarif addiert (<span class="k">Einstellungen → Geräte &amp; Dienste → Helfer → Kombiniere den Zustand mehrerer Sensoren → Summe</span>), und wähle den.</p>
+      <p>Wähle als Sensor den Powerfox-Sensor <strong>Energy usage</strong> (Energieverbrauch, kWh). Zweitarifzähler und der bleibt leer? Leg einen Helfer an, der die Sensoren für Hoch- und Niedertarif addiert (<span class="k">Einstellungen → Geräte &amp; Dienste → Helfer → Helfer erstellen → Gruppe → Sensorgruppe</span>, Typ <strong>Summe</strong>; nicht „Kombiniere den Zustand mehrerer Sensoren“, den nimmt unsere Integration nicht als Zählerstand an), und wähle den.</p>
       </li>
       </ol>
   <h2>Route E — Tibber Pulse</h2>
@@ -820,10 +823,10 @@
   <h2>Zum Schluss: es zahlt sich von selbst aus</h2>
   <ol class="steps">
       <li><p class="steptitle">Dein Stand erscheint von selbst</p>
-      <p>Geh in der App auf <strong>Meter</strong>. Unter <strong>„Auto-received“</strong> siehst du deinen Zählerstand und wann er ankam.</p>
+      <p>Geh in der App auf <strong>Meter</strong>. Das Feld <strong>⚡ Automatic reading</strong> meldet <span class="k">Connected — … kWh received</span>, mit deinem Zählerstand und wann er ankam.</p>
       </li>
       <li><p class="steptitle">Er wird von selbst ausgezahlt</p>
-      <p>Nichts zu tippen: jeder Stand wird automatisch ausgezahlt, sobald er ankommt, höchstens einmal am Tag, und die App zeigt <strong>„✓ Paid“</strong>. Keine Lust zu warten? <strong>Claim now</strong> macht dasselbe.</p>
+      <p>Nichts zu tippen: jeder Stand wird automatisch ausgezahlt, sobald er ankommt, höchstens einmal am Tag, und die <strong>Timeline</strong> darin zeigt <span class="k">Paid +… B3TR</span>. Keine Lust zu warten? <strong>Claim now</strong> macht dasselbe.</p>
       </li>
       </ol>
   <div class="note flag"><b>🇧🇪 Belgien (Fluvius-Zähler)</b>Digitale Fluvius-Zähler senden verschlüsselt. Frag bei Fluvius deinen kostenlosen Entschlüsselungscode an und gib ihn einmal in der App deines Readers ein — danach läuft alles gleich.</div>
@@ -836,11 +839,11 @@
     <tr><td>couldn&#x27;t find a kWh number at …</td><td>Das JSON deines Readers benutzt keinen Namen, den das Hilfsprogramm kennt. Ergänze <span class="k">--field=</span> mit dem Pfad zum Wert, z. B. <span class="k">--field=electricity.import_kwh</span>.</td></tr>
     <tr><td>server said 401</td><td>Das Token stimmt nicht oder ist unvollständig. Kopier es erneut aus der App und führ einmal <span class="k">node gul.js --token=… --install</span> aus, um das gespeicherte zu ersetzen.</td></tr>
     <tr><td>submit one photo reading first</td><td>Dein Zähler hat noch keinen Startpunkt. Mach eine normale Foto-Einreichung in der App — automatische Stände setzen nie den ersten Wert, damit ein Gerät sich seinen Anfangsstand nicht ausdenken kann. Danach wird ausgezahlt.</td></tr>
-    <tr><td>usage … is outside the plausible range</td><td>Fast immer ein <strong>Doppeltarifzähler</strong>: das Display führt zwei Register (<span class="k">1.8.1</span> und <span class="k">1.8.2</span>) und dein Foto hat eines davon erwischt, während dein Reader die Summe beider meldet — Startpunkt und Reader liegen also auf verschiedenen Skalen. Druck in der App unter <span class="k">Auto-received</span> auf <strong>&ldquo;Use this reading as my starting point&rdquo;</strong>. Das zahlt nichts aus und setzt nur, wo gezählt wird. Möglich bis zur ersten automatischen Auszahlung.</td></tr>
+    <tr><td>usage … is outside the plausible range</td><td>Fast immer ein <strong>Doppeltarifzähler</strong>: das Display führt zwei Register (<span class="k">1.8.1</span> und <span class="k">1.8.2</span>) und dein Foto hat eines davon erwischt, während dein Reader die Summe beider meldet — Startpunkt und Reader liegen also auf verschiedenen Skalen. Drück in der App im Feld <span class="k">⚡ Automatic reading</span> auf <strong>&ldquo;Use this reading as my starting point&rdquo;</strong>. Das zahlt nichts aus und setzt nur, wo gezählt wird. Möglich bis zur ersten automatischen Auszahlung.</td></tr>
     <tr><td>this time photograph tariff register 2</td><td>Dein Zähler zeigt zwei Register im Wechsel, und deine Fotos wechseln auch: fotografier jedes Mal das Register, das dein letztes Foto nicht zeigte. Warte, bis das Display das Register zeigt, das die App nennt (<span class="k">1.8.1</span> oder <span class="k">1.8.2</span>), dann mach das Foto.</td></tr>
     <tr><td>tariff register 1 went down</td><td>Ein Register zählt nur aufwärts. Prüf, ob Niedrig- und Normaltarif jeweils im eigenen Feld stehen, in derselben Reihenfolge wie beim letzten Mal.</td></tr>
     <tr><td>the automatic reading is stale</td><td>Ein Stand muss beim Claimen jünger als 48 Stunden sein. Der Zeitplan versucht es jede Stunde — schau in <span class="k">.gul-bridge.log</span> neben <span class="k">gul.js</span>, warum es scheiterte, oder führ <span class="k">node gul.js --install</span> erneut aus. Ausgezahlt wird, sobald dort <span class="k">pushed … ✓</span> erscheint.</td></tr>
-    <tr><td>Nichts unter „Auto-received“</td><td>Das Hilfsprogramm hat noch nichts erfolgreich gesendet. Schau in sein Fenster oder öffne <span class="k">.gul-bridge.log</span> im selben Ordner wie gul.js: jede Runde schreibt entweder <span class="k">pushed … ✓</span> oder den Grund für den Fehlschlag.</td></tr>
+    <tr><td>Kein Stand in „⚡ Automatic reading“</td><td>Das Hilfsprogramm hat noch nichts erfolgreich gesendet. Schau in sein Fenster oder öffne <span class="k">.gul-bridge.log</span> im selben Ordner wie gul.js: jede Runde schreibt entweder <span class="k">pushed … ✓</span> oder den Grund für den Fehlschlag.</td></tr>
     <tr><td>Nicht sicher, ob es eingeplant ist?</td><td>Windows: in PowerShell <span class="k">schtasks /Query /TN GreenUtilityLog</span> eingeben — eine Zeile mit <em>GreenUtilityLog</em> und einer nächsten Laufzeit heißt, es ist eingeplant. Mac / Linux / Pi: <span class="k">crontab -l</span> sollte eine Zeile zeigen, die auf <em># GreenUtilityLog</em> endet. Nichts da? Füge die Einrichtungszeile noch einmal ein.</td></tr>
     <tr><td>Vor dem 24. September eingerichtet</td><td>Füge dieselbe Zeile noch einmal ein. Das neue Hilfsprogramm wartet auf einen Server, der noch aufwacht, statt aufzugeben, schreibt jede Runde in <span class="k">.gul-bridge.log</span> und läuft unter Windows auch im Akkubetrieb.</td></tr>
     <tr><td>Powerfox didn&#x27;t accept the e-mail and password</td><td>Nimm genau die E-Mail-Adresse und das Passwort der Powerfox-App (auf Tippfehler oder Leerzeichen achten). Powerfox-Passwort geändert? Option 1: noch einmal <strong>Connect Powerfox</strong> mit dem neuen. Option 2: die Einrichtungszeile noch einmal einfügen — sie fragt dann nach dem Passwort.</td></tr>
@@ -920,6 +923,7 @@
     url: &quot;https://greenutilitylog-rewards.onrender.com/meter-ingest&quot;
     method: POST
     content_type: &quot;application/json&quot;
+    timeout: 90  # secondes : le serveur peut mettre une minute à se réveiller
     payload: &#x27;{&quot;token&quot;:&quot;VOTRE_JETON&quot;,&quot;reading&quot;:{{ states(&quot;sensor.VOTRE_ENTITE&quot;) | float }}}&#x27;
 
 # automations.yaml — deux fois par jour (réclamation possible toutes les 20 h)
@@ -934,7 +938,7 @@
       <p>Dans l'app <strong>HomeWizard Energy</strong> : <span class="k">Réglages → Compteurs → votre P1 → Local API → ON</span>. Votre réseau peut alors lire le compteur.</p>
       </li>
       <li><p class="steptitle">Ouvrez PowerShell (ou un terminal)</p>
-      <p><strong>Windows :</strong> Démarrer, tapez <em>PowerShell</em>, Entrée. <strong>Mac :</strong> ouvrez <em>Terminal</em>. <strong>Raspberry Pi / NAS :</strong> son terminal, ou en SSH. Tout ce qui suit se tape dans cette fenêtre.</p>
+      <p><strong>Windows :</strong> Démarrer, tapez <em>PowerShell</em>, Entrée. <strong>Mac :</strong> ouvrez <em>Terminal</em>. <strong>Raspberry Pi / NAS :</strong> son terminal, ou en SSH. Tout ce qui suit se tape dans cette fenêtre. Sur Mac, restez dans votre dossier personnel, où Terminal s’ouvre (voir l’étape 5).</p>
       </li>
       <li><p class="steptitle">Vérifiez si Node est déjà là</p>
       <p>Tapez ceci et appuyez sur Entrée. Un numéro de version — à partir de <span class="k">v18</span> — et c’est bon, passez l’étape suivante. Une erreur signifie que Node n’est pas installé.</p>
@@ -945,7 +949,7 @@
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copier</button><pre>winget install OpenJS.NodeJS.LTS</pre></div>
       </li>
       <li><p class="steptitle">Collez une ligne, appuyez sur Entrée</p>
-      <p>Elle télécharge l’utilitaire et envoie tout de suite votre premier relevé. Il se planifie aussi pour envoyer deux fois par jour (Windows : Planificateur de tâches · Mac / Linux / Pi : cron) — vous pouvez fermer la fenêtre ensuite, même après un redémarrage il continue. Vous ne le faites qu’une seule fois.</p>
+      <p>Elle télécharge l’utilitaire et envoie tout de suite votre premier relevé. Il se planifie aussi pour envoyer deux fois par jour (Windows : Planificateur de tâches · Mac / Linux / Pi : cron) — vous pouvez fermer la fenêtre ensuite, même après un redémarrage il continue. Vous ne le faites qu’une seule fois. <strong>Mac :</strong> collez-la dans un Terminal tout juste ouvert, dans votre dossier personnel — sans <span class="k">cd</span> vers Bureau, Documents ou Téléchargements : macOS ne laisse pas la planification (cron) y lire des fichiers, et elle ne tournerait jamais.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copier</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copier</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
@@ -955,24 +959,24 @@
       </li>
       </ol>
   <h2>Route C — Un autre lecteur (lecteur P1, tête de lecture Tasmota)</h2>
-  <p class="lede" style="font-size:15.5px">Le même utilitaire lit tout appareil qui expose ses données en JSON via HTTP — vous lui dites simplement où. Faites d’abord les étapes 2 à 4 de la route B (terminal et Node) ; seule la commande ci-dessous change.</p>
+  <p class="lede" style="font-size:15.5px">Le même utilitaire lit tout appareil de votre réseau qui expose le total kWh du compteur en JSON via HTTP, sans identifiant — vous lui dites simplement où. Tous les lecteurs ne le font pas : l’API de dsmr-reader exige une clé, et un Shelly compte sa propre énergie, pas le registre du compteur. Faites d’abord les étapes 2 à 4 de la route B (terminal et Node) ; seule la commande ci-dessous change.</p>
   <ol class="steps">
       <li><p class="steptitle">Trouvez l'URL de données de votre lecteur</p>
       <p>Ouvrez la page web de votre lecteur et cherchez l'adresse qui renvoie du JSON brut (souvent <span class="k">/api/v1/data</span> ou <span class="k">/api/v2/sm/actual</span>). Les chemins exacts diffèrent selon la marque — consultez la doc de votre lecteur.</p>
       </li>
       <li><p class="steptitle">Lancez l'utilitaire avec cette URL</p>
-      <p>Mettez votre propre adresse à la place de l'exemple ; il demande votre jeton lui-même. Si le relevé n'est pas trouvé automatiquement, ajoutez <span class="k">--field=</span> avec le chemin vers la valeur kWh dans ce JSON.</p>
+      <p>Mettez votre propre adresse à la place de l'exemple ; il demande votre jeton lui-même. Si le relevé n'est pas trouvé automatiquement, ajoutez <span class="k">--field=</span> avec le chemin vers la valeur kWh dans ce JSON. Seulement deux registres tarifaires et pas de total (P1 Monitor, par exemple) ? Reliez les deux chemins par <span class="k">+</span> et il envoie leur somme, p. ex. <span class="k">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copier</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copier</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
-      </li>
-      <li><p class="steptitle">Vérifiez que ça a marché</p>
-      <p>L'utilitaire affiche ce qu'il a envoyé.</p>
-      <div class="see"><b>Sortie attendue</b><span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       <li><p class="steptitle">Une tête de lecture Tasmota (Hichi) ?</p>
       <p>Utilisez <span class="k">--tasmota=</span> avec son IP au lieu de <span class="k">--url=</span>. L'utilitaire lit le total du compteur (<span class="k">Total_in</span>) tout seul. Courant sur les compteurs allemands, autrichiens et suisses.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copier</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copier</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      </li>
+      <li><p class="steptitle">Vérifiez que ça a marché</p>
+      <p>L'utilitaire affiche ce qu'il a envoyé.</p>
+      <div class="see"><b>Sortie attendue</b><span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
   <h2>Route D — Powerfox (poweropti)</h2>
@@ -1015,7 +1019,7 @@
       <p>Suivez la Route A, <em>« Avec notre intégration »</em> : ajoutez-nous à HACS, installez, redémarrez et collez votre jeton.</p>
       </li>
       <li><p class="steptitle">Choisissez le capteur compteur de Powerfox</p>
-      <p>Comme capteur, choisissez le capteur Powerfox <strong>Energy usage</strong> (consommation d'énergie, kWh). Compteur double tarif et celui-ci reste vide ? Créez une entrée qui additionne les capteurs heures pleines et heures creuses (<span class="k">Paramètres → Appareils et services → Entrées → Combiner l'état de plusieurs capteurs → Somme</span>) et choisissez-la.</p>
+      <p>Comme capteur, choisissez le capteur Powerfox <strong>Energy usage</strong> (consommation d'énergie, kWh). Compteur double tarif et celui-ci reste vide ? Créez une entrée qui additionne les capteurs heures pleines et heures creuses (<span class="k">Paramètres → Appareils et services → Entrées → Créer une entrée → Groupe → Groupe de capteurs</span>, type <strong>Somme</strong> ; pas « Combiner l'état de plusieurs capteurs », que notre intégration n’accepte pas comme total de compteur) et choisissez-la.</p>
       </li>
       </ol>
   <h2>Route E — Tibber Pulse</h2>
@@ -1043,10 +1047,10 @@
   <h2>Enfin : le paiement se fait tout seul</h2>
   <ol class="steps">
       <li><p class="steptitle">Votre relevé apparaît tout seul</p>
-      <p>Dans l'app, allez sur <strong>Meter</strong>. Sous <strong>« Auto-received »</strong> vous voyez votre relevé et l'heure d'arrivée.</p>
+      <p>Dans l'app, allez sur <strong>Meter</strong>. Le panneau <strong>⚡ Automatic reading</strong> affiche <span class="k">Connected — … kWh received</span>, avec votre relevé et l'heure d'arrivée.</p>
       </li>
       <li><p class="steptitle">Il est payé tout seul</p>
-      <p>Rien à toucher : chaque relevé est payé automatiquement à son arrivée, au plus une fois par jour, et l'app affiche <strong>« ✓ Paid »</strong>. Pas envie d'attendre ? <strong>Claim now</strong> fait la même chose.</p>
+      <p>Rien à toucher : chaque relevé est payé automatiquement à son arrivée, au plus une fois par jour, et la <strong>Timeline</strong> du panneau affiche <span class="k">Paid +… B3TR</span>. Pas envie d'attendre ? <strong>Claim now</strong> fait la même chose.</p>
       </li>
       </ol>
   <div class="note flag"><b>🇧🇪 Belgique (compteurs Fluvius)</b>Les compteurs Fluvius numériques envoient des données chiffrées. Demandez votre clé gratuite à Fluvius et saisissez-la une fois dans l'app de votre lecteur — ensuite tout fonctionne pareil.</div>
@@ -1059,11 +1063,11 @@
     <tr><td>couldn&#x27;t find a kWh number at …</td><td>Le JSON de votre lecteur n’utilise pas un nom connu de l’utilitaire. Ajoutez <span class="k">--field=</span> avec le chemin vers la valeur, p. ex. <span class="k">--field=electricity.import_kwh</span>.</td></tr>
     <tr><td>server said 401</td><td>Le jeton est incorrect ou incomplet. Recopiez-le depuis l’app et lancez une fois <span class="k">node gul.js --token=… --install</span> pour remplacer celui qui est enregistré.</td></tr>
     <tr><td>submit one photo reading first</td><td>Votre compteur n’a pas encore de point de départ. Faites une soumission photo normale dans l’app — les relevés automatiques ne fixent jamais la première valeur, pour qu’un appareil ne puisse pas inventer son propre point de départ. Ensuite, ça paie.</td></tr>
-    <tr><td>usage … is outside the plausible range</td><td>Presque toujours un <strong>compteur bi-horaire</strong> : l’afficheur tient deux registres (<span class="k">1.8.1</span> et <span class="k">1.8.2</span>) et votre photo en a saisi un seul, alors que votre lecteur rapporte le total des deux — le point de départ et le lecteur ne sont donc pas à la même échelle. Dans l’app, sous <span class="k">Auto-received</span>, appuyez sur <strong>&ldquo;Use this reading as my starting point&rdquo;</strong>. Cela ne paie rien et ne fait que fixer où commence le comptage. Possible jusqu’à votre premier versement automatique.</td></tr>
+    <tr><td>usage … is outside the plausible range</td><td>Presque toujours un <strong>compteur bi-horaire</strong> : l’afficheur tient deux registres (<span class="k">1.8.1</span> et <span class="k">1.8.2</span>) et votre photo en a saisi un seul, alors que votre lecteur rapporte le total des deux — le point de départ et le lecteur ne sont donc pas à la même échelle. Dans l’app, dans le panneau <span class="k">⚡ Automatic reading</span>, appuyez sur <strong>&ldquo;Use this reading as my starting point&rdquo;</strong>. Cela ne paie rien et ne fait que fixer où commence le comptage. Possible jusqu’à votre premier versement automatique.</td></tr>
     <tr><td>this time photograph tariff register 2</td><td>Votre compteur affiche deux registres à tour de rôle, et vos photos alternent aussi : photographiez chaque fois le registre que votre photo précédente ne montrait pas. Attendez que l’afficheur montre le registre indiqué par l’app (<span class="k">1.8.1</span> ou <span class="k">1.8.2</span>), puis prenez la photo.</td></tr>
     <tr><td>tariff register 1 went down</td><td>Un registre ne fait que monter. Vérifiez que le tarif bas et le tarif normal sont chacun dans leur propre case, dans le même ordre que la dernière fois.</td></tr>
     <tr><td>the automatic reading is stale</td><td>Un relevé doit avoir moins de 48 heures au moment où vous le réclamez. Le planning réessaie toutes les heures — regardez dans <span class="k">.gul-bridge.log</span> à côté de <span class="k">gul.js</span> pourquoi cela a échoué, ou relancez <span class="k">node gul.js --install</span>. Le paiement suit dès qu’il affiche <span class="k">pushed … ✓</span>.</td></tr>
-    <tr><td>Rien sous « Auto-received »</td><td>L’utilitaire n’a encore rien envoyé avec succès. Regardez sa fenêtre, ou ouvrez <span class="k">.gul-bridge.log</span> dans le même dossier que gul.js : chaque cycle écrit soit <span class="k">pushed … ✓</span>, soit la raison de l’échec.</td></tr>
+    <tr><td>Aucun relevé dans « ⚡ Automatic reading »</td><td>L’utilitaire n’a encore rien envoyé avec succès. Regardez sa fenêtre, ou ouvrez <span class="k">.gul-bridge.log</span> dans le même dossier que gul.js : chaque cycle écrit soit <span class="k">pushed … ✓</span>, soit la raison de l’échec.</td></tr>
     <tr><td>Pas sûr qu’il soit planifié ?</td><td>Windows : dans PowerShell, tapez <span class="k">schtasks /Query /TN GreenUtilityLog</span> — une ligne avec <em>GreenUtilityLog</em> et une prochaine exécution signifie que c’est bon. Mac / Linux / Pi : <span class="k">crontab -l</span> doit afficher une ligne se terminant par <em># GreenUtilityLog</em>. Rien ? Collez la ligne d’installation une fois de plus.</td></tr>
     <tr><td>Installé avant le 24 septembre</td><td>Collez la même ligne une fois de plus. Le nouvel utilitaire attend un serveur qui se réveille au lieu d’abandonner, écrit chaque cycle dans <span class="k">.gul-bridge.log</span> et, sous Windows, fonctionne aussi sur batterie.</td></tr>
     <tr><td>Powerfox didn&#x27;t accept the e-mail and password</td><td>Utilisez exactement l'e-mail et le mot de passe de l'app Powerfox (attention aux fautes de frappe et aux espaces). Mot de passe Powerfox changé ? Option 1 : <strong>Connect Powerfox</strong> à nouveau avec le nouveau. Option 2 : recollez la ligne d'installation — elle redemande le mot de passe.</td></tr>
@@ -1143,6 +1147,7 @@
     url: &quot;https://greenutilitylog-rewards.onrender.com/meter-ingest&quot;
     method: POST
     content_type: &quot;application/json&quot;
+    timeout: 90  # segundos: el servidor puede tardar un minuto en despertar
     payload: &#x27;{&quot;token&quot;:&quot;TU_TOKEN&quot;,&quot;reading&quot;:{{ states(&quot;sensor.TU_ENTIDAD&quot;) | float }}}&#x27;
 
 # automations.yaml — dos veces al día (puedes reclamar cada 20 h)
@@ -1157,7 +1162,7 @@
       <p>En la app <strong>HomeWizard Energy</strong>: <span class="k">Ajustes → Contadores → tu P1 → Local API → ON</span>. Así tu red puede leer el contador.</p>
       </li>
       <li><p class="steptitle">Abre PowerShell (o una terminal)</p>
-      <p><strong>Windows:</strong> Inicio, escribe <em>PowerShell</em>, Enter. <strong>Mac:</strong> abre <em>Terminal</em>. <strong>Raspberry Pi / NAS:</strong> su terminal, o por SSH. Todo lo de abajo se escribe en esa ventana.</p>
+      <p><strong>Windows:</strong> Inicio, escribe <em>PowerShell</em>, Enter. <strong>Mac:</strong> abre <em>Terminal</em>. <strong>Raspberry Pi / NAS:</strong> su terminal, o por SSH. Todo lo de abajo se escribe en esa ventana. En un Mac, quédate en tu carpeta de inicio, donde se abre Terminal (ver el paso 5).</p>
       </li>
       <li><p class="steptitle">Comprueba si ya tienes Node</p>
       <p>Escribe esto y pulsa Enter. Un número de versión — desde <span class="k">v18</span> en adelante — significa que ya está, y puedes saltarte el paso siguiente. Un error significa que Node no está instalado.</p>
@@ -1168,7 +1173,7 @@
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>winget install OpenJS.NodeJS.LTS</pre></div>
       </li>
       <li><p class="steptitle">Pega una línea y pulsa Enter</p>
-      <p>Descarga el programa y envía tu primera lectura al momento. Además se programa para enviar dos veces al día (Windows: Programador de tareas · Mac / Linux / Pi: cron), así que puedes cerrar la ventana después — sigue funcionando incluso tras reiniciar. Solo tienes que hacerlo una vez.</p>
+      <p>Descarga el programa y envía tu primera lectura al momento. Además se programa para enviar dos veces al día (Windows: Programador de tareas · Mac / Linux / Pi: cron), así que puedes cerrar la ventana después — sigue funcionando incluso tras reiniciar. Solo tienes que hacerlo una vez. <strong>Mac:</strong> pégala en un Terminal recién abierto, en tu carpeta de inicio — sin hacer antes <span class="k">cd</span> a Escritorio, Documentos o Descargas: macOS no deja que la programación (cron) lea archivos allí, y nunca se ejecutaría.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiar</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
@@ -1178,24 +1183,24 @@
       </li>
       </ol>
   <h2>Ruta C — Otro lector (lector P1, cabezal Tasmota)</h2>
-  <p class="lede" style="font-size:15.5px">El mismo programa lee cualquier dispositivo que sirva sus datos en JSON por HTTP — solo le dices dónde. Haz primero los pasos 2 a 4 de la ruta B (terminal y Node); solo cambia el comando de abajo.</p>
+  <p class="lede" style="font-size:15.5px">El mismo programa lee cualquier dispositivo de tu red que sirva el total de kWh del contador en JSON por HTTP, sin inicio de sesión — solo le dices dónde. No todos los lectores lo hacen: la API de dsmr-reader pide una clave, y un Shelly cuenta su propia energía, no el registro del contador. Haz primero los pasos 2 a 4 de la ruta B (terminal y Node); solo cambia el comando de abajo.</p>
   <ol class="steps">
       <li><p class="steptitle">Encuentra la URL de datos de tu lector</p>
       <p>Abre la página web de tu lector y busca la dirección que devuelve JSON en bruto (a menudo <span class="k">/api/v1/data</span> o <span class="k">/api/v2/sm/actual</span>). Las rutas exactas varían por marca — consulta la documentación de tu lector.</p>
       </li>
       <li><p class="steptitle">Inicia el programa con esa URL</p>
-      <p>Pon tu propia dirección en lugar del ejemplo; el token te lo pide él mismo. Si la lectura no se encuentra automáticamente, añade <span class="k">--field=</span> con la ruta al valor kWh en ese JSON.</p>
+      <p>Pon tu propia dirección en lugar del ejemplo; el token te lo pide él mismo. Si la lectura no se encuentra automáticamente, añade <span class="k">--field=</span> con la ruta al valor kWh en ese JSON. ¿Solo dos registros de tarifa y ningún total (como P1 Monitor)? Une ambas rutas con <span class="k">+</span> y envía su suma, p. ej. <span class="k">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiar</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
-      </li>
-      <li><p class="steptitle">Comprueba que funcionó</p>
-      <p>El programa muestra lo que ha enviado.</p>
-      <div class="see"><b>Salida esperada</b><span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       <li><p class="steptitle">¿Un cabezal de lectura Tasmota (Hichi)?</p>
       <p>Usa <span class="k">--tasmota=</span> con su IP en lugar de <span class="k">--url=</span>. El programa lee el total del contador (<span class="k">Total_in</span>) solo. Habitual en contadores alemanes, austriacos y suizos.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiar</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      </li>
+      <li><p class="steptitle">Comprueba que funcionó</p>
+      <p>El programa muestra lo que ha enviado.</p>
+      <div class="see"><b>Salida esperada</b><span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
   <h2>Ruta D — Powerfox (poweropti)</h2>
@@ -1238,7 +1243,7 @@
       <p>Sigue la Ruta A, <em>«Con nuestra integración»</em>: añádenos a HACS, instala, reinicia y pega tu token.</p>
       </li>
       <li><p class="steptitle">Elige el sensor del contador de Powerfox</p>
-      <p>Como sensor, elige el sensor de Powerfox <strong>Energy usage</strong> (consumo de energía, kWh). ¿Contador de dos tarifas y ese se queda vacío? Crea un ayudante que sume los sensores de tarifa alta y baja (<span class="k">Ajustes → Dispositivos y servicios → Ayudantes → Combinar el estado de varios sensores → Suma</span>) y elige ese.</p>
+      <p>Como sensor, elige el sensor de Powerfox <strong>Energy usage</strong> (consumo de energía, kWh). ¿Contador de dos tarifas y ese se queda vacío? Crea un ayudante que sume los sensores de tarifa alta y baja (<span class="k">Ajustes → Dispositivos y servicios → Ayudantes → Crear ayudante → Grupo → Grupo de sensores</span>, tipo <strong>Suma</strong>; no «Combinar el estado de varios sensores», que nuestra integración no acepta como total del contador) y elige ese.</p>
       </li>
       </ol>
   <h2>Ruta E — Tibber Pulse</h2>
@@ -1266,10 +1271,10 @@
   <h2>Por último: se paga solo</h2>
   <ol class="steps">
       <li><p class="steptitle">Tu lectura aparece sola</p>
-      <p>En la app abre <strong>Meter</strong>. Bajo <strong>«Auto-received»</strong> verás tu lectura y cuándo llegó.</p>
+      <p>En la app abre <strong>Meter</strong>. El panel <strong>⚡ Automatic reading</strong> muestra <span class="k">Connected — … kWh received</span>, con tu lectura y cuándo llegó.</p>
       </li>
       <li><p class="steptitle">Se paga solo</p>
-      <p>Nada que tocar: cada lectura se paga automáticamente en cuanto llega, como mucho una vez al día, y la app muestra <strong>«✓ Paid»</strong>. ¿No quieres esperar? <strong>Claim now</strong> hace lo mismo.</p>
+      <p>Nada que tocar: cada lectura se paga automáticamente en cuanto llega, como mucho una vez al día, y la <strong>Timeline</strong> del panel muestra <span class="k">Paid +… B3TR</span>. ¿No quieres esperar? <strong>Claim now</strong> hace lo mismo.</p>
       </li>
       </ol>
   <div class="note flag"><b>🇧🇪 Bélgica (contadores Fluvius)</b>Los contadores Fluvius digitales envían datos cifrados. Pide tu clave gratuita a Fluvius e introdúcela una vez en la app de tu lector — después todo funciona igual.</div>
@@ -1282,11 +1287,11 @@
     <tr><td>couldn&#x27;t find a kWh number at …</td><td>El JSON de tu lector no usa un nombre que el programa conozca. Añade <span class="k">--field=</span> con la ruta al valor, p. ej. <span class="k">--field=electricity.import_kwh</span>.</td></tr>
     <tr><td>server said 401</td><td>El token es incorrecto o está incompleto. Cópialo de nuevo desde la app y ejecuta una vez <span class="k">node gul.js --token=… --install</span> para reemplazar el guardado.</td></tr>
     <tr><td>submit one photo reading first</td><td>Tu contador aún no tiene punto de partida. Haz un envío con foto normal en la app — las lecturas automáticas nunca fijan el primer valor, para que un dispositivo no pueda inventarse su propio punto de partida. Después sí paga.</td></tr>
-    <tr><td>usage … is outside the plausible range</td><td>Casi siempre un <strong>contador de doble tarifa</strong>: la pantalla lleva dos registros (<span class="k">1.8.1</span> y <span class="k">1.8.2</span>) y tu foto capturó uno de ellos, mientras que tu lector informa la suma de ambos — el punto de partida y el lector están en escalas distintas. En la app, bajo <span class="k">Auto-received</span>, pulsa <strong>&ldquo;Use this reading as my starting point&rdquo;</strong>. No paga nada y solo fija dónde empieza el conteo. Posible hasta tu primer pago automático.</td></tr>
+    <tr><td>usage … is outside the plausible range</td><td>Casi siempre un <strong>contador de doble tarifa</strong>: la pantalla lleva dos registros (<span class="k">1.8.1</span> y <span class="k">1.8.2</span>) y tu foto capturó uno de ellos, mientras que tu lector informa la suma de ambos — el punto de partida y el lector están en escalas distintas. En la app, en el panel <span class="k">⚡ Automatic reading</span>, pulsa <strong>&ldquo;Use this reading as my starting point&rdquo;</strong>. No paga nada y solo fija dónde empieza el conteo. Posible hasta tu primer pago automático.</td></tr>
     <tr><td>this time photograph tariff register 2</td><td>Tu contador muestra dos registros por turnos, y tus fotos también se alternan: fotografía cada vez el registro que tu foto anterior no mostraba. Espera a que la pantalla muestre el registro que indica la app (<span class="k">1.8.1</span> o <span class="k">1.8.2</span>) y entonces haz la foto.</td></tr>
     <tr><td>tariff register 1 went down</td><td>Un registro solo sube. Comprueba que la tarifa baja y la normal están cada una en su propia casilla, en el mismo orden que la vez anterior.</td></tr>
     <tr><td>the automatic reading is stale</td><td>Una lectura debe tener menos de 48 horas en el momento de reclamarla. La programación lo intenta cada hora — mira en <span class="k">.gul-bridge.log</span> junto a <span class="k">gul.js</span> por qué falló, o ejecuta <span class="k">node gul.js --install</span> de nuevo. Se paga en cuanto muestre <span class="k">pushed … ✓</span>.</td></tr>
-    <tr><td>Nada en “Auto-received”</td><td>El programa aún no ha enviado nada con éxito. Mira su ventana, o abre <span class="k">.gul-bridge.log</span> en la misma carpeta que gul.js: cada ciclo escribe o bien <span class="k">pushed … ✓</span> o el motivo del fallo.</td></tr>
+    <tr><td>Ninguna lectura en “⚡ Automatic reading”</td><td>El programa aún no ha enviado nada con éxito. Mira su ventana, o abre <span class="k">.gul-bridge.log</span> en la misma carpeta que gul.js: cada ciclo escribe o bien <span class="k">pushed … ✓</span> o el motivo del fallo.</td></tr>
     <tr><td>¿No estás seguro de que esté programado?</td><td>Windows: en PowerShell escribe <span class="k">schtasks /Query /TN GreenUtilityLog</span> — una línea con <em>GreenUtilityLog</em> y una próxima ejecución significa que sí. Mac / Linux / Pi: <span class="k">crontab -l</span> debe mostrar una línea que termina en <em># GreenUtilityLog</em>. ¿No hay nada? Pega la línea de instalación una vez más.</td></tr>
     <tr><td>Lo configuraste antes del 24 de septiembre</td><td>Pega la misma línea una vez más. El nuevo programa espera a un servidor que aún se está despertando en lugar de rendirse, escribe cada ciclo en <span class="k">.gul-bridge.log</span> y en Windows también funciona con batería.</td></tr>
     <tr><td>Powerfox didn&#x27;t accept the e-mail and password</td><td>Usa exactamente el correo y la contraseña de la app de Powerfox (cuidado con erratas o espacios). ¿Cambiaste la contraseña de Powerfox? Opción 1: pulsa otra vez <strong>Connect Powerfox</strong> con la nueva. Opción 2: vuelve a pegar la línea de instalación — te pedirá la contraseña.</td></tr>
