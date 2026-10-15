@@ -1931,9 +1931,21 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
   // the zone says "Tap to photograph" while Submit is still enabled.
   const onResetRef = useRef(onReset);
   onResetRef.current = onReset;
-  useEffect(() => () => { onResetRef.current?.(); }, []);
+  // Verification takes seconds (OCR, the server call). Each run gets a number; a
+  // reset or unmount moves it on, so a run that finishes for a zone that is gone
+  // (another tab, another meter) or was reset doesn't mark a photo as verified.
+  const runIdRef = useRef(0);
+  useEffect(() => () => { runIdRef.current++; onResetRef.current?.(); }, []);
+  // The parent's latest callbacks, not the ones from when the run started: the
+  // OCR autofill has to see what was typed (or switched on) in the meantime.
+  const onOcrReadingRef = useRef(onOcrReading);
+  onOcrReadingRef.current = onOcrReading;
+  const onVerifiedRef = useRef(onVerified);
+  onVerifiedRef.current = onVerified;
 
   const runVerify = async (file, ocrSource) => {
+    const runId = ++runIdRef.current;
+    const stale = () => runIdRef.current !== runId;
     setPhase("verifying"); setAiStep(0);
     let mime, base64;
     try {
@@ -1948,6 +1960,7 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
         r.readAsDataURL(upload);
       });
     } catch {
+      if (stale()) return;
       setResult({ summary: "Couldn't read that photo — please tap the camera and take it again." });
       setPhase("error");
       return;
@@ -1980,6 +1993,7 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
     // OCR runs on the cropped region (if the user boxed the reading) so it ignores
     // barcodes/serials/nameplate text; all fraud checks above use the full photo.
     const ocrResult = await runOCR(ocrSource || file, reading, utilId);
+    if (stale()) return;
     // Pre-fill Current from the photo — but only with a number that makes sense
     // against your previous reading (a real new reading sits just above it). This
     // rejects barcodes/serials/"0" the OCR picks off the nameplate; if nothing is
@@ -1989,7 +2003,7 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
     // previous reading (anchored), or the OCR read it with decent confidence.
     // Otherwise leave Current blank — better to type it than to fight a wrong guess.
     const hasAnchor = Number.isFinite(parseFloat(prevRead));
-    if (guess != null && (hasAnchor || (ocrResult.ocrConfidence || 0) >= 60)) onOcrReading?.(String(guess));
+    if (guess != null && (hasAnchor || (ocrResult.ocrConfidence || 0) >= 60)) onOcrReadingRef.current?.(String(guess));
     if (!ocrResult.matched && !ocrResult.ocrFailed) {
       fraudFlags.push("ocr_mismatch");
       fraudReason = fraudReason || ocrResult.reason;
@@ -2000,6 +2014,7 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
     // — serials are small and hard to read). null when there's no number to check.
     let meterNoConfirmed = null;
     if (meterNo) meterNoConfirmed = meterNoMatches(meterNo, await ocrFullText(file));
+    if (stale()) return;
 
     // Plausibility/anomaly run on CONSUMPTION (current − previous), not the
     // absolute meter value, otherwise a normal reading like 3847 always trips.
@@ -2045,7 +2060,7 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
     const finalResult = { verified, fraudFlags, fraudReason, summary, ocrNums: ocrResult.ocrNums, ocrFailed: !!ocrResult.ocrFailed, meterNoConfirmed, secScore: score, anomCheck, usageVal };
     setResult(finalResult);
     setPhase(verified ? "verified" : "error");
-    if (verified) onVerified(finalResult, base64, mime);
+    if (verified) onVerifiedRef.current?.(finalResult, base64, mime);
   };
 
   const handleFile = (e) => {
@@ -2064,7 +2079,7 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
     setPhase("crop");                          // let the user box the reading first
   };
 
-  const reset = () => { setPhase("idle"); setResult(null); setSecScore(null); setPhotoUrl(null); origFileRef.current = null; onReset(); };
+  const reset = () => { runIdRef.current++; setPhase("idle"); setResult(null); setSecScore(null); setPhotoUrl(null); origFileRef.current = null; onReset(); };
 
   // Desktop has no phone camera — and a file picker invites downloaded or
   // AI-generated images. Block capture entirely outside a mobile browser.
@@ -3385,7 +3400,10 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
 
       <div id="gul-photo-step">
       <VerifyZone key={verifyKey} utilId={selUtil} reading={reading} prevRead={prevRead} subs={subs} meterNo={meterNo} T={T}
-        onOcrReading={(v) => { if (!String(reading).trim()) setReading(String(v)); }}
+        // Only into an EMPTY field, judged when OCR finishes (functional update), so a
+        // number typed during OCR stays. Never with two tariff registers: there
+        // `reading` is their sum, and one register off the photo isn't that.
+        onOcrReading={(v) => { if (!dualTariff) setReading(prev => (String(prev ?? "").trim() ? prev : String(v))); }}
         onVerified={(res, img, mime) => { setAiOk(true); setPhoto?.(img ? { base64: img, mime, ocrNums: res?.ocrNums || [], ocrFailed: !!res?.ocrFailed, meterNoConfirmed: res?.meterNoConfirmed ?? null } : null); }}
         onReset={() => { setAiOk(false); setPhoto?.(null); }} />
       </div>
