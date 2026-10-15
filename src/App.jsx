@@ -523,21 +523,24 @@ async function saveOfflineSubmission(data) {
   });
 }
 
-// Submissions captured while offline, still waiting to be broadcast. Skips any
-// that are already broadcasting/synced so a sync interrupted mid-flight can't
-// re-broadcast the same reward.
+// Submissions captured while offline, still waiting to be broadcast. Skips synced
+// ones, ones the server refused for good, and ones in flight. An in-flight flag
+// only holds for as long as a payout call can take: a WebView killed mid-request
+// never clears it, and without an expiry that item was stuck forever. Retrying an
+// expired one is safe — the server's photo-hash dedupe never pays a photo twice.
+// (PAYOUT_MS is declared further down, so it's read at call time, not here.)
 async function getUnsyncedSubmissions() {
   const db = await initDB();
   return new Promise((resolve, reject) => {
     const req = db.transaction("submissions", "readonly").objectStore("submissions").getAll();
     req.onerror = () => reject(req.error);
-    req.onsuccess = () => resolve((req.result || []).filter(s => !s.synced && !s.broadcasting));
+    req.onsuccess = () => resolve((req.result || []).filter(s => !s.synced && !s.failed
+      && (!s.broadcasting || !s.broadcastAt || Date.now() - s.broadcastAt > PAYOUT_MS + 60000)));
   });
 }
 
-// Flag a queued submission as in-flight BEFORE broadcasting so a crash between
-// broadcast and confirmation doesn't cause a double payout. Cleared on failure.
-async function markBroadcasting(id, flag) {
+// Read-modify-write one queued submission.
+async function updateOfflineSubmission(id, patch) {
   const db = await initDB();
   return new Promise((resolve, reject) => {
     const store = db.transaction("submissions", "readwrite").objectStore("submissions");
@@ -545,25 +548,29 @@ async function markBroadcasting(id, flag) {
     get.onerror = () => reject(get.error);
     get.onsuccess = () => {
       const v = get.result;
-      if (v) { v.broadcasting = !!flag; store.put(v); }
+      if (v) store.put({ ...v, ...patch });
       resolve();
     };
   });
+}
+
+// Flag a queued submission as in-flight right before the /reward call, so a sync
+// that runs again meanwhile doesn't send it twice. Timestamped: see above.
+function markBroadcasting(id, flag) {
+  return updateOfflineSubmission(id, { broadcasting: !!flag, broadcastAt: flag ? Date.now() : 0 });
+}
+
+// The server refused this item for good (a 4xx: cooldown, duplicate photo, lower
+// reading…). Retrying would ask for a signature on every reconnect, forever.
+function markFailed(id, reason) {
+  return updateOfflineSubmission(id, { failed: true, failReason: String(reason || ""), broadcasting: false, broadcastAt: 0 });
 }
 
 // Mark a queued submission as broadcast so it isn't sent twice.
-async function markSynced(id, txHash) {
-  const db = await initDB();
-  return new Promise((resolve, reject) => {
-    const store = db.transaction("submissions", "readwrite").objectStore("submissions");
-    const get = store.get(id);
-    get.onerror = () => reject(get.error);
-    get.onsuccess = () => {
-      const v = get.result;
-      if (v) { v.synced = true; v.broadcasting = false; v.txHash = txHash || v.txHash; store.put(v); }
-      resolve();
-    };
-  });
+function markSynced(id, txHash) {
+  const patch = { synced: true, broadcasting: false, broadcastAt: 0 };
+  if (txHash) patch.txHash = txHash;
+  return updateOfflineSubmission(id, patch);
 }
 
 function useOnlineStatus() {
@@ -802,13 +809,25 @@ function rememberHash(h) {
 // which covers payouts made elsewhere: another device, or a reader paid on arrival.
 // Until it has answered, this device's own last payout is the guide.
 const SERVER_NEXT_AT = {};   // utility → epoch ms (0 = now), for the connected wallet
+// Which wallet SERVER_NEXT_AT and the local fallback belong to. Set by App while it
+// renders (setCooldownWallet), so a switched-to wallet never sees the previous
+// one's "next submission in 6h" — not even for the one render before an effect.
+let COOLDOWN_WALLET = "";
+function setCooldownWallet(wallet) {
+  const w = String(wallet || "").toLowerCase();
+  if (w === COOLDOWN_WALLET) return;
+  COOLDOWN_WALLET = w;
+  for (const k of Object.keys(SERVER_NEXT_AT)) delete SERVER_NEXT_AT[k];   // another wallet's
+}
+// Keyed by wallet: one wallet's payout says nothing about another's cooldown.
+const cooldownsKey = () => `greenlog_cooldowns_${COOLDOWN_WALLET}`;
 function getCooldowns() {
-  try { return JSON.parse(localStorage.getItem("greenlog_cooldowns") || "{}"); } catch { return {}; }
+  try { return JSON.parse(localStorage.getItem(cooldownsKey()) || "{}"); } catch { return {}; }
 }
 function setCooldown(utilId) {
   SERVER_NEXT_AT[utilId] = Date.now() + RULES.cooldownMs;
   const cd = getCooldowns(); cd[utilId] = Date.now();
-  try { localStorage.setItem("greenlog_cooldowns", JSON.stringify(cd)); } catch {}
+  try { localStorage.setItem(cooldownsKey(), JSON.stringify(cd)); } catch {}
 }
 function getCooldownRemaining(utilId) {
   if (Object.prototype.hasOwnProperty.call(SERVER_NEXT_AT, utilId)) {
@@ -1083,6 +1102,16 @@ async function fetchT(url, opts = {}, ms = 30000) {
     throw e;
   }
 }
+
+// An error that remembers the HTTP status it came from. A 4xx is the server's
+// final word on that request; anything else — a timeout, a dropped connection, a
+// 5xx — leaves open whether a payout went out before it failed.
+function httpError(message, status) {
+  const e = new Error(message);
+  e.status = status;
+  return e;
+}
+const isRefusal = (e) => e?.status >= 400 && e?.status < 500;
 
 function blobToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -2186,9 +2215,12 @@ const ECO_APPLIANCE_LABELS = { washer: "Washing machine", dryer: "Dryer", dishwa
 function HistItem({ s, T }) {
   const util = getUtil(s.type);
   const isEco = s.type === "eco";
+  // A row without a previous reading (older automatic claims) has no usage to show:
+  // a dash, not "NaN kWh".
+  const used = parseFloat(s.cur) - parseFloat(s.prev);
   const delta = isEco
     ? (ECO_APPLIANCE_LABELS[s.appliance] || "Eco run")
-    : (parseFloat(s.cur) - parseFloat(s.prev)).toFixed(2);
+    : (Number.isFinite(used) ? used.toFixed(2) : "—");
   // Tapping a paid submission opens the real transaction on the block explorer —
   // one-tap on-chain proof (VeWorld's own Activity tab won't show these, because
   // the user's wallet never signs the payout; the distributor does).
@@ -2201,7 +2233,7 @@ function HistItem({ s, T }) {
       <div className="hinfo">
         <div className="htitle">{util.label}{s.meterNo ? <span style={{fontWeight:400,color:T.textSoft,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",fontSize:10}}> · #{s.meterNo}</span> : null}</div>
         <div className="hdate">{s.date}{txUrl ? <span style={{color:T.textSoft}}> · tx ↗</span> : null}</div>
-        <div style={{color: T[s.type] || T.electric, fontSize: isEco ? 12 : undefined}}>{delta}{util.unit ? ` ${util.unit}` : ""}</div>
+        <div style={{color: T[s.type] || T.electric, fontSize: isEco ? 12 : undefined}}>{delta}{util.unit && delta !== "—" ? ` ${util.unit}` : ""}</div>
       </div>
       <div className="hright">
         <div className="hb3tr">+{parseFloat(s.b3tr).toFixed(2)}</div>
@@ -5844,6 +5876,12 @@ export default function App() {
   // requestTransaction() signer; useWalletModal() opens the connect dialog.
   const { account, accountDomain, requestTransaction, requestCertificate, disconnect } = useWallet();
   const wallet = account || null;
+  setCooldownWallet(wallet);
+  // The wallet connected NOW, for async work started under another one: a payout
+  // that returns after a wallet switch must not land in the new wallet's history.
+  const walletRef = useRef(wallet);
+  walletRef.current = wallet;
+  const sameWallet = (w) => String(walletRef.current || "").toLowerCase() === String(w || "").toLowerCase();
   // The server's answer about THIS wallet; reset when another one connects, so a
   // wallet never shows the previous one's access.
   const noAccess = !!wallet && passInfo.required && !passInfo.has;
@@ -5893,13 +5931,25 @@ export default function App() {
   // so everything that shows them renders again.
   const [, setRulesVer] = useState(0);
 
+  // A different wallet starts without the previous one's access pass. Only on a
+  // wallet change: editing meters re-sends /wallet/seen below, but must not wipe
+  // what the server already said about this same wallet. (SERVER_NEXT_AT is reset
+  // by setCooldownWallet during render.)
+  useEffect(() => {
+    setPassInfo({ required: false, has: true, pass: null, isAdmin: false });
+    setRulesVer(v => v + 1);
+  }, [wallet]);
+  // Bumped to ask /wallet/seen again, e.g. after a payout whose outcome is unknown.
+  const [seenTick, setSeenTick] = useState(0);
+
   // Let the backend know this wallet is active, so the admin panel can see testers
   // who have connected (and maybe registered meters locally) but not yet earned
   // on-chain. Fire-and-forget; failure is harmless.
   useEffect(() => {
-    for (const k of Object.keys(SERVER_NEXT_AT)) delete SERVER_NEXT_AT[k];   // another wallet's
-    setPassInfo({ required: false, has: true, pass: null, isAdmin: false });
     if (!wallet || !REWARD_API) return;
+    // An answer for a wallet that is no longer connected (or for an older meter
+    // list) must not land: it would show that wallet's pass and cooldowns.
+    let cancelled = false;
     const list = Object.entries(meters || {}).filter(([, v]) => String(v || "").trim()).map(([k, v]) => `${k}:${v}`);
     fetchT(`${REWARD_API.replace(/\/$/, "")}/wallet/seen`, {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -5910,7 +5960,7 @@ export default function App() {
       // meter, submit, and only then hit a 403 they can't act on.
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (!d) return;
+        if (!d || cancelled) return;
         setPassInfo({ required: !!d.requirePass, has: d.hasPass !== false, pass: d.pass || null, isAdmin: !!d.isAdmin });
         // When this wallet may submit again, from the server — so the photo zone says
         // "next submission in 6h" BEFORE the photo, the crop and the signature.
@@ -5920,7 +5970,8 @@ export default function App() {
         }
       })
       .catch(() => {});
-  }, [wallet, meters]);
+    return () => { cancelled = true; };
+  }, [wallet, meters, seenTick]);
   const { open: openWalletModal } = useWalletModal();
   const openConnectModal = () => openWalletModal();
 
@@ -6098,6 +6149,33 @@ export default function App() {
     return () => { cancelled = true; };
   }, [account]);
 
+  // A payout call that timed out, lost its connection or got a 5xx may still have
+  // been paid: the server keeps going after we stop waiting. Ask again — the chain
+  // history and /wallet/seen (cooldowns) — so a payout that did go through shows up
+  // instead of looking lost and inviting a retry. Once now, and once more after a
+  // block or two, because the reward event lands a little after the server answers.
+  const subsRef = useRef(subs);
+  subsRef.current = subs;
+  const recheckPayout = (addr) => {
+    const a = String(addr || "").toLowerCase();
+    if (!a) return;
+    const pull = () => {
+      if (!sameWallet(a)) return;
+      setSeenTick(t => t + 1);
+      fetchWalletHistory({ node: ACTIVE_NODE, contract: CONTRACTS.X2EarnRewardsPool, appId: VEBETTER_APP_ID, address: a })
+        .then(res => {
+          if (!sameWallet(a) || sessionWalletRef.current !== a || !res.ok || !res.rows.length) return;
+          const merged = mergeSubs(subsRef.current, res.rows);
+          setSubs(merged);
+          setB3tr(merged.reduce((t, s) => t + (parseFloat(s.b3tr) || 0), 0));
+          saveSubs(a, merged);
+        })
+        .catch(() => {});
+    };
+    pull();
+    setTimeout(pull, 30000);
+  };
+
   // Read the wallet's real B3TR balance on connect and whenever a payout lands.
   // The payout is reported as soon as it is sent, before the block includes it,
   // so read once now and once more after a block or two.
@@ -6160,45 +6238,79 @@ export default function App() {
       syncingRef.current = true;
       try {
         const pending = await getUnsyncedSubmissions();
-        let synced = 0;
+        let synced = 0, uncertain = false;
+        const refused = [];
         for (const item of pending) {
           if (cancelled) break;
           if (!item.photo) continue; // legacy/photoless item — can't be paid, leave queued
-          // Claim the item first; if we crash mid-flight it stays flagged and won't be
-          // re-sent (no double payout).
-          await markBroadcasting(item.id, true);
+          // Only the wallet that saved it gets paid for it. Items saved before the
+          // wallet was stored (or while none was connected) go to whoever is
+          // connected, as they always did.
+          if (item.wallet && item.wallet.toLowerCase() !== wallet.toLowerCase()) continue;
+          // Sign first: a declined or dropped signature sends nothing, so the item
+          // simply stays queued — no flag to get stuck on.
+          let certificate;
           try {
             const content = `Green Utility Log — confirm submission\nWallet: ${wallet}\nUtility: ${item.type}\nReading: ${item.cur}\nTime: ${new Date().toISOString()}`;
             const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } });
-            const certificate = { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
-            const res = await fetchT(`${REWARD_API.replace(/\/$/, "")}/reward`, {
+            certificate = { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
+          } catch { continue; }
+          if (cancelled) break;
+          const device = await deviceInfo();
+          // In flight only around the call itself (timestamped, so it expires).
+          await markBroadcasting(item.id, true);
+          let res, data;
+          try {
+            res = await fetchT(`${REWARD_API.replace(/\/$/, "")}/reward`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ utility: item.type, reading: item.cur, prevRead: item.prev, meterNo: item.meterNo, address: wallet, photo: item.photo, photoMime: item.photoMime || "", certificate, clientFlagged: !!item.flagged, flagReason: item.flagReason || "", ocrNums: item.ocrNums || [], meterNoConfirmed: item.meterNoConfirmed ?? null, avgUsage: item.avgUsage ?? null, captchaToken: "", device: await deviceInfo() }),
+              body: JSON.stringify({ utility: item.type, reading: item.cur, prevRead: item.prev, meterNo: item.meterNo, address: wallet, photo: item.photo, photoMime: item.photoMime || "", certificate, clientFlagged: !!item.flagged, flagReason: item.flagReason || "", ocrNums: item.ocrNums || [], meterNoConfirmed: item.meterNoConfirmed ?? null, avgUsage: item.avgUsage ?? null, captchaToken: "", device }),
             }, PAYOUT_MS);
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.error || `reward ${res.status}`);
-            const paid = (data.amount != null && Number.isFinite(Number(data.amount))) ? Number(data.amount) : item.b3tr;
-            await markSynced(item.id, data.txid);
-            if (cancelled) break;
-            setSubs(prev => [{
-              id: item.id, type: item.type, meterNo: item.meterNo || "",
-              cur: item.cur, prev: item.prev, date: dayKey(new Date(item.id)),
-              b3tr: paid, status: "confirmed", txHash: data.txid || "", submittedAt: item.id,
-              // Carry the flag through. Without it this row had status "review" but no
-              // `flagged`, so the history fell through to rendering the bare word
-              // "review" — unstyled, unexplained, on a submission that was paid. The
-              // badge only appears when `flagged` is set.
-              flagged: !!item.flagged, flagReason: item.flagReason || "",
-            }, ...prev]);
-            setB3tr(b => b + (parseFloat(paid) || 0));
-            synced++;
+            data = await res.json().catch(() => ({}));
           } catch {
-            // Failed (rejected cert / server error) — release it for a later retry.
-            await markBroadcasting(item.id, false);
+            // Timeout or lost connection: it may have been paid. Leave the flag on —
+            // it expires after PAYOUT_MS + 60 s, then the item is retried (the
+            // server never pays the same photo twice).
+            uncertain = true;
+            continue;
           }
+          if (!res.ok) {
+            if (res.status >= 400 && res.status < 500) {
+              // The server's final answer (cooldown, duplicate photo, lower reading…):
+              // retrying can't change it, so take it out of the queue.
+              const reason = data.error || `refused (${res.status})`;
+              await markFailed(item.id, reason);
+              refused.push(`${getUtil(item.type).label} ${item.cur}: ${reason}`);
+            } else {
+              await markBroadcasting(item.id, false);   // 5xx: try again next time
+              uncertain = true;
+            }
+            continue;
+          }
+          const paid = (data.amount != null && Number.isFinite(Number(data.amount))) ? Number(data.amount) : item.b3tr;
+          await markSynced(item.id, data.txid);
+          if (cancelled) break;
+          setSubs(prev => [{
+            id: item.id, type: item.type, meterNo: item.meterNo || "",
+            cur: item.cur, prev: item.prev, date: dayKey(new Date(item.id)),
+            b3tr: paid, status: "confirmed", txHash: data.txid || "", submittedAt: item.id,
+            // Carry the flag through. Without it this row had status "review" but no
+            // `flagged`, so the history fell through to rendering the bare word
+            // "review" — unstyled, unexplained, on a submission that was paid. The
+            // badge only appears when `flagged` is set.
+            flagged: !!item.flagged, flagReason: item.flagReason || "",
+          }, ...prev]);
+          setB3tr(b => b + (parseFloat(paid) || 0));
+          synced++;
         }
-        if (synced && !cancelled) showToast(`🔄 Synced ${synced} offline submission${synced > 1 ? "s" : ""} to ${NETWORK_LABEL}`);
+        if (cancelled) return;
+        if (uncertain) recheckPayout(wallet);
+        const syncedMsg = synced ? `🔄 Synced ${synced} offline submission${synced > 1 ? "s" : ""} to ${NETWORK_LABEL}` : "";
+        // There is no queue screen, so a refused item is said out loud here, with
+        // the server's reason, and dropped from the queue.
+        if (refused.length) {
+          showToast(`❌ ${refused.length} offline submission${refused.length > 1 ? "s were" : " was"} refused and removed from the queue:\n${refused.join("\n")}${syncedMsg ? `\n\n${syncedMsg}` : ""}`);
+        } else if (syncedMsg) showToast(syncedMsg);
       } finally {
         syncingRef.current = false;
       }
@@ -6495,6 +6607,8 @@ export default function App() {
     if (TURNSTILE_SITE_KEY && !captchaToken) { showToast("🤖 Complete the verification checkbox first"); return; }
     if (photoTooOld(file)) { showToast("📸 Take the photo live with your camera — saved images aren't accepted"); return; }
     setEcoBusy(true);
+    const payWallet = wallet;
+    let sent = false;
     try {
       const upload = await uploadablePhoto(file);
       const base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] || ""); r.onerror = rej; r.readAsDataURL(upload); });
@@ -6507,18 +6621,24 @@ export default function App() {
         showToast("✋ Sign the confirmation in your wallet to claim the eco bonus");
         return;
       }
+      const device = await deviceInfo();
+      sent = true;
       const res = await fetchT(`${REWARD_API.replace(/\/$/, "")}/eco-action`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: wallet, appliance, photo: base64, photoMime: upload.type || "", certificate, captchaToken, device: await deviceInfo() }),
+        body: JSON.stringify({ address: wallet, appliance, photo: base64, photoMime: upload.type || "", certificate, captchaToken, device }),
       }, PAYOUT_MS);
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || `eco service error ${res.status}`);
+      if (!res.ok) throw httpError(data.error || `eco service error ${res.status}`, res.status);
       const paid = Number(data.amount) || 0;
+      // Switched wallets while this was paying: it's the other wallet's money, and
+      // shows in its history (from chain) when that one connects again.
+      if (!sameWallet(payWallet)) { showToast(`🌿 Eco bonus +${paid} B3TR paid to ${payWallet.slice(0, 6)}…${payWallet.slice(-4)} (the wallet you started with)`); return; }
       setSubs(prev => [{ id: Date.now(), type: "eco", appliance, cur: "", prev: "", meterNo: "", date: dayKey(new Date()), b3tr: paid, status: "confirmed", txHash: data.txid || "", submittedAt: Date.now() }, ...prev]);
       setB3tr(b => b + paid);
       showToast(`🌿 Eco bonus: +${paid} B3TR!`);
     } catch (e) {
+      if (sent && !isRefusal(e)) recheckPayout(payWallet);
       showToast(`❌ Eco bonus failed: ${e?.message || "try again later"}`);
     } finally {
       setEcoBusy(false);
@@ -6539,6 +6659,8 @@ export default function App() {
     if (!meterNo) { showToast("⚠️ Register your electricity meter number first"); return; }
     if (TURNSTILE_SITE_KEY && !captchaToken) { showToast("🤖 Complete the verification checkbox first"); return; }
     setMeterAutoBusy(true);
+    const payWallet = wallet;
+    let sent = false;
     try {
       let certificate;
       try {
@@ -6550,19 +6672,27 @@ export default function App() {
         showToast("✋ Sign the confirmation in your wallet to submit");
         return;
       }
+      sent = true;
       const res = await fetchT(`${REWARD_API.replace(/\/$/, "")}/reward-from-meter`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address: wallet, utility: "electric", meterNo, certificate, captchaToken }),
       }, PAYOUT_MS);
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || `service error ${res.status}`);
+      if (!res.ok) throw httpError(data.error || `service error ${res.status}`, res.status);
       const paid = Number(data.amount) || 0;
-      setSubs(prev => [{ id: Date.now(), type: "electric", meterNo, cur: data.reading != null ? String(data.reading) : "", prev: "", date: dayKey(new Date()), b3tr: paid, status: "confirmed", txHash: data.txid || "", submittedAt: Date.now() }, ...prev]);
+      if (!sameWallet(payWallet)) { showToast(`⚡ Automatic reading +${paid} B3TR paid to ${payWallet.slice(0, 6)}…${payWallet.slice(-4)} (the wallet you started with)`); return; }
+      // The server answers with the reading and the usage it paid for, not the
+      // previous reading; derive that, so history shows "x kWh" instead of "NaN".
+      const curN = Number(data.reading), useN = Number(data.usage);
+      const cur = data.reading != null && Number.isFinite(curN) ? String(data.reading) : "";
+      const prev = cur && data.usage != null && Number.isFinite(useN) ? String(+(curN - useN).toFixed(3)) : "";
+      setSubs(prev0 => [{ id: Date.now(), type: "electric", meterNo, cur, prev, date: dayKey(new Date()), b3tr: paid, status: "confirmed", txHash: data.txid || "", submittedAt: Date.now() }, ...prev0]);
       setB3tr(b => b + paid);
       setCooldown("electric");
       showToast(`⚡ Automatic reading: +${paid} B3TR!`);
     } catch (e) {
+      if (sent && !isRefusal(e)) recheckPayout(payWallet);
       showToast(`❌ Automatic submit failed: ${e?.message || "try again later"}`);
     } finally {
       setMeterAutoBusy(false);
@@ -6656,6 +6786,9 @@ export default function App() {
       // "Submitting…" for good and put up the red startup-error box.
       try {
         await saveOfflineSubmission({
+          // Whose reading this is: the sync pays it only to this wallet, not to
+          // whichever one happens to be connected when the connection returns.
+          wallet: wallet ? wallet.toLowerCase() : "",
           type:selUtil, meterNo, cur:reading, prev:prevRead, b3tr:earned,
           flagged: !photoConfirmed || anom.anomaly, flagReason,
           photo: photo?.base64 || "", photoMime: photo?.mime || "",
@@ -6699,6 +6832,8 @@ export default function App() {
       return;
     }
 
+    const payWallet = wallet;
+    let sent = false;
     try {
       // Two payout paths:
       //  • REWARD_API set → a server-side reward-distributor verifies and issues
@@ -6724,18 +6859,29 @@ export default function App() {
           showToast("✋ Sign the confirmation in your wallet to submit");
           return;
         }
+        const device = await deviceInfo();
+        sent = true;
         const res = await fetchT(`${REWARD_API.replace(/\/$/, "")}/reward`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ utility: selUtil, reading, prevRead, ...(registers ? { registers } : {}), meterNo, address: wallet, photo: photo?.base64 || "", photoMime: photo?.mime || "", certificate, clientFlagged: !photoConfirmed || anom.anomaly, flagReason, ocrNums: photo?.ocrNums || [], meterNoConfirmed: photo?.meterNoConfirmed ?? null, avgUsage: anom.avg ?? null, captchaToken, device: await deviceInfo() }),
+          body: JSON.stringify({ utility: selUtil, reading, prevRead, ...(registers ? { registers } : {}), meterNo, address: wallet, photo: photo?.base64 || "", photoMime: photo?.mime || "", certificate, clientFlagged: !photoConfirmed || anom.anomaly, flagReason, ocrNums: photo?.ocrNums || [], meterNoConfirmed: photo?.meterNoConfirmed ?? null, avgUsage: anom.avg ?? null, captchaToken, device }),
         }, PAYOUT_MS);
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || `Reward service error ${res.status}`);
+        if (!res.ok) throw httpError(data.error || `Reward service error ${res.status}`, res.status);
         txid = data.txid;
         if (data.amount != null && Number.isFinite(Number(data.amount))) paidAmount = Number(data.amount);
       } else {
         const clauses = buildRewardClauses(selUtil, reading, prevRead, earned, wallet, meterNo);
         ({ txid } = await requestTransaction(clauses));
+      }
+
+      // Switched wallets while this was paying: the payout belongs to the wallet it
+      // was sent for and shows in its history (from chain) once that one is back.
+      // Recording it here would put it in the new wallet's history and totals.
+      if (!sameWallet(payWallet)) {
+        setBusy(false);
+        showToast(`✅ +${paidAmount.toFixed(2)} B3TR paid to ${payWallet.slice(0, 6)}…${payWallet.slice(-4)} (the wallet you started with)`);
+        return;
       }
 
       const today = new Date();
@@ -6768,6 +6914,7 @@ export default function App() {
       setBusy(false);
     } catch (e) {
       setBusy(false);
+      if (sent && !isRefusal(e)) recheckPayout(payWallet);
       // A meter whose starting point was set from a single tariff register can never
       // be reconciled with the total of both — the step is thousands of kWh and this
       // is the refusal it produces, every time, forever. Offer the one-time fix here
