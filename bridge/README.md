@@ -7,14 +7,17 @@ total to GreenUtilityLog. **No cron, no jq, no scripting.**
 Two modes:
 - **HomeWizard P1** (default) — it **finds your HomeWizard on the network by itself**
   (mDNS) and reads it. No IP to look up.
-- **Any other reader** — point it at any device that returns your kWh total as JSON
-  over HTTP (dsmr-reader, Shelly, a custom endpoint…) with `--url=`.
+- **Any other reader** — point it at any device on your network that serves the
+  meter's kWh total as JSON over HTTP, without a login (P1 Monitor, a custom
+  endpoint…), with `--url=`. A Tasmota IR reading head (Hichi): `--tasmota=<ip>`.
+  Not out of the box: dsmr-reader's API wants an `X-AUTHKEY` header, and a Shelly
+  reports its own energy counter, not the meter's register.
 
 Zero dependencies — just Node ≥ 18 (or Docker).
 
 ## Before you start
 1. In the HomeWizard Energy app: **Settings → Meters → your P1 → turn on “Local API.”**
-2. In the GreenUtilityLog app: **Meter → ⚙️ Automatic setup → “Get my device token.”** (Do one photo submission first to set your baseline.)
+2. In the GreenUtilityLog app: **Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → “Get my device token.”** (Do one photo submission first to set your baseline.)
 
 ## Run it — pick one
 
@@ -63,9 +66,9 @@ docker run -d --name gul-bridge --network host -e GUL_TOKEN=your-device-token gu
 > `--network host` lets the container discover your HomeWizard via mDNS.
 
 Leave it running, or schedule it as above. It pushes your meter total twice a day.
-Your reading shows up in
-the app under **“Auto-received”** and is paid automatically when it arrives (at most
-once a day).
+In the app, the **⚡ Automatic reading** panel under **Meter** then says
+**Connected — … kWh received**. It is paid automatically when it arrives (at most once
+a day), and the panel's **Timeline** shows **Paid +… B3TR**.
 
 ## Options
 
@@ -80,7 +83,8 @@ then the token saved by a previous run.
 | `--interval=` | `INTERVAL_SEC` | `43200` | Seconds between pushes, min 60. Twice a day by default: a reading can only be claimed once per 20 h, and only the newest one is kept. |
 | `--ingest=` | `GUL_INGEST_URL` | public backend | Override the ingest endpoint |
 | `--url=` | `READ_URL` | — | Generic mode: read your kWh total from this HTTP/JSON endpoint (skips HomeWizard discovery) |
-| `--field=` | `READ_FIELD` | auto-detect | Dot-path to the number in that JSON (e.g. `data.total_kwh`) |
+| `--field=` | `READ_FIELD` | auto-detect | Dot-path to the number in that JSON (e.g. `data.total_kwh`). Several joined with `+` send their sum: `--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH` for a reader that only reports the two tariff registers |
+| `--tasmota=` | `TASMOTA_IP` | — | IP of a Tasmota IR reading head (e.g. Hichi); reads its `Total_in` |
 | `--once` | `ONCE=1` | — | Push a single reading and exit (for a cron/systemd timer) |
 
 The token is saved to `.gul-bridge.json` next to the script, so it is never needed on

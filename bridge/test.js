@@ -307,3 +307,69 @@ test("--tasmota reads Total_in from a Tasmota IR reading head", async () => {
   assert.equal(path, "/cm?cmnd=Status%2010");
   assert.deepEqual(got, { token: "t1", reading: 12345.6789 });
 });
+
+test("--tasmota and --powerfox take their value after a space too, and a bare --powerfox leaves the next flag alone", async () => {
+  let path = "";
+  const tasmota = await fake((req, res) => { path = req.url; res.end(JSON.stringify({ StatusSNS: { SML: { Total_in: 4321.5 } } })); });
+  const seen = [];
+  const backend = await fake((req, res) => { let b = ""; req.on("data", (c) => (b += c)); req.on("end", () => { seen.push(JSON.parse(b).reading); res.end("{}"); }); });
+  const ingest = `--ingest=http://127.0.0.1:${backend.address().port}/meter-ingest`;
+  // Before, the IP was dropped as a stray word and this went looking for a HomeWizard.
+  let r = await run(["--token=t1", "--tasmota", `127.0.0.1:${tasmota.address().port}`, "--once", ingest]);
+  assert.equal(r.code, 0, r.out);
+  assert.equal(path, "/cm?cmnd=Status%2010");
+  assert.deepEqual(seen, [4321.5]);
+
+  const pf = await fakePowerfox();
+  const env = { GUL_POWERFOX_URL: pf.url };
+  r = await run(["--powerfox", "me@example.de", "--powerfox-pass", "pw-123", "--once", ingest], env);
+  assert.equal(r.code, 0, r.out);
+  assert.equal(seen[1], 1004.5);
+  // Bare, with a flag right after it: that flag still counts (--once: push and exit).
+  r = await run(["--powerfox", "--once", ingest], env);
+  assert.equal(r.code, 0, r.out);
+  assert.equal(seen[2], 1004.5, "the saved account was used");
+  tasmota.close(); backend.close(); pf.srv.close();
+});
+
+test("--field=a+b sends the sum of two tariff registers, and nothing when one is missing", async () => {
+  // P1 Monitor's shape: an array with one object, the two registers and no total.
+  let answer = [{ CONSUMPTION_KWH_LOW: 4100.125, CONSUMPTION_KWH_HIGH: 3900.5, PRODUCTION_KWH_LOW: 10 }];
+  const reader = await fake((req, res) => res.end(JSON.stringify(answer)));
+  const seen = [];
+  const backend = await fake((req, res) => { let b = ""; req.on("data", (c) => (b += c)); req.on("end", () => { seen.push(JSON.parse(b).reading); res.end("{}"); }); });
+  const flags = ["--once", `--url=http://127.0.0.1:${reader.address().port}/api/v1/smartmeter`, "--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH", `--ingest=http://127.0.0.1:${backend.address().port}/meter-ingest`];
+  let r = await run(flags);
+  assert.equal(r.code, 0, r.out);
+  assert.deepEqual(seen, [8000.625]);
+
+  answer = [{ CONSUMPTION_KWH_LOW: 4100.125 }];
+  r = await run(flags);
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /couldn't find a kWh number/);
+  assert.equal(seen.length, 1, "half a total is never sent");
+  reader.close(); backend.close();
+});
+
+test("a % in a flag is escaped in the cron line, where cron would read it as a newline", async () => {
+  if (process.platform === "win32") return;
+  const { writeFileSync, chmodSync, mkdirSync } = require("node:fs");
+  const bin = join(dir, "bin-pct");
+  mkdirSync(bin, { recursive: true });
+  const cronFile = join(dir, "crontab-pct.txt");
+  writeFileSync(join(bin, "crontab"), '#!/bin/sh\nif [ "$1" = "-l" ]; then if [ -f "$CRONFILE" ]; then cat "$CRONFILE"; else echo "no crontab for you" >&2; exit 1; fi; elif [ "$1" = "-" ]; then cat > "$CRONFILE"; fi\n');
+  chmodSync(join(bin, "crontab"), 0o755);
+  const env = { PATH: `${bin}:${process.env.PATH}`, CRONFILE: cronFile };
+  let path = "";
+  const reader = await fake((req, res) => { path = req.url; res.end(JSON.stringify({ StatusSNS: { SML: { Total_in: 55.5 } } })); });
+  const backend = await fake((req, res) => { req.resume(); req.on("end", () => res.end("{}")); });
+  const url = `http://127.0.0.1:${reader.address().port}/cm?cmnd=Status%2010`;
+  const r = await run(["--install", `--url=${url}`, `--ingest=http://127.0.0.1:${backend.address().port}/meter-ingest`], env);
+  assert.equal(r.code, 0, r.out);
+  assert.equal(path, "/cm?cmnd=Status%2010", "the run itself uses the URL as given");
+  const tab = readFileSync(cronFile, "utf8");
+  assert.ok(tab.includes("cmnd=Status\\%2010"), tab);
+  assert.doesNotMatch(tab, /[^\\]%/, "no unescaped % left in the line");
+  await run(["--uninstall"], env);
+  reader.close(); backend.close();
+});
