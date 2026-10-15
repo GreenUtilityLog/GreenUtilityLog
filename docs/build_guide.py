@@ -790,6 +790,73 @@ for _c, (_step, _row) in TAS.items():
     _d["c"].append(_step)
     _d["country_rows"] = [(a, b, _row) if a.startswith("🇩🇪") else (a, b, x) for a, b, x in _d["country_rows"]]
 
+# ─────────────────────────────── REST OF EUROPE ───────────────────────────────
+# Route C also covers Tasmota reading heads; the country table gains the countries
+# where only some routes work; and the one-wallet-per-phone refusal is explained.
+EU = {
+  "en": dict(
+    s_c="Route C — Another reader (P1 reader, Tasmota reading head)",
+    c_card=("I have another reader", "dsmr-reader, P1 Monitor, Shelly, or a Tasmota reading head (Hichi) — anything that serves its data on your network.", 3, "Technical"),
+    rows=[('🇦🇹 Austria', 'Customer interface (M-Bus) / optical port', 'Tibber Pulse: Route E. Tasmota reading head (Hichi): Route C. Otherwise Home Assistant.'),
+          ('🇨🇭 Switzerland', 'Customer interface / optical port', 'Tasmota reading head (Hichi): Route C. Otherwise Home Assistant.'),
+          ('🇫🇷 France', 'Linky: TIC port', 'No P1 port, so for now only Home Assistant (e.g. with a ZLinky). Or photos.'),
+          ('🇬🇧 United Kingdom', 'SMETS2: no port (Zigbee)', 'No P1 port, so for now only Home Assistant (e.g. with a Hildebrand Glow). Or photos.'),
+          ('🇪🇸 Spain', 'No port', 'No P1 port, so for now only Home Assistant (e.g. with Datadis). Or photos.'),
+          ('🇮🇹 Italy', 'Chain 2 (needs a device such as a Sinapsi Alfa)', 'No P1 port, so for now only Home Assistant. Or photos.')],
+    trouble=("this phone is already used by 1 other wallet", "One person, one wallet: a phone can be used by one wallet to earn. The wallet that was paid first on this phone keeps working. Switched to a new wallet for good? Ask an admin via Send Feedback in the app."),
+  ),
+  "nl": dict(
+    s_c="Route C — Een andere reader (P1-reader, Tasmota-leeskop)",
+    c_card=("Ik heb een andere reader", "dsmr-reader, P1 Monitor, Shelly, of een Tasmota-leeskop (Hichi) — alles wat z’n data op je netwerk aanbiedt.", 3, "Technisch"),
+    rows=[('🇦🇹 Oostenrijk', 'Klantinterface (M-Bus) / optische poort', 'Tibber Pulse: Route E. Tasmota-leeskop (Hichi): Route C. Anders Home Assistant.'),
+          ('🇨🇭 Zwitserland', 'Klantinterface / optische poort', 'Tasmota-leeskop (Hichi): Route C. Anders Home Assistant.'),
+          ('🇫🇷 Frankrijk', 'Linky: TIC-poort', 'Geen P1-poort, dus voorlopig alleen Home Assistant (bijv. met een ZLinky). Of foto’s.'),
+          ('🇬🇧 Verenigd Koninkrijk', 'SMETS2: geen poort (Zigbee)', 'Geen P1-poort, dus voorlopig alleen Home Assistant (bijv. met een Hildebrand Glow). Of foto’s.'),
+          ('🇪🇸 Spanje', 'Geen poort', 'Geen P1-poort, dus voorlopig alleen Home Assistant (bijv. met Datadis). Of foto’s.'),
+          ('🇮🇹 Italië', 'Chain 2 (met een kastje zoals de Sinapsi Alfa)', 'Geen P1-poort, dus voorlopig alleen Home Assistant. Of foto’s.')],
+    trouble=("this phone is already used by 1 other wallet", "Eén persoon, één wallet: op een telefoon kan één wallet verdienen. De wallet die als eerste op deze telefoon is uitbetaald, blijft werken. Ben je definitief overgestapt op een nieuwe wallet? Vraag het een admin via Send Feedback in de app."),
+  ),
+  "de": dict(
+    s_c="Route C — Ein anderer Reader (P1-Reader, Tasmota-Lesekopf)",
+    c_card=("Ich habe einen anderen Reader", "dsmr-reader, P1 Monitor, Shelly oder ein Tasmota-Lesekopf (Hichi) — alles, was seine Daten im Netzwerk anbietet.", 3, "Technisch"),
+    rows=[('🇦🇹 Österreich', 'Kundenschnittstelle (M-Bus) / optische Schnittstelle', 'Tibber Pulse: Route E. Tasmota-Lesekopf (Hichi): Route C. Sonst Home Assistant.'),
+          ('🇨🇭 Schweiz', 'Kundenschnittstelle / optische Schnittstelle', 'Tasmota-Lesekopf (Hichi): Route C. Sonst Home Assistant.'),
+          ('🇫🇷 Frankreich', 'Linky: TIC-Schnittstelle', 'Kein P1-Port, also vorerst nur Home Assistant (z. B. mit einem ZLinky). Oder Fotos.'),
+          ('🇬🇧 Vereinigtes Königreich', 'SMETS2: kein Port (Zigbee)', 'Kein P1-Port, also vorerst nur Home Assistant (z. B. mit einem Hildebrand Glow). Oder Fotos.'),
+          ('🇪🇸 Spanien', 'Kein Port', 'Kein P1-Port, also vorerst nur Home Assistant (z. B. mit Datadis). Oder Fotos.'),
+          ('🇮🇹 Italien', 'Chain 2 (mit einem Gerät wie dem Sinapsi Alfa)', 'Kein P1-Port, also vorerst nur Home Assistant. Oder Fotos.')],
+    trouble=("this phone is already used by 1 other wallet", "Eine Person, eine Wallet: Auf einem Handy kann eine Wallet verdienen. Die Wallet, die auf diesem Handy zuerst ausgezahlt wurde, funktioniert weiter. Endgültig auf eine neue Wallet umgestiegen? Frag einen Admin über Send Feedback in der App."),
+  ),
+  "fr": dict(
+    s_c="Route C — Un autre lecteur (lecteur P1, tête de lecture Tasmota)",
+    c_card=("J'ai un autre lecteur", "dsmr-reader, P1 Monitor, Shelly, ou une tête de lecture Tasmota (Hichi) — tout ce qui expose ses données sur votre réseau.", 3, "Technique"),
+    rows=[('🇦🇹 Autriche', 'Interface client (M-Bus) / port optique', 'Tibber Pulse : Route E. Tête de lecture Tasmota (Hichi) : Route C. Sinon Home Assistant.'),
+          ('🇨🇭 Suisse', 'Interface client / port optique', 'Tête de lecture Tasmota (Hichi) : Route C. Sinon Home Assistant.'),
+          ('🇫🇷 France', 'Linky : port TIC', 'Pas de port P1, donc pour l’instant seulement Home Assistant (par ex. avec un ZLinky). Ou des photos.'),
+          ('🇬🇧 Royaume-Uni', 'SMETS2 : pas de port (Zigbee)', 'Pas de port P1, donc pour l’instant seulement Home Assistant (par ex. avec un Hildebrand Glow). Ou des photos.'),
+          ('🇪🇸 Espagne', 'Pas de port', 'Pas de port P1, donc pour l’instant seulement Home Assistant (par ex. avec Datadis). Ou des photos.'),
+          ('🇮🇹 Italie', 'Chain 2 (avec un boîtier comme le Sinapsi Alfa)', 'Pas de port P1, donc pour l’instant seulement Home Assistant. Ou des photos.')],
+    trouble=("this phone is already used by 1 other wallet", "Une personne, un wallet : sur un téléphone, un seul wallet peut gagner. Le wallet payé en premier sur ce téléphone continue de marcher. Vous êtes passé définitivement à un nouveau wallet ? Demandez à un admin via Send Feedback dans l'app."),
+  ),
+  "es": dict(
+    s_c="Ruta C — Otro lector (lector P1, cabezal Tasmota)",
+    c_card=("Tengo otro lector", "dsmr-reader, P1 Monitor, Shelly, o un cabezal Tasmota (Hichi) — cualquiera que sirva sus datos en tu red.", 3, "Técnico"),
+    rows=[('🇦🇹 Austria', 'Interfaz de cliente (M-Bus) / puerto óptico', 'Tibber Pulse: Ruta E. Cabezal Tasmota (Hichi): Ruta C. Si no, Home Assistant.'),
+          ('🇨🇭 Suiza', 'Interfaz de cliente / puerto óptico', 'Cabezal Tasmota (Hichi): Ruta C. Si no, Home Assistant.'),
+          ('🇫🇷 Francia', 'Linky: puerto TIC', 'Sin puerto P1, así que por ahora solo Home Assistant (p. ej. con un ZLinky). O fotos.'),
+          ('🇬🇧 Reino Unido', 'SMETS2: sin puerto (Zigbee)', 'Sin puerto P1, así que por ahora solo Home Assistant (p. ej. con un Hildebrand Glow). O fotos.'),
+          ('🇪🇸 España', 'Sin puerto', 'Sin puerto P1, así que por ahora solo Home Assistant (p. ej. con Datadis). O fotos.'),
+          ('🇮🇹 Italia', 'Chain 2 (con un aparato como el Sinapsi Alfa)', 'Sin puerto P1, así que por ahora solo Home Assistant. O fotos.')],
+    trouble=("this phone is already used by 1 other wallet", "Una persona, un wallet: en un teléfono solo un wallet puede ganar. El wallet que cobró primero en este teléfono sigue funcionando. ¿Te cambiaste a un wallet nuevo para siempre? Pide ayuda a un admin con Send Feedback en la app."),
+  ),
+}
+for _c, _p in EU.items():
+    _d = L[_c]
+    _d["s_c"] = _p["s_c"]
+    _d["routes"] = [_p["c_card"] if dots == 3 else (t, desc, dots, lab) for t, desc, dots, lab in _d["routes"]]
+    _d["country_rows"][-1:-1] = _p["rows"]     # before "anywhere else"
+    _d["trouble"][-1:-1] = [_p["trouble"]]
+
 COPY = {"en":"Copy","nl":"Kopieer","de":"Kopieren","fr":"Copier","es":"Copiar"}
 
 def steps(items, code_label_default=""):

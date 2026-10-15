@@ -1,9 +1,10 @@
 # 🌱 Green Utility Log
 
 A VeChain **VeBetterDAO** x2earn app that pays **B3TR** for keeping your
-electricity use down. Photograph your meter — or let a P1 reader (HomeWizard,
-Home Assistant) send the reading by itself — and the server checks it and pays
-out on-chain.
+electricity use down. Photograph your meter — or let a reader send the reading
+by itself (a P1 reader such as HomeWizard, Home Assistant, a Tasmota reading head,
+or Powerfox and Tibber, which the server reads from their cloud) — and the server
+checks it and pays out on-chain.
 
 **Live app:** https://greenutilitylog.github.io/GreenUtilityLog/
 **Setup guide (readers, Home Assistant):** https://greenutilitylog.github.io/GreenUtilityLog/guide.html
@@ -16,6 +17,8 @@ out on-chain.
 - Only wallets with an **access pass** (from an admin) or a **VeBetterDAO passport**
   that counts them as a person are paid; one meter belongs to one wallet, and
   the same meter photographed for another wallet is refused.
+- One wallet per phone: the app sends a random install id and a hardware hash
+  (hashes only); a second wallet on a phone that already had one paid is refused.
 - One reading per meter per ~day (20 h cooldown), **at most 4 B3TR** per reading.
 - A reader's reading (P1 / Home Assistant) is paid the moment it arrives — nothing
   to tap in the app.
@@ -39,7 +42,7 @@ out on-chain.
 |----------------------|--------------------------------------------------------------------|
 | `src/`               | React + Vite frontend (mostly `src/App.jsx`).                      |
 | `server/`            | Reward backend: verifies submissions and pays B3TR. Tests in `server/test/`. |
-| `bridge/`            | `gul.js`, the one-file helper that sends a HomeWizard P1 reading. Tests in `bridge/test.js`. |
+| `bridge/`            | `gul.js`, the one-file helper that sends a reading (HomeWizard P1, any JSON reader, Tasmota, Powerfox). Tests in `bridge/test.js`. |
 | `custom_components/` | Home Assistant integration (install through HACS).                 |
 | `ha-addon/`          | Home Assistant add-on that runs the bridge.                        |
 | `docs/`              | The setup guide (`build_guide.py` generates `guide.html` and `gul.js`), deploy and testing notes. |

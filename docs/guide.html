@@ -192,7 +192,7 @@
   <div class="routes">
     <div class="route pick"><div><h3>I use Home Assistant</h3><p>Works with almost any meter HA already reads. Install our integration, or paste a few lines of YAML.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Easiest</span></div></div>
     <div class="route"><div><h3>I have a HomeWizard P1</h3><p>No Home Assistant needed. A small helper finds your meter on the network by itself.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Some tech</span></div></div>
-    <div class="route"><div><h3>I have another P1 reader</h3><p>dsmr-reader, P1 Monitor, Shelly and friends — anything that serves its data as JSON.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span><span>Technical</span></div></div>
+    <div class="route"><div><h3>I have another reader</h3><p>dsmr-reader, P1 Monitor, Shelly, or a Tasmota reading head (Hichi) — anything that serves its data on your network.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span><span>Technical</span></div></div>
     <div class="route pick"><div><h3>I have a Powerfox (poweropti)</h3><p>Common in Germany. We can fetch your reading from the Powerfox cloud — nothing to install, nothing to keep switched on.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Easiest</span></div></div>
     <div class="route pick"><div><h3>I have a Tibber Pulse</h3><p>Common in Sweden, Norway, Denmark and Finland. We fetch your reading from Tibber with your personal token — nothing to install.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Easiest</span></div></div>
     <div class="route"><div><h3>None of these</h3><p>Then keep photographing your meter. It works just as well and earns exactly the same. Nothing to set up.</p></div><div class="meter"><span>No setup</span></div></div>
@@ -209,6 +209,12 @@
     <tr><td>🇳🇴 Norway</td><td>HAN (RJ45, M-BUS)</td><td>Tibber Pulse: Route E. Otherwise a Norwegian HAN reader + Home Assistant.</td></tr>
     <tr><td>🇩🇪 Germany</td><td>Smart-Meter-Gateway / optical head</td><td>Powerfox poweropti: Route D. Tasmota reading head (Hichi): Route C. Otherwise Home Assistant.</td></tr>
     <tr><td>🇺🇸 United States</td><td>No socket — Zigbee radio (HAN)</td><td>A Rainforest EAGLE/RAVEn, switched on by your utility.</td></tr>
+    <tr><td>🇦🇹 Austria</td><td>Customer interface (M-Bus) / optical port</td><td>Tibber Pulse: Route E. Tasmota reading head (Hichi): Route C. Otherwise Home Assistant.</td></tr>
+    <tr><td>🇨🇭 Switzerland</td><td>Customer interface / optical port</td><td>Tasmota reading head (Hichi): Route C. Otherwise Home Assistant.</td></tr>
+    <tr><td>🇫🇷 France</td><td>Linky: TIC port</td><td>No P1 port, so for now only Home Assistant (e.g. with a ZLinky). Or photos.</td></tr>
+    <tr><td>🇬🇧 United Kingdom</td><td>SMETS2: no port (Zigbee)</td><td>No P1 port, so for now only Home Assistant (e.g. with a Hildebrand Glow). Or photos.</td></tr>
+    <tr><td>🇪🇸 Spain</td><td>No port</td><td>No P1 port, so for now only Home Assistant (e.g. with Datadis). Or photos.</td></tr>
+    <tr><td>🇮🇹 Italy</td><td>Chain 2 (needs a device such as a Sinapsi Alfa)</td><td>No P1 port, so for now only Home Assistant. Or photos.</td></tr>
     <tr><td>Anywhere else</td><td>Varies</td><td>If Home Assistant reads your meter, Route A works.</td></tr>
   </table></div>
   <div class="note">Not sure? Open Home Assistant and look for your meter under Developer tools → States. If a kWh value is there and counting up, you're set.</div>
@@ -279,7 +285,7 @@
       <div class="see"><b>What you should see, in order</b><span class="k">Paste your device token…</span> → <span class="k">Scheduled…</span> → <span class="k">found HomeWizard at 192.168.…</span> → <span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
-  <h2>Route C — Another P1 reader</h2>
+  <h2>Route C — Another reader (P1 reader, Tasmota reading head)</h2>
   <p class="lede" style="font-size:15.5px">The same helper reads any device that serves its data as JSON over HTTP — you just tell it where. Do steps 2–4 of Route B first (terminal and Node); only the command below is different.</p>
   <ol class="steps">
       <li><p class="steptitle">Find your reader's data URL</p>
@@ -397,6 +403,7 @@
     <tr><td>Tibber didn&#x27;t accept this token</td><td>Copy the token again from developer.tibber.com, without spaces. Made a new token there? Then the old one stops working: connect again with the new one.</td></tr>
     <tr><td>no Tibber Pulse found on this account</td><td>The Pulse has to be set up in the Tibber app, on the same account as the token.</td></tr>
     <tr><td>your Pulse sends live data but no meter total</td><td>Not every meter reports its total through the HAN port. Then use photos, or another reader.</td></tr>
+    <tr><td>this phone is already used by 1 other wallet</td><td>One person, one wallet: a phone can be used by one wallet to earn. The wallet that was paid first on this phone keeps working. Switched to a new wallet for good? Ask an admin via Send Feedback in the app.</td></tr>
     <tr><td>already been corrected once</td><td>A meter’s starting point can be corrected once — every correction wipes the usage since the last payout. If it is wrong again, ask an admin via Send Feedback in the app.</td></tr>
   </table></div>
   <div class="note">Still stuck? Send a message with what the Log tab (or terminal) shows — it usually says exactly what's missing.</div>
@@ -408,7 +415,7 @@
   <div class="routes">
     <div class="route pick"><div><h3>Ik gebruik Home Assistant</h3><p>Werkt met vrijwel elke meter die HA al uitleest. Installeer onze integratie, of plak een paar regels YAML.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Makkelijkst</span></div></div>
     <div class="route"><div><h3>Ik heb een HomeWizard P1</h3><p>Geen Home Assistant nodig. Een klein hulpprogramma vindt je meter zelf op het netwerk.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Beetje techniek</span></div></div>
-    <div class="route"><div><h3>Ik heb een andere P1-reader</h3><p>dsmr-reader, P1 Monitor, Shelly en dergelijke — alles wat z’n data als JSON aanbiedt.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span><span>Technisch</span></div></div>
+    <div class="route"><div><h3>Ik heb een andere reader</h3><p>dsmr-reader, P1 Monitor, Shelly, of een Tasmota-leeskop (Hichi) — alles wat z’n data op je netwerk aanbiedt.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span><span>Technisch</span></div></div>
     <div class="route pick"><div><h3>Ik heb een Powerfox (poweropti)</h3><p>Veel gebruikt in Duitsland. Wij kunnen je stand ophalen uit de Powerfox-cloud — niets installeren, niets dat aan hoeft te blijven.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Makkelijkst</span></div></div>
     <div class="route pick"><div><h3>Ik heb een Tibber Pulse</h3><p>Veel gebruikt in Zweden, Noorwegen, Denemarken en Finland. Wij halen je stand bij Tibber op met je persoonlijke token — niets te installeren.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Makkelijkst</span></div></div>
     <div class="route"><div><h3>Geen van deze</h3><p>Blijf dan je meter fotograferen. Dat werkt net zo goed en levert precies hetzelfde op. Niets in te stellen.</p></div><div class="meter"><span>Niets instellen</span></div></div>
@@ -425,6 +432,12 @@
     <tr><td>🇳🇴 Noorwegen</td><td>HAN (RJ45, M-BUS)</td><td>Tibber Pulse: Route E. Anders een Noorse HAN-reader + Home Assistant.</td></tr>
     <tr><td>🇩🇪 Duitsland</td><td>Smart-Meter-Gateway / optische kop</td><td>Powerfox poweropti: Route D. Tasmota-leeskop (Hichi): Route C. Anders Home Assistant.</td></tr>
     <tr><td>🇺🇸 Verenigde Staten</td><td>Geen poort — Zigbee-radio (HAN)</td><td>Een Rainforest EAGLE/RAVEn, door je leverancier geactiveerd.</td></tr>
+    <tr><td>🇦🇹 Oostenrijk</td><td>Klantinterface (M-Bus) / optische poort</td><td>Tibber Pulse: Route E. Tasmota-leeskop (Hichi): Route C. Anders Home Assistant.</td></tr>
+    <tr><td>🇨🇭 Zwitserland</td><td>Klantinterface / optische poort</td><td>Tasmota-leeskop (Hichi): Route C. Anders Home Assistant.</td></tr>
+    <tr><td>🇫🇷 Frankrijk</td><td>Linky: TIC-poort</td><td>Geen P1-poort, dus voorlopig alleen Home Assistant (bijv. met een ZLinky). Of foto’s.</td></tr>
+    <tr><td>🇬🇧 Verenigd Koninkrijk</td><td>SMETS2: geen poort (Zigbee)</td><td>Geen P1-poort, dus voorlopig alleen Home Assistant (bijv. met een Hildebrand Glow). Of foto’s.</td></tr>
+    <tr><td>🇪🇸 Spanje</td><td>Geen poort</td><td>Geen P1-poort, dus voorlopig alleen Home Assistant (bijv. met Datadis). Of foto’s.</td></tr>
+    <tr><td>🇮🇹 Italië</td><td>Chain 2 (met een kastje zoals de Sinapsi Alfa)</td><td>Geen P1-poort, dus voorlopig alleen Home Assistant. Of foto’s.</td></tr>
     <tr><td>Elders</td><td>Verschilt</td><td>Leest Home Assistant je meter, dan werkt Route A.</td></tr>
   </table></div>
   <div class="note">Niet zeker? Open Home Assistant en zoek je meter onder Ontwikkelhulpmiddelen → Statussen. Staat er een kWh-waarde die oploopt, dan zit je goed.</div>
@@ -495,7 +508,7 @@
       <div class="see"><b>Dit hoor je te zien, in deze volgorde</b><span class="k">Paste your device token…</span> → <span class="k">Scheduled…</span> → <span class="k">found HomeWizard at 192.168.…</span> → <span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
-  <h2>Route C — Een andere P1-reader</h2>
+  <h2>Route C — Een andere reader (P1-reader, Tasmota-leeskop)</h2>
   <p class="lede" style="font-size:15.5px">Hetzelfde hulpprogramma leest elk apparaat dat z’n data als JSON via HTTP aanbiedt — je zegt alleen waar. Doe eerst stap 2 t/m 4 van route B (terminal en Node); alleen het commando hieronder is anders.</p>
   <ol class="steps">
       <li><p class="steptitle">Zoek de data-URL van je reader</p>
@@ -613,6 +626,7 @@
     <tr><td>Tibber didn&#x27;t accept this token</td><td>Kopieer de token opnieuw van developer.tibber.com, zonder spaties. Heb je daar een nieuwe token gemaakt? Dan werkt de oude niet meer: koppel opnieuw met de nieuwe.</td></tr>
     <tr><td>no Tibber Pulse found on this account</td><td>De Pulse moet in de Tibber-app zijn ingesteld, op hetzelfde account als de token.</td></tr>
     <tr><td>your Pulse sends live data but no meter total</td><td>Niet elke meter geeft zijn totaal door via de HAN-poort. Gebruik dan foto's, of een andere reader.</td></tr>
+    <tr><td>this phone is already used by 1 other wallet</td><td>Eén persoon, één wallet: op een telefoon kan één wallet verdienen. De wallet die als eerste op deze telefoon is uitbetaald, blijft werken. Ben je definitief overgestapt op een nieuwe wallet? Vraag het een admin via Send Feedback in de app.</td></tr>
     <tr><td>already been corrected once</td><td>Het startpunt van een meter kan één keer worden gecorrigeerd — elke correctie wist het verbruik sinds de laatste uitbetaling. Klopt het weer niet, vraag het een admin via Send Feedback in de app.</td></tr>
   </table></div>
   <div class="note">Kom je er niet uit? Stuur een berichtje met wat er in het Log-tabblad (of de terminal) staat — daar staat meestal precies wat er mist.</div>
@@ -624,7 +638,7 @@
   <div class="routes">
     <div class="route pick"><div><h3>Ich nutze Home Assistant</h3><p>Funktioniert mit fast jedem Zähler, den HA schon ausliest. Installiere unsere Integration oder füge ein paar Zeilen YAML ein.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Am einfachsten</span></div></div>
     <div class="route"><div><h3>Ich habe einen HomeWizard P1</h3><p>Kein Home Assistant nötig. Ein kleines Hilfsprogramm findet deinen Zähler selbst im Netzwerk.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Etwas Technik</span></div></div>
-    <div class="route"><div><h3>Ich habe einen anderen P1-Reader</h3><p>dsmr-reader, P1 Monitor, Shelly und Co. — alles, was seine Daten als JSON anbietet.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span><span>Technisch</span></div></div>
+    <div class="route"><div><h3>Ich habe einen anderen Reader</h3><p>dsmr-reader, P1 Monitor, Shelly oder ein Tasmota-Lesekopf (Hichi) — alles, was seine Daten im Netzwerk anbietet.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span><span>Technisch</span></div></div>
     <div class="route pick"><div><h3>Ich habe einen Powerfox (poweropti)</h3><p>In Deutschland weit verbreitet. Wir holen deinen Stand aus der Powerfox-Cloud — nichts installieren, nichts muss eingeschaltet bleiben.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Am einfachsten</span></div></div>
     <div class="route pick"><div><h3>Ich habe einen Tibber Pulse</h3><p>Verbreitet in Schweden, Norwegen, Dänemark und Finnland. Wir holen deinen Stand bei Tibber mit deinem persönlichen Token — nichts zu installieren.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Am einfachsten</span></div></div>
     <div class="route"><div><h3>Nichts davon</h3><p>Dann fotografiere deinen Zähler weiter. Das funktioniert genauso gut und bringt exakt dasselbe. Nichts einzurichten.</p></div><div class="meter"><span>Nichts einrichten</span></div></div>
@@ -641,6 +655,12 @@
     <tr><td>🇳🇴 Norwegen</td><td>HAN (RJ45, M-BUS)</td><td>Tibber Pulse: Route E. Sonst ein norwegischer HAN-Reader + Home Assistant.</td></tr>
     <tr><td>🇩🇪 Deutschland</td><td>Smart-Meter-Gateway / Lesekopf</td><td>Powerfox poweropti: Route D. Tasmota-Lesekopf (Hichi): Route C. Sonst Home Assistant.</td></tr>
     <tr><td>🇺🇸 USA</td><td>Kein Port — Zigbee-Funk (HAN)</td><td>Ein Rainforest EAGLE/RAVEn, vom Versorger freigeschaltet.</td></tr>
+    <tr><td>🇦🇹 Österreich</td><td>Kundenschnittstelle (M-Bus) / optische Schnittstelle</td><td>Tibber Pulse: Route E. Tasmota-Lesekopf (Hichi): Route C. Sonst Home Assistant.</td></tr>
+    <tr><td>🇨🇭 Schweiz</td><td>Kundenschnittstelle / optische Schnittstelle</td><td>Tasmota-Lesekopf (Hichi): Route C. Sonst Home Assistant.</td></tr>
+    <tr><td>🇫🇷 Frankreich</td><td>Linky: TIC-Schnittstelle</td><td>Kein P1-Port, also vorerst nur Home Assistant (z. B. mit einem ZLinky). Oder Fotos.</td></tr>
+    <tr><td>🇬🇧 Vereinigtes Königreich</td><td>SMETS2: kein Port (Zigbee)</td><td>Kein P1-Port, also vorerst nur Home Assistant (z. B. mit einem Hildebrand Glow). Oder Fotos.</td></tr>
+    <tr><td>🇪🇸 Spanien</td><td>Kein Port</td><td>Kein P1-Port, also vorerst nur Home Assistant (z. B. mit Datadis). Oder Fotos.</td></tr>
+    <tr><td>🇮🇹 Italien</td><td>Chain 2 (mit einem Gerät wie dem Sinapsi Alfa)</td><td>Kein P1-Port, also vorerst nur Home Assistant. Oder Fotos.</td></tr>
     <tr><td>Anderswo</td><td>Unterschiedlich</td><td>Liest Home Assistant deinen Zähler, funktioniert Route A.</td></tr>
   </table></div>
   <div class="note">Unsicher? Öffne Home Assistant und such deinen Zähler unter Entwicklerwerkzeuge → Zustände. Steht dort ein kWh-Wert, der hochzählt, passt es.</div>
@@ -711,7 +731,7 @@
       <div class="see"><b>Das solltest du sehen, in dieser Reihenfolge</b><span class="k">Paste your device token…</span> → <span class="k">Scheduled…</span> → <span class="k">found HomeWizard at 192.168.…</span> → <span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
-  <h2>Route C — Ein anderer P1-Reader</h2>
+  <h2>Route C — Ein anderer Reader (P1-Reader, Tasmota-Lesekopf)</h2>
   <p class="lede" style="font-size:15.5px">Dasselbe Hilfsprogramm liest jedes Gerät, das seine Daten als JSON über HTTP anbietet — du sagst ihm nur wo. Mach zuerst Schritt 2–4 aus Route B (Terminal und Node); nur der Befehl unten ist anders.</p>
   <ol class="steps">
       <li><p class="steptitle">Die Daten-URL deines Readers finden</p>
@@ -829,6 +849,7 @@
     <tr><td>Tibber didn&#x27;t accept this token</td><td>Kopier den Token noch einmal von developer.tibber.com, ohne Leerzeichen. Dort einen neuen Token erstellt? Dann gilt der alte nicht mehr: mit dem neuen erneut verbinden.</td></tr>
     <tr><td>no Tibber Pulse found on this account</td><td>Der Pulse muss in der Tibber-App eingerichtet sein, im selben Konto wie der Token.</td></tr>
     <tr><td>your Pulse sends live data but no meter total</td><td>Nicht jeder Zähler meldet seinen Gesamtstand über die HAN-Schnittstelle. Dann Fotos verwenden, oder einen anderen Reader.</td></tr>
+    <tr><td>this phone is already used by 1 other wallet</td><td>Eine Person, eine Wallet: Auf einem Handy kann eine Wallet verdienen. Die Wallet, die auf diesem Handy zuerst ausgezahlt wurde, funktioniert weiter. Endgültig auf eine neue Wallet umgestiegen? Frag einen Admin über Send Feedback in der App.</td></tr>
     <tr><td>already been corrected once</td><td>Der Startwert eines Zählers kann einmal korrigiert werden — jede Korrektur löscht den Verbrauch seit der letzten Auszahlung. Stimmt er wieder nicht, frag einen Admin über Send Feedback in der App.</td></tr>
   </table></div>
   <div class="note">Kommst du nicht weiter? Schick eine Nachricht mit dem Inhalt des Protokoll-Tabs (oder Terminals) — dort steht meist genau, was fehlt.</div>
@@ -840,7 +861,7 @@
   <div class="routes">
     <div class="route pick"><div><h3>J'utilise Home Assistant</h3><p>Fonctionne avec presque tout compteur que HA lit déjà. Installez notre intégration, ou collez quelques lignes de YAML.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Le plus simple</span></div></div>
     <div class="route"><div><h3>J'ai un HomeWizard P1</h3><p>Pas besoin de Home Assistant. Un petit utilitaire trouve votre compteur tout seul sur le réseau.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Un peu technique</span></div></div>
-    <div class="route"><div><h3>J'ai un autre lecteur P1</h3><p>dsmr-reader, P1 Monitor, Shelly et compagnie — tout ce qui expose ses données en JSON.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span><span>Technique</span></div></div>
+    <div class="route"><div><h3>J'ai un autre lecteur</h3><p>dsmr-reader, P1 Monitor, Shelly, ou une tête de lecture Tasmota (Hichi) — tout ce qui expose ses données sur votre réseau.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span><span>Technique</span></div></div>
     <div class="route pick"><div><h3>J'ai un Powerfox (poweropti)</h3><p>Courant en Allemagne. Nous récupérons votre relevé dans le cloud Powerfox — rien à installer, rien à laisser allumé.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Le plus simple</span></div></div>
     <div class="route pick"><div><h3>J'ai un Tibber Pulse</h3><p>Courant en Suède, Norvège, Danemark et Finlande. Nous récupérons votre relevé chez Tibber avec votre jeton personnel — rien à installer.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Le plus simple</span></div></div>
     <div class="route"><div><h3>Aucun des deux</h3><p>Continuez à photographier votre compteur. Ça marche aussi bien et rapporte exactement pareil. Rien à configurer.</p></div><div class="meter"><span>Rien à faire</span></div></div>
@@ -857,6 +878,12 @@
     <tr><td>🇳🇴 Norvège</td><td>HAN (RJ45, M-BUS)</td><td>Tibber Pulse : Route E. Sinon un lecteur HAN norvégien + Home Assistant.</td></tr>
     <tr><td>🇩🇪 Allemagne</td><td>Smart-Meter-Gateway / tête optique</td><td>Powerfox poweropti : Route D. Tête de lecture Tasmota (Hichi) : Route C. Sinon Home Assistant.</td></tr>
     <tr><td>🇺🇸 États-Unis</td><td>Pas de prise — radio Zigbee (HAN)</td><td>Un Rainforest EAGLE/RAVEn, activé par votre fournisseur.</td></tr>
+    <tr><td>🇦🇹 Autriche</td><td>Interface client (M-Bus) / port optique</td><td>Tibber Pulse : Route E. Tête de lecture Tasmota (Hichi) : Route C. Sinon Home Assistant.</td></tr>
+    <tr><td>🇨🇭 Suisse</td><td>Interface client / port optique</td><td>Tête de lecture Tasmota (Hichi) : Route C. Sinon Home Assistant.</td></tr>
+    <tr><td>🇫🇷 France</td><td>Linky : port TIC</td><td>Pas de port P1, donc pour l’instant seulement Home Assistant (par ex. avec un ZLinky). Ou des photos.</td></tr>
+    <tr><td>🇬🇧 Royaume-Uni</td><td>SMETS2 : pas de port (Zigbee)</td><td>Pas de port P1, donc pour l’instant seulement Home Assistant (par ex. avec un Hildebrand Glow). Ou des photos.</td></tr>
+    <tr><td>🇪🇸 Espagne</td><td>Pas de port</td><td>Pas de port P1, donc pour l’instant seulement Home Assistant (par ex. avec Datadis). Ou des photos.</td></tr>
+    <tr><td>🇮🇹 Italie</td><td>Chain 2 (avec un boîtier comme le Sinapsi Alfa)</td><td>Pas de port P1, donc pour l’instant seulement Home Assistant. Ou des photos.</td></tr>
     <tr><td>Ailleurs</td><td>Variable</td><td>Si Home Assistant lit votre compteur, la Route A marche.</td></tr>
   </table></div>
   <div class="note">Pas sûr ? Ouvrez Home Assistant et cherchez votre compteur dans Outils de développement → États. Si une valeur en kWh monte, c'est bon.</div>
@@ -927,7 +954,7 @@
       <div class="see"><b>Ce que vous devez voir, dans cet ordre</b><span class="k">Paste your device token…</span> → <span class="k">Scheduled…</span> → <span class="k">found HomeWizard at 192.168.…</span> → <span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
-  <h2>Route C — Un autre lecteur P1</h2>
+  <h2>Route C — Un autre lecteur (lecteur P1, tête de lecture Tasmota)</h2>
   <p class="lede" style="font-size:15.5px">Le même utilitaire lit tout appareil qui expose ses données en JSON via HTTP — vous lui dites simplement où. Faites d’abord les étapes 2 à 4 de la route B (terminal et Node) ; seule la commande ci-dessous change.</p>
   <ol class="steps">
       <li><p class="steptitle">Trouvez l'URL de données de votre lecteur</p>
@@ -1045,6 +1072,7 @@
     <tr><td>Tibber didn&#x27;t accept this token</td><td>Recopiez le jeton depuis developer.tibber.com, sans espaces. Vous y avez créé un nouveau jeton ? L'ancien ne marche plus : reconnectez-vous avec le nouveau.</td></tr>
     <tr><td>no Tibber Pulse found on this account</td><td>Le Pulse doit être configuré dans l'app Tibber, sur le même compte que le jeton.</td></tr>
     <tr><td>your Pulse sends live data but no meter total</td><td>Tous les compteurs n'envoient pas leur total par le port HAN. Utilisez alors des photos, ou un autre lecteur.</td></tr>
+    <tr><td>this phone is already used by 1 other wallet</td><td>Une personne, un wallet : sur un téléphone, un seul wallet peut gagner. Le wallet payé en premier sur ce téléphone continue de marcher. Vous êtes passé définitivement à un nouveau wallet ? Demandez à un admin via Send Feedback dans l'app.</td></tr>
     <tr><td>already been corrected once</td><td>Le point de départ d’un compteur ne peut être corrigé qu’une fois — chaque correction efface la consommation depuis le dernier paiement. S’il est de nouveau faux, demandez à un admin via Send Feedback dans l’app.</td></tr>
   </table></div>
   <div class="note">Toujours bloqué ? Envoyez un message avec le contenu de l'onglet Journal (ou du terminal) — il dit généralement exactement ce qui manque.</div>
@@ -1056,7 +1084,7 @@
   <div class="routes">
     <div class="route pick"><div><h3>Uso Home Assistant</h3><p>Funciona con casi cualquier contador que HA ya lee. Instala nuestra integración, o pega unas líneas de YAML.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Lo más fácil</span></div></div>
     <div class="route"><div><h3>Tengo un HomeWizard P1</h3><p>Sin Home Assistant. Un pequeño programa encuentra tu contador solo en la red.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Algo técnico</span></div></div>
-    <div class="route"><div><h3>Tengo otro lector P1</h3><p>dsmr-reader, P1 Monitor, Shelly y similares — cualquiera que sirva sus datos en JSON.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span><span>Técnico</span></div></div>
+    <div class="route"><div><h3>Tengo otro lector</h3><p>dsmr-reader, P1 Monitor, Shelly, o un cabezal Tasmota (Hichi) — cualquiera que sirva sus datos en tu red.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span><span>Técnico</span></div></div>
     <div class="route pick"><div><h3>Tengo un Powerfox (poweropti)</h3><p>Habitual en Alemania. Recogemos tu lectura de la nube de Powerfox — nada que instalar, nada que dejar encendido.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Lo más fácil</span></div></div>
     <div class="route pick"><div><h3>Tengo un Tibber Pulse</h3><p>Habitual en Suecia, Noruega, Dinamarca y Finlandia. Recogemos tu lectura de Tibber con tu token personal — nada que instalar.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Lo más fácil</span></div></div>
     <div class="route"><div><h3>Ninguno</h3><p>Sigue fotografiando tu contador. Funciona igual de bien y da exactamente lo mismo. Nada que configurar.</p></div><div class="meter"><span>Sin configurar</span></div></div>
@@ -1073,6 +1101,12 @@
     <tr><td>🇳🇴 Noruega</td><td>HAN (RJ45, M-BUS)</td><td>Tibber Pulse: Ruta E. Si no, un lector HAN noruego + Home Assistant.</td></tr>
     <tr><td>🇩🇪 Alemania</td><td>Smart-Meter-Gateway / cabezal óptico</td><td>Powerfox poweropti: Ruta D. Cabezal Tasmota (Hichi): Ruta C. Si no, Home Assistant.</td></tr>
     <tr><td>🇺🇸 Estados Unidos</td><td>Sin toma — radio Zigbee (HAN)</td><td>Un Rainforest EAGLE/RAVEn, activado por tu compañía.</td></tr>
+    <tr><td>🇦🇹 Austria</td><td>Interfaz de cliente (M-Bus) / puerto óptico</td><td>Tibber Pulse: Ruta E. Cabezal Tasmota (Hichi): Ruta C. Si no, Home Assistant.</td></tr>
+    <tr><td>🇨🇭 Suiza</td><td>Interfaz de cliente / puerto óptico</td><td>Cabezal Tasmota (Hichi): Ruta C. Si no, Home Assistant.</td></tr>
+    <tr><td>🇫🇷 Francia</td><td>Linky: puerto TIC</td><td>Sin puerto P1, así que por ahora solo Home Assistant (p. ej. con un ZLinky). O fotos.</td></tr>
+    <tr><td>🇬🇧 Reino Unido</td><td>SMETS2: sin puerto (Zigbee)</td><td>Sin puerto P1, así que por ahora solo Home Assistant (p. ej. con un Hildebrand Glow). O fotos.</td></tr>
+    <tr><td>🇪🇸 España</td><td>Sin puerto</td><td>Sin puerto P1, así que por ahora solo Home Assistant (p. ej. con Datadis). O fotos.</td></tr>
+    <tr><td>🇮🇹 Italia</td><td>Chain 2 (con un aparato como el Sinapsi Alfa)</td><td>Sin puerto P1, así que por ahora solo Home Assistant. O fotos.</td></tr>
     <tr><td>En otro lugar</td><td>Varía</td><td>Si Home Assistant lee tu contador, la Ruta A funciona.</td></tr>
   </table></div>
   <div class="note">¿No estás seguro? Abre Home Assistant y busca tu contador en Herramientas para desarrolladores → Estados. Si hay un valor en kWh que sube, listo.</div>
@@ -1143,7 +1177,7 @@
       <div class="see"><b>Lo que deberías ver, en este orden</b><span class="k">Paste your device token…</span> → <span class="k">Scheduled…</span> → <span class="k">found HomeWizard at 192.168.…</span> → <span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
-  <h2>Ruta C — Otro lector P1</h2>
+  <h2>Ruta C — Otro lector (lector P1, cabezal Tasmota)</h2>
   <p class="lede" style="font-size:15.5px">El mismo programa lee cualquier dispositivo que sirva sus datos en JSON por HTTP — solo le dices dónde. Haz primero los pasos 2 a 4 de la ruta B (terminal y Node); solo cambia el comando de abajo.</p>
   <ol class="steps">
       <li><p class="steptitle">Encuentra la URL de datos de tu lector</p>
@@ -1261,6 +1295,7 @@
     <tr><td>Tibber didn&#x27;t accept this token</td><td>Vuelve a copiar el token de developer.tibber.com, sin espacios. ¿Creaste allí un token nuevo? El antiguo deja de funcionar: vuelve a conectar con el nuevo.</td></tr>
     <tr><td>no Tibber Pulse found on this account</td><td>El Pulse tiene que estar configurado en la app de Tibber, en la misma cuenta que el token.</td></tr>
     <tr><td>your Pulse sends live data but no meter total</td><td>No todos los contadores envían su total por el puerto HAN. Usa entonces fotos, u otro lector.</td></tr>
+    <tr><td>this phone is already used by 1 other wallet</td><td>Una persona, un wallet: en un teléfono solo un wallet puede ganar. El wallet que cobró primero en este teléfono sigue funcionando. ¿Te cambiaste a un wallet nuevo para siempre? Pide ayuda a un admin con Send Feedback en la app.</td></tr>
     <tr><td>already been corrected once</td><td>El punto de partida de un contador solo se puede corregir una vez — cada corrección borra el consumo desde el último pago. Si vuelve a estar mal, pide ayuda a un admin con Send Feedback en la app.</td></tr>
   </table></div>
   <div class="note">¿Sigues atascado? Envía un mensaje con lo que muestra la pestaña Registro (o la terminal) — suele decir exactamente qué falta.</div>
