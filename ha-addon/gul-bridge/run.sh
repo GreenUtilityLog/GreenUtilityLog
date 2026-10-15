@@ -19,6 +19,7 @@ export INTERVAL_SEC="$(bashio::config 'interval_sec')"
 # its own defaults (HomeWizard auto-discovery, field auto-detection) otherwise.
 if bashio::config.has_value 'hw_ip'; then export HW_IP="$(bashio::config 'hw_ip')"; fi
 if bashio::config.has_value 'read_url'; then export READ_URL="$(bashio::config 'read_url')"; fi
+if bashio::config.has_value 'tasmota_ip'; then export TASMOTA_IP="$(bashio::config 'tasmota_ip')"; fi
 if bashio::config.has_value 'read_field'; then export READ_FIELD="$(bashio::config 'read_field')"; fi
 if bashio::config.has_value 'ingest_url'; then export GUL_INGEST_URL="$(bashio::config 'ingest_url')"; fi
 if bashio::config.has_value 'powerfox_email'; then
@@ -28,6 +29,8 @@ fi
 
 if bashio::config.has_value 'powerfox_email'; then
   bashio::log.info "Reading Powerfox (${GUL_POWERFOX_USER}) from the Powerfox cloud"
+elif bashio::config.has_value 'tasmota_ip'; then
+  bashio::log.info "Reading the Tasmota reading head at ${TASMOTA_IP}"
 elif bashio::config.has_value 'read_url'; then
   bashio::log.info "Reading from ${READ_URL}"
 elif bashio::config.has_value 'hw_ip'; then

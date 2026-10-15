@@ -3034,6 +3034,7 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
                       { id: "homewizard", label: "HomeWizard P1" },
                       { id: "powerfox",   label: "Powerfox" },
                       { id: "tibber",     label: "Tibber" },
+                      { id: "tasmota",    label: "Tasmota / Hichi" },
                       { id: "ha",         label: "Home Assistant" },
                       { id: "curl",       label: "Any other reader" },
                     ];
@@ -3061,6 +3062,16 @@ ${fetchCmd(`--token=${token} --install${INGEST_FLAG}`)}
 # Scheduler, Mac/Linux/Pi: cron), so you can close this window — it keeps
 # working, even after a restart. You only ever run this once.
 # Network blocks auto-discovery? Add --ip=<your P1 IP>`;
+                    const tasmotaCmd = `# A Tasmota IR reading head (Hichi and friends) on your meter's optical
+# port. The bridge reads its total (Total_in) over your home network.
+# Run it on a PC / Pi / NAS on the same network. Replace TASMOTA_IP first.
+${needNode}
+
+${fetchCmd(`--token=${token} --tasmota=TASMOTA_IP --install${INGEST_FLAG}`)}
+
+# That sends your first reading AND schedules it twice a day, so you can
+# close this window. Total not found? Add --field=StatusSNS.<group>.<name>
+# with the names from your meter script (Tasmota: Consoles → Console → status 10).`;
                     const haYaml = `# EASIEST: install our integration instead — no YAML at all.
 #   HACS → ⋮ → Custom repositories → add (type: Integration):
 #   https://github.com/GreenUtilityLog/GreenUtilityLog
@@ -3091,9 +3102,11 @@ curl -X POST ${ingestUrl} \\
 
 # Or let the bridge read any HTTP/JSON reader for you — one file, no install:
 ${fetchCmd(`--token=${token} --install --url=http://<reader-ip>/api/v1/data${INGEST_FLAG}`)}`;
-                    const snip = device === "ha" ? haYaml : device === "curl" ? curlSnippet : bridgeCmd;
+                    const snip = device === "ha" ? haYaml : device === "curl" ? curlSnippet : device === "tasmota" ? tasmotaCmd : bridgeCmd;
                     const hint = device === "homewizard"
                       ? 'Turn on "Local API" in the HomeWizard app first (Settings → Meters → your P1). The bridge finds your P1 itself — if your network blocks mDNS, add --ip=<your P1 IP>. Needs Node 18+ or Docker — nothing to clone, no git.'
+                      : device === "tasmota"
+                      ? "For an IR reading head with Tasmota (e.g. Hichi) on the meter's optical port — common in Germany, Austria and Switzerland. Find its IP in your router or the Tasmota web page. Needs Node 18+ on a computer in the same network."
                       : device === "ha"
                       ? "The easiest route: install our integration via HACS (no YAML at all) — the first lines below show how. Or wire it yourself with the YAML; entity IDs differ per install, so find yours under Developer tools → States (filter “import”, pick the kWh one that counts up)."
                       : "For any other setup. POST your cumulative kWh total from any device, or let the bridge read any HTTP/JSON reader for you with --url=.";

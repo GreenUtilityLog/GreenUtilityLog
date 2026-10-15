@@ -290,3 +290,20 @@ test("the scheduled job says --powerfox but never carries the password", async (
   assert.doesNotMatch(tab, /me@example\.de/);
   pf.srv.close(); backend.close();
 });
+
+test("--tasmota reads Total_in from a Tasmota IR reading head", async () => {
+  let path = "";
+  const tasmota = await fake((req, res) => {
+    path = req.url;
+    res.setHeader("content-type", "application/json");
+    // The group name comes from the meter script; "Strom" here, to prove any name works.
+    res.end(JSON.stringify({ StatusSNS: { Time: "2026-10-16T10:00:00", Strom: { Total_in: 12345.6789, Total_out: 0, Power_curr: 312 } } }));
+  });
+  let got = null;
+  const backend = await fake((req, res) => { let b = ""; req.on("data", (c) => (b += c)); req.on("end", () => { got = JSON.parse(b); res.end("{}"); }); });
+  const r = await run(["--token=t1", "--once", `--tasmota=127.0.0.1:${tasmota.address().port}`, `--ingest=http://127.0.0.1:${backend.address().port}/meter-ingest`]);
+  tasmota.close(); backend.close();
+  assert.equal(r.code, 0, r.out);
+  assert.equal(path, "/cm?cmnd=Status%2010");
+  assert.deepEqual(got, { token: "t1", reading: 12345.6789 });
+});

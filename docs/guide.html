@@ -207,7 +207,7 @@
     <tr><td>🇸🇪 Sweden · 🇫🇮 Finland</td><td>HAN port (RJ12)</td><td>Tibber Pulse: Route E. Otherwise a P1/HAN reader, or Home Assistant.</td></tr>
     <tr><td>🇩🇰 Denmark</td><td>HAN (pin header, encrypted)</td><td>Tibber Pulse: Route E. Otherwise a reader with the right connector, or Home Assistant.</td></tr>
     <tr><td>🇳🇴 Norway</td><td>HAN (RJ45, M-BUS)</td><td>Tibber Pulse: Route E. Otherwise a Norwegian HAN reader + Home Assistant.</td></tr>
-    <tr><td>🇩🇪 Germany</td><td>Smart-Meter-Gateway / optical head</td><td>Powerfox poweropti: Route D. Otherwise Home Assistant.</td></tr>
+    <tr><td>🇩🇪 Germany</td><td>Smart-Meter-Gateway / optical head</td><td>Powerfox poweropti: Route D. Tasmota reading head (Hichi): Route C. Otherwise Home Assistant.</td></tr>
     <tr><td>🇺🇸 United States</td><td>No socket — Zigbee radio (HAN)</td><td>A Rainforest EAGLE/RAVEn, switched on by your utility.</td></tr>
     <tr><td>Anywhere else</td><td>Varies</td><td>If Home Assistant reads your meter, Route A works.</td></tr>
   </table></div>
@@ -293,6 +293,11 @@
       <li><p class="steptitle">Check it worked</p>
       <p>The helper prints what it pushed.</p>
       <div class="see"><b>Expected output</b><span class="k">pushed 8421.3 kWh ✓</span></div>
+      </li>
+      <li><p class="steptitle">A Tasmota reading head (Hichi)?</p>
+      <p>Use <span class="k">--tasmota=</span> with its IP instead of <span class="k">--url=</span>. The helper reads the meter total (<span class="k">Total_in</span>) by itself. Common on German, Austrian and Swiss meters.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copy</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copy</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
       </ol>
   <h2>Route D — Powerfox (poweropti)</h2>
@@ -418,7 +423,7 @@
     <tr><td>🇸🇪 Zweden · 🇫🇮 Finland</td><td>HAN-poort (RJ12)</td><td>Tibber Pulse: Route E. Anders een P1/HAN-reader, of Home Assistant.</td></tr>
     <tr><td>🇩🇰 Denemarken</td><td>HAN (pin-header, versleuteld)</td><td>Tibber Pulse: Route E. Anders een reader met de juiste connector, of Home Assistant.</td></tr>
     <tr><td>🇳🇴 Noorwegen</td><td>HAN (RJ45, M-BUS)</td><td>Tibber Pulse: Route E. Anders een Noorse HAN-reader + Home Assistant.</td></tr>
-    <tr><td>🇩🇪 Duitsland</td><td>Smart-Meter-Gateway / optische kop</td><td>Powerfox poweropti: Route D. Anders Home Assistant.</td></tr>
+    <tr><td>🇩🇪 Duitsland</td><td>Smart-Meter-Gateway / optische kop</td><td>Powerfox poweropti: Route D. Tasmota-leeskop (Hichi): Route C. Anders Home Assistant.</td></tr>
     <tr><td>🇺🇸 Verenigde Staten</td><td>Geen poort — Zigbee-radio (HAN)</td><td>Een Rainforest EAGLE/RAVEn, door je leverancier geactiveerd.</td></tr>
     <tr><td>Elders</td><td>Verschilt</td><td>Leest Home Assistant je meter, dan werkt Route A.</td></tr>
   </table></div>
@@ -504,6 +509,11 @@
       <li><p class="steptitle">Controleer of het werkte</p>
       <p>Het hulpprogramma laat zien wat het verstuurd heeft.</p>
       <div class="see"><b>Dit hoor je te zien</b><span class="k">pushed 8421.3 kWh ✓</span></div>
+      </li>
+      <li><p class="steptitle">Een Tasmota-leeskop (Hichi)?</p>
+      <p>Gebruik <span class="k">--tasmota=</span> met het IP-adres in plaats van <span class="k">--url=</span>. Het hulpprogramma leest de meterstand (<span class="k">Total_in</span>) zelf. Veel gebruikt op Duitse, Oostenrijkse en Zwitserse meters.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieer</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieer</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
       </ol>
   <h2>Route D — Powerfox (poweropti)</h2>
@@ -629,7 +639,7 @@
     <tr><td>🇸🇪 Schweden · 🇫🇮 Finnland</td><td>HAN-Port (RJ12)</td><td>Tibber Pulse: Route E. Sonst ein P1/HAN-Reader, oder Home Assistant.</td></tr>
     <tr><td>🇩🇰 Dänemark</td><td>HAN (Pin-Header, verschlüsselt)</td><td>Tibber Pulse: Route E. Sonst ein Reader mit passendem Stecker, oder Home Assistant.</td></tr>
     <tr><td>🇳🇴 Norwegen</td><td>HAN (RJ45, M-BUS)</td><td>Tibber Pulse: Route E. Sonst ein norwegischer HAN-Reader + Home Assistant.</td></tr>
-    <tr><td>🇩🇪 Deutschland</td><td>Smart-Meter-Gateway / Lesekopf</td><td>Powerfox poweropti: Route D. Sonst Home Assistant.</td></tr>
+    <tr><td>🇩🇪 Deutschland</td><td>Smart-Meter-Gateway / Lesekopf</td><td>Powerfox poweropti: Route D. Tasmota-Lesekopf (Hichi): Route C. Sonst Home Assistant.</td></tr>
     <tr><td>🇺🇸 USA</td><td>Kein Port — Zigbee-Funk (HAN)</td><td>Ein Rainforest EAGLE/RAVEn, vom Versorger freigeschaltet.</td></tr>
     <tr><td>Anderswo</td><td>Unterschiedlich</td><td>Liest Home Assistant deinen Zähler, funktioniert Route A.</td></tr>
   </table></div>
@@ -715,6 +725,11 @@
       <li><p class="steptitle">Prüfen, ob es klappte</p>
       <p>Das Hilfsprogramm zeigt, was es gesendet hat.</p>
       <div class="see"><b>Erwartete Ausgabe</b><span class="k">pushed 8421.3 kWh ✓</span></div>
+      </li>
+      <li><p class="steptitle">Ein Tasmota-Lesekopf (Hichi)?</p>
+      <p>Nimm <span class="k">--tasmota=</span> mit seiner IP statt <span class="k">--url=</span>. Das Hilfsprogramm liest den Zählerstand (<span class="k">Total_in</span>) selbst. Verbreitet an deutschen, österreichischen und Schweizer Zählern.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieren</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieren</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
       </ol>
   <h2>Route D — Powerfox (poweropti)</h2>
@@ -840,7 +855,7 @@
     <tr><td>🇸🇪 Suède · 🇫🇮 Finlande</td><td>Port HAN (RJ12)</td><td>Tibber Pulse : Route E. Sinon un lecteur P1/HAN, ou Home Assistant.</td></tr>
     <tr><td>🇩🇰 Danemark</td><td>HAN (connecteur à broches, chiffré)</td><td>Tibber Pulse : Route E. Sinon un lecteur au bon connecteur, ou Home Assistant.</td></tr>
     <tr><td>🇳🇴 Norvège</td><td>HAN (RJ45, M-BUS)</td><td>Tibber Pulse : Route E. Sinon un lecteur HAN norvégien + Home Assistant.</td></tr>
-    <tr><td>🇩🇪 Allemagne</td><td>Smart-Meter-Gateway / tête optique</td><td>Powerfox poweropti : Route D. Sinon Home Assistant.</td></tr>
+    <tr><td>🇩🇪 Allemagne</td><td>Smart-Meter-Gateway / tête optique</td><td>Powerfox poweropti : Route D. Tête de lecture Tasmota (Hichi) : Route C. Sinon Home Assistant.</td></tr>
     <tr><td>🇺🇸 États-Unis</td><td>Pas de prise — radio Zigbee (HAN)</td><td>Un Rainforest EAGLE/RAVEn, activé par votre fournisseur.</td></tr>
     <tr><td>Ailleurs</td><td>Variable</td><td>Si Home Assistant lit votre compteur, la Route A marche.</td></tr>
   </table></div>
@@ -926,6 +941,11 @@
       <li><p class="steptitle">Vérifiez que ça a marché</p>
       <p>L'utilitaire affiche ce qu'il a envoyé.</p>
       <div class="see"><b>Sortie attendue</b><span class="k">pushed 8421.3 kWh ✓</span></div>
+      </li>
+      <li><p class="steptitle">Une tête de lecture Tasmota (Hichi) ?</p>
+      <p>Utilisez <span class="k">--tasmota=</span> avec son IP au lieu de <span class="k">--url=</span>. L'utilitaire lit le total du compteur (<span class="k">Total_in</span>) tout seul. Courant sur les compteurs allemands, autrichiens et suisses.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copier</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copier</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
       </ol>
   <h2>Route D — Powerfox (poweropti)</h2>
@@ -1051,7 +1071,7 @@
     <tr><td>🇸🇪 Suecia · 🇫🇮 Finlandia</td><td>Puerto HAN (RJ12)</td><td>Tibber Pulse: Ruta E. Si no, un lector P1/HAN, o Home Assistant.</td></tr>
     <tr><td>🇩🇰 Dinamarca</td><td>HAN (conector de pines, cifrado)</td><td>Tibber Pulse: Ruta E. Si no, un lector con el conector correcto, o Home Assistant.</td></tr>
     <tr><td>🇳🇴 Noruega</td><td>HAN (RJ45, M-BUS)</td><td>Tibber Pulse: Ruta E. Si no, un lector HAN noruego + Home Assistant.</td></tr>
-    <tr><td>🇩🇪 Alemania</td><td>Smart-Meter-Gateway / cabezal óptico</td><td>Powerfox poweropti: Ruta D. Si no, Home Assistant.</td></tr>
+    <tr><td>🇩🇪 Alemania</td><td>Smart-Meter-Gateway / cabezal óptico</td><td>Powerfox poweropti: Ruta D. Cabezal Tasmota (Hichi): Ruta C. Si no, Home Assistant.</td></tr>
     <tr><td>🇺🇸 Estados Unidos</td><td>Sin toma — radio Zigbee (HAN)</td><td>Un Rainforest EAGLE/RAVEn, activado por tu compañía.</td></tr>
     <tr><td>En otro lugar</td><td>Varía</td><td>Si Home Assistant lee tu contador, la Ruta A funciona.</td></tr>
   </table></div>
@@ -1137,6 +1157,11 @@
       <li><p class="steptitle">Comprueba que funcionó</p>
       <p>El programa muestra lo que ha enviado.</p>
       <div class="see"><b>Salida esperada</b><span class="k">pushed 8421.3 kWh ✓</span></div>
+      </li>
+      <li><p class="steptitle">¿Un cabezal de lectura Tasmota (Hichi)?</p>
+      <p>Usa <span class="k">--tasmota=</span> con su IP en lugar de <span class="k">--url=</span>. El programa lee el total del contador (<span class="k">Total_in</span>) solo. Habitual en contadores alemanes, austriacos y suizos.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiar</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
       </ol>
   <h2>Ruta D — Powerfox (poweropti)</h2>
