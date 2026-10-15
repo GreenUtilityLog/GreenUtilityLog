@@ -769,6 +769,27 @@ for _c, _p in TB.items():
     _d["trouble"][-1:-1] = _p["trouble"]
     _d.update({k: v for k, v in _p.items() if k not in ("route", "rows", "trouble")})
 
+# ─────────────────────────── TASMOTA READING HEAD (Route C) ───────────────────────────
+# An IR reading head with Tasmota (Hichi and friends) on the optical port: common on
+# German, Austrian and Swiss meters. gul.js reads it with --tasmota=<ip>.
+RUN_TASMOTA = dl("--tasmota=192.168.1.70 --install")
+TAS = {
+  "en": (("A Tasmota reading head (Hichi)?", 'Use <span class="k">--tasmota=</span> with its IP instead of <span class="k">--url=</span>. The helper reads the meter total (<span class="k">Total_in</span>) by itself. Common on German, Austrian and Swiss meters.', "code2", RUN_TASMOTA, CAPS),
+         "Powerfox poweropti: Route D. Tasmota reading head (Hichi): Route C. Otherwise Home Assistant."),
+  "nl": (("Een Tasmota-leeskop (Hichi)?", 'Gebruik <span class="k">--tasmota=</span> met het IP-adres in plaats van <span class="k">--url=</span>. Het hulpprogramma leest de meterstand (<span class="k">Total_in</span>) zelf. Veel gebruikt op Duitse, Oostenrijkse en Zwitserse meters.', "code2", RUN_TASMOTA, CAPS),
+         "Powerfox poweropti: Route D. Tasmota-leeskop (Hichi): Route C. Anders Home Assistant."),
+  "de": (("Ein Tasmota-Lesekopf (Hichi)?", 'Nimm <span class="k">--tasmota=</span> mit seiner IP statt <span class="k">--url=</span>. Das Hilfsprogramm liest den Zählerstand (<span class="k">Total_in</span>) selbst. Verbreitet an deutschen, österreichischen und Schweizer Zählern.', "code2", RUN_TASMOTA, CAPS),
+         "Powerfox poweropti: Route D. Tasmota-Lesekopf (Hichi): Route C. Sonst Home Assistant."),
+  "fr": (("Une tête de lecture Tasmota (Hichi) ?", 'Utilisez <span class="k">--tasmota=</span> avec son IP au lieu de <span class="k">--url=</span>. L\'utilitaire lit le total du compteur (<span class="k">Total_in</span>) tout seul. Courant sur les compteurs allemands, autrichiens et suisses.', "code2", RUN_TASMOTA, CAPS),
+         "Powerfox poweropti : Route D. Tête de lecture Tasmota (Hichi) : Route C. Sinon Home Assistant."),
+  "es": (("¿Un cabezal de lectura Tasmota (Hichi)?", 'Usa <span class="k">--tasmota=</span> con su IP en lugar de <span class="k">--url=</span>. El programa lee el total del contador (<span class="k">Total_in</span>) solo. Habitual en contadores alemanes, austriacos y suizos.', "code2", RUN_TASMOTA, CAPS),
+         "Powerfox poweropti: Ruta D. Cabezal Tasmota (Hichi): Ruta C. Si no, Home Assistant."),
+}
+for _c, (_step, _row) in TAS.items():
+    _d = L[_c]
+    _d["c"].append(_step)
+    _d["country_rows"] = [(a, b, _row) if a.startswith("🇩🇪") else (a, b, x) for a, b, x in _d["country_rows"]]
+
 COPY = {"en":"Copy","nl":"Kopieer","de":"Kopieren","fr":"Copier","es":"Copiar"}
 
 def steps(items, code_label_default=""):

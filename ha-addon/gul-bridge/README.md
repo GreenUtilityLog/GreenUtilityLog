@@ -32,6 +32,7 @@ automatically when it arrives (at most once a day) — nothing to tap.
 | `read_url` | — | Read from **any** HTTP/JSON reader instead of a HomeWizard |
 | `read_field` | auto-detect | Dot-path to the kWh value in that JSON |
 | `ingest_url` | empty = the app's server | Fill in only for the app's test copy or your own backend |
+| `tasmota_ip` | — | IP of a Tasmota IR reading head (e.g. Hichi) on the meter; the total is read from its `Total_in` value |
 | `powerfox_email` / `powerfox_password` | — | A Powerfox poweropti instead of a HomeWizard: your Powerfox login. The reading comes from the Powerfox cloud (switch on data transfer in the Powerfox app) |
 
 ## Not a HomeWizard?

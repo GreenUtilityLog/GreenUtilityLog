@@ -26,6 +26,7 @@
 //   --interval=…  seconds between pushes, default 43200, min 60    (INTERVAL_SEC)
 //   --url=…       read ANY reader that serves JSON over HTTP       (READ_URL)
 //   --field=…     dot-path to the kWh number in that JSON          (READ_FIELD)
+//   --tasmota=…   IP of a Tasmota IR head (e.g. Hichi) on the meter (TASMOTA_IP)
 //   --ingest=…    override the backend                            (GUL_INGEST_URL)
 //   --powerfox=…  read a Powerfox poweropti via the Powerfox cloud: your
 //                 Powerfox e-mail; asks for the password once and keeps it in
@@ -129,7 +130,11 @@ const DUE_AFTER_MS = 11 * 60 * 60 * 1000;
 // Generic mode: point at ANY reader that returns JSON over HTTP (dsmr-reader,
 // Shelly, a custom endpoint…). READ_URL switches off HomeWizard discovery; READ_FIELD
 // is an optional dot-path to the cumulative-kWh number (auto-detected if omitted).
-const READ_URL = pick("url", "READ_URL");
+// --tasmota=<ip>: an IR reading head running Tasmota (Hichi and friends, common on
+// German, Austrian and Swiss meters). Its sensor JSON lives at /cm?cmnd=Status%2010
+// and the meter total in a group of the meter script, usually SML.Total_in.
+const TASMOTA = pick("tasmota", "TASMOTA_IP").replace(/^https?:\/\//i, "").replace(/\/.*$/, "");
+const READ_URL = pick("url", "READ_URL") || (TASMOTA ? `http://${TASMOTA}/cm?cmnd=Status%2010` : "");
 const READ_FIELD = pick("field", "READ_FIELD");
 // --powerfox=<e-mail> (or bare --powerfox: the account saved by an earlier run).
 // The password is never a flag in a scheduled task: it is asked once and kept in
@@ -339,6 +344,12 @@ function readGeneric(data, field) {
   }
   const CANDIDATES = ["total_power_import_kwh", "total_energy_import_kwh", "energy_import_kwh", "import_kwh", "total_kwh", "reading", "value"];
   for (const k of CANDIDATES) { const v = num(data?.[k]); if (v != null) return v; }
+  // Tasmota: {"StatusSNS":{"SML":{"Total_in":…}}}. The group is named by the meter
+  // script (SML, Power, Strom…), so every group is looked at.
+  const groups = data?.StatusSNS && typeof data.StatusSNS === "object" ? data.StatusSNS : data;
+  for (const g of Object.values(groups || {})) {
+    if (g && typeof g === "object") { const v = num(g.Total_in ?? g.total_in ?? g.Total_In); if (v != null) return v; }
+  }
   return readTotal(data || {}); // fall back to HomeWizard-style t1+t2
 }
 // Powerfox (poweropti): the reading comes from the Powerfox cloud, with the
@@ -453,7 +464,7 @@ async function cycle() {
 // disk, so anything scheduled has to be given these again or it quietly falls back
 // to auto-discovery — which is what fails for the people who needed --ip.
 function keptFlags() {
-  return [...["ip", "url", "field", "ingest", "interval"]
+  return [...["ip", "url", "tasmota", "field", "ingest", "interval"]
     .filter((k) => FLAGS[k] && FLAGS[k] !== "1")
     .map((k) => `--${k}=${FLAGS[k]}`),
     // Powerfox: only that it is Powerfox — the account comes from the settings file.
@@ -512,7 +523,7 @@ function manageCron(action) {
   // Single-quoted for sh: a space in a path or an & in --url would otherwise split
   // or background the command. ' itself becomes '\''.
   const q = (v) => `'${String(v).replace(/'/g, "'\\''")}'`;
-  const keep = [...["ip", "url", "field", "ingest", "interval"].filter((k) => FLAGS[k] && FLAGS[k] !== "1").map((k) => q(`--${k}=${FLAGS[k]}`)), ...(POWERFOX ? ["--powerfox"] : [])].join(" ");
+  const keep = [...["ip", "url", "tasmota", "field", "ingest", "interval"].filter((k) => FLAGS[k] && FLAGS[k] !== "1").map((k) => q(`--${k}=${FLAGS[k]}`)), ...(POWERFOX ? ["--powerfox"] : [])].join(" ");
   const cmd = `${q(stableNodePath())} ${q(process.argv[1])} --once --due${keep ? " " + keep : ""}`;
   // Every hour, but --due makes it push only when the last reading is 11 h old:
   // twice a day in practice, and caught up within the hour when the machine wakes.
