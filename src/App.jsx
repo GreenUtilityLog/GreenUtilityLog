@@ -57,6 +57,12 @@ const HIDDEN_FILE_INPUT = {
   border: 0, overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap",
 };
 
+// The testnet strip (TestnetBanner) is fixed at the top, above everything. The
+// sticky header and the full-screen overlays start below it, or the strip hides
+// their title bar and Close button. 26 = its 16px line + 2 × 5px padding.
+const BANNER_H = TESTNET_BANNER ? 26 : 0;
+const OVERLAY_INSET = BANNER_H ? `${BANNER_H}px 0 0` : 0;
+
 const IS_MOBILE = typeof navigator !== "undefined" && (
   /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || "") ||
   ((navigator.maxTouchPoints || 0) > 1 && /Macintosh/i.test(navigator.userAgent || ""))
@@ -1329,7 +1335,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 @keyframes intro-slideup{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
 @keyframes intro-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
 
-.hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:${T.white};border-bottom:1px solid ${T.border};position:sticky;top:0;z-index:20;transition:background .25s;gap:16px;}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:${T.white};border-bottom:1px solid ${T.border};position:sticky;top:${BANNER_H}px;z-index:20;transition:background .25s;gap:16px;}
 .logo{display:flex;align-items:center;gap:10px;flex:1;min-width:0;}
 .logo-mark{width:30px;height:30px;border-radius:6px;background:linear-gradient(135deg,${T.green1},${T.green2});display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;box-shadow:0 2px 8px ${T.shadow};font-weight:700;font-size:11px;}
 .logo-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;font-weight:800;color:${T.text};letter-spacing:-0.5px;line-height:1;}
@@ -1507,7 +1513,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .modal-opt-icon{width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px;background:${T.bgAlt};border:1px solid ${T.border};}
 .modal-opt-name{font-size:13px;font-weight:700;color:${T.text};}
 
-.onboard{position:fixed;inset:0;background:${T.bg};z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 28px;}
+.onboard{position:fixed;inset:${OVERLAY_INSET || 0};background:${T.bg};z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 28px;}
 .onboard::before,.onboard::after{content:"";display:block;flex:1 0 32px;}
 .ob-icon{font-size:56px;margin-bottom:20px;animation:obpop .3s ease;}
 .ob-title{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:28px;font-weight:800;text-align:center;line-height:1.2;margin-bottom:12px;letter-spacing:-0.6px;}
@@ -1891,7 +1897,7 @@ function MeterCropper({ imgUrl, onCancel, onConfirm }) {
 
   const btn = { flex: 1, padding: "13px", borderRadius: 6, fontSize: 12, fontWeight: 800, cursor: "pointer" };
   return (
-    <div style={{position:"fixed",inset:0,background:"rgba(10,18,14,0.96)",zIndex:360,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:16}}>
+    <div style={{position:"fixed",inset:OVERLAY_INSET,background:"rgba(10,18,14,0.96)",zIndex:360,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:16}}>
       <div style={{color:"#fff",fontSize:14,fontWeight:800,marginBottom:4,textAlign:"center"}}>Align the reading</div>
       <div style={{color:"rgba(255,255,255,0.7)",fontSize:11,marginBottom:14,textAlign:"center"}}>Box ONLY the digits row (e.g. 003755) — leave out any text above or below it</div>
       <div style={{position:"relative",maxWidth:"100%",maxHeight:"60vh",touchAction:"none"}}>
@@ -4897,7 +4903,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
       return [...m.values()];
     })();
     return (
-      <div style={{position:"fixed",inset:0,background:T.bg,zIndex:320,display:"flex",flexDirection:"column"}}>
+      <div style={{position:"fixed",inset:OVERLAY_INSET,background:T.bg,zIndex:320,display:"flex",flexDirection:"column"}}>
         {headerBar("🛡️ Wallet detail", `On-chain · ${NETWORK_LABEL}`, () => setSelected(null))}
         <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"14px"}}>
           <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"12px 14px",marginBottom:14}}>
@@ -4998,7 +5004,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
 
   // ── Participant list + search ──────────────────────────────────────────────
   return (
-    <div style={{position:"fixed",inset:0,background:T.bg,zIndex:320,display:"flex",flexDirection:"column"}}>
+    <div style={{position:"fixed",inset:OVERLAY_INSET,background:T.bg,zIndex:320,display:"flex",flexDirection:"column"}}>
       {headerBar("🛡️ Admin · Participants", `Read-only on-chain monitor · ${NETWORK_LABEL}`, null)}
       <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"14px"}}>
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:12}}>
@@ -5655,7 +5661,7 @@ function HelpScreen({ onClose, onFeedback, T }) {
   const [openFaq, setOpenFaq] = useState(0); // accordion — first item open by default
   const row = { background:T.card, border:`1px solid ${T.border}`, borderRadius:10, padding:"12px 14px", marginBottom:8 };
   return (
-    <div style={{position:"fixed",inset:0,background:T.bg,zIndex:330,display:"flex",flexDirection:"column"}}>
+    <div style={{position:"fixed",inset:OVERLAY_INSET,background:T.bg,zIndex:330,display:"flex",flexDirection:"column"}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 18px",borderBottom:`1px solid ${T.border}`}}>
         <div>
           <div style={{fontSize:14,fontWeight:800,color:T.text}}>❓ Help &amp; FAQ</div>
@@ -5752,7 +5758,7 @@ function FeedbackScreen({ onClose, onToast, wallet, tab, T }) {
   };
   const inputStyle = { width:"100%", boxSizing:"border-box", background:T.card, border:`1px solid ${T.border}`, borderRadius:10, padding:"12px", fontSize:13, color:T.text, fontFamily:"inherit", lineHeight:1.5, resize:"vertical" };
   return (
-    <div style={{position:"fixed",inset:0,background:T.bg,zIndex:335,display:"flex",flexDirection:"column"}}>
+    <div style={{position:"fixed",inset:OVERLAY_INSET,background:T.bg,zIndex:335,display:"flex",flexDirection:"column"}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 18px",borderBottom:`1px solid ${T.border}`}}>
         <div>
           <div style={{fontSize:14,fontWeight:800,color:T.text}}>✉️ Send Feedback</div>
@@ -5823,7 +5829,8 @@ if (typeof document !== "undefined") {
 export function TestnetBanner() {
   if (!TESTNET_BANNER) return null;
   return (
-    <div style={{position:"fixed",top:0,left:0,right:0,zIndex:2147483000,background:"#7a4a00",color:"#fff",fontSize:11,fontWeight:700,textAlign:"center",padding:"5px 12px",letterSpacing:".3px",lineHeight:"16px",fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif"}}>
+    // One line, exactly BANNER_H tall: the header and overlays are offset by that.
+    <div style={{position:"fixed",top:0,left:0,right:0,zIndex:2147483000,height:BANNER_H,boxSizing:"border-box",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",background:"#7a4a00",color:"#fff",fontSize:11,fontWeight:700,textAlign:"center",padding:"5px 12px",letterSpacing:".3px",lineHeight:"16px",fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif"}}>
       🧪 TESTNET — test tokens only
       {MAIN_APP_URL && <> · <a href={MAIN_APP_URL} style={{color:"#fff",textDecoration:"underline"}}>Go to the real app →</a></>}
     </div>
@@ -6957,7 +6964,7 @@ export default function App() {
       {showHelp && <HelpScreen onClose={() => setShowHelp(false)} onFeedback={() => { setShowHelp(false); setShowFeedback(true); }} T={T} />}
       {showFeedback && <FeedbackScreen onClose={() => setShowFeedback(false)} onToast={showToast} wallet={wallet} tab={tab} T={T} />}
       {toast && (toast.sticky ? (
-        <div className="toast" style={{whiteSpace:"pre-wrap",maxWidth:"88vw",textAlign:"left",lineHeight:1.5,background:T.gasBg,color:T.gas,border:`1px solid ${T.gasBorder}`,padding:"12px 14px"}}>
+        <div className="toast" role="status" aria-live="polite" style={{whiteSpace:"pre-wrap",maxWidth:"88vw",textAlign:"left",lineHeight:1.5,background:T.gasBg,color:T.gas,border:`1px solid ${T.gasBorder}`,padding:"12px 14px"}}>
           <div style={{wordBreak:"break-word"}}>{toast.msg}</div>
           <div style={{display:"flex",gap:8,marginTop:10}}>
             <button onClick={() => { navigator.clipboard?.writeText(toast.msg).catch(() => {}); }}
@@ -6967,7 +6974,7 @@ export default function App() {
           </div>
         </div>
       ) : (
-        <div className="toast">{toast.msg}</div>
+        <div className="toast" role="status" aria-live="polite">{toast.msg}</div>
       ))}
 
       <div className="app">
@@ -6977,7 +6984,7 @@ export default function App() {
           {/* The testnet strip itself is rendered next to the app in main.jsx, so it
               also shows over the connect screen and the intro; this keeps it from
               covering the header. */}
-          {TESTNET_BANNER && <div aria-hidden="true" style={{height:26}} />}
+          {TESTNET_BANNER && <div aria-hidden="true" style={{height:BANNER_H}} />}
           <div className="hdr">
             <div className="logo">
               <div className="logo-mark"><SproutIcon size={18} /></div>
@@ -7034,12 +7041,15 @@ export default function App() {
               a new tester's first impression was otherwise a tab holding an empty
               graph. It reappears the moment there's something to plot, and stays
               visible while you're standing on it so the nav never loses its place. */}
-          {[{id:"home",icon:"🏠",label:"Home"},{id:"submit",icon:"📸",label:"Meter"},{id:"eco",icon:"🌿",label:"Eco"},{id:"progress",icon:"📈",label:"Progress"},{id:"profile",icon:"👤",label:"Profile"}].filter(n=>n.show!==false).map(n=>(
-            <button key={n.id} className={`nitem ${tab===n.id || (n.id==="profile" && (tab==="settings" || tab==="history")) ?"active":""}`} onClick={()=>setTab(n.id)}>
+          {[{id:"home",icon:"🏠",label:"Home"},{id:"submit",icon:"📸",label:"Meter"},{id:"eco",icon:"🌿",label:"Eco"},{id:"progress",icon:"📈",label:"Progress"},{id:"profile",icon:"👤",label:"Profile"}].filter(n=>n.show!==false).map(n=>{
+            const active = tab===n.id || (n.id==="profile" && (tab==="settings" || tab==="history"));
+            return (
+            <button key={n.id} className={`nitem ${active ?"active":""}`} aria-current={active ? "page" : undefined} onClick={()=>setTab(n.id)}>
               <div className="nicon">{n.icon}</div>
               <div className="nlabel">{n.label}</div>
             </button>
-          ))}
+            );
+          })}
         </div>
       </div>
     </>
