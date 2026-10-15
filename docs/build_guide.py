@@ -798,7 +798,7 @@ for _c, (_step, _row) in TAS.items():
 EU = {
   "en": dict(
     s_c="Route C — Another reader (P1 reader, Tasmota reading head)",
-    c_card=("I have another reader", "dsmr-reader, P1 Monitor, Shelly, or a Tasmota reading head (Hichi) — anything that serves its data on your network.", 3, "Technical"),
+    c_card=("I have another reader", "P1 Monitor, a Tasmota reading head (Hichi), or any reader that serves the meter's kWh total as JSON on your network.", 3, "Technical"),
     rows=[('🇦🇹 Austria', 'Customer interface (M-Bus) / optical port', 'Tibber Pulse: Route E. Tasmota reading head (Hichi): Route C. Otherwise Home Assistant.'),
           ('🇨🇭 Switzerland', 'Customer interface / optical port', 'Tasmota reading head (Hichi): Route C. Otherwise Home Assistant.'),
           ('🇫🇷 France', 'Linky: TIC port', 'No P1 port, so for now only Home Assistant (e.g. with a ZLinky). Or photos.'),
@@ -809,7 +809,7 @@ EU = {
   ),
   "nl": dict(
     s_c="Route C — Een andere reader (P1-reader, Tasmota-leeskop)",
-    c_card=("Ik heb een andere reader", "dsmr-reader, P1 Monitor, Shelly, of een Tasmota-leeskop (Hichi) — alles wat z’n data op je netwerk aanbiedt.", 3, "Technisch"),
+    c_card=("Ik heb een andere reader", "P1 Monitor, een Tasmota-leeskop (Hichi), of elke reader die de kWh-stand van je meter als JSON op je netwerk aanbiedt.", 3, "Technisch"),
     rows=[('🇦🇹 Oostenrijk', 'Klantinterface (M-Bus) / optische poort', 'Tibber Pulse: Route E. Tasmota-leeskop (Hichi): Route C. Anders Home Assistant.'),
           ('🇨🇭 Zwitserland', 'Klantinterface / optische poort', 'Tasmota-leeskop (Hichi): Route C. Anders Home Assistant.'),
           ('🇫🇷 Frankrijk', 'Linky: TIC-poort', 'Geen P1-poort, dus voorlopig alleen Home Assistant (bijv. met een ZLinky). Of foto’s.'),
@@ -820,7 +820,7 @@ EU = {
   ),
   "de": dict(
     s_c="Route C — Ein anderer Reader (P1-Reader, Tasmota-Lesekopf)",
-    c_card=("Ich habe einen anderen Reader", "dsmr-reader, P1 Monitor, Shelly oder ein Tasmota-Lesekopf (Hichi) — alles, was seine Daten im Netzwerk anbietet.", 3, "Technisch"),
+    c_card=("Ich habe einen anderen Reader", "P1 Monitor, ein Tasmota-Lesekopf (Hichi) oder jeder Reader, der den kWh-Zählerstand als JSON in deinem Netzwerk anbietet.", 3, "Technisch"),
     rows=[('🇦🇹 Österreich', 'Kundenschnittstelle (M-Bus) / optische Schnittstelle', 'Tibber Pulse: Route E. Tasmota-Lesekopf (Hichi): Route C. Sonst Home Assistant.'),
           ('🇨🇭 Schweiz', 'Kundenschnittstelle / optische Schnittstelle', 'Tasmota-Lesekopf (Hichi): Route C. Sonst Home Assistant.'),
           ('🇫🇷 Frankreich', 'Linky: TIC-Schnittstelle', 'Kein P1-Port, also vorerst nur Home Assistant (z. B. mit einem ZLinky). Oder Fotos.'),
@@ -831,7 +831,7 @@ EU = {
   ),
   "fr": dict(
     s_c="Route C — Un autre lecteur (lecteur P1, tête de lecture Tasmota)",
-    c_card=("J'ai un autre lecteur", "dsmr-reader, P1 Monitor, Shelly, ou une tête de lecture Tasmota (Hichi) — tout ce qui expose ses données sur votre réseau.", 3, "Technique"),
+    c_card=("J'ai un autre lecteur", "P1 Monitor, une tête de lecture Tasmota (Hichi), ou tout lecteur qui expose le total kWh du compteur en JSON sur votre réseau.", 3, "Technique"),
     rows=[('🇦🇹 Autriche', 'Interface client (M-Bus) / port optique', 'Tibber Pulse : Route E. Tête de lecture Tasmota (Hichi) : Route C. Sinon Home Assistant.'),
           ('🇨🇭 Suisse', 'Interface client / port optique', 'Tête de lecture Tasmota (Hichi) : Route C. Sinon Home Assistant.'),
           ('🇫🇷 France', 'Linky : port TIC', 'Pas de port P1, donc pour l’instant seulement Home Assistant (par ex. avec un ZLinky). Ou des photos.'),
@@ -842,7 +842,7 @@ EU = {
   ),
   "es": dict(
     s_c="Ruta C — Otro lector (lector P1, cabezal Tasmota)",
-    c_card=("Tengo otro lector", "dsmr-reader, P1 Monitor, Shelly, o un cabezal Tasmota (Hichi) — cualquiera que sirva sus datos en tu red.", 3, "Técnico"),
+    c_card=("Tengo otro lector", "P1 Monitor, un cabezal de lectura Tasmota (Hichi), o cualquier lector que sirva el total de kWh del contador en JSON en tu red.", 3, "Técnico"),
     rows=[('🇦🇹 Austria', 'Interfaz de cliente (M-Bus) / puerto óptico', 'Tibber Pulse: Ruta E. Cabezal Tasmota (Hichi): Ruta C. Si no, Home Assistant.'),
           ('🇨🇭 Suiza', 'Interfaz de cliente / puerto óptico', 'Cabezal Tasmota (Hichi): Ruta C. Si no, Home Assistant.'),
           ('🇫🇷 Francia', 'Linky: puerto TIC', 'Sin puerto P1, así que por ahora solo Home Assistant (p. ej. con un ZLinky). O fotos.'),
