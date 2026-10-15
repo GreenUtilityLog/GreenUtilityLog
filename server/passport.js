@@ -178,7 +178,9 @@ async function popThreshold() {
 export async function passportVouches(address) {
   const a = String(address || "").toLowerCase();
   const p = (await passportFor([a]))[a];
-  if (!p || p.isPerson !== true) return false;
+  // Unreadable (node down) is not "no": null, so the caller doesn't remember it.
+  if (!p || p.isPerson == null) return p ? null : false;
+  if (p.isPerson !== true) return false;
   if (/participation score/i.test(p.reason || "")) return (await popThreshold()) > 0;
   return true;
 }

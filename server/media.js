@@ -161,24 +161,35 @@ export function readingCheckMode(providersConfigured) {
 // unit, not a percentage: a percentage of a meter total is hundreds of kWh, which
 // is exactly the room a lower-than-true reading needs. The second rule covers a
 // display whose decimal point the OCR did not see (12345.6 read as 123456): the
-// same leading digits with at most three more. That cannot be used to understate,
-// because the reading still has to be above the stored baseline.
-export function readingOnPhoto(claimed, numbers) {
+// same leading digits with at most three more.
+//
+// That second rule is only safe against a reading already held to the true scale.
+// Without one, 1001.2 "matches" a photo read as 100125 — a tenth of the meter —
+// and once that is the baseline every later claim stays on the tenth scale. So it
+// needs `scaleRef` (the stored baseline, or the register's last paid value) with
+// the same number of whole digits, and an OCR number that really lost its point
+// (a whole number). A first reading must match exactly.
+export function readingOnPhoto(claimed, numbers, scaleRef) {
   const c = Number(claimed);
   if (!Number.isFinite(c) || c < 0) return false;
   const nums = (numbers || []).map(Number).filter(Number.isFinite);
   if (nums.some((n) => Math.abs(n - c) <= 1)) return true;
   const head = String(Math.floor(c));
   if (head.length < 3) return false;
+  const ref = Number(scaleRef);
+  if (!Number.isFinite(ref) || ref <= 0 || String(Math.floor(ref)).length !== head.length) return false;
   return nums.some((n) => {
-    const d = String(Math.floor(n));
+    if (!Number.isInteger(n)) return false;
+    const d = String(n);
     return d.startsWith(head) && d.length > head.length && d.length - head.length <= 3;
   });
 }
 
 // { ok, matched?, seen?, unavailable?, error? }. `registers` are the tariff parts of
 // a summed reading; the display shows one at a time, so any one of them counts.
-export async function checkReadingOnPhoto({ imageBase64, reading, registers = [], ocrImage }) {
+// baseline / prevRegs: the meter's stored reading and its registers' last paid
+// values, the scale the missing-decimal-point rule is held to (readingOnPhoto).
+export async function checkReadingOnPhoto({ imageBase64, reading, registers = [], ocrImage, baseline = null, prevRegs = [] }) {
   const unavailable = { ok: false, unavailable: true, error: "the meter reading could not be checked right now — nothing was used up, please try again in a few minutes" };
   let r;
   try { r = await ocrImage(imageBase64); }
@@ -190,11 +201,12 @@ export async function checkReadingOnPhoto({ imageBase64, reading, registers = []
   }
   const regs = Array.isArray(registers) ? registers : [];
   const candidates = [reading, ...regs];
-  const hit = candidates.findIndex((v) => readingOnPhoto(v, numbers));
+  const refs = [baseline, ...regs.map((_, i) => (Array.isArray(prevRegs) ? prevRegs[i] : null))];
+  const hit = candidates.findIndex((v, i) => readingOnPhoto(v, numbers, refs[i]));
   // Every register on the photo (0-based), not just the first: some displays show
   // both at once, and the register checks in /reward track which were seen.
-  const registersShown = regs.map((v, i) => (readingOnPhoto(v, numbers) ? i : -1)).filter((i) => i >= 0);
-  const totalShown = readingOnPhoto(reading, numbers);
+  const registersShown = regs.map((v, i) => (readingOnPhoto(v, numbers, refs[i + 1]) ? i : -1)).filter((i) => i >= 0);
+  const totalShown = readingOnPhoto(reading, numbers, baseline);
   if (hit >= 0) return { ok: true, matched: hit === 0 ? "total" : `register ${hit}`, registersShown, totalShown, seen: numbers.slice(0, 6), text: r?.text || "" };
   return {
     ok: false,

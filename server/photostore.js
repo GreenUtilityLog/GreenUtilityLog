@@ -116,6 +116,7 @@ async function upstashCmd(cmd) {
     method: "POST",
     headers: { Authorization: `Bearer ${U_TOK}`, "Content-Type": "application/json" },
     body: JSON.stringify(cmd),
+    signal: AbortSignal.timeout(15000),
   });
   if (!res.ok) throw new Error(`upstash ${res.status}`);
   return (await res.json()).result;

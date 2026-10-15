@@ -45,6 +45,12 @@ process.on("unhandledRejection", (e) => console.error("[unhandledRejection]", e?
 // Render/most PaaS = 1 hop; override with TRUST_PROXY_HOPS if you add a CDN in front.
 app.set("trust proxy", Number(process.env.TRUST_PROXY_HOPS || 1));
 
+// Set on SIGTERM (see shutdown below): from then on nothing that pays starts.
+let shuttingDown = false;
+app.use((req, res, next) => (shuttingDown && req.method === "POST"
+  ? res.status(503).json({ error: "the server is restarting — try again in a minute" })
+  : next()));
+
 // Lock the API to the configured frontend origin(s). "*" stays fully open.
 app.use(cors({
   origin: ALLOWED_ORIGINS.includes("*") ? "*" : ALLOWED_ORIGINS,
@@ -74,7 +80,25 @@ setInterval(() => {
 // Body parsing: a small default for every route, with the 20 MB photo allowance
 // applied ONLY to the two image-carrying endpoints (and /ocr). This keeps every
 // admin/meter/health route from buffering multi-MB bodies.
-const photoJson = express.json({ limit: "20mb" });
+// 8 MB, not 20: the app sends a compressed photo of a few hundred kB to ~2 MB, and
+// every body is held in memory whole before any check — on a 512 MB instance a
+// few dozen 20 MB uploads at once were enough to kill it, payouts in flight too.
+const photoJson = express.json({ limit: "8mb" });
+// And only a handful of them at once: each is buffered whole before any check.
+let photoBodies = 0;
+const PHOTO_BODIES_MAX = Number(process.env.PHOTO_BODIES_MAX || 6);
+for (const path of ["/reward", "/eco-action", "/ocr", "/meter/fix-basis"]) {
+  app.use(path, (req, res, next) => {
+    if (req.method !== "POST") return next();
+    if (photoBodies >= PHOTO_BODIES_MAX) return res.status(503).json({ error: "the server is busy — try again in a minute" });
+    photoBodies++;
+    let done = false;
+    const release = () => { if (!done) { done = true; photoBodies--; } };
+    res.on("finish", release);
+    res.on("close", release);
+    next();
+  });
+}
 app.use("/reward", photoJson);
 app.use("/eco-action", photoJson);
 app.use("/ocr", photoJson);
@@ -109,7 +133,10 @@ const STARTED_AT = new Date().toISOString();
 // once. /health asks the chain six questions first, and when the VeChain node is
 // slow those answers take longer than Render waits — a deploy then fails on a
 // perfectly healthy server, which is what happened to the deploy of PR #117.
-app.get("/livez", (req, res) => res.json({ ok: true }));
+app.get("/livez", (req, res) => (store.loaded()
+  // Not ready to take over: during a deploy Render keeps the old instance running.
+  ? res.json({ ok: true })
+  : res.status(503).json({ ok: false, error: "state not loaded yet" })));
 
 // The chain answers in /health are worth waiting for, but not forever.
 const CHAIN_DIAG_MS = 8000;
@@ -138,7 +165,7 @@ app.get("/health", async (req, res) => {
     ocr: OCR_ENABLED,
     ocrProviders: ocrProviders(),
     // How this week's B3TR is being spread: rewards are paid at `factor` × the rates.
-    rewardBudget: await budgetState().catch(() => null),
+    rewardBudget: await withTimeout(budgetState().catch(() => null), CHAIN_DIAG_MS, null),
     // The rules the app shows before anyone takes a photo, so its previews and
     // timers follow this deployment (e.g. a cautious mainnet start with a lower cap)
     // instead of numbers built into the app.
@@ -248,6 +275,9 @@ async function guardPayout(keys) {
 const meterPayoutKeys = (addr, utility, meterNo, reading) => [
   ...(COOLDOWN_MS > 0 ? [[`cool:${String(addr).toLowerCase()}:${utility}`, COOLDOWN_MS, "cooldown active — this meter was already paid recently"]] : []),
   [`read:${utility}:${String(meterNo).trim().toLowerCase()}:${Number(reading)}`, 60 * DAY_MS, "this reading has already been paid"],
+  // A meter nobody owns yet: the owner check ran before the long photo checks, so
+  // two wallets claiming it at once both passed it and both were paid. One claim.
+  ...(store.meterOwner(utility, String(meterNo).trim().toLowerCase()) ? [] : [[`claim:${utility}:${String(meterNo).toUpperCase().replace(/[^A-Z0-9]/g, "")}`, DAY_MS, "this meter is registered to another wallet"]]),
 ];
 
 // Closest photo print from ANOTHER wallet (media.js photoPrint), or null. At most
@@ -277,8 +307,10 @@ async function isPerson(addr) {
   const a = String(addr || "").toLowerCase();
   const hit = personCache.get(a);
   if (hit && Date.now() - hit.at < (hit.v ? 3600000 : 600000)) return hit.v;
-  let v = false;
-  try { v = await passportVouches(a); } catch { v = false; }
+  let v = null;
+  try { v = await passportVouches(a); } catch { v = null; }
+  // A read that failed counts as "no" now, but isn't remembered for ten minutes.
+  if (v == null) return false;
   personCache.set(a, { v, at: Date.now() });
   if (personCache.size > 5000) personCache.delete(personCache.keys().next().value);
   return v;
@@ -531,9 +563,14 @@ app.post("/admin/set-baseline", async (req, res) => {
   if (!Number.isFinite(reading) || reading < 0) return res.status(400).json({ error: "invalid reading" });
   const utility = pickAnyUtility(req.body.utility);
   const meterKey = meterNo.toLowerCase();
-  store.setLastReading(utility, meterKey, reading);
-  // Optional: rebind this meter to a given wallet (e.g. fix a wrong owner).
+  // A baseline with no owner paid its first claimant at the full savings rate, as
+  // if it were their own meter's next reading. So it needs an owner: the one it
+  // has, or the wallet given here (which also fixes a wrong owner).
   const target = String(req.body.targetWallet || "");
+  if (!isAddr(target) && !store.meterOwner(utility, meterKey)) {
+    return res.status(400).json({ error: "this meter has no owner yet — fill in the wallet it belongs to" });
+  }
+  store.setLastReading(utility, meterKey, reading);
   if (isAddr(target)) store.bindMeter(utility, meterKey, target.toLowerCase());
   res.json({ ok: true, meterNo: meterKey, utility, baseline: reading, owner: store.meterOwner(utility, meterKey) });
 });
@@ -671,6 +708,9 @@ app.post("/admin/reset-cooldown", async (req, res) => {
   if (!isAddr(target)) return res.status(400).json({ error: "invalid target wallet" });
   const utility = String(req.body.utility || "electric");
   store.clearCooldown(target, utility);
+  // The shared guard key holds the cooldown too (meterPayoutKeys); clearing only
+  // the state let the next claim pass every check and then fail at the guard.
+  await store.releaseOnce(`cool:${target.toLowerCase()}:${utility}`);
   res.json({ ok: true, targetWallet: target.toLowerCase(), utility });
 });
 
@@ -751,9 +791,18 @@ app.post("/ocr", async (req, res) => {
 //     value must be photographed sooner or later, and it can't be.
 // rc: the server OCR result (registersShown / totalShown), or null when the photo
 // wasn't read. Returns the refusal, or the "due" warning and the updated seen-times.
-function checkRegisters({ utility, meterNo, registers, rc }) {
-  const prev = store.getMeterRegs(utility, String(meterNo).trim().toLowerCase());
-  const same = !!prev && prev.regs.length === registers.length;
+function checkRegisters({ utility, meterNo, registers, rc, newCount = false }) {
+  const stored = store.getMeterRegs(utility, String(meterNo).trim().toLowerCase());
+  // fix-basis may change the count: then the old registers don't apply at all.
+  const prev = newCount && stored && stored.regs.length !== registers.length ? null : stored;
+  // The number of registers is a property of the meter. Changing it reset the
+  // seen-times and skipped rule 1, so [true, invented] could be followed by
+  // [true, invented, x] and back, each paid. A real change goes through
+  // "Use this reading as my starting point" (/meter/fix-basis) or an admin.
+  if (prev && prev.regs.length !== registers.length) {
+    return { error: `this meter was paid with ${prev.regs.length} tariff registers, not ${registers.length} — fill in ${prev.regs.length} registers. If your meter really changed, use "Use this reading as my starting point" in the app, or ask an admin.` };
+  }
+  const same = !!prev;
   if (same) {
     const down = registers.findIndex((x, i) => x < prev.regs[i] - 0.001);
     if (down >= 0) {
@@ -873,7 +922,9 @@ app.post("/reward", async (req, res) => {
     let rcResult = null;
     const rcMode = readingCheckMode(ocrEnabled());
     if (rcMode !== "off") {
-      const rc = await checkReadingOnPhoto({ imageBase64: req.body.photo, reading: req.body.reading, registers, ocrImage });
+      const mk = String(req.body.meterNo).trim().toLowerCase();
+      const rc = await checkReadingOnPhoto({ imageBase64: req.body.photo, reading: req.body.reading, registers, ocrImage,
+        baseline: store.lastReading(req.body.utility, mk), prevRegs: store.getMeterRegs(req.body.utility, mk)?.regs || [] });
       rcResult = rc;
       if (!rc.ok && (rcMode === "strict" || rc.unavailable)) {
         return res.status(rc.unavailable ? 503 : 400).json({ error: rc.error });
@@ -1099,6 +1150,8 @@ app.post("/meter/pair", async (req, res) => {
     const c = await requireBoundCert(req, ["Green Utility Log — link smart meter"]);
     if (!c.ok) return res.status(c.code).json({ error: c.error });
   }
+  // Only a wallet that may earn can pair: every pairing is state the server keeps.
+  { const pb = await passBlock(address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
   const meterNo = String(req.body.meterNo || "").trim();
   // Remember which utility this meter is, so the scheduled auto-submit pays it at
   // the right rate/bounds/cooldown instead of always assuming electric.
@@ -1149,8 +1202,31 @@ app.post("/meter/unpair", async (req, res) => {
   const existing = store.getLinkByAddress(address);
   if (existing) store.delMeterLink(existing.token);
   store.delLinkReading(address);
+  // "Delete my meter data" includes a Powerfox login or Tibber token kept for it.
+  store.delPowerfox(address);
+  store.delTibber(address);
   res.json({ ok: true, unpaired: !!existing });
 });
+
+// Linking a cloud account tries the login against that cloud: a few tries per
+// wallet per hour, so the route can't be used to test stolen logins.
+const linkAttempts = new Map();   // address -> [times]
+function linkAttemptOk(address) {
+  const a = String(address).toLowerCase(), now = Date.now();
+  const recent = (linkAttempts.get(a) || []).filter((t) => now - t < 3600000);
+  if (recent.length >= 6) return false;
+  recent.push(now);
+  linkAttempts.set(a, recent);
+  if (linkAttempts.size > 5000) for (const [k, v] of linkAttempts) if (!v.some((t) => now - t < 3600000)) linkAttempts.delete(k);
+  return true;
+}
+// Unlinking a cloud account also ends the meter link it fed and its last reading,
+// so nothing from it can still be paid — but never a P1 reader's link.
+function forgetCloudLink(address, source) {
+  const link = store.getLinkByAddress(address);
+  if (link?.source === source) store.delMeterLink(link.token);
+  if (store.getLinkReading(address)?.source === source) store.delLinkReading(address);
+}
 
 // ── Powerfox: this server fetches the reading from the Powerfox cloud ───────
 // The wallet signs once; the Powerfox e-mail and password are checked against
@@ -1167,6 +1243,8 @@ app.post("/meter/powerfox/link", async (req, res) => {
     const c = await requireBoundCert(req, ["Green Utility Log — link Powerfox"]);
     if (!c.ok) return res.status(c.code).json({ error: c.error });
   }
+  { const pb = await passBlock(address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
+  if (!linkAttemptOk(address)) return res.status(429).json({ error: "too many attempts — try again in an hour" });
   const email = String(req.body.email || "").trim();
   const password = String(req.body.password || "");
   if (!email || email.length > 200 || !password || password.length > 200) {
@@ -1177,6 +1255,11 @@ app.post("/meter/powerfox/link", async (req, res) => {
   const owner = store.meterOwner("electric", meterNo.toLowerCase());
   if (owner && owner !== address.toLowerCase()) return res.status(403).json({ error: "this meter is registered to another wallet" });
 
+  // One Powerfox account feeds one wallet, or a single login could pay many.
+  const acct = createHash("sha256").update(`powerfox:${email.toLowerCase()}`).digest("hex").slice(0, 32);
+  if (store.allPowerfox().some((x) => x.acct === acct && x.address !== address.toLowerCase())) {
+    return res.status(409).json({ error: "this Powerfox account is already connected to another wallet" });
+  }
   const r = await fetchPowerfoxReading(email, password);
   if (!r.ok) return res.status(r.code === "unreachable" ? 503 : 400).json({ error: r.error, code: r.code });
 
@@ -1188,7 +1271,7 @@ app.post("/meter/powerfox/link", async (req, res) => {
     ? { autoPaidAt: existing.autoPaidAt, rebasedAt: existing.rebasedAt, lastPayout: existing.lastPayout } : {};
   const link = { ...carried, address: address.toLowerCase(), meterNo, utility: "electric", source: "powerfox", createdAt: existing?.createdAt || Date.now() };
   store.setMeterLink(token, link);
-  store.setPowerfox(address, { cred: sealCredentials(email, password), token, linkedAt: Date.now(), lastPullAt: Date.now(), lastError: null });
+  store.setPowerfox(address, { cred: sealCredentials(email, password), acct, token, linkedAt: Date.now(), lastPullAt: Date.now(), lastError: null });
   if (!r.outdated) store.setLinkReading(address, { reading: r.reading, meterNo, at: r.at, source: "powerfox" });
   await store.flush();
   console.log(`[powerfox] ${shortAddr(address)} linked`);
@@ -1205,6 +1288,7 @@ app.post("/meter/powerfox/unlink", async (req, res) => {
     if (!c.ok) return res.status(c.code).json({ error: c.error });
   }
   const had = store.delPowerfox(address);
+  forgetCloudLink(address, "powerfox");
   await store.flush();
   res.json({ ok: true, unlinked: had });
 });
@@ -1223,6 +1307,8 @@ app.post("/meter/tibber/link", async (req, res) => {
     const c = await requireBoundCert(req, ["Green Utility Log — link Tibber"]);
     if (!c.ok) return res.status(c.code).json({ error: c.error });
   }
+  { const pb = await passBlock(address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
+  if (!linkAttemptOk(address)) return res.status(429).json({ error: "too many attempts — try again in an hour" });
   const tibberToken = String(req.body.tibberToken || "").trim();
   if (!/^[A-Za-z0-9._~+/=-]{20,400}$/.test(tibberToken)) {
     return res.status(400).json({ error: "paste the personal access token from developer.tibber.com" });
@@ -1234,6 +1320,10 @@ app.post("/meter/tibber/link", async (req, res) => {
 
   const r = await fetchTibberReading(tibberToken);
   if (!r.ok) return res.status(r.code === "unreachable" ? 503 : 400).json({ error: r.error, code: r.code });
+  // One Tibber home feeds one wallet, or a single Pulse could pay many.
+  if (store.allTibber().some((x) => x.homeId === r.homeId && x.address !== address.toLowerCase())) {
+    return res.status(409).json({ error: "this Tibber home is already connected to another wallet" });
+  }
 
   const existing = store.getLinkByAddress(address);
   const token = existing ? existing.token : randomBytes(24).toString("hex");
@@ -1258,6 +1348,7 @@ app.post("/meter/tibber/unlink", async (req, res) => {
     if (!c.ok) return res.status(c.code).json({ error: c.error });
   }
   const had = store.delTibber(address);
+  forgetCloudLink(address, "tibber");
   await store.flush();
   res.json({ ok: true, unlinked: had });
 });
@@ -1269,6 +1360,9 @@ app.post("/meter/tibber/unlink", async (req, res) => {
 let lastCronTick = 0;
 app.get("/cron/tick", async (req, res) => {
   if (Date.now() - lastCronTick < 10 * 60 * 1000) return res.json({ ok: true, skipped: "ran recently" });
+  // A tick while the store isn't ready does nothing — don't let it hold off the
+  // next one for ten minutes.
+  if (!store.ready()) return res.status(503).json({ ok: false, error: notReadyMessage() });
   lastCronTick = Date.now();
   const pulled = await powerfoxTick("cron").catch(() => 0);
   const tibber = await tibberTick("cron").catch(() => 0);
@@ -1493,7 +1587,7 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
   // Without a paired device (an Enode reading), the meter number comes from the
   // request — so it must be one this wallet already owns. Otherwise the one reading
   // could be settled against any meter that happens to have no owner recorded.
-  if (!link && String(store.meterOwner(utility, meterNo.toLowerCase()) || "").toLowerCase() !== addr.toLowerCase()) {
+  if ((!link || !link.meterNo) && String(store.meterOwner(utility, meterNo.toLowerCase()) || "").toLowerCase() !== addr.toLowerCase()) {
     return { ok: false, code: 403, error: "this meter isn't registered to your wallet — submit one photo reading for it first" };
   }
 
@@ -1738,7 +1832,7 @@ app.post("/meter/fix-basis", async (req, res) => {
     }
     // Same register rules as a payout: these become the values the next one is
     // held to, so they mustn't run backwards or skip the overdue register either.
-    const rg = checkRegisters({ utility, meterNo: meterKey, registers, rc: rcResult });
+    const rg = checkRegisters({ utility, meterNo: meterKey, registers, rc: rcResult, newCount: true });
     if (rg.error || rg.wrong) { photo.unreserve(); return res.status(400).json({ error: rg.error || rg.wrong.message }); }
 
     store.setLastReading(utility, meterKey, total);
@@ -1774,6 +1868,7 @@ let autoTickBusy = false;
 // Same gates as /reward-from-meter apart from the signature, which a device can't
 // give: its token already binds the reading to the wallet.
 async function autoSettle(link, why = "timer") {
+  if (shuttingDown) return;
   if (!store.ready() || !link?.address) return null; // don't pay from a blank/half-loaded state
   const meterNo = String(link.meterNo || "").trim();
   if (!meterNo || banned(link.address) || await passBlock(link.address)) return null;
@@ -1798,7 +1893,7 @@ async function autoSettle(link, why = "timer") {
 // settle it like a reader's push. Returns how many readings came in.
 let powerfoxBusy = false;
 async function powerfoxTick(why = "timer") {
-  if (!powerfoxEnabled() || powerfoxBusy || !store.ready()) return 0;
+  if (!powerfoxEnabled() || powerfoxBusy || !store.ready() || shuttingDown) return 0;
   powerfoxBusy = true;
   let n = 0;
   try {
@@ -1811,7 +1906,7 @@ async function powerfoxTick(why = "timer") {
         continue;
       }
       const r = await fetchPowerfoxReading(creds.user, creds.pass);
-      const rec = { cred: acc.cred, token: acc.token, linkedAt: acc.linkedAt, lastPullAt: Date.now(), lastError: r.ok ? (r.outdated ? "Powerfox reports an old reading — is the poweropti online?" : null) : r.error };
+      const rec = { cred: acc.cred, acct: acc.acct, token: acc.token, linkedAt: acc.linkedAt, lastPullAt: Date.now(), lastError: r.ok ? (r.outdated ? "Powerfox reports an old reading — is the poweropti online?" : null) : r.error };
       store.setPowerfox(acc.address, rec);
       if (!r.ok || r.outdated) continue;
       store.setLinkReading(acc.address, { reading: r.reading, meterNo: link.meterNo || null, at: r.at, source: "powerfox" });
@@ -1825,7 +1920,7 @@ async function powerfoxTick(why = "timer") {
 // The same for Tibber accounts (tibber.js).
 let tibberBusy = false;
 async function tibberTick(why = "timer") {
-  if (!powerfoxEnabled() || tibberBusy || !store.ready()) return 0;
+  if (!powerfoxEnabled() || tibberBusy || !store.ready() || shuttingDown) return 0;
   tibberBusy = true;
   let n = 0;
   try {
@@ -1893,6 +1988,13 @@ if (NETWORK === "mainnet") {
     console.error("[boot] FATAL: NETWORK=mainnet requires REQUIRE_CERT=true (wallet-ownership proof). Refusing to start.");
     process.exit(1);
   }
+  // Without its own STATE_KEY, mainnet loads and writes the TESTNET state: every
+  // tester's pass would earn real B3TR, and testnet readings would block mainnet
+  // ones. The default key is testnet's, so it must be set, and say so.
+  if (process.env.UPSTASH_REDIS_REST_URL && !/mainnet/i.test(process.env.STATE_KEY || "")) {
+    console.error("[boot] FATAL: NETWORK=mainnet needs STATE_KEY set to a mainnet key (e.g. greenutilitylog:mainnet). Refusing to start.");
+    process.exit(1);
+  }
   if (!aiPhotoCheckEnabled() && !ocrEnabled()) {
     console.warn("[boot] WARNING: mainnet with neither AI photo-authenticity nor OCR enabled — the photo layer adds little anti-fraud. Set ANTHROPIC_API_KEY or an OCR provider before real value flows.");
   }
@@ -1932,15 +2034,19 @@ const server = app.listen(PORT, () => {
 // anti-farming state (cooldowns, burnt photo hashes, baselines) before exiting so a
 // just-committed payout can't be replayed after the restart. Guarded against double
 // invocation and a hard 5s cap so we never hang the platform's shutdown.
-let shuttingDown = false;
+// From the signal on no new payout starts (requests get 503, timers stop), the
+// ones under way can finish and are saved once more after the server closes, all
+// within 25 s — a payout broadcast but not saved before the kill lost its record.
 async function shutdown(sig) {
   if (shuttingDown) return;
   shuttingDown = true;
   console.log(`[shutdown] ${sig} — flushing state…`);
-  const cap = setTimeout(() => process.exit(0), 5000);
+  setTimeout(() => process.exit(0), 25000).unref();
   try { await store.flush(); } catch (e) { console.error("[shutdown] flush failed:", e?.message || e); }
-  clearTimeout(cap);
-  server.close(() => process.exit(0));
+  server.close(async () => {
+    try { await store.flush(); } catch (e) { console.error("[shutdown] last flush failed:", e?.message || e); }
+    process.exit(0);
+  });
 }
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT", () => shutdown("SIGINT"));

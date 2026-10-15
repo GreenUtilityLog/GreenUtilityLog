@@ -9,7 +9,7 @@ import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { WebSocketServer } from "ws";
-import { startServer, stateWithBaseline, WALLET } from "./helpers.mjs";
+import { startServer, stateWithBaseline, WALLET, OTHER } from "./helpers.mjs";
 
 const TOKEN = "tibber-personal-access-token-0123456789";
 
@@ -96,11 +96,19 @@ describe("Tibber, fetched by the server", () => {
     assert.equal(r.body.code, "no_total");
   });
 
+  test("the same Tibber home can't feed a second wallet", async () => {
+    tb.live = [{ lastMeterConsumption: 1004.5 }];
+    const r = await srv.post("/meter/tibber/link", { address: OTHER, meterNo: "E2000", tibberToken: TOKEN });
+    assert.equal(r.status, 409, JSON.stringify(r.body));
+    assert.match(r.body.error, /already connected to another wallet/);
+  });
+
   test("unlinking forgets the token at once", async () => {
     const r = await srv.post("/meter/tibber/unlink", { address: WALLET });
     assert.equal(r.body.unlinked, true);
     const st = await srv.waitForState((s) => !(s.tibber || {})[WALLET.toLowerCase()]);
     assert.equal((st.tibber || {})[WALLET.toLowerCase()], undefined);
+    assert.equal((st.linkReadings || {})[WALLET.toLowerCase()], undefined, "its last reading can't be paid any more");
   });
 });
 

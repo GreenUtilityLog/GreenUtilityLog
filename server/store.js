@@ -46,13 +46,22 @@ const FLAG_MAX = 2000;
 const DEVICE_MAX = 5000;
 const DEVICE_KEY_WALLETS = 16;
 
+// Every Upstash call has a deadline. Without one a stalled answer held the save
+// queue for minutes (fetch waits ~300 s for headers) while payouts kept going out
+// on-chain and nothing about them was stored.
+const REDIS_TIMEOUT_MS = Number(process.env.REDIS_TIMEOUT_MS || 8000);
 async function redisCmd(cmd) {
   const res = await fetch(R_URL, {
     method: "POST",
     headers: { Authorization: `Bearer ${R_TOK}`, "Content-Type": "application/json" },
     body: JSON.stringify(cmd),
+    signal: AbortSignal.timeout(REDIS_TIMEOUT_MS),
   });
-  if (!res.ok) throw new Error(`upstash ${res.status}`);
+  if (!res.ok) {
+    // The reason matters (writeOnce tells "no scripting" from "too large" by it).
+    const why = await res.text().catch(() => "");
+    throw new Error(`upstash ${res.status}${why ? `: ${why.slice(0, 200)}` : ""}`);
+  }
   const j = await res.json();
   return j.result;
 }
@@ -94,6 +103,8 @@ async function loadState() {
 const dirty = new Map();          // field -> Set of keys, or "*" for the whole field
 const PROCESS_ID = Math.random().toString(36).slice(2, 10);
 const isMap = (v) => v && typeof v === "object" && !Array.isArray(v);
+// A meter number as the photo check reads it: letters and digits only, one case.
+const canonicalMeter = (m) => String(m ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 const note = (field, key) => {
   if (dirty.get(field) === "*") return;
   if (key === "*") { dirty.set(field, "*"); return; }
@@ -125,9 +136,16 @@ console.log(`[store] backend: ${USE_REDIS ? "Upstash Redis (durable)" : `file ${
 // If the durable store couldn't be read at boot, keep retrying so the service
 // self-heals when Redis returns — without ever overwriting the unread key meanwhile.
 if (USE_REDIS && loadError) {
+  // One attempt at a time: a slow attempt overlapping the next could land late and
+  // replace the newer state with an older copy.
+  let busy = false;
   const retry = setInterval(async () => {
-    const fresh = await loadState();
-    if (!loadError) { state = track(fresh); dirty.clear(); clearInterval(retry); console.log("[store] Redis recovered — state loaded, payouts enabled."); }
+    if (busy || !loadError) return;
+    busy = true;
+    try {
+      const fresh = await loadState();
+      if (!loadError) { state = track(fresh); dirty.clear(); clearInterval(retry); console.log("[store] Redis recovered — state loaded, payouts enabled."); }
+    } finally { busy = false; }
   }, 10000);
 }
 
@@ -159,12 +177,17 @@ async function releaseOnce(key) {
 
 let saveError = false;
 let saveRetry = null;
+let hashAdds = 0;
 
 // ── Merging with what another process stored ─────────────────────────────────
 const VERSION_KEY = `${REDIS_KEY}:version`;
 // Set only if the version is still the one read; bumps it. One round trip, atomic.
 const CAS_SCRIPT = "if (redis.call('GET', KEYS[2]) or '0') == ARGV[1] then redis.call('SET', KEYS[1], ARGV[2]); return redis.call('INCR', KEYS[2]) else return 0 end";
 let casSupported = true;
+// The version this process last wrote or took over. A pull that comes back with an
+// older one (it was sent before our own write landed) is ignored, or it would put
+// back the values we just replaced, in memory, until the next pull.
+let lastVer = null;
 const APPEND_LOGS = new Set(["payLog", "prints"]);   // merged as a union, not replaced
 const COUNTERS = new Set(["passSeq", "passesInit"]); // merged as the larger
 
@@ -226,6 +249,7 @@ async function readStored() {
   const [blob, ver] = await redisCmd(["MGET", REDIS_KEY, VERSION_KEY]);
   return { remote: blob ? fresh(JSON.parse(blob)) : fresh(), ver: ver == null ? "0" : String(ver) };
 }
+const newer = (ver) => lastVer == null || Number(ver) >= Number(lastVer);
 
 async function mergedWrite() {
   // What changed here up to now; anything changed during the round trips stays
@@ -242,14 +266,18 @@ async function mergedWrite() {
         let r;
         try { r = await redisCmd(["EVAL", CAS_SCRIPT, "2", REDIS_KEY, VERSION_KEY, ver, blob]); }
         catch (e) {
-          if (!/upstash 4\d\d/.test(String(e?.message))) throw e;
+          // Only a Redis without scripting falls back. A refused write for another
+          // reason (too large, over quota) is a failed save, not a reason to drop
+          // compare-and-set for the rest of this process's life.
+          if (!/upstash 4\d\d/.test(String(e?.message)) || !/unknown command|script|eval|not allowed|disabled|NOPERM/i.test(String(e?.message))) throw e;
           casSupported = false; // no scripting on this Redis: a plain merged SET still
           console.warn("[store] EVAL not available — merged writes without compare-and-set");
         }
         if (casSupported && !r) continue;       // someone wrote in between: read again
-        if (casSupported) { adopt(remote); return; }
+        if (casSupported) { lastVer = String(r); adopt(remote); return; }
       }
       await redisCmd(["SET", REDIS_KEY, blob]);
+      lastVer = null;
       adopt(remote);
       return;
     }
@@ -268,8 +296,11 @@ if (USE_REDIS) {
   const pull = setInterval(async () => {
     if (loadError || writing) return; // a write is about to adopt the newest anyway
     try {
-      const { remote } = await readStored();
-      if (!writing) adopt(remote);
+      // The version first: the whole blob only when someone else wrote.
+      const ver = await redisCmd(["GET", VERSION_KEY]);
+      if (lastVer != null && String(ver ?? "0") === lastVer) return;
+      const got = await readStored();
+      if (!writing && newer(got.ver)) { adopt(got.remote); lastVer = got.ver; }
     } catch { /* next time */ }
   }, 30000);
   pull.unref?.();
@@ -280,8 +311,9 @@ if (USE_REDIS) {
 // take the first's in-flight changes for "someone else's" values.
 let writing = false;
 let writeQueue = Promise.resolve();
+let writingSince = 0;
 function writeNow() {
-  const run = writeQueue.then(() => { writing = true; return writeOnce(); }).finally(() => { writing = false; });
+  const run = writeQueue.then(() => { writing = true; writingSince = Date.now(); return writeOnce(); }).finally(() => { writing = false; });
   writeQueue = run.catch(() => {});
   return run;
 }
@@ -359,7 +391,16 @@ export const store = {
   // synchronously at verify time; delHash rolls that reservation back if the payout
   // it was reserved for never completes.
   hasHash: (h) => Object.prototype.hasOwnProperty.call(state.hashes, h),
-  addHash: (h) => { state.hashes[h] = Date.now(); persist(); },
+  addHash: (h) => {
+    state.hashes[h] = Date.now();
+    // Kept 180 days, then dropped: the state is one blob, and a photo that old is
+    // refused anyway (EXIF age, the per-reading guard keys).
+    if (++hashAdds % 50 === 0) {
+      const cutoff = Date.now() - 180 * 86400000;
+      for (const [k, t] of Object.entries(state.hashes)) if (typeof t === "number" && t < cutoff) delete state.hashes[k];
+    }
+    persist();
+  },
   delHash: (h) => { if (Object.prototype.hasOwnProperty.call(state.hashes, h)) { delete state.hashes[h]; persist(); } },
 
   // Meter owner + baseline are keyed by `${utility}:${meterNo}` so the SAME meter
@@ -372,6 +413,16 @@ export const store = {
     const k = mKey(utility, meterNo);
     if (Object.prototype.hasOwnProperty.call(state.meterOwners, k)) return state.meterOwners[k];
     if (mFallback(utility) && Object.prototype.hasOwnProperty.call(state.meterOwners, meterNo)) return state.meterOwners[meterNo];
+    // The same number spelled differently: "E0012345", "E-0012345" and "e 0012345"
+    // are one meter (the photo check ignores everything but letters and digits),
+    // so a spelling nobody owns yet still belongs to whoever owns its twin.
+    const canon = canonicalMeter(meterNo);
+    if (!canon) return null;
+    for (const [key, owner] of Object.entries(state.meterOwners)) {
+      const i = key.indexOf(":");
+      const u = i < 0 ? "electric" : key.slice(0, i);
+      if (u === utility && canonicalMeter(i < 0 ? key : key.slice(i + 1)) === canon) return owner;
+    }
     return null;
   },
   // The tariff registers a double-tariff meter was last paid on, and when each was
@@ -787,7 +838,9 @@ export const store = {
   // while saving is failing.
   loaded: () => !loadError,
   saveOk: () => !saveError,
-  ready: () => !loadError && !saveError,
+  // A save stuck for half a minute counts as failing: a payout made now might
+  // never be recorded.
+  ready: () => !loadError && !saveError && !(writing && Date.now() - writingSince > 30000),
 
   // Single-use admin certificates: returns true the FIRST time a signature is seen,
   // false on any replay within the TTL. Prunes expired entries on each call so it

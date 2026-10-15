@@ -17,7 +17,7 @@ import { toApiImage } from "./apiimage.js";
 // powers the photo-authenticity check). Override the model with OCR_CLAUDE_MODEL.
 const ANTHROPIC_KEY = (process.env.ANTHROPIC_API_KEY || "").trim();
 const OCR_CLAUDE_MODEL = (process.env.OCR_CLAUDE_MODEL || "claude-opus-4-8").trim();
-const anthropicClient = ANTHROPIC_KEY ? new Anthropic({ apiKey: ANTHROPIC_KEY }) : null;
+const anthropicClient = ANTHROPIC_KEY ? new Anthropic({ apiKey: ANTHROPIC_KEY, timeout: 45000, maxRetries: 1 }) : null;
 
 // Pull plausible numeric readings out of OCR text (handles , or . decimals).
 export function numbersFromText(text) {
@@ -51,6 +51,7 @@ async function roboflowOcr(content) {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: content,
+      signal: AbortSignal.timeout(30000),
     });
     if (!res.ok) throw new Error(`roboflow ${res.status}`);
     const data = await res.json().catch(() => null);
@@ -73,6 +74,7 @@ async function customOcr(content) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ image: content }),
+      signal: AbortSignal.timeout(30000),
     });
     if (!res.ok) throw new Error(`custom ocr ${res.status}`);
     const data = await res.json().catch(() => null);

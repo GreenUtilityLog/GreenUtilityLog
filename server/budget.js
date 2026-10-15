@@ -49,7 +49,7 @@ async function roundEndsAt() {
   if (DRY_RUN || !CONTRACTS.XAllocationVoting) return null;
   try {
     const deadline = num(first(await callView(CONTRACTS.XAllocationVoting, ROUND_DEADLINE_ABI, [])));
-    const res = await fetch(`${NODE_URL}/blocks/best`);
+    const res = await fetch(`${NODE_URL}/blocks/best`, { signal: AbortSignal.timeout(10000) });
     const best = res.ok ? await res.json() : null;
     if (deadline == null || !best?.number) return null;
     return best.timestamp * 1000 + (deadline - best.number) * BLOCK_SECONDS * 1000;
