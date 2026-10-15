@@ -57,6 +57,12 @@ const HIDDEN_FILE_INPUT = {
   border: 0, overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap",
 };
 
+// The testnet strip (TestnetBanner) is fixed at the top, above everything. The
+// sticky header and the full-screen overlays start below it, or the strip hides
+// their title bar and Close button. 26 = its 16px line + 2 × 5px padding.
+const BANNER_H = TESTNET_BANNER ? 26 : 0;
+const OVERLAY_INSET = BANNER_H ? `${BANNER_H}px 0 0` : 0;
+
 const IS_MOBILE = typeof navigator !== "undefined" && (
   /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || "") ||
   ((navigator.maxTouchPoints || 0) > 1 && /Macintosh/i.test(navigator.userAgent || ""))
@@ -523,21 +529,24 @@ async function saveOfflineSubmission(data) {
   });
 }
 
-// Submissions captured while offline, still waiting to be broadcast. Skips any
-// that are already broadcasting/synced so a sync interrupted mid-flight can't
-// re-broadcast the same reward.
+// Submissions captured while offline, still waiting to be broadcast. Skips synced
+// ones, ones the server refused for good, and ones in flight. An in-flight flag
+// only holds for as long as a payout call can take: a WebView killed mid-request
+// never clears it, and without an expiry that item was stuck forever. Retrying an
+// expired one is safe — the server's photo-hash dedupe never pays a photo twice.
+// (PAYOUT_MS is declared further down, so it's read at call time, not here.)
 async function getUnsyncedSubmissions() {
   const db = await initDB();
   return new Promise((resolve, reject) => {
     const req = db.transaction("submissions", "readonly").objectStore("submissions").getAll();
     req.onerror = () => reject(req.error);
-    req.onsuccess = () => resolve((req.result || []).filter(s => !s.synced && !s.broadcasting));
+    req.onsuccess = () => resolve((req.result || []).filter(s => !s.synced && !s.failed
+      && (!s.broadcasting || !s.broadcastAt || Date.now() - s.broadcastAt > PAYOUT_MS + 60000)));
   });
 }
 
-// Flag a queued submission as in-flight BEFORE broadcasting so a crash between
-// broadcast and confirmation doesn't cause a double payout. Cleared on failure.
-async function markBroadcasting(id, flag) {
+// Read-modify-write one queued submission.
+async function updateOfflineSubmission(id, patch) {
   const db = await initDB();
   return new Promise((resolve, reject) => {
     const store = db.transaction("submissions", "readwrite").objectStore("submissions");
@@ -545,25 +554,29 @@ async function markBroadcasting(id, flag) {
     get.onerror = () => reject(get.error);
     get.onsuccess = () => {
       const v = get.result;
-      if (v) { v.broadcasting = !!flag; store.put(v); }
+      if (v) store.put({ ...v, ...patch });
       resolve();
     };
   });
+}
+
+// Flag a queued submission as in-flight right before the /reward call, so a sync
+// that runs again meanwhile doesn't send it twice. Timestamped: see above.
+function markBroadcasting(id, flag) {
+  return updateOfflineSubmission(id, { broadcasting: !!flag, broadcastAt: flag ? Date.now() : 0 });
+}
+
+// The server refused this item for good (a 4xx: cooldown, duplicate photo, lower
+// reading…). Retrying would ask for a signature on every reconnect, forever.
+function markFailed(id, reason) {
+  return updateOfflineSubmission(id, { failed: true, failReason: String(reason || ""), broadcasting: false, broadcastAt: 0 });
 }
 
 // Mark a queued submission as broadcast so it isn't sent twice.
-async function markSynced(id, txHash) {
-  const db = await initDB();
-  return new Promise((resolve, reject) => {
-    const store = db.transaction("submissions", "readwrite").objectStore("submissions");
-    const get = store.get(id);
-    get.onerror = () => reject(get.error);
-    get.onsuccess = () => {
-      const v = get.result;
-      if (v) { v.synced = true; v.broadcasting = false; v.txHash = txHash || v.txHash; store.put(v); }
-      resolve();
-    };
-  });
+function markSynced(id, txHash) {
+  const patch = { synced: true, broadcasting: false, broadcastAt: 0 };
+  if (txHash) patch.txHash = txHash;
+  return updateOfflineSubmission(id, patch);
 }
 
 function useOnlineStatus() {
@@ -802,13 +815,25 @@ function rememberHash(h) {
 // which covers payouts made elsewhere: another device, or a reader paid on arrival.
 // Until it has answered, this device's own last payout is the guide.
 const SERVER_NEXT_AT = {};   // utility → epoch ms (0 = now), for the connected wallet
+// Which wallet SERVER_NEXT_AT and the local fallback belong to. Set by App while it
+// renders (setCooldownWallet), so a switched-to wallet never sees the previous
+// one's "next submission in 6h" — not even for the one render before an effect.
+let COOLDOWN_WALLET = "";
+function setCooldownWallet(wallet) {
+  const w = String(wallet || "").toLowerCase();
+  if (w === COOLDOWN_WALLET) return;
+  COOLDOWN_WALLET = w;
+  for (const k of Object.keys(SERVER_NEXT_AT)) delete SERVER_NEXT_AT[k];   // another wallet's
+}
+// Keyed by wallet: one wallet's payout says nothing about another's cooldown.
+const cooldownsKey = () => `greenlog_cooldowns_${COOLDOWN_WALLET}`;
 function getCooldowns() {
-  try { return JSON.parse(localStorage.getItem("greenlog_cooldowns") || "{}"); } catch { return {}; }
+  try { return JSON.parse(localStorage.getItem(cooldownsKey()) || "{}"); } catch { return {}; }
 }
 function setCooldown(utilId) {
   SERVER_NEXT_AT[utilId] = Date.now() + RULES.cooldownMs;
   const cd = getCooldowns(); cd[utilId] = Date.now();
-  try { localStorage.setItem("greenlog_cooldowns", JSON.stringify(cd)); } catch {}
+  try { localStorage.setItem(cooldownsKey(), JSON.stringify(cd)); } catch {}
 }
 function getCooldownRemaining(utilId) {
   if (Object.prototype.hasOwnProperty.call(SERVER_NEXT_AT, utilId)) {
@@ -1084,6 +1109,16 @@ async function fetchT(url, opts = {}, ms = 30000) {
   }
 }
 
+// An error that remembers the HTTP status it came from. A 4xx is the server's
+// final word on that request; anything else — a timeout, a dropped connection, a
+// 5xx — leaves open whether a payout went out before it failed.
+function httpError(message, status) {
+  const e = new Error(message);
+  e.status = status;
+  return e;
+}
+const isRefusal = (e) => e?.status >= 400 && e?.status < 500;
+
 function blobToBase64(file) {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -1300,7 +1335,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 @keyframes intro-slideup{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
 @keyframes intro-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
 
-.hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:${T.white};border-bottom:1px solid ${T.border};position:sticky;top:0;z-index:20;transition:background .25s;gap:16px;}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:${T.white};border-bottom:1px solid ${T.border};position:sticky;top:${BANNER_H}px;z-index:20;transition:background .25s;gap:16px;}
 .logo{display:flex;align-items:center;gap:10px;flex:1;min-width:0;}
 .logo-mark{width:30px;height:30px;border-radius:6px;background:linear-gradient(135deg,${T.green1},${T.green2});display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;box-shadow:0 2px 8px ${T.shadow};font-weight:700;font-size:11px;}
 .logo-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;font-weight:800;color:${T.text};letter-spacing:-0.5px;line-height:1;}
@@ -1478,7 +1513,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .modal-opt-icon{width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px;background:${T.bgAlt};border:1px solid ${T.border};}
 .modal-opt-name{font-size:13px;font-weight:700;color:${T.text};}
 
-.onboard{position:fixed;inset:0;background:${T.bg};z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 28px;}
+.onboard{position:fixed;inset:${OVERLAY_INSET || 0};background:${T.bg};z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 28px;}
 .onboard::before,.onboard::after{content:"";display:block;flex:1 0 32px;}
 .ob-icon{font-size:56px;margin-bottom:20px;animation:obpop .3s ease;}
 .ob-title{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:28px;font-weight:800;text-align:center;line-height:1.2;margin-bottom:12px;letter-spacing:-0.6px;}
@@ -1862,7 +1897,7 @@ function MeterCropper({ imgUrl, onCancel, onConfirm }) {
 
   const btn = { flex: 1, padding: "13px", borderRadius: 6, fontSize: 12, fontWeight: 800, cursor: "pointer" };
   return (
-    <div style={{position:"fixed",inset:0,background:"rgba(10,18,14,0.96)",zIndex:360,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:16}}>
+    <div style={{position:"fixed",inset:OVERLAY_INSET,background:"rgba(10,18,14,0.96)",zIndex:360,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:16}}>
       <div style={{color:"#fff",fontSize:14,fontWeight:800,marginBottom:4,textAlign:"center"}}>Align the reading</div>
       <div style={{color:"rgba(255,255,255,0.7)",fontSize:11,marginBottom:14,textAlign:"center"}}>Box ONLY the digits row (e.g. 003755) — leave out any text above or below it</div>
       <div style={{position:"relative",maxWidth:"100%",maxHeight:"60vh",touchAction:"none"}}>
@@ -1902,9 +1937,21 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
   // the zone says "Tap to photograph" while Submit is still enabled.
   const onResetRef = useRef(onReset);
   onResetRef.current = onReset;
-  useEffect(() => () => { onResetRef.current?.(); }, []);
+  // Verification takes seconds (OCR, the server call). Each run gets a number; a
+  // reset or unmount moves it on, so a run that finishes for a zone that is gone
+  // (another tab, another meter) or was reset doesn't mark a photo as verified.
+  const runIdRef = useRef(0);
+  useEffect(() => () => { runIdRef.current++; onResetRef.current?.(); }, []);
+  // The parent's latest callbacks, not the ones from when the run started: the
+  // OCR autofill has to see what was typed (or switched on) in the meantime.
+  const onOcrReadingRef = useRef(onOcrReading);
+  onOcrReadingRef.current = onOcrReading;
+  const onVerifiedRef = useRef(onVerified);
+  onVerifiedRef.current = onVerified;
 
   const runVerify = async (file, ocrSource) => {
+    const runId = ++runIdRef.current;
+    const stale = () => runIdRef.current !== runId;
     setPhase("verifying"); setAiStep(0);
     let mime, base64;
     try {
@@ -1919,6 +1966,7 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
         r.readAsDataURL(upload);
       });
     } catch {
+      if (stale()) return;
       setResult({ summary: "Couldn't read that photo — please tap the camera and take it again." });
       setPhase("error");
       return;
@@ -1951,6 +1999,7 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
     // OCR runs on the cropped region (if the user boxed the reading) so it ignores
     // barcodes/serials/nameplate text; all fraud checks above use the full photo.
     const ocrResult = await runOCR(ocrSource || file, reading, utilId);
+    if (stale()) return;
     // Pre-fill Current from the photo — but only with a number that makes sense
     // against your previous reading (a real new reading sits just above it). This
     // rejects barcodes/serials/"0" the OCR picks off the nameplate; if nothing is
@@ -1960,7 +2009,7 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
     // previous reading (anchored), or the OCR read it with decent confidence.
     // Otherwise leave Current blank — better to type it than to fight a wrong guess.
     const hasAnchor = Number.isFinite(parseFloat(prevRead));
-    if (guess != null && (hasAnchor || (ocrResult.ocrConfidence || 0) >= 60)) onOcrReading?.(String(guess));
+    if (guess != null && (hasAnchor || (ocrResult.ocrConfidence || 0) >= 60)) onOcrReadingRef.current?.(String(guess));
     if (!ocrResult.matched && !ocrResult.ocrFailed) {
       fraudFlags.push("ocr_mismatch");
       fraudReason = fraudReason || ocrResult.reason;
@@ -1971,6 +2020,7 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
     // — serials are small and hard to read). null when there's no number to check.
     let meterNoConfirmed = null;
     if (meterNo) meterNoConfirmed = meterNoMatches(meterNo, await ocrFullText(file));
+    if (stale()) return;
 
     // Plausibility/anomaly run on CONSUMPTION (current − previous), not the
     // absolute meter value, otherwise a normal reading like 3847 always trips.
@@ -2016,7 +2066,7 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
     const finalResult = { verified, fraudFlags, fraudReason, summary, ocrNums: ocrResult.ocrNums, ocrFailed: !!ocrResult.ocrFailed, meterNoConfirmed, secScore: score, anomCheck, usageVal };
     setResult(finalResult);
     setPhase(verified ? "verified" : "error");
-    if (verified) onVerified(finalResult, base64, mime);
+    if (verified) onVerifiedRef.current?.(finalResult, base64, mime);
   };
 
   const handleFile = (e) => {
@@ -2035,7 +2085,7 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
     setPhase("crop");                          // let the user box the reading first
   };
 
-  const reset = () => { setPhase("idle"); setResult(null); setSecScore(null); setPhotoUrl(null); origFileRef.current = null; onReset(); };
+  const reset = () => { runIdRef.current++; setPhase("idle"); setResult(null); setSecScore(null); setPhotoUrl(null); origFileRef.current = null; onReset(); };
 
   // Desktop has no phone camera — and a file picker invites downloaded or
   // AI-generated images. Block capture entirely outside a mobile browser.
@@ -2186,9 +2236,12 @@ const ECO_APPLIANCE_LABELS = { washer: "Washing machine", dryer: "Dryer", dishwa
 function HistItem({ s, T }) {
   const util = getUtil(s.type);
   const isEco = s.type === "eco";
+  // A row without a previous reading (older automatic claims) has no usage to show:
+  // a dash, not "NaN kWh".
+  const used = parseFloat(s.cur) - parseFloat(s.prev);
   const delta = isEco
     ? (ECO_APPLIANCE_LABELS[s.appliance] || "Eco run")
-    : (parseFloat(s.cur) - parseFloat(s.prev)).toFixed(2);
+    : (Number.isFinite(used) ? used.toFixed(2) : "—");
   // Tapping a paid submission opens the real transaction on the block explorer —
   // one-tap on-chain proof (VeWorld's own Activity tab won't show these, because
   // the user's wallet never signs the payout; the distributor does).
@@ -2201,7 +2254,7 @@ function HistItem({ s, T }) {
       <div className="hinfo">
         <div className="htitle">{util.label}{s.meterNo ? <span style={{fontWeight:400,color:T.textSoft,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",fontSize:10}}> · #{s.meterNo}</span> : null}</div>
         <div className="hdate">{s.date}{txUrl ? <span style={{color:T.textSoft}}> · tx ↗</span> : null}</div>
-        <div style={{color: T[s.type] || T.electric, fontSize: isEco ? 12 : undefined}}>{delta}{util.unit ? ` ${util.unit}` : ""}</div>
+        <div style={{color: T[s.type] || T.electric, fontSize: isEco ? 12 : undefined}}>{delta}{util.unit && delta !== "—" ? ` ${util.unit}` : ""}</div>
       </div>
       <div className="hright">
         <div className="hb3tr">+{parseFloat(s.b3tr).toFixed(2)}</div>
@@ -2232,6 +2285,7 @@ function TodayPanel({ subs, wallet, setTab, onOpenReader, T }) {
     let stop = false;
     let token = "";
     try { token = localStorage.getItem(`gul_mtoken_${wallet.toLowerCase()}`) || ""; } catch { /* no storage */ }
+    if (!validDeviceToken(token)) token = "";
     fetchT(`${REWARD_API.replace(/\/$/, "")}/meter/latest?address=${wallet}`, token ? { headers: { "x-device-token": token } } : undefined)
       .then(r => (r.ok ? r.json() : null))
       .then(d => {
@@ -2386,6 +2440,23 @@ function HomeScreen({ b3tr, walletB3tr, streak, subs, setTab, wallet, onOpenRead
   );
 }
 
+// A device token is 24 random bytes in hex (server: /meter/pair). The token goes
+// into shell commands and YAML the user pastes, so anything else — a tampered
+// localStorage entry, an odd server answer — is never rendered or sent.
+const validDeviceToken = (t) => /^[0-9a-f]{48}$/.test(String(t || ""));
+
+// Our Home Assistant integration sends to the bridge's default server unless told
+// otherwise. A build with its own backend (INGEST_FLAG set: mainnet, say) has to
+// say so, or readings land on the wrong server and are never paid.
+function IngestUrlStep({ API }) {
+  if (!INGEST_FLAG) return null;
+  return (
+    <li>In the same setup screen, set <b>Server address</b> to{" "}
+      <span style={{ fontFamily: "'SF Mono',Menlo,monospace", wordBreak: "break-all" }}>{`${API}/meter-ingest`}</span>{" "}
+      — the integration's default is a different server.</li>
+  );
+}
+
 // ── Smart-meter card (beta) ──────────────────────────────────────────────────
 // The friendly, photoless path. Everyday users just type their current reading and
 // tap one button — no camera, no OCR. Under the hood the value goes to the same
@@ -2466,7 +2537,7 @@ function TibberSetup({ T, API, wallet, meterNo, token, latest, health, onLinked,
           {tb?.linked ? (<>
             <div style={{ fontSize: 12.5, fontWeight: 800, color: T.text }}>✅ Tibber is connected</div>
             <div style={{ fontSize: 11, color: T.textSoft, marginTop: 4, lineHeight: 1.5 }}>
-              We fetch your reading every hour{tb.lastPullAt ? ` — last time ${fmtWhen(tb.lastPullAt)}` : ""}. Payouts follow automatically.
+              We fetch your reading every hour{tb.lastPullAt ? ` — last time ${fmtWhen(tb.lastPullAt)}` : ""}. Payouts follow automatically — after your first photo submission, which sets the starting point (until then, automatic readings are not paid).
             </div>
             {tb.lastError && <div style={{ fontSize: 11, color: T.gas, marginTop: 6, lineHeight: 1.5 }}>⚠️ {tb.lastError}</div>}
             <button type="button" disabled={busy} onClick={disconnect} style={{ marginTop: 10, minHeight: 40, padding: "0 12px", borderRadius: 6, border: `1px solid ${T.border}`, background: "transparent", color: T.textMid, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
@@ -2496,11 +2567,17 @@ function TibberSetup({ T, API, wallet, meterNo, token, latest, health, onLinked,
             <li>In Home Assistant: <b>Settings → Devices &amp; services → Add integration → Tibber</b>. Paste your Tibber token.</li>
             <li>Add <b>our</b> integration (HACS → custom repository <span style={{ fontFamily: "'SF Mono',Menlo,monospace" }}>GreenUtilityLog/GreenUtilityLog</span> → GreenUtilityLog).</li>
             <li>Paste your device token: <span style={{ fontFamily: "'SF Mono',Menlo,monospace", wordBreak: "break-all" }}>{token}</span></li>
+            <IngestUrlStep API={API} />
             <li>Pick the Tibber sensor <b>Last meter consumption</b> (kWh) — the meter's own total.</li>
           </ol>
           <button type="button" onClick={() => copy(token, "tbtok")} style={{ marginTop: 8, padding: "6px 10px", fontSize: 11, fontWeight: 700, borderRadius: 6, border: "none", background: copied === "tbtok" ? T.green3 : T.textSoft, color: "#fff", cursor: "pointer" }}>
             {copied === "tbtok" ? "✓ Token copied" : "Copy token"}
           </button>
+          {INGEST_FLAG && (
+            <button type="button" onClick={() => copy(`${API}/meter-ingest`, "tburl")} style={{ marginTop: 8, marginLeft: 6, padding: "6px 10px", fontSize: 11, fontWeight: 700, borderRadius: 6, border: "none", background: copied === "tburl" ? T.green3 : T.textSoft, color: "#fff", cursor: "pointer" }}>
+              {copied === "tburl" ? "✓ Address copied" : "Copy server address"}
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -2592,7 +2669,7 @@ ${fetchCmd(`--token=${token} --powerfox=YOUR_POWERFOX_EMAIL --install${INGEST_FL
           {pf?.linked ? (<>
             <div style={{ fontSize: 12.5, fontWeight: 800, color: T.text }}>✅ Powerfox is connected</div>
             <div style={{ fontSize: 11, color: T.textSoft, marginTop: 4, lineHeight: 1.5 }}>
-              We fetch your reading every hour{pf.lastPullAt ? ` — last time ${fmtWhen(pf.lastPullAt)}` : ""}. Payouts follow automatically.
+              We fetch your reading every hour{pf.lastPullAt ? ` — last time ${fmtWhen(pf.lastPullAt)}` : ""}. Payouts follow automatically — after your first photo submission, which sets the starting point (until then, automatic readings are not paid).
             </div>
             {pf.lastError && <div style={{ fontSize: 11, color: T.gas, marginTop: 6, lineHeight: 1.5 }}>⚠️ {pf.lastError}</div>}
             <button type="button" disabled={busy} onClick={disconnect} style={{ marginTop: 10, minHeight: 40, padding: "0 12px", borderRadius: 6, border: `1px solid ${T.border}`, background: "transparent", color: T.textMid, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
@@ -2645,11 +2722,20 @@ ${fetchCmd(`--token=${token} --powerfox=YOUR_POWERFOX_EMAIL --install${INGEST_FL
             <li>In Home Assistant: <b>Settings → Devices &amp; services → Add integration → Powerfox</b>. Log in with your Powerfox account.</li>
             <li>Add <b>our</b> integration (HACS → custom repository <span style={{ fontFamily: "'SF Mono',Menlo,monospace" }}>GreenUtilityLog/GreenUtilityLog</span> → GreenUtilityLog).</li>
             <li>Paste your device token: <span style={{ fontFamily: "'SF Mono',Menlo,monospace", wordBreak: "break-all" }}>{token}</span></li>
-            <li>Pick the Powerfox sensor <b>Energy usage</b> (kWh). Meter with two tariffs and that one stays empty? Make a helper that adds the high- and low-tariff sensors, and pick that.</li>
+            <IngestUrlStep API={API} />
+            {/* Not "Combine the state of several sensors": that helper's state_class
+                is measurement, and our integration refuses a sensor that can reset.
+                A sensor group of the two total_increasing registers stays one. */}
+            <li>Pick the Powerfox sensor <b>Energy usage</b> (kWh). Meter with two tariffs and that one stays empty? Add the high- and low-tariff sensors together with <b>Settings → Devices &amp; services → Helpers → Create helper → Group → Sensor group</b>, type <b>Sum</b>, and pick that group.</li>
           </ol>
           <button type="button" onClick={() => copy(token, "pftok")} style={{ marginTop: 8, padding: "6px 10px", fontSize: 11, fontWeight: 700, borderRadius: 6, border: "none", background: copied === "pftok" ? T.green3 : T.textSoft, color: "#fff", cursor: "pointer" }}>
             {copied === "pftok" ? "✓ Token copied" : "Copy token"}
           </button>
+          {INGEST_FLAG && (
+            <button type="button" onClick={() => copy(`${API}/meter-ingest`, "pfurl")} style={{ marginTop: 8, marginLeft: 6, padding: "6px 10px", fontSize: 11, fontWeight: 700, borderRadius: 6, border: "none", background: copied === "pfurl" ? T.green3 : T.textSoft, color: "#fff", cursor: "pointer" }}>
+              {copied === "pfurl" ? "✓ Address copied" : "Copy server address"}
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -2707,7 +2793,8 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
   }, [API]);
   useEffect(() => {
     if (!tkKey) { setToken(""); return; }
-    try { setToken(localStorage.getItem(tkKey) || ""); } catch { /* no storage */ }
+    // An invalid stored token counts as none: pairing again replaces it.
+    try { const t = localStorage.getItem(tkKey) || ""; setToken(validDeviceToken(t) ? t : ""); } catch { /* no storage */ }
   }, [tkKey]);
   useEffect(() => {
     if (!open || !wallet) return;
@@ -2726,6 +2813,7 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
     const r = await fetchT(`${API}/meter/pair`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: wallet, meterNo: meterNo || "", certificate }) });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || `pairing failed (${r.status})`);
+    if (!validDeviceToken(d.token)) throw new Error("pairing failed (the server sent an unexpected device token)");
     setToken(d.token);
     try { localStorage.setItem(tkKey, d.token); } catch { /* no storage */ }
     return d.token;
@@ -2749,7 +2837,8 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || `pairing failed (${r.status})`);
-      const changed = d.token && d.token !== token;
+      if (!validDeviceToken(d.token)) throw new Error("re-linking failed (the server sent an unexpected device token)");
+      const changed = d.token !== token;
       setToken(d.token);
       try { localStorage.setItem(tkKey, d.token); } catch { /* no storage */ }
       setRelinked(changed ? "new" : "same");
@@ -3076,7 +3165,9 @@ ${fetchCmd(`--token=${token} --tasmota=TASMOTA_IP --install${INGEST_FLAG}`)}
 #   HACS → ⋮ → Custom repositories → add (type: Integration):
 #   https://github.com/GreenUtilityLog/GreenUtilityLog
 #   Then: Settings → Devices & services → Add integration → GreenUtilityLog.
-#   Paste your token, pick your meter sensor from the list. Done.
+#   Paste your token, pick your meter sensor from the list.${INGEST_FLAG ? `
+#   Set "Server address" to ${ingestUrl}
+#   (the integration's default is a different server).` : ""} Done.
 #
 # Prefer to wire it yourself instead? Use the YAML below.
 # configuration.yaml — works with (almost) any meter Home Assistant supports
@@ -3133,12 +3224,12 @@ ${fetchCmd(`--token=${token} --install --url=http://<reader-ip>/api/v1/data${ING
                             command — the Home Assistant route is YAML, same everywhere. */}
                         {device === "powerfox" && (
                           <PowerfoxSetup T={T} API={API} wallet={wallet} meterNo={meterNo} token={token} latest={latest} health={health}
-                            onLinked={(tk) => { if (tk && tk !== token) { setToken(tk); try { localStorage.setItem(tkKey, tk); } catch { /* no storage */ } } refreshLatest(); }}
+                            onLinked={(tk) => { if (validDeviceToken(tk) && tk !== token) { setToken(tk); try { localStorage.setItem(tkKey, tk); } catch { /* no storage */ } } refreshLatest(); }}
                             requestCertificate={requestCertificate} copy={copy} copied={copied} os={os} setOs={setOs} fetchCmd={fetchCmd} needNode={needNode} />
                         )}
                         {device === "tibber" && (
                           <TibberSetup T={T} API={API} wallet={wallet} meterNo={meterNo} token={token} latest={latest} health={health}
-                            onLinked={(tk) => { if (tk && tk !== token) { setToken(tk); try { localStorage.setItem(tkKey, tk); } catch { /* no storage */ } } refreshLatest(); }}
+                            onLinked={(tk) => { if (validDeviceToken(tk) && tk !== token) { setToken(tk); try { localStorage.setItem(tkKey, tk); } catch { /* no storage */ } } refreshLatest(); }}
                             requestCertificate={requestCertificate} copy={copy} copied={copied} />
                         )}
 
@@ -3254,7 +3345,7 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
   // paired (its device token is cached); otherwise the default path is just Photo,
   // with a quiet link at the bottom for anyone who wants to set a reader up.
   const hasReader = (() => {
-    try { return !!localStorage.getItem(`gul_mtoken_${String(wallet || "").toLowerCase()}`); } catch { return false; }
+    try { return validDeviceToken(localStorage.getItem(`gul_mtoken_${String(wallet || "").toLowerCase()}`)); } catch { return false; }
   })();
   const showMethodSwitch = autoAvailable && hasReader;
   const methodBtn = (active) => ({
@@ -3353,7 +3444,10 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
 
       <div id="gul-photo-step">
       <VerifyZone key={verifyKey} utilId={selUtil} reading={reading} prevRead={prevRead} subs={subs} meterNo={meterNo} T={T}
-        onOcrReading={(v) => { if (!String(reading).trim()) setReading(String(v)); }}
+        // Only into an EMPTY field, judged when OCR finishes (functional update), so a
+        // number typed during OCR stays. Never with two tariff registers: there
+        // `reading` is their sum, and one register off the photo isn't that.
+        onOcrReading={(v) => { if (!dualTariff) setReading(prev => (String(prev ?? "").trim() ? prev : String(v))); }}
         onVerified={(res, img, mime) => { setAiOk(true); setPhoto?.(img ? { base64: img, mime, ocrNums: res?.ocrNums || [], ocrFailed: !!res?.ocrFailed, meterNoConfirmed: res?.meterNoConfirmed ?? null } : null); }}
         onReset={() => { setAiOk(false); setPhoto?.(null); }} />
       </div>
@@ -4847,7 +4941,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
       return [...m.values()];
     })();
     return (
-      <div style={{position:"fixed",inset:0,background:T.bg,zIndex:320,display:"flex",flexDirection:"column"}}>
+      <div style={{position:"fixed",inset:OVERLAY_INSET,background:T.bg,zIndex:320,display:"flex",flexDirection:"column"}}>
         {headerBar("🛡️ Wallet detail", `On-chain · ${NETWORK_LABEL}`, () => setSelected(null))}
         <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"14px"}}>
           <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"12px 14px",marginBottom:14}}>
@@ -4948,7 +5042,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
 
   // ── Participant list + search ──────────────────────────────────────────────
   return (
-    <div style={{position:"fixed",inset:0,background:T.bg,zIndex:320,display:"flex",flexDirection:"column"}}>
+    <div style={{position:"fixed",inset:OVERLAY_INSET,background:T.bg,zIndex:320,display:"flex",flexDirection:"column"}}>
       {headerBar("🛡️ Admin · Participants", `Read-only on-chain monitor · ${NETWORK_LABEL}`, null)}
       <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"14px"}}>
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:12}}>
@@ -5486,7 +5580,7 @@ const HELP_I18N = {
     ], faqs:[
       { q:"Where do I find my meter number?", a:"Two spots on the meter:\n1) On the little screen — press the meter's buttons until the number appears.\n2) Under the barcode, on a sticker on the front or side.\nEnter the whole number including the letter — electricity usually starts with E, gas with G. It's also on your energy bill or your supplier's online account." },
       { q:"Automatic reading (P1 reader / HomeWizard / Powerfox / Tibber)", a:"With a P1 reader, Home Assistant, or another reader, your meter can send its own reading — then you never photograph again.\nHave a Powerfox (poweropti) or a Tibber Pulse? Pick it in the setup: we can fetch your reading from their cloud, nothing to install.\nDo one photo submission first (it sets your baseline), then open Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup for your token and the ready-made setup.\nFull step-by-step guide for every setup: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
-      { q:"Where do I paste the setup code?", a:"In a terminal on the device that stays on — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. That device needs Node.js 18+.\nUsing Home Assistant? No terminal at all — install our add-on.\nStep-by-step with screenshots of every route: https://greenutilitylog.github.io/GreenUtilityLog/guide.html\nToo technical? Just take a photo — that works just as well." },
+      { q:"Where do I paste the setup code?", a:"In a terminal on the device that stays on — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. That device needs Node.js 18+.\nUsing Home Assistant? No terminal at all — install our integration via HACS. (The separate GreenUtilityLog Meter Bridge add-on runs the bridge on Home Assistant OS instead.)\nStep-by-step with screenshots of every route: https://greenutilitylog.github.io/GreenUtilityLog/guide.html\nToo technical? Just take a photo — that works just as well." },
       { q:"Which meters work?", a:"Netherlands and Belgium: almost any smart meter with a P1 port (Belgian Fluvius meters need the free Fluvius key in the HomeWizard app once).\nGermany: a Powerfox poweropti, or a Tasmota reading head (Hichi).\nSweden, Norway, Denmark, Finland: a Tibber Pulse.\nFrance, UK, Spain, Italy: no P1 port — for now only through Home Assistant.\nEverywhere: if Home Assistant shows your meter's kWh total, it works. And photos always work.\nAll the details per country: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"Do I always need a photo?", a:"A photo is required for a hand-entered reading. A connected P1 reader can submit without a photo, because its device token binds the reading to your wallet." },
       { q:"Is this real money?", a:"No. Everything runs on VeChain testnet, so the B3TR you earn are test tokens with no real value — perfect for trying things out safely." },
@@ -5500,12 +5594,12 @@ const HELP_I18N = {
     steps:[
       { t:"Verbind je wallet", d:"Tik op Connect en open VeWorld (op Testnet) of WalletConnect. Dit is een test-app — er wordt geen echt geld gebruikt." },
       { t:"Registreer je meters", d:"Voer het nummer van je stroommeter en de huidige stand (het startpunt) in." },
-      { t:"Doe een inzending", d:"Ga naar Submit, kies een meter, fotografeer 'm (de app leest het nummer), controleer en verstuur." },
+      { t:"Doe een inzending", d:"Ga naar Meter, fotografeer je meter (de app leest het nummer), controleer het en verstuur." },
       { t:"Verdien B3TR", d:"Een geldige stand levert B3TR op testnet op. Zie je totaal op Home en je positie in het klassement." },
     ], faqs:[
       { q:"Waar vind ik mijn meternummer?", a:"Twee plekken op de meter:\n1) Op het schermpje — druk op de knopjes tot het nummer verschijnt.\n2) Onder de streepjescode, op een sticker aan de voor- of zijkant.\nNeem het hele nummer over, mét de letter — stroom begint meestal met E, gas met G. Het staat ook op je energierekening of in je online account bij je leverancier." },
       { q:"Automatisch uitlezen (P1-reader / HomeWizard / Powerfox / Tibber)", a:"Met een P1-reader, Home Assistant of een andere reader kan je meter z’n eigen stand doorsturen — dan fotografeer je nooit meer.\nHeb je een Powerfox (poweropti) of een Tibber Pulse? Kies die in de instellingen: wij kunnen je stand uit hun cloud halen, niets te installeren.\nDoe eerst één foto-inzending (dat zet je baseline), ga dan naar Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup voor je token en de kant-en-klare instellingen.\nVolledige stap-voor-stap gids voor elke situatie: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
-      { q:"Waar plak ik de setup-code?", a:"In een terminal op het apparaat dat altijd aan staat — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. Daar moet Node.js 18+ op staan.\nGebruik je Home Assistant? Dan helemaal geen terminal — installeer onze add-on.\nStap voor stap voor elke route: https://greenutilitylog.github.io/GreenUtilityLog/guide.html\nTe technisch? Maak gewoon een foto — dat werkt net zo goed." },
+      { q:"Waar plak ik de setup-code?", a:"In een terminal op het apparaat dat altijd aan staat — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. Daar moet Node.js 18+ op staan.\nGebruik je Home Assistant? Dan helemaal geen terminal — installeer onze integratie via HACS. (De aparte add-on GreenUtilityLog Meter Bridge draait in plaats daarvan de bridge op Home Assistant OS.)\nStap voor stap voor elke route: https://greenutilitylog.github.io/GreenUtilityLog/guide.html\nTe technisch? Maak gewoon een foto — dat werkt net zo goed." },
       { q:"Welke meters werken?", a:"Nederland en België: bijna elke slimme meter met een P1-poort (Belgische Fluvius-meters hebben één keer de gratis Fluvius-sleutel in de HomeWizard-app nodig).\nDuitsland: een Powerfox poweropti, of een Tasmota-leeskop (Hichi).\nZweden, Noorwegen, Denemarken, Finland: een Tibber Pulse.\nFrankrijk, VK, Spanje, Italië: geen P1-poort — voorlopig alleen via Home Assistant.\nOveral: toont Home Assistant de kWh-stand van je meter, dan werkt het. En foto’s werken altijd.\nAlles per land: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"Heb ik altijd een foto nodig?", a:"Voor een handmatig ingevoerde stand is een foto verplicht. Een gekoppelde P1-reader mag zonder foto insturen, omdat zijn device-token de stand aan jouw wallet koppelt." },
       { q:"Is dit echt geld?", a:"Nee. Alles draait op VeChain testnet, dus de B3TR die je verdient zijn test-tokens zonder echte waarde — perfect om veilig te testen." },
@@ -5519,12 +5613,12 @@ const HELP_I18N = {
     steps:[
       { t:"Wallet verbinden", d:"Tippe auf Connect und öffne VeWorld (auf Testnet) oder WalletConnect. Dies ist eine Test-App — es wird kein echtes Geld verwendet." },
       { t:"Zähler registrieren", d:"Gib die Nummer deines Stromzählers und den aktuellen Stand (den Startwert) ein." },
-      { t:"Stand einreichen", d:"Geh zu Submit, wähle einen Zähler, fotografiere ihn (die App liest die Nummer), prüfe und sende." },
+      { t:"Stand einreichen", d:"Geh zu Meter, fotografiere deinen Zähler (die App liest die Zahl), prüfe sie und sende." },
       { t:"B3TR verdienen", d:"Ein gültiger Stand belohnt dich mit B3TR im Testnet. Sieh dein Gesamt auf Home und deine Position in der Rangliste." },
     ], faqs:[
       { q:"Wo finde ich meine Zählernummer?", a:"Zwei Stellen am Zähler:\n1) Auf dem kleinen Display — drücke die Tasten, bis die Nummer erscheint.\n2) Unter dem Barcode, auf einem Aufkleber vorne oder seitlich.\nGib die ganze Nummer inklusive Buchstabe ein — Strom beginnt meist mit E, Gas mit G. Sie steht auch auf deiner Energierechnung oder im Online-Konto deines Anbieters." },
       { q:"Automatisches Auslesen (P1-Reader / HomeWizard / Powerfox / Tibber)", a:"Mit einem P1-Reader, Home Assistant oder einem anderen Reader kann dein Zähler seinen Stand selbst senden — dann fotografierst du nie wieder.\nDu hast einen Powerfox (poweropti) oder einen Tibber Pulse? Wähl ihn in der Einrichtung: Wir holen deinen Stand aus deren Cloud, nichts zu installieren.\nMach zuerst eine Foto-Einreichung (setzt den Basiswert), dann Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup für Token und fertige Einrichtung.\nVollständige Schritt-für-Schritt-Anleitung: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
-      { q:"Wo füge ich den Setup-Code ein?", a:"In einem Terminal auf dem Dauergerät — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. Dort muss Node.js 18+ installiert sein.\nDu nutzt Home Assistant? Gar kein Terminal — installiere unser Add-on.\nSchritt für Schritt für jede Route: https://greenutilitylog.github.io/GreenUtilityLog/guide.html\nZu technisch? Mach einfach ein Foto — das funktioniert genauso gut." },
+      { q:"Wo füge ich den Setup-Code ein?", a:"In einem Terminal auf dem Dauergerät — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. Dort muss Node.js 18+ installiert sein.\nDu nutzt Home Assistant? Gar kein Terminal — installiere unsere Integration über HACS. (Das separate Add-on GreenUtilityLog Meter Bridge betreibt stattdessen die Bridge auf Home Assistant OS.)\nSchritt für Schritt für jede Route: https://greenutilitylog.github.io/GreenUtilityLog/guide.html\nZu technisch? Mach einfach ein Foto — das funktioniert genauso gut." },
       { q:"Welche Zähler funktionieren?", a:"Niederlande und Belgien: fast jeder Smart-Zähler mit P1-Anschluss (belgische Fluvius-Zähler brauchen einmal den kostenlosen Fluvius-Schlüssel in der HomeWizard-App).\nDeutschland: ein Powerfox poweropti oder ein Tasmota-Lesekopf (Hichi).\nSchweden, Norwegen, Dänemark, Finnland: ein Tibber Pulse.\nFrankreich, UK, Spanien, Italien: kein P1-Port — vorerst nur über Home Assistant.\nÜberall: Zeigt Home Assistant den kWh-Stand deines Zählers, funktioniert es. Und Fotos gehen immer.\nAlles pro Land: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"Brauche ich immer ein Foto?", a:"Für einen manuell eingegebenen Stand ist ein Foto nötig. Ein verbundener P1-Reader darf ohne Foto senden, weil sein Geräte-Token den Stand an dein Wallet bindet." },
       { q:"Ist das echtes Geld?", a:"Nein. Alles läuft im VeChain-Testnet, die B3TR sind Test-Token ohne realen Wert — ideal zum sicheren Ausprobieren." },
@@ -5538,12 +5632,12 @@ const HELP_I18N = {
     steps:[
       { t:"Connectez votre wallet", d:"Touchez Connect et ouvrez VeWorld (sur Testnet) ou WalletConnect. C'est une app de test — aucun fonds réel n'est utilisé." },
       { t:"Enregistrez vos compteurs", d:"Saisissez le numéro de votre compteur d'électricité et son relevé actuel (le point de départ)." },
-      { t:"Envoyez un relevé", d:"Allez dans Submit, choisissez un compteur, photographiez-le (l'app lit le numéro), vérifiez et envoyez." },
+      { t:"Envoyez un relevé", d:"Allez dans Meter, photographiez votre compteur (l'app lit le relevé), vérifiez-le et envoyez." },
       { t:"Gagnez des B3TR", d:"Un relevé valide vous récompense en B3TR sur testnet. Suivez votre total sur Home et votre place au classement." },
     ], faqs:[
       { q:"Où trouver le numéro de mon compteur ?", a:"Deux endroits sur le compteur :\n1) Sur le petit écran — appuyez sur les boutons jusqu'à voir le numéro.\n2) Sous le code-barres, sur une étiquette à l'avant ou sur le côté.\nSaisissez tout le numéro avec la lettre — l'électricité commence souvent par E, le gaz par G. Il figure aussi sur votre facture ou votre compte en ligne fournisseur." },
       { q:"Lecture automatique (lecteur P1 / HomeWizard / Powerfox / Tibber)", a:"Avec un lecteur P1, Home Assistant ou un autre lecteur, votre compteur envoie son relevé lui-même — vous ne photographiez plus.\nVous avez un Powerfox (poweropti) ou un Tibber Pulse ? Choisissez-le dans la configuration : nous récupérons votre relevé dans leur cloud, rien à installer.\nFaites d'abord une soumission photo (fixe votre base), puis Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup pour le jeton et la configuration prête.\nGuide complet pas à pas : https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
-      { q:"Où coller le code de configuration ?", a:"Dans un terminal sur l\u2019appareil qui reste allumé — Windows : PowerShell · Mac : Terminal · Pi/NAS : SSH. Il faut Node.js 18+.\nVous utilisez Home Assistant ? Aucun terminal — installez notre add-on.\nPas à pas pour chaque route : https://greenutilitylog.github.io/GreenUtilityLog/guide.html\nTrop technique ? Prenez simplement une photo." },
+      { q:"Où coller le code de configuration ?", a:"Dans un terminal sur l\u2019appareil qui reste allumé — Windows : PowerShell · Mac : Terminal · Pi/NAS : SSH. Il faut Node.js 18+.\nVous utilisez Home Assistant ? Aucun terminal — installez notre intégration via HACS. (L’add-on séparé GreenUtilityLog Meter Bridge fait plutôt tourner le bridge sur Home Assistant OS.)\nPas à pas pour chaque route : https://greenutilitylog.github.io/GreenUtilityLog/guide.html\nTrop technique ? Prenez simplement une photo." },
       { q:"Quels compteurs fonctionnent ?", a:"Pays-Bas et Belgique : presque tout compteur intelligent avec un port P1 (les compteurs belges Fluvius demandent une fois la clé Fluvius gratuite dans l'app HomeWizard).\nAllemagne : un Powerfox poweropti, ou une tête de lecture Tasmota (Hichi).\nSuède, Norvège, Danemark, Finlande : un Tibber Pulse.\nFrance, Royaume-Uni, Espagne, Italie : pas de port P1 — pour l'instant seulement via Home Assistant.\nPartout : si Home Assistant affiche le total kWh de votre compteur, ça marche. Et les photos marchent toujours.\nTout par pays : https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"Faut-il toujours une photo ?", a:"Une photo est requise pour un relevé saisi à la main. Un lecteur P1 connecté peut envoyer sans photo, car son jeton d'appareil lie le relevé à votre wallet." },
       { q:"Est-ce de l'argent réel ?", a:"Non. Tout tourne sur le testnet VeChain ; les B3TR gagnés sont des jetons de test sans valeur réelle — parfait pour essayer en toute sécurité." },
@@ -5557,12 +5651,12 @@ const HELP_I18N = {
     steps:[
       { t:"Conecta tu wallet", d:"Toca Connect y abre VeWorld (en Testnet) o WalletConnect. Es una app de prueba — no se usa dinero real." },
       { t:"Registra tus contadores", d:"Introduce el número de tu contador de luz y su lectura actual (el punto de partida)." },
-      { t:"Envía una lectura", d:"Ve a Submit, elige un contador, fotografíalo (la app lee el número), revísalo y envía." },
+      { t:"Envía una lectura", d:"Ve a Meter, fotografía tu contador (la app lee la lectura), revísala y envía." },
       { t:"Gana B3TR", d:"Una lectura válida te premia con B3TR en testnet. Mira tu total en Home y tu puesto en la clasificación." },
     ], faqs:[
       { q:"¿Dónde encuentro el número de mi contador?", a:"Dos sitios en el contador:\n1) En la pantallita — pulsa los botones hasta que aparezca el número.\n2) Bajo el código de barras, en una pegatina delante o al lado.\nIntroduce el número completo con la letra — la luz suele empezar por E, el gas por G. También está en tu factura o en la cuenta online de tu comercializadora." },
       { q:"Lectura automática (lector P1 / HomeWizard / Powerfox / Tibber)", a:"Con un lector P1, Home Assistant u otro lector, tu contador envía su lectura solo — ya no fotografías más.\n¿Tienes un Powerfox (poweropti) o un Tibber Pulse? Elígelo en la configuración: recogemos tu lectura de su nube, nada que instalar.\nHaz primero un envío con foto (fija tu base), luego Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup para el token y la configuración lista.\nGuía completa paso a paso: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
-      { q:"¿Dónde pego el código de configuración?", a:"En una terminal en el dispositivo que queda encendido — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. Necesita Node.js 18+.\n¿Usas Home Assistant? Ninguna terminal — instala nuestro add-on.\nPaso a paso para cada ruta: https://greenutilitylog.github.io/GreenUtilityLog/guide.html\n¿Demasiado técnico? Solo haz una foto." },
+      { q:"¿Dónde pego el código de configuración?", a:"En una terminal en el dispositivo que queda encendido — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. Necesita Node.js 18+.\n¿Usas Home Assistant? Ninguna terminal — instala nuestra integración vía HACS. (El add-on aparte GreenUtilityLog Meter Bridge ejecuta en cambio el bridge en Home Assistant OS.)\nPaso a paso para cada ruta: https://greenutilitylog.github.io/GreenUtilityLog/guide.html\n¿Demasiado técnico? Solo haz una foto." },
       { q:"¿Qué contadores funcionan?", a:"Países Bajos y Bélgica: casi cualquier contador inteligente con puerto P1 (los belgas de Fluvius necesitan una vez la clave gratuita de Fluvius en la app HomeWizard).\nAlemania: un Powerfox poweropti, o un cabezal Tasmota (Hichi).\nSuecia, Noruega, Dinamarca, Finlandia: un Tibber Pulse.\nFrancia, Reino Unido, España, Italia: sin puerto P1 — por ahora solo con Home Assistant.\nEn todas partes: si Home Assistant muestra el total kWh de tu contador, funciona. Y las fotos siempre funcionan.\nTodo por país: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"¿Siempre necesito una foto?", a:"Se requiere foto para una lectura escrita a mano. Un lector P1 conectado puede enviar sin foto, porque su token de dispositivo vincula la lectura a tu wallet." },
       { q:"¿Es dinero real?", a:"No. Todo corre en el testnet de VeChain; los B3TR son tokens de prueba sin valor real — perfecto para probar con seguridad." },
@@ -5605,7 +5699,7 @@ function HelpScreen({ onClose, onFeedback, T }) {
   const [openFaq, setOpenFaq] = useState(0); // accordion — first item open by default
   const row = { background:T.card, border:`1px solid ${T.border}`, borderRadius:10, padding:"12px 14px", marginBottom:8 };
   return (
-    <div style={{position:"fixed",inset:0,background:T.bg,zIndex:330,display:"flex",flexDirection:"column"}}>
+    <div style={{position:"fixed",inset:OVERLAY_INSET,background:T.bg,zIndex:330,display:"flex",flexDirection:"column"}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 18px",borderBottom:`1px solid ${T.border}`}}>
         <div>
           <div style={{fontSize:14,fontWeight:800,color:T.text}}>❓ Help &amp; FAQ</div>
@@ -5702,7 +5796,7 @@ function FeedbackScreen({ onClose, onToast, wallet, tab, T }) {
   };
   const inputStyle = { width:"100%", boxSizing:"border-box", background:T.card, border:`1px solid ${T.border}`, borderRadius:10, padding:"12px", fontSize:13, color:T.text, fontFamily:"inherit", lineHeight:1.5, resize:"vertical" };
   return (
-    <div style={{position:"fixed",inset:0,background:T.bg,zIndex:335,display:"flex",flexDirection:"column"}}>
+    <div style={{position:"fixed",inset:OVERLAY_INSET,background:T.bg,zIndex:335,display:"flex",flexDirection:"column"}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 18px",borderBottom:`1px solid ${T.border}`}}>
         <div>
           <div style={{fontSize:14,fontWeight:800,color:T.text}}>✉️ Send Feedback</div>
@@ -5773,7 +5867,8 @@ if (typeof document !== "undefined") {
 export function TestnetBanner() {
   if (!TESTNET_BANNER) return null;
   return (
-    <div style={{position:"fixed",top:0,left:0,right:0,zIndex:2147483000,background:"#7a4a00",color:"#fff",fontSize:11,fontWeight:700,textAlign:"center",padding:"5px 12px",letterSpacing:".3px",lineHeight:"16px",fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif"}}>
+    // One line, exactly BANNER_H tall: the header and overlays are offset by that.
+    <div style={{position:"fixed",top:0,left:0,right:0,zIndex:2147483000,height:BANNER_H,boxSizing:"border-box",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",background:"#7a4a00",color:"#fff",fontSize:11,fontWeight:700,textAlign:"center",padding:"5px 12px",letterSpacing:".3px",lineHeight:"16px",fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif"}}>
       🧪 TESTNET — test tokens only
       {MAIN_APP_URL && <> · <a href={MAIN_APP_URL} style={{color:"#fff",textDecoration:"underline"}}>Go to the real app →</a></>}
     </div>
@@ -5844,6 +5939,12 @@ export default function App() {
   // requestTransaction() signer; useWalletModal() opens the connect dialog.
   const { account, accountDomain, requestTransaction, requestCertificate, disconnect } = useWallet();
   const wallet = account || null;
+  setCooldownWallet(wallet);
+  // The wallet connected NOW, for async work started under another one: a payout
+  // that returns after a wallet switch must not land in the new wallet's history.
+  const walletRef = useRef(wallet);
+  walletRef.current = wallet;
+  const sameWallet = (w) => String(walletRef.current || "").toLowerCase() === String(w || "").toLowerCase();
   // The server's answer about THIS wallet; reset when another one connects, so a
   // wallet never shows the previous one's access.
   const noAccess = !!wallet && passInfo.required && !passInfo.has;
@@ -5893,13 +5994,25 @@ export default function App() {
   // so everything that shows them renders again.
   const [, setRulesVer] = useState(0);
 
+  // A different wallet starts without the previous one's access pass. Only on a
+  // wallet change: editing meters re-sends /wallet/seen below, but must not wipe
+  // what the server already said about this same wallet. (SERVER_NEXT_AT is reset
+  // by setCooldownWallet during render.)
+  useEffect(() => {
+    setPassInfo({ required: false, has: true, pass: null, isAdmin: false });
+    setRulesVer(v => v + 1);
+  }, [wallet]);
+  // Bumped to ask /wallet/seen again, e.g. after a payout whose outcome is unknown.
+  const [seenTick, setSeenTick] = useState(0);
+
   // Let the backend know this wallet is active, so the admin panel can see testers
   // who have connected (and maybe registered meters locally) but not yet earned
   // on-chain. Fire-and-forget; failure is harmless.
   useEffect(() => {
-    for (const k of Object.keys(SERVER_NEXT_AT)) delete SERVER_NEXT_AT[k];   // another wallet's
-    setPassInfo({ required: false, has: true, pass: null, isAdmin: false });
     if (!wallet || !REWARD_API) return;
+    // An answer for a wallet that is no longer connected (or for an older meter
+    // list) must not land: it would show that wallet's pass and cooldowns.
+    let cancelled = false;
     const list = Object.entries(meters || {}).filter(([, v]) => String(v || "").trim()).map(([k, v]) => `${k}:${v}`);
     fetchT(`${REWARD_API.replace(/\/$/, "")}/wallet/seen`, {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -5910,7 +6023,7 @@ export default function App() {
       // meter, submit, and only then hit a 403 they can't act on.
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (!d) return;
+        if (!d || cancelled) return;
         setPassInfo({ required: !!d.requirePass, has: d.hasPass !== false, pass: d.pass || null, isAdmin: !!d.isAdmin });
         // When this wallet may submit again, from the server — so the photo zone says
         // "next submission in 6h" BEFORE the photo, the crop and the signature.
@@ -5920,7 +6033,8 @@ export default function App() {
         }
       })
       .catch(() => {});
-  }, [wallet, meters]);
+    return () => { cancelled = true; };
+  }, [wallet, meters, seenTick]);
   const { open: openWalletModal } = useWalletModal();
   const openConnectModal = () => openWalletModal();
 
@@ -6098,6 +6212,33 @@ export default function App() {
     return () => { cancelled = true; };
   }, [account]);
 
+  // A payout call that timed out, lost its connection or got a 5xx may still have
+  // been paid: the server keeps going after we stop waiting. Ask again — the chain
+  // history and /wallet/seen (cooldowns) — so a payout that did go through shows up
+  // instead of looking lost and inviting a retry. Once now, and once more after a
+  // block or two, because the reward event lands a little after the server answers.
+  const subsRef = useRef(subs);
+  subsRef.current = subs;
+  const recheckPayout = (addr) => {
+    const a = String(addr || "").toLowerCase();
+    if (!a) return;
+    const pull = () => {
+      if (!sameWallet(a)) return;
+      setSeenTick(t => t + 1);
+      fetchWalletHistory({ node: ACTIVE_NODE, contract: CONTRACTS.X2EarnRewardsPool, appId: VEBETTER_APP_ID, address: a })
+        .then(res => {
+          if (!sameWallet(a) || sessionWalletRef.current !== a || !res.ok || !res.rows.length) return;
+          const merged = mergeSubs(subsRef.current, res.rows);
+          setSubs(merged);
+          setB3tr(merged.reduce((t, s) => t + (parseFloat(s.b3tr) || 0), 0));
+          saveSubs(a, merged);
+        })
+        .catch(() => {});
+    };
+    pull();
+    setTimeout(pull, 30000);
+  };
+
   // Read the wallet's real B3TR balance on connect and whenever a payout lands.
   // The payout is reported as soon as it is sent, before the block includes it,
   // so read once now and once more after a block or two.
@@ -6160,45 +6301,80 @@ export default function App() {
       syncingRef.current = true;
       try {
         const pending = await getUnsyncedSubmissions();
-        let synced = 0;
+        let synced = 0, uncertain = false;
+        const refused = [];
         for (const item of pending) {
           if (cancelled) break;
           if (!item.photo) continue; // legacy/photoless item — can't be paid, leave queued
-          // Claim the item first; if we crash mid-flight it stays flagged and won't be
-          // re-sent (no double payout).
-          await markBroadcasting(item.id, true);
+          // Only the wallet that saved it gets paid for it. Items saved before the
+          // wallet was stored (or while none was connected) go to whoever is
+          // connected, as they always did.
+          if (item.wallet && item.wallet.toLowerCase() !== wallet.toLowerCase()) continue;
+          // Sign first: a declined or dropped signature sends nothing, so the item
+          // simply stays queued — no flag to get stuck on.
+          let certificate;
           try {
             const content = `Green Utility Log — confirm submission\nWallet: ${wallet}\nUtility: ${item.type}\nReading: ${item.cur}\nTime: ${new Date().toISOString()}`;
             const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } });
-            const certificate = { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
-            const res = await fetchT(`${REWARD_API.replace(/\/$/, "")}/reward`, {
+            certificate = { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
+          } catch { continue; }
+          if (cancelled) break;
+          const device = await deviceInfo();
+          // In flight only around the call itself (timestamped, so it expires).
+          await markBroadcasting(item.id, true);
+          let res, data;
+          try {
+            res = await fetchT(`${REWARD_API.replace(/\/$/, "")}/reward`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ utility: item.type, reading: item.cur, prevRead: item.prev, meterNo: item.meterNo, address: wallet, photo: item.photo, photoMime: item.photoMime || "", certificate, clientFlagged: !!item.flagged, flagReason: item.flagReason || "", ocrNums: item.ocrNums || [], meterNoConfirmed: item.meterNoConfirmed ?? null, avgUsage: item.avgUsage ?? null, captchaToken: "", device: await deviceInfo() }),
+              body: JSON.stringify({ utility: item.type, reading: item.cur, prevRead: item.prev, meterNo: item.meterNo, address: wallet, photo: item.photo, photoMime: item.photoMime || "", certificate, clientFlagged: !!item.flagged, flagReason: item.flagReason || "", ocrNums: item.ocrNums || [], meterNoConfirmed: item.meterNoConfirmed ?? null, avgUsage: item.avgUsage ?? null, captchaToken: "", device }),
             }, PAYOUT_MS);
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.error || `reward ${res.status}`);
-            const paid = (data.amount != null && Number.isFinite(Number(data.amount))) ? Number(data.amount) : item.b3tr;
-            await markSynced(item.id, data.txid);
-            if (cancelled) break;
-            setSubs(prev => [{
-              id: item.id, type: item.type, meterNo: item.meterNo || "",
-              cur: item.cur, prev: item.prev, date: dayKey(new Date(item.id)),
-              b3tr: paid, status: "confirmed", txHash: data.txid || "", submittedAt: item.id,
-              // Carry the flag through. Without it this row had status "review" but no
-              // `flagged`, so the history fell through to rendering the bare word
-              // "review" — unstyled, unexplained, on a submission that was paid. The
-              // badge only appears when `flagged` is set.
-              flagged: !!item.flagged, flagReason: item.flagReason || "",
-            }, ...prev]);
-            setB3tr(b => b + (parseFloat(paid) || 0));
-            synced++;
+            data = await res.json().catch(() => ({}));
           } catch {
-            // Failed (rejected cert / server error) — release it for a later retry.
-            await markBroadcasting(item.id, false);
+            // Timeout or lost connection: it may have been paid. Leave the flag on —
+            // it expires after PAYOUT_MS + 60 s, then the item is retried (the
+            // server never pays the same photo twice).
+            uncertain = true;
+            continue;
           }
+          if (!res.ok) {
+            // 408/429 are "not now", not "no": those retry like a 5xx.
+            if (res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429) {
+              // The server's final answer (cooldown, duplicate photo, lower reading…):
+              // retrying can't change it, so take it out of the queue.
+              const reason = data.error || `refused (${res.status})`;
+              await markFailed(item.id, reason);
+              refused.push(`${getUtil(item.type).label} ${item.cur}: ${reason}`);
+            } else {
+              await markBroadcasting(item.id, false);   // 5xx: try again next time
+              uncertain = true;
+            }
+            continue;
+          }
+          const paid = (data.amount != null && Number.isFinite(Number(data.amount))) ? Number(data.amount) : item.b3tr;
+          await markSynced(item.id, data.txid);
+          if (cancelled) break;
+          setSubs(prev => [{
+            id: item.id, type: item.type, meterNo: item.meterNo || "",
+            cur: item.cur, prev: item.prev, date: dayKey(new Date(item.id)),
+            b3tr: paid, status: "confirmed", txHash: data.txid || "", submittedAt: item.id,
+            // Carry the flag through. Without it this row had status "review" but no
+            // `flagged`, so the history fell through to rendering the bare word
+            // "review" — unstyled, unexplained, on a submission that was paid. The
+            // badge only appears when `flagged` is set.
+            flagged: !!item.flagged, flagReason: item.flagReason || "",
+          }, ...prev]);
+          setB3tr(b => b + (parseFloat(paid) || 0));
+          synced++;
         }
-        if (synced && !cancelled) showToast(`🔄 Synced ${synced} offline submission${synced > 1 ? "s" : ""} to ${NETWORK_LABEL}`);
+        if (cancelled) return;
+        if (uncertain) recheckPayout(wallet);
+        const syncedMsg = synced ? `🔄 Synced ${synced} offline submission${synced > 1 ? "s" : ""} to ${NETWORK_LABEL}` : "";
+        // There is no queue screen, so a refused item is said out loud here, with
+        // the server's reason, and dropped from the queue.
+        if (refused.length) {
+          showToast(`❌ ${refused.length} offline submission${refused.length > 1 ? "s were" : " was"} refused and removed from the queue:\n${refused.join("\n")}${syncedMsg ? `\n\n${syncedMsg}` : ""}`);
+        } else if (syncedMsg) showToast(syncedMsg);
       } finally {
         syncingRef.current = false;
       }
@@ -6495,6 +6671,8 @@ export default function App() {
     if (TURNSTILE_SITE_KEY && !captchaToken) { showToast("🤖 Complete the verification checkbox first"); return; }
     if (photoTooOld(file)) { showToast("📸 Take the photo live with your camera — saved images aren't accepted"); return; }
     setEcoBusy(true);
+    const payWallet = wallet;
+    let sent = false;
     try {
       const upload = await uploadablePhoto(file);
       const base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] || ""); r.onerror = rej; r.readAsDataURL(upload); });
@@ -6507,18 +6685,24 @@ export default function App() {
         showToast("✋ Sign the confirmation in your wallet to claim the eco bonus");
         return;
       }
+      const device = await deviceInfo();
+      sent = true;
       const res = await fetchT(`${REWARD_API.replace(/\/$/, "")}/eco-action`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: wallet, appliance, photo: base64, photoMime: upload.type || "", certificate, captchaToken, device: await deviceInfo() }),
+        body: JSON.stringify({ address: wallet, appliance, photo: base64, photoMime: upload.type || "", certificate, captchaToken, device }),
       }, PAYOUT_MS);
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || `eco service error ${res.status}`);
+      if (!res.ok) throw httpError(data.error || `eco service error ${res.status}`, res.status);
       const paid = Number(data.amount) || 0;
+      // Switched wallets while this was paying: it's the other wallet's money, and
+      // shows in its history (from chain) when that one connects again.
+      if (!sameWallet(payWallet)) { showToast(`🌿 Eco bonus +${paid} B3TR paid to ${payWallet.slice(0, 6)}…${payWallet.slice(-4)} (the wallet you started with)`); return; }
       setSubs(prev => [{ id: Date.now(), type: "eco", appliance, cur: "", prev: "", meterNo: "", date: dayKey(new Date()), b3tr: paid, status: "confirmed", txHash: data.txid || "", submittedAt: Date.now() }, ...prev]);
       setB3tr(b => b + paid);
       showToast(`🌿 Eco bonus: +${paid} B3TR!`);
     } catch (e) {
+      if (sent && !isRefusal(e)) recheckPayout(payWallet);
       showToast(`❌ Eco bonus failed: ${e?.message || "try again later"}`);
     } finally {
       setEcoBusy(false);
@@ -6539,6 +6723,8 @@ export default function App() {
     if (!meterNo) { showToast("⚠️ Register your electricity meter number first"); return; }
     if (TURNSTILE_SITE_KEY && !captchaToken) { showToast("🤖 Complete the verification checkbox first"); return; }
     setMeterAutoBusy(true);
+    const payWallet = wallet;
+    let sent = false;
     try {
       let certificate;
       try {
@@ -6550,19 +6736,27 @@ export default function App() {
         showToast("✋ Sign the confirmation in your wallet to submit");
         return;
       }
+      sent = true;
       const res = await fetchT(`${REWARD_API.replace(/\/$/, "")}/reward-from-meter`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address: wallet, utility: "electric", meterNo, certificate, captchaToken }),
       }, PAYOUT_MS);
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || `service error ${res.status}`);
+      if (!res.ok) throw httpError(data.error || `service error ${res.status}`, res.status);
       const paid = Number(data.amount) || 0;
-      setSubs(prev => [{ id: Date.now(), type: "electric", meterNo, cur: data.reading != null ? String(data.reading) : "", prev: "", date: dayKey(new Date()), b3tr: paid, status: "confirmed", txHash: data.txid || "", submittedAt: Date.now() }, ...prev]);
+      if (!sameWallet(payWallet)) { showToast(`⚡ Automatic reading +${paid} B3TR paid to ${payWallet.slice(0, 6)}…${payWallet.slice(-4)} (the wallet you started with)`); return; }
+      // The server answers with the reading and the usage it paid for, not the
+      // previous reading; derive that, so history shows "x kWh" instead of "NaN".
+      const curN = Number(data.reading), useN = Number(data.usage);
+      const cur = data.reading != null && Number.isFinite(curN) ? String(data.reading) : "";
+      const prev = cur && data.usage != null && Number.isFinite(useN) ? String(+(curN - useN).toFixed(3)) : "";
+      setSubs(prev0 => [{ id: Date.now(), type: "electric", meterNo, cur, prev, date: dayKey(new Date()), b3tr: paid, status: "confirmed", txHash: data.txid || "", submittedAt: Date.now() }, ...prev0]);
       setB3tr(b => b + paid);
       setCooldown("electric");
       showToast(`⚡ Automatic reading: +${paid} B3TR!`);
     } catch (e) {
+      if (sent && !isRefusal(e)) recheckPayout(payWallet);
       showToast(`❌ Automatic submit failed: ${e?.message || "try again later"}`);
     } finally {
       setMeterAutoBusy(false);
@@ -6656,6 +6850,9 @@ export default function App() {
       // "Submitting…" for good and put up the red startup-error box.
       try {
         await saveOfflineSubmission({
+          // Whose reading this is: the sync pays it only to this wallet, not to
+          // whichever one happens to be connected when the connection returns.
+          wallet: wallet ? wallet.toLowerCase() : "",
           type:selUtil, meterNo, cur:reading, prev:prevRead, b3tr:earned,
           flagged: !photoConfirmed || anom.anomaly, flagReason,
           photo: photo?.base64 || "", photoMime: photo?.mime || "",
@@ -6699,6 +6896,8 @@ export default function App() {
       return;
     }
 
+    const payWallet = wallet;
+    let sent = false;
     try {
       // Two payout paths:
       //  • REWARD_API set → a server-side reward-distributor verifies and issues
@@ -6724,18 +6923,29 @@ export default function App() {
           showToast("✋ Sign the confirmation in your wallet to submit");
           return;
         }
+        const device = await deviceInfo();
+        sent = true;
         const res = await fetchT(`${REWARD_API.replace(/\/$/, "")}/reward`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ utility: selUtil, reading, prevRead, ...(registers ? { registers } : {}), meterNo, address: wallet, photo: photo?.base64 || "", photoMime: photo?.mime || "", certificate, clientFlagged: !photoConfirmed || anom.anomaly, flagReason, ocrNums: photo?.ocrNums || [], meterNoConfirmed: photo?.meterNoConfirmed ?? null, avgUsage: anom.avg ?? null, captchaToken, device: await deviceInfo() }),
+          body: JSON.stringify({ utility: selUtil, reading, prevRead, ...(registers ? { registers } : {}), meterNo, address: wallet, photo: photo?.base64 || "", photoMime: photo?.mime || "", certificate, clientFlagged: !photoConfirmed || anom.anomaly, flagReason, ocrNums: photo?.ocrNums || [], meterNoConfirmed: photo?.meterNoConfirmed ?? null, avgUsage: anom.avg ?? null, captchaToken, device }),
         }, PAYOUT_MS);
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || `Reward service error ${res.status}`);
+        if (!res.ok) throw httpError(data.error || `Reward service error ${res.status}`, res.status);
         txid = data.txid;
         if (data.amount != null && Number.isFinite(Number(data.amount))) paidAmount = Number(data.amount);
       } else {
         const clauses = buildRewardClauses(selUtil, reading, prevRead, earned, wallet, meterNo);
         ({ txid } = await requestTransaction(clauses));
+      }
+
+      // Switched wallets while this was paying: the payout belongs to the wallet it
+      // was sent for and shows in its history (from chain) once that one is back.
+      // Recording it here would put it in the new wallet's history and totals.
+      if (!sameWallet(payWallet)) {
+        setBusy(false);
+        showToast(`✅ +${paidAmount.toFixed(2)} B3TR paid to ${payWallet.slice(0, 6)}…${payWallet.slice(-4)} (the wallet you started with)`);
+        return;
       }
 
       const today = new Date();
@@ -6768,6 +6978,7 @@ export default function App() {
       setBusy(false);
     } catch (e) {
       setBusy(false);
+      if (sent && !isRefusal(e)) recheckPayout(payWallet);
       // A meter whose starting point was set from a single tariff register can never
       // be reconciled with the total of both — the step is thousands of kWh and this
       // is the refusal it produces, every time, forever. Offer the one-time fix here
@@ -6792,7 +7003,7 @@ export default function App() {
       {showHelp && <HelpScreen onClose={() => setShowHelp(false)} onFeedback={() => { setShowHelp(false); setShowFeedback(true); }} T={T} />}
       {showFeedback && <FeedbackScreen onClose={() => setShowFeedback(false)} onToast={showToast} wallet={wallet} tab={tab} T={T} />}
       {toast && (toast.sticky ? (
-        <div className="toast" style={{whiteSpace:"pre-wrap",maxWidth:"88vw",textAlign:"left",lineHeight:1.5,background:T.gasBg,color:T.gas,border:`1px solid ${T.gasBorder}`,padding:"12px 14px"}}>
+        <div className="toast" role="status" aria-live="polite" style={{whiteSpace:"pre-wrap",maxWidth:"88vw",textAlign:"left",lineHeight:1.5,background:T.gasBg,color:T.gas,border:`1px solid ${T.gasBorder}`,padding:"12px 14px"}}>
           <div style={{wordBreak:"break-word"}}>{toast.msg}</div>
           <div style={{display:"flex",gap:8,marginTop:10}}>
             <button onClick={() => { navigator.clipboard?.writeText(toast.msg).catch(() => {}); }}
@@ -6802,7 +7013,7 @@ export default function App() {
           </div>
         </div>
       ) : (
-        <div className="toast">{toast.msg}</div>
+        <div className="toast" role="status" aria-live="polite">{toast.msg}</div>
       ))}
 
       <div className="app">
@@ -6812,7 +7023,7 @@ export default function App() {
           {/* The testnet strip itself is rendered next to the app in main.jsx, so it
               also shows over the connect screen and the intro; this keeps it from
               covering the header. */}
-          {TESTNET_BANNER && <div aria-hidden="true" style={{height:26}} />}
+          {TESTNET_BANNER && <div aria-hidden="true" style={{height:BANNER_H}} />}
           <div className="hdr">
             <div className="logo">
               <div className="logo-mark"><SproutIcon size={18} /></div>
@@ -6869,12 +7080,15 @@ export default function App() {
               a new tester's first impression was otherwise a tab holding an empty
               graph. It reappears the moment there's something to plot, and stays
               visible while you're standing on it so the nav never loses its place. */}
-          {[{id:"home",icon:"🏠",label:"Home"},{id:"submit",icon:"📸",label:"Meter"},{id:"eco",icon:"🌿",label:"Eco"},{id:"progress",icon:"📈",label:"Progress"},{id:"profile",icon:"👤",label:"Profile"}].filter(n=>n.show!==false).map(n=>(
-            <button key={n.id} className={`nitem ${tab===n.id || (n.id==="profile" && (tab==="settings" || tab==="history")) ?"active":""}`} onClick={()=>setTab(n.id)}>
+          {[{id:"home",icon:"🏠",label:"Home"},{id:"submit",icon:"📸",label:"Meter"},{id:"eco",icon:"🌿",label:"Eco"},{id:"progress",icon:"📈",label:"Progress"},{id:"profile",icon:"👤",label:"Profile"}].filter(n=>n.show!==false).map(n=>{
+            const active = tab===n.id || (n.id==="profile" && (tab==="settings" || tab==="history"));
+            return (
+            <button key={n.id} className={`nitem ${active ?"active":""}`} aria-current={active ? "page" : undefined} onClick={()=>setTab(n.id)}>
               <div className="nicon">{n.icon}</div>
               <div className="nlabel">{n.label}</div>
             </button>
-          ))}
+            );
+          })}
         </div>
       </div>
     </>

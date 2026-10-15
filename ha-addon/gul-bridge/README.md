@@ -13,14 +13,15 @@ scripts, no YAML**. Install it, paste your token, press Start.
 
 1. In the app, do **one photo submission** first — that sets your meter's baseline
    (needed once).
-2. In the app: **Meter → ⚙️ Automatic setup → "Get my device token"**.
+2. In the app: **Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → "Get my device token"**.
    Copy it.
 3. In the add-on's **Configuration** tab, paste it into **token**. Press **Save**,
    then **Start**.
 4. Open the **Log** tab — you should see `pushed 8421.3 kWh ✓`.
 
-Your reading then appears in the app under **"Auto-received"** and is paid
-automatically when it arrives (at most once a day) — nothing to tap.
+In the app, the **⚡ Automatic reading** panel under **Meter** then says
+**Connected — … kWh received**. It is paid automatically when it arrives (at most once
+a day), and the panel's **Timeline** shows **Paid +… B3TR** — nothing to tap.
 
 ## Options
 
@@ -30,17 +31,18 @@ automatically when it arrives (at most once a day) — nothing to tap.
 | `interval_sec` | `43200` (12 h) | Seconds between pushes (min 60) |
 | `hw_ip` | auto-discover | Your HomeWizard's IP — only needed if discovery fails |
 | `read_url` | — | Read from **any** HTTP/JSON reader instead of a HomeWizard |
-| `read_field` | auto-detect | Dot-path to the kWh value in that JSON |
+| `read_field` | auto-detect | Dot-path to the kWh value in that JSON; several joined with `+` send their sum (for a reader that only reports the two tariff registers) |
 | `ingest_url` | empty = the app's server | Fill in only for the app's test copy or your own backend |
 | `tasmota_ip` | — | IP of a Tasmota IR reading head (e.g. Hichi) on the meter; the total is read from its `Total_in` value |
 | `powerfox_email` / `powerfox_password` | — | A Powerfox poweropti instead of a HomeWizard: your Powerfox login. The reading comes from the Powerfox cloud (switch on data transfer in the Powerfox app) |
 
 ## Not a HomeWizard?
 
-Any reader that serves its data as JSON over HTTP works — set **read_url** to it (and
-**read_field** if the value isn't found automatically). Prefer to use Home Assistant's
+Any reader on your network that serves the meter's kWh total as JSON over HTTP,
+without a login, works — set **read_url** to it (and **read_field** if the value isn't
+found automatically). A Tasmota reading head (Hichi): set **tasmota_ip** instead. Prefer to use Home Assistant's
 own sensor instead? Then you don't need this add-on: use the `rest_command` snippet
-shown in the app's Automatic setup.
+shown in the app under Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup.
 
 ## Troubleshooting
 

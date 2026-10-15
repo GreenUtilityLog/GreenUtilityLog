@@ -25,6 +25,7 @@ from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    ATTR_CONFIG_ENTRY_ID,
     CONF_INGEST_URL,
     CONF_INTERVAL,
     CONF_SOURCE_ENTITY,
@@ -32,11 +33,18 @@ from .const import (
     DEFAULT_INGEST_URL,
     DEFAULT_INTERVAL_MINUTES,
     DOMAIN,
+    FAILED_PUSH_RETRIES,
+    FAILED_PUSH_RETRY_MINUTES,
     LOGGER,
     PUSH_RETRY_WAIT_SECONDS,
     PUSH_TIMEOUT_SECONDS,
     PUSH_TRIES,
+    SERVICE_PUSH_NOW,
 )
+
+# A few Home Assistant helpers are imported inside the functions that use them rather
+# than up here: tests/test_logic.py drives the pusher against a minimal stand-in for
+# Home Assistant that provides only what this module imports when it loads.
 
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 
@@ -53,6 +61,9 @@ class GreenUtilityLogPusher:
         self.last_success: Any = None
         self.last_error: str | None = None
         self._listeners: list[Callable[[], None]] = []
+        self._cancel_retry: Callable[[], None] | None = None
+        self._retries_left = 0
+        self._stopped = False
 
     def add_listener(self, cb: Callable[[], None]) -> Callable[[], None]:
         """Subscribe to push results. Returns the unsubscribe callable.
@@ -88,6 +99,49 @@ class GreenUtilityLogPusher:
             await self._push_once()
         finally:
             self._notify()
+
+    async def async_timed_push(self, _now: Any = None) -> None:
+        """A push from a timer: once Home Assistant has started, then every interval.
+
+        One that fails is tried again FAILED_PUSH_RETRY_MINUTES later instead of a
+        whole interval (12 h by default) later. The first push after a restart needs
+        that most: the integration that reads the meter may not have its entity up
+        yet when ours runs.
+        """
+        self._retries_left = FAILED_PUSH_RETRIES
+        await self._async_push_or_retry()
+
+    async def _async_push_or_retry(self, _now: Any = None) -> None:
+        self.async_cancel_retry()
+        await self.async_push()
+        if self.last_error is None or self._stopped or self._retries_left <= 0:
+            return
+        minutes = int(self._options().get(CONF_INTERVAL, DEFAULT_INTERVAL_MINUTES))
+        if minutes <= FAILED_PUSH_RETRY_MINUTES:
+            return  # the next interval comes sooner than a retry would
+        self._retries_left -= 1
+        from homeassistant.core import HassJob
+        from homeassistant.helpers.event import async_call_later
+
+        # cancel_on_shutdown: a retry pending when Home Assistant stops is dropped,
+        # not left as a timer that outlives it.
+        self._cancel_retry = async_call_later(
+            self.hass,
+            FAILED_PUSH_RETRY_MINUTES * 60,
+            HassJob(self._async_push_or_retry, "GreenUtilityLog retry", cancel_on_shutdown=True),
+        )
+
+    @callback
+    def async_cancel_retry(self) -> None:
+        if self._cancel_retry is not None:
+            self._cancel_retry()
+            self._cancel_retry = None
+
+    @callback
+    def async_stop(self) -> None:
+        """On unload: drop a pending retry, and schedule none from a push still running."""
+        self._stopped = True
+        self.async_cancel_retry()
 
     async def _push_once(self) -> None:
         opts = self._options()
@@ -148,37 +202,68 @@ class GreenUtilityLogPusher:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up from a config entry."""
+    from homeassistant.helpers.start import async_at_started
+
     pusher = GreenUtilityLogPusher(hass, entry)
-    # hass.data rather than entry.runtime_data: runtime_data needs HA 2024.6+, and
-    # this pattern works on every version back to well before that. No reason to
-    # exclude users running an older Home Assistant for a cosmetic API.
+    # hass.data rather than entry.runtime_data: one place for the push_now service
+    # to find every entry's pusher.
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = pusher
+    entry.async_on_unload(pusher.async_stop)
 
     minutes = int({**entry.data, **entry.options}.get(CONF_INTERVAL, DEFAULT_INTERVAL_MINUTES))
     entry.async_on_unload(
-        async_track_time_interval(hass, pusher.async_push, timedelta(minutes=minutes))
+        async_track_time_interval(hass, pusher.async_timed_push, timedelta(minutes=minutes))
     )
     # Re-load when the user edits options, so a new interval/entity takes effect.
     entry.async_on_unload(entry.add_update_listener(_async_reload_entry))
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Push once now so the user gets immediate feedback instead of waiting an hour.
-    hass.async_create_task(pusher.async_push())
+    # Push once straight away, so the user sees it work instead of waiting 12 hours.
+    # Not during setup itself, though: on a restart this runs before the meter's own
+    # integration has its entity up, the push found nothing, and the next try was a
+    # whole interval later. So: once Home Assistant has started (at once when it
+    # already has, as after adding the integration), with retries if it fails.
+    async def _first_push(_hass: HomeAssistant) -> None:
+        await pusher.async_timed_push()
 
-    @callback
-    def _handle_push_now(_call: Any) -> None:
-        hass.async_create_task(pusher.async_push())
+    entry.async_on_unload(async_at_started(hass, _first_push))
 
-    hass.services.async_register(DOMAIN, "push_now", _handle_push_now)
+    # One service for the whole integration, registered by whichever entry comes
+    # first and removed with the last. Registering it per entry left the last one's
+    # handler in charge: it pushed only that entry, and kept doing so after unload.
+    if not hass.services.has_service(DOMAIN, SERVICE_PUSH_NOW):
+        hass.services.async_register(DOMAIN, SERVICE_PUSH_NOW, _async_make_push_now(hass))
     return True
+
+
+def _async_make_push_now(hass: HomeAssistant) -> Callable[[Any], Any]:
+    async def _handle_push_now(call: Any) -> None:
+        """Send now for every entry, or only the one given as config_entry_id."""
+        pushers: dict[str, GreenUtilityLogPusher] = hass.data.get(DOMAIN, {})
+        wanted = call.data.get(ATTR_CONFIG_ENTRY_ID)
+        if wanted:
+            if wanted not in pushers:
+                from homeassistant.exceptions import ServiceValidationError
+
+                raise ServiceValidationError(f"No GreenUtilityLog entry with id {wanted}")
+            targets = [pushers[wanted]]
+        else:
+            targets = list(pushers.values())
+        # Awaited, so a blocking service call returns once the readings are sent.
+        await asyncio.gather(*(p.async_push() for p in targets))
+
+    return _handle_push_now
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded:
-        hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
+        pushers = hass.data.get(DOMAIN, {})
+        pushers.pop(entry.entry_id, None)
+        if not pushers:
+            hass.services.async_remove(DOMAIN, SERVICE_PUSH_NOW)
     return unloaded
 
 

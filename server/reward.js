@@ -98,6 +98,8 @@ const signer = keyBytes ? new VeChainPrivateKeySigner(keyBytes, new VeChainProvi
 // sponsor pays the VTHO gas — so the distributor wallet needs no VTHO of its
 // own. Leave empty to have the distributor pay its own gas.
 const DELEGATION_URL = (process.env.DELEGATION_URL || "").trim();
+// Pause before sending a failed broadcast again (sendClauseTo). Tests set it low.
+const BROADCAST_RETRY_MS = Number(process.env.BROADCAST_RETRY_MS || 3000);
 
 export async function distributorAddress() {
   return signer ? signer.getAddress() : null;
@@ -114,6 +116,7 @@ export async function callView(to, fragment, args) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ data, value: "0x0" }),
+    signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) throw new Error(`accounts call ${res.status}`);
   const out = await res.json();
@@ -268,6 +271,7 @@ export async function simulateClause(clause, caller) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ clauses: [{ to: clause.to, value: "0x0", data: clause.data }], caller }),
+    signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) throw new Error(`simulation call ${res.status}`);
   const [out] = await res.json();
@@ -296,15 +300,30 @@ export async function sendClauseTo(to, abi, args, comment) {
     ...(DELEGATION_URL ? { delegationUrl: DELEGATION_URL } : {}),
   });
   const txid = Transaction.decode(HexUInt.of(String(raw).replace(/^0x/, "")).bytes, true).id.toString();
-  try {
-    await thor.transactions.sendRawTransaction(raw);
-  } catch (e) {
-    const known = await nodeHasTransaction(txid);
-    if (known === false) throw e; // never arrived: nothing was sent, a retry is safe
-    // It arrived (or we can't tell): treat it as sent. Wrongly "sent" costs the
-    // user one day's claim; wrongly "not sent" could pay twice.
-    console.warn(`[reward] broadcast of ${txid} reported "${e?.message || e}" but the transaction ${known ? "is on the node" : "may have gone out"} — treating it as sent`);
+  // A broadcast that failed is sent again AS IS — same signature, same id, so the
+  // chain can include it at most once. Only when the node still doesn't know it
+  // after the last try is it "not sent"; the caller's retry then signs a new one.
+  // One look at the node wasn't enough: behind a load balancer the look can reach
+  // a node the first broadcast never did, while that one still mines it.
+  let lastErr = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      if (attempt) await new Promise((r) => setTimeout(r, BROADCAST_RETRY_MS));
+      await thor.transactions.sendRawTransaction(raw);
+      lastErr = null;
+      break;
+    } catch (e) {
+      lastErr = e;
+      const known = await nodeHasTransaction(txid);
+      if (known === false) continue;
+      // It arrived (or we can't tell): treat it as sent. Wrongly "sent" costs the
+      // user one day's claim; wrongly "not sent" could pay twice.
+      console.warn(`[reward] broadcast of ${txid} reported "${e?.message || e}" but the transaction ${known ? "is on the node" : "may have gone out"} — treating it as sent`);
+      lastErr = null;
+      break;
+    }
   }
+  if (lastErr) throw lastErr; // never arrived after three tries: nothing was sent
   let receipt = null;
   try {
     receipt = await thor.transactions.waitForTransaction(txid, { timeoutMs: 30000, intervalMs: 2000 });

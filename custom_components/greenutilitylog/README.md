@@ -21,15 +21,25 @@ meter again. Home Assistant already reads your meter — whatever your country u
    **cumulative kWh** (the value that keeps counting up — not current power), and
    choose how often to send.
 
-That's it. Your reading then appears in the app under **“Auto-received”** and is paid
-automatically when it arrives (at most once a day) — nothing to tap.
+That's it. The first reading goes out as soon as Home Assistant has started (straight
+away when you add the integration). In the app, the **⚡ Automatic reading** panel
+under **Meter** then says **Connected — … kWh received**. It is paid automatically when
+it arrives (at most once a day), and the panel's **Timeline** shows **Paid +… B3TR** —
+nothing to tap.
+
+A push that fails (the meter sensor not up yet after a restart, the server
+unreachable) is tried again after 15 minutes, up to four times, instead of a whole
+interval later.
 
 ## What you get
 
 - A diagnostic sensor **Last sent reading** — the last value successfully sent, with
   the timestamp and any error as attributes. If something breaks, it shows here.
 - A service **`greenutilitylog.push_now`** to send immediately instead of waiting for
-  the next interval. Useful right after setup.
+  the next interval. Useful right after setup. It sends for every GreenUtilityLog
+  entry, or only for the one given as `config_entry_id`.
+
+Needs Home Assistant 2024.12 or newer.
 
 ## Options
 
@@ -41,7 +51,7 @@ Change the meter entity, interval, token or server address any time via
 | Attribute `last_error` says | What to do |
 |---|---|
 | `entity … not found` | The sensor was renamed or removed — pick it again under Configure. |
-| `… is unavailable` | Normal during a restart; it recovers on the next interval. |
+| `… is unavailable` | Normal during a restart; it is tried again 15 minutes later. |
 | `server said 401` | Wrong or revoked token — get a fresh one in the app. |
 | `submit one photo reading first` | You skipped the baseline. Do one photo submission in the app. |
 

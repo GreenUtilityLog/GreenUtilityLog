@@ -27,3 +27,12 @@ MIN_INTERVAL_MINUTES = 5
 PUSH_TIMEOUT_SECONDS = 90
 PUSH_TRIES = 3
 PUSH_RETRY_WAIT_SECONDS = 20
+
+# A timed push that still failed (the meter entity not there yet after a restart, the
+# server down) is tried again after 15 minutes instead of a whole interval later, up
+# to four times. Not more: a revoked token would otherwise be sent every quarter hour.
+FAILED_PUSH_RETRY_MINUTES = 15
+FAILED_PUSH_RETRIES = 4
+
+SERVICE_PUSH_NOW = "push_now"
+ATTR_CONFIG_ENTRY_ID = "config_entry_id"

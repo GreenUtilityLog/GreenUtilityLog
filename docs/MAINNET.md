@@ -6,7 +6,7 @@ Twee versies van dezelfde app:
 |---|---|---|
 | App | `https://greenutilitylog.github.io/GreenUtilityLog/` | `https://greenutilitylog.github.io/GreenUtilityLog/testnet/` |
 | Server | **nieuwe** Render-service | de huidige `greenutilitylog-rewards` |
-| Database | zelfde Upstash, `STATE_KEY=greenutilitylog:mainnet` | zoals nu |
+| Database | **eigen** Upstash-database, `STATE_KEY=greenutilitylog:mainnet` | zoals nu |
 | Wallets | de bestaande app-wallets | zoals nu |
 
 Tot de laatste stap draaien **beide** versies op testnet: er verandert niets voor testers.
@@ -42,14 +42,20 @@ Render → **New → Web Service** → deze repository.
 - **Root Directory:** `server` · **Build:** `npm install` · **Start:** `npm start`
 - **Health Check Path** (onder Advanced): `/livez` — `/health` wacht op de chain en kan te traag zijn voor Render
 - **Plan:** met echt geld raad ik een betaald plan aan (slaapt niet); gratis kan ook.
+  **Let op bij gratis:** Render geeft **750 instance-uren per maand per workspace**, voor
+  alle gratis services samen. Twee gratis services die allebei de hele dag wakker zijn
+  (de wekker in `wake.yml` houdt ze wakker) zitten daar ruim boven, en dan zet Render
+  **alle** gratis services in die workspace stil tot de nieuwe maand — testnet én
+  mainnet. Mainnet op gratis? Zet testnet dan in een **andere workspace**, of zet
+  mainnet op **Starter** zodra het gebruik groeit.
 - **Environment:**
 
 | Sleutel | Waarde |
 |---|---|
 | `NETWORK` | `mainnet` |
 | `DISTRIBUTOR_PRIVATE_KEY` | sleutel van de distributor-wallet (of `DISTRIBUTOR_MNEMONIC`) |
-| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | dezelfde als bij testnet |
-| `STATE_KEY` | `greenutilitylog:mainnet` — **belangrijk**, anders lopen test- en echte gegevens door elkaar |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | van een **nieuwe, eigen** Upstash-database voor mainnet — niet die van testnet (zie hieronder) |
+| `STATE_KEY` | `greenutilitylog:mainnet` — **verplicht**: houdt test- en echte gegevens gescheiden; zonder "mainnet" in de sleutel weigert de mainnet-server te starten |
 | `ALLOWED_ORIGIN` | `https://greenutilitylog.github.io` |
 | `ANTHROPIC_API_KEY` | sterk aangeraden: controle stand + meternummer op de foto |
 | `MAX_PAYOUT_PER_SUBMISSION` | `1` voor de eerste week (veilige start), daarna weghalen (= 4) |
@@ -60,6 +66,14 @@ Render → **New → Web Service** → deze repository.
 | `DISTRIBUTOR_ADDRESS` | alleen bij `DISTRIBUTOR_MNEMONIC`: welk adres uit die woorden de distributor is |
 | `CERT_DOMAINS` | `greenutilitylog.github.io` — handtekeningen van andere sites worden dan geweigerd |
 | `POWERFOX_SECRET` | een lange willekeurige sleutel (anders dan op testnet) — zet de Powerfox- én Tibber-koppeling aan |
+
+**Een eigen Upstash-database voor mainnet:** maak in Upstash een **nieuwe** Redis-database
+aan (gratis plan kan) en gebruik die URL en token alleen hier. Deel je er één met
+testnet, dan delen beide versies ook de grenzen van het gratis plan: één budget aan
+commando's en één opslag (het foto-archief groeit mee). Raakt testnet (veel testers, veel foto's) zo'n grens, dan kan de server niet
+meer opslaan en **stoppen de uitbetalingen op allebei**. Zet **eviction nooit aan** op
+deze database: dan gooit Upstash bij een volle database zelf sleutels weg, en daarmee
+ook wie al betaald is en welke readings al geclaimd zijn.
 
 **Alleen jij op mainnet (besloten start):** zo staat mainnet op "Alleen met rol". Wallets
 zonder rol zien een slotscherm en worden niet uitbetaald. Jij komt er als admin altijd in.
@@ -84,13 +98,27 @@ In één pull request:
 - `bridge/index.js` + `src/network.js` (`BRIDGE_DEFAULT_API`): standaardserver → mainnet;
   de testnetapp zet dan zelf `--ingest=<testnet>` in zijn installatieregel.
 - `.github/workflows/wake.yml`: een tweede regel die ook de mainnet-server elk uur wekt
-  (nodig voor Powerfox zolang de server op het gratis plan staat).
+  (nodig voor Powerfox zolang de server op het gratis plan staat). Let op: GitHub zet
+  geplande workflows in een publieke repository **uit na 60 dagen zonder commits**.
+  Wordt de server ineens niet meer gewekt, kijk dan in het tabblad **Actions** bij
+  *Wake the reward server*: daar staat de melding en de knop om hem weer aan te zetten.
 - Ook naar mainnet: `DEFAULT_INGEST_URL` in `custom_components/greenutilitylog/const.py`
-  en de YAML in `docs/build_guide.py` (alle 5 talen). De add-on volgt de bridge vanzelf.
+  en de YAML in `docs/build_guide.py` (alle 5 talen).
+- **Add-on:** die haalt `bridge/index.js` op tijdens het bouwen, maar Home Assistant
+  bouwt een add-on alleen opnieuw als zijn **versie** verandert. Verhoog daarom
+  `version` in `ha-addon/gul-bridge/config.yaml` in dezelfde pull request; anders blijft
+  iedereen met de add-on naar de oude server sturen. Add-on-testers die op testnet
+  willen blijven, vullen bij **ingest_url** het adres van de testnet-server in:
+  `https://greenutilitylog-rewards.onrender.com/meter-ingest`.
 - **Testers met een P1-reader:** hun geplande taak stuurt daarna naar mainnet, waar hun
   testnet-token wordt geweigerd. Zij doen één keer: `node gul.js --uninstall` (haalt de
   oude taak weg) en plakken dan de installatieregel uit de testnet-app opnieuw (die heeft
   `--ingest=<testnet>` en krijgt een eigen taak).
+  De handleiding serveert maar één `gul.js`, en haar installatieregels hebben **geen**
+  `--ingest`: na de omschakeling sturen die naar mainnet. Testers op testnet gebruiken
+  dus altijd de regel uit de **testnet-app**, niet die uit de handleiding.
+- **Testers met de Home Assistant-integratie** die op testnet blijven: onder
+  **Configure** het serveradres op de testnet-server zetten (zelfde adres als hierboven).
 - Home Assistant-integratie en add-on: standaardserver → mainnet.
 - Handleiding: “testnet / testtokens” eruit, link naar de testversie erin.
 

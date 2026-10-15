@@ -8,7 +8,7 @@
 import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { startServer, stateWithBaseline, WALLET } from "./helpers.mjs";
+import { startServer, stateWithBaseline, WALLET, OTHER } from "./helpers.mjs";
 
 const EMAIL = "me@example.de", PASSWORD = "Sehr-Geheim-123";
 
@@ -95,6 +95,12 @@ describe("Powerfox, fetched by the server", () => {
     assert.equal(a.status, 200);
     const b = await srv.get("/cron/tick");
     assert.equal(b.body.skipped, "ran recently");
+  });
+
+  test("the same Powerfox account can't feed a second wallet", async () => {
+    const r = await srv.post("/meter/powerfox/link", { address: OTHER, meterNo: "E2000", email: EMAIL, password: PASSWORD });
+    assert.equal(r.status, 409, JSON.stringify(r.body));
+    assert.match(r.body.error, /already connected to another wallet/);
   });
 
   test("unlinking forgets the account at once", async () => {

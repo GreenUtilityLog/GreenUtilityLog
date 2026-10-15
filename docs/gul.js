@@ -21,11 +21,13 @@
 // HomeWizard owners are. Env vars still work, unchanged, for Docker and the Home
 // Assistant add-on.
 //
-//   --token=…     device token from the app → ⚙️ Automatic setup   (GUL_TOKEN)
+//   --token=…     device token from the app: Meter → ⚡ Have a P1 reader? →
+//                 ⚙️ Automatic setup                              (GUL_TOKEN)
 //   --ip=…        skip discovery, use this HomeWizard IP           (HW_IP)
 //   --interval=…  seconds between pushes, default 43200, min 60    (INTERVAL_SEC)
 //   --url=…       read ANY reader that serves JSON over HTTP       (READ_URL)
-//   --field=…     dot-path to the kWh number in that JSON          (READ_FIELD)
+//   --field=…     dot-path to the kWh number in that JSON, or several
+//                 joined with + to send their sum (a+b)          (READ_FIELD)
 //   --tasmota=…   IP of a Tasmota IR head (e.g. Hichi) on the meter (TASMOTA_IP)
 //   --ingest=…    override the backend                            (GUL_INGEST_URL)
 //   --powerfox=…  read a Powerfox poweropti via the Powerfox cloud: your
@@ -52,7 +54,13 @@ const { spawnSync } = require("node:child_process");
 // than fatal: a stray argument shouldn't stop someone's meter from reporting. A
 // flag that needs a value but got none is an error, though: `--token abc` used to
 // save the token "1" over the good one, and every push after that was refused.
-const VALUE_FLAGS = new Set(["token", "ip", "interval", "url", "field", "ingest"]);
+// Every flag that takes a value has to be listed here, or `--tasmota 1.2.3.4` reads
+// as a bare --tasmota and the IP is dropped as a stray argument.
+const VALUE_FLAGS = new Set(["token", "ip", "interval", "url", "field", "ingest", "tasmota", "powerfox-pass"]);
+// A value that may also be left out: bare --powerfox means "the account saved by an
+// earlier run", and that is how the scheduled job calls it. Only a following word
+// that isn't itself a flag is taken, so `--powerfox --install` keeps its --install.
+const OPTIONAL_VALUE_FLAGS = new Set(["powerfox"]);
 const FLAGS = {};
 const MISSING_VALUE = [];
 {
@@ -62,6 +70,7 @@ const MISSING_VALUE = [];
     if (!m) continue;
     const k = m[1].toLowerCase();
     if (m[2] !== undefined) FLAGS[k] = m[2];
+    else if (OPTIONAL_VALUE_FLAGS.has(k)) FLAGS[k] = argv[i + 1] !== undefined && !argv[i + 1].startsWith("-") ? argv[++i] : "1";
     else if (!VALUE_FLAGS.has(k)) FLAGS[k] = "1";
     else if (argv[i + 1] !== undefined && !argv[i + 1].startsWith("--")) FLAGS[k] = argv[++i];
     else MISSING_VALUE.push(k);
@@ -127,9 +136,10 @@ const ONCE = FLAGS.once === "1" || process.env.ONCE === "1";
 // push that failed (server asleep, Wi-Fi down) is simply tried again next hour.
 const DUE = FLAGS.due === "1";
 const DUE_AFTER_MS = 11 * 60 * 60 * 1000;
-// Generic mode: point at ANY reader that returns JSON over HTTP (dsmr-reader,
-// Shelly, a custom endpoint…). READ_URL switches off HomeWizard discovery; READ_FIELD
-// is an optional dot-path to the cumulative-kWh number (auto-detected if omitted).
+// Generic mode: point at ANY reader that returns the meter's kWh total as JSON over
+// HTTP without a login (P1 Monitor, a custom endpoint…). READ_URL switches off
+// HomeWizard discovery; READ_FIELD is an optional dot-path to the cumulative-kWh
+// number (auto-detected if omitted), or several joined with + for their sum.
 // --tasmota=<ip>: an IR reading head running Tasmota (Hichi and friends, common on
 // German, Austrian and Swiss meters). Its sensor JSON lives at /cm?cmnd=Status%2010
 // and the meter total in a group of the meter script, usually SML.Total_in.
@@ -166,7 +176,7 @@ async function ensureToken() {
   }
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   const answer = await new Promise((res) =>
-    rl.question("\nPaste your device token (app → Meter → Automatic setup): ", res));
+    rl.question("\nPaste your device token (app → Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup): ", res));
   rl.close();
   TOKEN = String(answer || "").trim();
   if (!TOKEN) { console.error("No token given — nothing to do."); return false; }
@@ -338,9 +348,21 @@ function tariffSplit(data) {
 function readGeneric(data, field) {
   const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : (typeof v === "string" && v.trim() !== "" && Number.isFinite(+v) ? +v : null));
   if (field) {
-    let v = data;
-    for (const k of field.split(".")) { if (v == null) break; v = v[k]; }
-    return num(v);
+    // a.b+c.d: the sum of several paths. P1 Monitor and dsmr-reader report the two
+    // tariff registers (1.8.1 and 1.8.2) separately and no total, while the meter's
+    // consumption is their sum. One missing path gives no reading at all: half the
+    // total would look like a meter running backwards.
+    const paths = field.split("+").map((f) => f.trim()).filter(Boolean);
+    if (!paths.length) return null;
+    let sum = 0;
+    for (const path of paths) {
+      let v = data;
+      for (const k of path.split(".")) { if (v == null) break; v = v[k]; }
+      const n = num(v);
+      if (n == null) return null;
+      sum += n;
+    }
+    return paths.length > 1 ? +sum.toFixed(3) : sum;
   }
   const CANDIDATES = ["total_power_import_kwh", "total_energy_import_kwh", "energy_import_kwh", "import_kwh", "total_kwh", "reading", "value"];
   for (const k of CANDIDATES) { const v = num(data?.[k]); if (v != null) return v; }
@@ -528,7 +550,11 @@ function manageCron(action) {
   // Every hour, but --due makes it push only when the last reading is 11 h old:
   // twice a day in practice, and caught up within the hour when the machine wakes.
   // Output goes to .gul-bridge.log already; without the redirect cron mails it.
-  const line = `0 * * * * ${cmd} >/dev/null 2>&1 ${CRON_MARK}`;
+  // cron turns an unescaped % into a newline and feeds the rest to the command as
+  // input, so --url=…/cm?cmnd=Status%2010 would arrive cut off at the %. Escaped as
+  // \% here only: cron takes the backslash out again, and the Windows task has no
+  // such rule.
+  const line = `0 * * * * ${cmd.replace(/%/g, "\\%")} >/dev/null 2>&1 ${CRON_MARK}`;
   const manual = () => {
     log(`Add it yourself: run  crontab -e  and paste this line:\n  ${line}`);
     return 1;

@@ -21,7 +21,8 @@ const MODEL = (process.env.AI_PHOTO_MODEL || "claude-opus-4-8").trim();
 // Reject a payout only when a "bad" verdict carries at least this confidence.
 const MIN_CONFIDENCE = Number(process.env.AI_PHOTO_MIN_CONFIDENCE || "0.6");
 
-const client = API_KEY ? new Anthropic({ apiKey: API_KEY }) : null;
+// A deadline the app's 120 s can wait out, with the OCR after it (SDK default: 10 min, 2 retries).
+const client = API_KEY ? new Anthropic({ apiKey: API_KEY, timeout: 45000, maxRetries: 1 }) : null;
 export const aiPhotoCheckEnabled = () => !!client;
 
 // Labels that should block a reward when confident enough.

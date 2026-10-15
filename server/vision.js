@@ -25,6 +25,7 @@ export async function visionText(imageBase64, { strict = false } = {}) {
         body: JSON.stringify({
           requests: [{ image: { content }, features: [{ type: "TEXT_DETECTION" }] }],
         }),
+        signal: AbortSignal.timeout(30000),
       }
     );
     if (!res.ok) { if (strict) throw new Error(`vision ${res.status}`); return ""; }

@@ -16,6 +16,7 @@ const SERVER_DIR = join(fileURLToPath(new URL(".", import.meta.url)), "..");
 function fakeNode(mode, { revertSelector = null } = {}) {
   const seen = new Set();
   const raws = [];
+  let posts = 0;
   const best = { id: "0x00000a" + "1".repeat(58), number: 655360, timestamp: Math.floor(Date.now() / 1000), gasLimit: 40000000, baseFeePerGas: "0x9184e72a000", parentID: "0x" + "2".repeat(64) };
   const genesis = { id: "0x00000000" + "27".repeat(28), number: 0, timestamp: 1530014400, gasLimit: 10000000 };
   const srv = createServer((req, res) => {
@@ -34,6 +35,8 @@ function fakeNode(mode, { revertSelector = null } = {}) {
       if (u.startsWith("/accounts/")) return send({ balance: "0x0", energy: "0xffffffffffff", hasCode: false });
       if (req.method === "POST" && u.startsWith("/transactions")) {
         if (mode === "refused") return send({ error: "rejected" }, 400);
+        // Fails the first time without taking it, then takes the same transaction.
+        if (mode === "flaky" && posts++ === 0) return send({ error: "busy" }, 503);
         seen.add("tx");
         raws.push(JSON.parse(b).raw);
         if (mode === "lost-reply") { res.socket.destroy(); return; } // took it, reply never came back
@@ -57,13 +60,13 @@ async function send(mode) {
   `;
   const child = spawn(process.execPath, ["--input-type=module", "-e", script], {
     cwd: SERVER_DIR,
-    env: { ...process.env, NODE_URL: node.url, DISTRIBUTOR_PRIVATE_KEY: randomBytes(32).toString("hex"), DISTRIBUTOR_DRY_RUN: "", NETWORK: "testnet" },
+    env: { ...process.env, BROADCAST_RETRY_MS: "50", NODE_URL: node.url, DISTRIBUTOR_PRIVATE_KEY: randomBytes(32).toString("hex"), DISTRIBUTOR_DRY_RUN: "", NETWORK: "testnet" },
     stdio: ["ignore", "pipe", "pipe"],
   });
   let out = ""; child.stdout.on("data", (d) => (out += d)); child.stderr.on("data", (d) => (out += d));
   await new Promise((r) => child.on("exit", r));
   node.srv.close();
-  return { out, received: node.seen.size > 0 };
+  return { out, received: node.seen.size > 0, raws: node.raws };
 }
 
 test("the node took it but the reply was lost: counted as sent, not retried", async () => {
@@ -76,6 +79,12 @@ test("the node refused it: reported as not sent, so the claim can be retried", a
   const r = await send("refused");
   assert.ok(!r.received);
   assert.match(r.out, /THREW/, r.out);
+});
+
+test("a broadcast that failed is sent again as is: one transaction, one id", async () => {
+  const r = await send("flaky");
+  assert.match(r.out, /RESULT \{"txid":"0x[0-9a-f]{64}","reverted":false\}/, r.out);
+  assert.equal(r.raws.length, 1, "the node took exactly one transaction");
 });
 
 test("a normal broadcast", async () => {
@@ -99,7 +108,7 @@ test("a pool without the metadata variant still gets proof and impact", async ()
   `;
   const child = spawn(process.execPath, ["--input-type=module", "-e", script], {
     cwd: SERVER_DIR,
-    env: { ...process.env, NODE_URL: node.url, DISTRIBUTOR_PRIVATE_KEY: randomBytes(32).toString("hex"), DISTRIBUTOR_DRY_RUN: "", NETWORK: "testnet" },
+    env: { ...process.env, BROADCAST_RETRY_MS: "50", NODE_URL: node.url, DISTRIBUTOR_PRIVATE_KEY: randomBytes(32).toString("hex"), DISTRIBUTOR_DRY_RUN: "", NETWORK: "testnet" },
     stdio: ["ignore", "pipe", "pipe"],
   });
   let out = ""; child.stdout.on("data", (d) => (out += d)); child.stderr.on("data", (d) => (out += d));
