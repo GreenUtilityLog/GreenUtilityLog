@@ -6338,7 +6338,8 @@ export default function App() {
             continue;
           }
           if (!res.ok) {
-            if (res.status >= 400 && res.status < 500) {
+            // 408/429 are "not now", not "no": those retry like a 5xx.
+            if (res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429) {
               // The server's final answer (cooldown, duplicate photo, lower reading…):
               // retrying can't change it, so take it out of the queue.
               const reason = data.error || `refused (${res.status})`;
