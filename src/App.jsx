@@ -6574,7 +6574,7 @@ export default function App() {
     try {
       // Bind the signature to this exact action+params (server re-derives + checks).
       const canonical = `/admin/move-rewards-pool|${JSON.stringify({ amount: amt }, ["amount"])}`;
-      const content = `Green Utility Log — admin action\n${canonical}\nWallet: ${wallet}\nTime: ${new Date().toISOString()}`;
+      const content = `Green Utility Log — admin action\n${canonical}\nNetwork: ${NETWORK}\nWallet: ${wallet}\nTime: ${new Date().toISOString()}`;
       const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } });
       const certificate = { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
       const res = await fetchT(`${REWARD_API.replace(/\/$/, "")}/admin/move-rewards-pool`, {
@@ -6598,7 +6598,7 @@ export default function App() {
     // Bind the signature to THIS action + its exact parameters (server re-derives the
     // same string and rejects a cert that doesn't authorise it, or that's re-used).
     const canonical = `${path}|${JSON.stringify(b, Object.keys(b).sort())}`;
-    const content = `Green Utility Log — admin action\n${canonical}\nWallet: ${wallet}\nTime: ${new Date().toISOString()}`;
+    const content = `Green Utility Log — admin action\n${canonical}\nNetwork: ${NETWORK}\nWallet: ${wallet}\nTime: ${new Date().toISOString()}`;
     const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } });
     const certificate = { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
     const res = await fetchT(`${REWARD_API.replace(/\/$/, "")}${path}`, {

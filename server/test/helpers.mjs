@@ -53,6 +53,7 @@ export async function startServer({ state = {}, env = {} } = {}) {
       REQUIRE_PASS: "false",
       // Same for the device id the app sends with a payout (device.test.js).
       REQUIRE_DEVICE: "false",
+      PHOTO_CHECKS_PER_WALLET_DAY: "0",
       // Keep the real file backend: tests assert on what was persisted.
       UPSTASH_REDIS_REST_URL: "",
       UPSTASH_REDIS_REST_TOKEN: "",

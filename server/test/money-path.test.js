@@ -154,6 +154,47 @@ describe("one phone, one wallet — after a refused attempt", () => {
   });
 });
 
+describe("paid photo checks per wallet per day", () => {
+  let srv;
+  before(async () => { srv = await startServer({ state: stateWithBaseline(), env: { PHOTO_CHECKS_PER_WALLET_DAY: "2" } }); });
+  after(async () => { await srv.stop(); });
+
+  test("failed attempts count too — the same photo can't run up the bill all day", async () => {
+    const tiny = Buffer.from("not a photo").toString("base64");
+    const go = () => srv.post("/reward", { utility: "electric", meterNo: "E1000", address: WALLET, reading: 1005, prevRead: 1000, photo: tiny, photoMime: "image/jpeg" });
+    assert.equal((await go()).status, 400);
+    assert.equal((await go()).status, 400);
+    const third = await go();
+    assert.equal(third.status, 429, JSON.stringify(third.body));
+    assert.match(third.body.error, /too many photo attempts today/);
+  });
+});
+
+describe("photo uploads per caller", () => {
+  let srv;
+  before(async () => { srv = await startServer({ state: stateWithBaseline() }); });
+  after(async () => { await srv.stop(); });
+
+  test("a third upload at once from one caller is turned away, not everyone's", async () => {
+    // Two uploads that never finish arriving hold this caller's two places.
+    const net = await import("node:net");
+    const port = new URL(srv.base).port;
+    const hold = () => new Promise((resolve) => {
+      const s = net.connect(port, "127.0.0.1", () => {
+        s.write("POST /reward HTTP/1.1\r\nHost: x\r\nContent-Type: application/json\r\nContent-Length: 100000\r\n\r\n{");
+        setTimeout(() => resolve(s), 300);
+      });
+    });
+    const a = await hold(), b = await hold();
+    const third = await srv.post("/reward", { utility: "electric", meterNo: "E1000", address: WALLET, reading: 1005, prevRead: 1000, photo: photo("third"), photoMime: "image/jpeg" });
+    assert.equal(third.status, 429, JSON.stringify(third.body));
+    a.destroy(); b.destroy();
+    await new Promise((r) => setTimeout(r, 300));
+    const after = await srv.post("/reward", { utility: "electric", meterNo: "E1000", address: WALLET, reading: 1005, prevRead: 1000, photo: photo("after"), photoMime: "image/jpeg" });
+    assert.equal(after.status, 200, JSON.stringify(after.body));
+  });
+});
+
 // ── Boot: a server that would pay wrongly must not start ─────────────────────
 function boot(env) {
   return new Promise(async (resolve) => {

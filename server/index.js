@@ -76,6 +76,9 @@ app.use((req, res, next) => {
   if (win.length >= 30) return res.status(429).json({ error: "too many requests" });
   win.push(now);
   hits.set(ip, win);
+  // Bounded between sweeps too: a flood of made-up addresses grew it for 5 minutes.
+  if (hits.size > 50000) for (const [k, w] of hits) { if (!w.some((t) => now - t < 60_000)) hits.delete(k); }
+  if (hits.size > 50000) hits.clear();
   next();
 });
 // Bound the throttle map so rotating IPs can't grow it without limit (memory DoS):
@@ -93,15 +96,28 @@ setInterval(() => {
 // few dozen 20 MB uploads at once were enough to kill it, payouts in flight too.
 const photoJson = express.json({ limit: "8mb" });
 // And only a handful of them at once: each is buffered whole before any check.
+// Two per caller: six slow uploads from one address (a byte every few seconds, no
+// wallet needed) held every slot and turned all photo submissions away.
 let photoBodies = 0;
 const PHOTO_BODIES_MAX = Number(process.env.PHOTO_BODIES_MAX || 6);
+const PHOTO_BODIES_PER_IP = 2;
+const photoBodiesByIp = new Map();
 for (const path of ["/reward", "/eco-action", "/ocr", "/meter/fix-basis"]) {
   app.use(path, (req, res, next) => {
     if (req.method !== "POST") return next();
+    const ip = req.clientIp || "unknown";
+    const mine = photoBodiesByIp.get(ip) || 0;
+    if (mine >= PHOTO_BODIES_PER_IP) return res.status(429).json({ error: "another photo from you is still being processed — wait for it to finish" });
     if (photoBodies >= PHOTO_BODIES_MAX) return res.status(503).json({ error: "the server is busy — try again in a minute" });
     photoBodies++;
+    photoBodiesByIp.set(ip, mine + 1);
     let done = false;
-    const release = () => { if (!done) { done = true; photoBodies--; } };
+    const release = () => {
+      if (done) return;
+      done = true; photoBodies--;
+      const n = (photoBodiesByIp.get(ip) || 1) - 1;
+      if (n > 0) photoBodiesByIp.set(ip, n); else photoBodiesByIp.delete(ip);
+    };
     res.on("finish", release);
     res.on("close", release);
     next();
@@ -290,6 +306,26 @@ async function guardPayout(keys) {
 // list keeps refusing it after that.
 const photoPayoutKey = (hash) => [`photo:${hash}`, 30 * DAY_MS, "duplicate photo — each submission needs a fresh photo"];
 
+// Paid photo checks (AI authenticity, Claude OCR) per wallet and in all, per day.
+// A failed attempt uses nothing up — no photo, no cooldown — so without a count
+// one wallet could send the same photo all day and run up the API bill. Counted
+// per submission that reaches the checks, whether or not any check is configured
+// (the count is cheap, and the limits are far above what a person sends).
+const PHOTO_CHECKS_PER_WALLET = Number(process.env.PHOTO_CHECKS_PER_WALLET_DAY || 15);
+const PHOTO_CHECKS_PER_DAY = Number(process.env.PHOTO_CHECKS_PER_DAY || 2000);
+const photoChecks = { day: "", total: 0, byWallet: new Map() };
+function photoCheckBudget(addr) {
+  const day = new Date().toISOString().slice(0, 10);
+  if (photoChecks.day !== day) { photoChecks.day = day; photoChecks.total = 0; photoChecks.byWallet.clear(); }
+  const a = String(addr || "").toLowerCase();
+  const mine = photoChecks.byWallet.get(a) || 0;
+  if (PHOTO_CHECKS_PER_WALLET > 0 && mine >= PHOTO_CHECKS_PER_WALLET) return "too many photo attempts today — try again tomorrow";
+  if (PHOTO_CHECKS_PER_DAY > 0 && photoChecks.total >= PHOTO_CHECKS_PER_DAY) return "the photo check has reached today's limit — please try again tomorrow";
+  photoChecks.byWallet.set(a, mine + 1);
+  photoChecks.total++;
+  return null;
+}
+
 // Payouts between "sent" and "recorded". Shutdown waits for these to finish:
 // cut off in between, the B3TR is gone and the record of it is not.
 let payoutsInFlight = 0;
@@ -401,10 +437,11 @@ function backfillPasses() {
   let granted = 0;
   for (const w of known) {
     if (w.banned) continue;   // a blocked wallet shouldn't be handed a pass on the way in
-    // Only wallets that actually did something: own a meter (were paid for one),
-    // paired a reader, or claimed an eco bonus. "Seen" alone is an unauthenticated POST anyone can make for
-    // any address, so it would hand out passes to made-up wallets.
-    if (!w.hasMeter && !w.paired && !w.hasEco) continue;
+    // Only wallets that were paid: own a meter or claimed an eco bonus. "Seen" alone
+    // is an unauthenticated POST anyone can make for any address, and pairing a
+    // reader needs no more than a self-signed certificate — both would hand out
+    // passes to made-up wallets.
+    if (!w.hasMeter && !w.hasEco) continue;
     store.grantPass(w.address, { tier: "tester", note: "grandfathered when passes were enabled" });
     granted++;
   }
@@ -495,6 +532,11 @@ async function verifyAdmin(req, path) {
   // The signed content must authorise THIS action+params...
   if (path && !String(cert?.payload?.content || "").includes(canonicalAdminAction(path, req.body))) {
     return { ok: false, code: 401, error: "certificate does not authorise this action" };
+  }
+  // ...on THIS network. Each server keeps its own list of used certificates, so one
+  // signed to open testnet up was accepted once by mainnet as well.
+  if (!certSays(String(cert?.payload?.content || ""), `Network: ${NETWORK}`)) {
+    return { ok: false, code: 401, error: `certificate was not signed for ${NETWORK} — reload the app and sign again` };
   }
   // ...and be single-use (defence against replay within the freshness window).
   const spent = await spendCert(cert);
@@ -973,6 +1015,7 @@ app.post("/reward", async (req, res) => {
   inFlight.add(lockKey);
   let photo = null, committed = false, guard = null;
   try {
+    { const busy = photoCheckBudget(req.body.address); if (busy) return res.status(429).json({ error: busy }); }
     // 2) Photo check — real image, not a reused one (and optional OCR match). This
     // reserves the photo hash immediately; the finally rolls it back unless we pay.
     photo = await verifyPhoto({ imageBase64: req.body.photo, reading: req.body.reading, registers, ocr: OCR_ENABLED, mime: req.body.photoMime });
@@ -1164,6 +1207,7 @@ app.post("/eco-action", async (req, res) => {
   inFlight.add(lockKey);
   let photo = null, committed = false, guard = null;
   try {
+    { const busy = photoCheckBudget(addr); if (busy) return res.status(429).json({ error: busy }); }
     // Real image + never paid for before (reserved here). No OCR — no reading to match.
     photo = await verifyPhoto({ imageBase64: req.body.photo, ocr: false, mime: req.body.photoMime });
     if (!photo.ok) return res.status(400).json({ error: photo.error });
@@ -1910,6 +1954,8 @@ app.post("/meter/fix-basis", async (req, res) => {
 
   const address = String(req.body.address || "");
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
+  // It runs the same paid photo checks as a payout, so the same people only.
+  { const pb = await passBlock(address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
   {
     const c = await requireBoundCert(req, ["reconcile tariff registers", `Meter: ${req.body.meterNo}`]);
     if (!c.ok) return res.status(c.code).json({ error: c.error });
@@ -1945,6 +1991,7 @@ app.post("/meter/fix-basis", async (req, res) => {
     return res.status(400).json({ error: `the registers add up to ${total}, which is not above the current starting point of ${prev} — nothing to reconcile` });
   }
 
+  { const busy = photoCheckBudget(address); if (busy) return res.status(429).json({ error: busy }); }
   let photo = null;
   try {
     // The photo carries the same weight as it does for a payout: it has to be a real,
@@ -2124,7 +2171,7 @@ if (PHOTO_RETENTION_MS > 0) {
     "ECO_COOLDOWN_MS", "AUTO_PHOTO_EVERY_DAYS", "METER_MAX_AGE_MS", "DEVICE_MAX_WALLETS", "DEVICE_FP_FLAG",
     "PHOTO_MAX_AGE_DAYS", "AI_PHOTO_MIN_CONFIDENCE", "PHOTO_LIKENESS_REFUSE", "PHOTO_LIKENESS_FLAG",
     "CERT_MAX_AGE_MS", "OCR_DAILY_MAX", "OCR_DAILY_PER_IP", "BROADCAST_RETRY_MS", "REDIS_TIMEOUT_MS",
-    "BUDGET_POOL_B3TR", "BUDGET_WAITING_B3TR", "PHOTO_BODIES_MAX"];
+    "BUDGET_POOL_B3TR", "BUDGET_WAITING_B3TR", "PHOTO_BODIES_MAX", "PHOTO_CHECKS_PER_WALLET_DAY", "PHOTO_CHECKS_PER_DAY"];
   const bad = NUMERIC_ENV.filter((k) => String(process.env[k] ?? "").trim() !== "" && !Number.isFinite(Number(process.env[k])));
   if (bad.length) {
     console.error(`[boot] FATAL: these settings must be plain numbers: ${bad.map((k) => `${k}="${process.env[k]}"`).join(", ")}. Refusing to start.`);
@@ -2165,6 +2212,9 @@ if (NETWORK === "mainnet") {
   }
   if (!aiPhotoCheckEnabled()) {
     console.warn("[boot] WARNING: mainnet without the AI photo check — doctored or screen photos are not refused. Set ANTHROPIC_API_KEY.");
+  }
+  if (!String(process.env.CERT_DOMAINS || "").trim()) {
+    console.warn("[boot] WARNING: mainnet without CERT_DOMAINS — signatures made on any website are accepted. Set it to the app's domain (see certDomains in /health).");
   }
   // NODE_URL pointing at another network than NETWORK: calls to contract addresses
   // with no code there "succeed" and nothing is transferred, while every payout is
@@ -2212,6 +2262,9 @@ const server = app.listen(PORT, () => {
   // would issue passes against empty state and then persist that over the real data.
   setTimeout(backfillPasses, 2000).unref?.();
 });
+// A request has two minutes to arrive in full (Node's default is five): a body
+// dripped in a byte at a time held a photo slot for all of that.
+server.requestTimeout = 120000;
 
 // Graceful shutdown: a redeploy/scale-down sends SIGTERM. Flush any debounced
 // anti-farming state (cooldowns, burnt photo hashes, baselines) before exiting so a

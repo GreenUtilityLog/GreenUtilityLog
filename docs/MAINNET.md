@@ -54,17 +54,17 @@ Render → **New → Web Service** → deze repository.
 |---|---|
 | `NETWORK` | `mainnet` |
 | `DISTRIBUTOR_PRIVATE_KEY` | sleutel van de distributor-wallet (of `DISTRIBUTOR_MNEMONIC`) |
-| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | van een **nieuwe, eigen** Upstash-database voor mainnet — niet die van testnet (zie hieronder) |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | van een **nieuwe, eigen** Upstash-database voor mainnet — niet die van testnet (zie hieronder). **Verplicht, allebei:** zonder start mainnet niet |
 | `STATE_KEY` | `greenutilitylog:mainnet` — **verplicht**: houdt test- en echte gegevens gescheiden; zonder "mainnet" in de sleutel weigert de mainnet-server te starten |
 | `ALLOWED_ORIGIN` | `https://greenutilitylog.github.io` |
-| `ANTHROPIC_API_KEY` | sterk aangeraden: controleert of de foto echt is en of stand + meternummer erop staan. Standaard met het goedkope model `claude-haiku-5-5` (fractie van een cent per foto). Koop $5 tegoed op console.anthropic.com en zet bij **Limits** een maandlimiet (bijv. $10) |
+| `ANTHROPIC_API_KEY` | **verplicht**: controleert of de foto echt is en of stand + meternummer erop staan — zonder start mainnet niet (anders is de stand gewoon wat iemand intypt). Standaard met het goedkope model `claude-haiku-5-5` (fractie van een cent per foto; hooguit 15 pogingen per wallet per dag). Koop $5 tegoed op console.anthropic.com en zet bij **Limits** een maandlimiet (bijv. $10) |
 | `MAX_PAYOUT_PER_SUBMISSION` | `1` voor de eerste week (veilige start), daarna weghalen (= 4) |
 | `ECO_REWARD` | `1` voor de eerste week, daarna weghalen (= 2) |
 | `REQUIRE_PASS` | niet invullen (staat standaard aan): alleen wallets met een pas worden uitbetaald |
-| `PASSPORT_GRANTS_ACCESS` | `false` — anders komt elke VeBetterDAO-gebruiker met een passport er zonder pas in |
+| `PASSPORT_GRANTS_ACCESS` | niet invullen: staat op mainnet standaard uit (een passport kan van wallet naar wallet worden doorgegeven) |
 | `ADMIN_WALLETS` | alleen **jouw** wallet-adres (meerdere: met komma's) |
 | `DISTRIBUTOR_ADDRESS` | alleen bij `DISTRIBUTOR_MNEMONIC`: welk adres uit die woorden de distributor is |
-| `CERT_DOMAINS` | `greenutilitylog.github.io` — handtekeningen van andere sites worden dan geweigerd |
+| `CERT_DOMAINS` | `greenutilitylog.github.io` — handtekeningen van andere sites worden dan geweigerd. Controleer de waarde: `/health` toont onder `certDomains.seen` met welke site-naam echte handtekeningen binnenkomen |
 | `POWERFOX_SECRET` | een lange willekeurige sleutel (anders dan op testnet) — zet de Powerfox- én Tibber-koppeling aan |
 
 **Een eigen Upstash-database voor mainnet:** maak in Upstash een **nieuwe** Redis-database

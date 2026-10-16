@@ -18,6 +18,10 @@ services:
     envVars:
       - key: NETWORK
         value: testnet
+      # Render runs behind Cloudflare, which sets this header to the real caller
+      # and overwrites any value the caller sends (the rate limit keys on it).
+      - key: CLIENT_IP_HEADER
+        value: cf-connecting-ip
       # Distributor wallet secret — set ONE of the two below in the Render dashboard
       # (kept secret, never in git). Use DISTRIBUTOR_MNEMONIC if your wallet app only
       # exports the recovery phrase; otherwise use DISTRIBUTOR_PRIVATE_KEY.
