@@ -9,9 +9,9 @@ import { Certificate, Secp256k1, Address } from "@vechain/sdk-core";
 import { startServer, photo, stateWithBaseline, WALLET } from "./helpers.mjs";
 
 let ADMIN_PRIV, ADMIN;
-async function adminCert(path, body) {
+async function adminCert(path, body, network = "testnet") {
   const extra = { ...body };
-  const content = `Green Utility Log — admin\nAction: ${path}|${JSON.stringify(extra, Object.keys(extra).sort())}\nTime: ${new Date().toISOString()}`;
+  const content = `Green Utility Log — admin\nAction: ${path}|${JSON.stringify(extra, Object.keys(extra).sort())}\nNetwork: ${network}\nTime: ${new Date().toISOString()}`;
   const base = { purpose: "identification", payload: { type: "text", content }, domain: "test.local", timestamp: Math.floor(Date.now() / 1000), signer: ADMIN };
   const c = Certificate.of(base); c.sign(ADMIN_PRIV);
   const signature = typeof c.signature === "string" ? c.signature : Buffer.from(c.signature).toString("hex");
@@ -49,6 +49,24 @@ describe("access per version", () => {
     const seen = await srv.post("/wallet/seen", { address: ADMIN });
     assert.equal(seen.body.isAdmin, true);
     assert.equal(seen.body.hasPass, true);
+  });
+
+  test("an admin signature made for the other network is refused", async () => {
+    // Each server keeps its own list of used certificates: one signed to change
+    // mainnet was accepted once by testnet too, and the other way round.
+    const body = { mode: "everyone" };
+    const r = await srv.post("/admin/access", { ...body, address: ADMIN, certificate: await adminCert("/admin/access", body, "mainnet") });
+    assert.equal(r.status, 401, JSON.stringify(r.body));
+    assert.match(r.body.error, /not signed for testnet/);
+    assert.equal((await srv.post("/wallet/seen", { address: WALLET })).body.access, "roles");
+  });
+
+  test("tariff reconciliation runs the paid photo checks, so it needs a role too", async () => {
+    const r = await srv.post("/meter/fix-basis", {
+      address: WALLET, utility: "electric", meterNo: "E1000", registers: [600, 500], photo: photo("fixbasis-nopass"), photoMime: "image/jpeg",
+    });
+    assert.equal(r.status, 403, JSON.stringify(r.body));
+    assert.equal(r.body.needsPass, true);
   });
 
   test("a role must be one of tester or user", async () => {

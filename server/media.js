@@ -11,6 +11,7 @@ import { exifTakenAt } from "./exif.js";
 // How old a photo may be, when it tells us. Generous on purpose: the point is to
 // refuse stock images and old camera-roll shots, not to police a day's delay.
 const PHOTO_MAX_AGE_DAYS = Number(process.env.PHOTO_MAX_AGE_DAYS || 7);
+const OCR_CHECK_MS = 60000;
 const MIN_BYTES = 5 * 1024;          // reject blank/placeholder images
 const MAX_BYTES = 15 * 1024 * 1024;  // 15 MB cap (modern phone photos are big)
 
@@ -95,8 +96,19 @@ export async function verifyPhoto({ imageBase64, reading, registers = [], ocr = 
 
   let ocrMatched = null;
   if (ocr) {
-    const r = await runOcrCheck(buf, reading, registers).catch(() => ({ ok: true, soft: true }));
-    if (!r.ok) { unreserve(); return { ok: false, error: r.error || "the reading was not found in the photo" }; }
+    // Bounded and fail-closed. tesseract fetches its language data at run time; when
+    // that hung (a CDN outage) the request never returned and the wallet's in-flight
+    // lock was held until a restart. And an error used to count as a pass.
+    const r = await Promise.race([
+      runOcrCheck(buf, reading, registers),
+      new Promise((res) => setTimeout(() => res({ ok: false, unavailable: true }), OCR_CHECK_MS).unref?.()),
+    ]).catch(() => ({ ok: false, unavailable: true }));
+    if (!r.ok) {
+      unreserve();
+      return r.unavailable
+        ? { ok: false, unavailable: true, error: "the photo check is unavailable right now — nothing was used up, please try again in a few minutes" }
+        : { ok: false, error: r.error || "the reading was not found in the photo" };
+    }
     ocrMatched = r.matched ?? null;
   }
 
@@ -189,15 +201,35 @@ export function readingOnPhoto(claimed, numbers, scaleRef) {
 // a summed reading; the display shows one at a time, so any one of them counts.
 // baseline / prevRegs: the meter's stored reading and its registers' last paid
 // values, the scale the missing-decimal-point rule is held to (readingOnPhoto).
+// Numbers written with at least MIN_DISPLAY_DIGITS whole digits (leading zeros count,
+// as a meter shows them), from the provider's text; its own number list when
+// there is no text.
+const MIN_DISPLAY_DIGITS = 4;
+function bigNumbers(text, numbers) {
+  if (text) {
+    return (String(text).match(/\d+(?:[.,]\d+)?/g) || [])
+      .filter((t) => t.split(/[.,]/)[0].length >= MIN_DISPLAY_DIGITS)
+      .map((t) => parseFloat(t.replace(",", ".")))
+      .filter(Number.isFinite);
+  }
+  return (numbers || []).map(Number).filter((n) => Number.isFinite(n) && String(Math.floor(n)).length >= MIN_DISPLAY_DIGITS);
+}
+
 export async function checkReadingOnPhoto({ imageBase64, reading, registers = [], ocrImage, baseline = null, prevRegs = [] }) {
   const unavailable = { ok: false, unavailable: true, error: "the meter reading could not be checked right now — nothing was used up, please try again in a few minutes" };
   let r;
   try { r = await ocrImage(imageBase64); }
   catch { return unavailable; }
   if (r?.errored) return unavailable;
-  const numbers = r?.numbers || [];
+  // Matched only against what can be the meter's reading. A provider that knows
+  // which number is the display (Claude, a digit detector, a service that says
+  // `reading`) gives that alone. One that returns all the text on the photo (Google
+  // Vision) gives everything, so only numbers with at least four whole digits count:
+  // the 230 of "230 V", the 50 of "50 Hz", "1.8.0" or a tariff "1" were enough to
+  // pass with any reading typed to match them.
+  const numbers = Array.isArray(r?.display) ? r.display : bigNumbers(r?.text, r?.numbers);
   if (!numbers.length) {
-    return { ok: false, error: "the meter's numbers could not be read on this photo — take a sharper photo, straight on, with the display filling most of the picture" };
+    return { ok: false, error: "the meter's reading could not be read on this photo — take a sharper photo, straight on, with the display filling most of the picture" };
   }
   const regs = Array.isArray(registers) ? registers : [];
   const candidates = [reading, ...regs];
@@ -245,16 +277,19 @@ export function meterNoCheckMode() {
 // apart land a few bits apart; different meters, rooms and light land far apart.
 // Byte-identical reuse is already refused by the SHA-256 dedupe; this catches the
 // re-shot. Needs sharp (installed on the host); without it, returns null and the
-// check is skipped.
+// check is skipped. A photo sharp cannot decode returns false: skipping the check
+// for it let the same scene through for a second wallet by cutting a few bytes off
+// the end of the JPEG, so the caller refuses it instead.
 export async function photoPrint(imageBase64) {
+  let sharp;
+  try { sharp = (await import("sharp")).default; } catch { return null; }
   try {
-    const sharp = (await import("sharp")).default;
     const buf = Buffer.from(String(imageBase64 || "").replace(/^data:[^,]+,/, ""), "base64");
     const px = await sharp(buf).rotate().greyscale().resize(9, 8, { fit: "fill" }).raw().toBuffer();
     let bits = "";
     for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) bits += px[y * 9 + x] > px[y * 9 + x + 1] ? "1" : "0";
     return BigInt("0b" + bits).toString(16).padStart(16, "0");
-  } catch { return null; }
+  } catch { return false; }
 }
 export function printDistance(a, b) {
   let x = BigInt("0x" + a) ^ BigInt("0x" + b), n = 0;

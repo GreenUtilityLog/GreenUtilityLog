@@ -76,6 +76,9 @@ app.use((req, res, next) => {
   if (win.length >= 30) return res.status(429).json({ error: "too many requests" });
   win.push(now);
   hits.set(ip, win);
+  // Bounded between sweeps too: a flood of made-up addresses grew it for 5 minutes.
+  if (hits.size > 50000) for (const [k, w] of hits) { if (!w.some((t) => now - t < 60_000)) hits.delete(k); }
+  if (hits.size > 50000) hits.clear();
   next();
 });
 // Bound the throttle map so rotating IPs can't grow it without limit (memory DoS):
@@ -93,15 +96,28 @@ setInterval(() => {
 // few dozen 20 MB uploads at once were enough to kill it, payouts in flight too.
 const photoJson = express.json({ limit: "8mb" });
 // And only a handful of them at once: each is buffered whole before any check.
+// Two per caller: six slow uploads from one address (a byte every few seconds, no
+// wallet needed) held every slot and turned all photo submissions away.
 let photoBodies = 0;
 const PHOTO_BODIES_MAX = Number(process.env.PHOTO_BODIES_MAX || 6);
+const PHOTO_BODIES_PER_IP = 2;
+const photoBodiesByIp = new Map();
 for (const path of ["/reward", "/eco-action", "/ocr", "/meter/fix-basis"]) {
   app.use(path, (req, res, next) => {
     if (req.method !== "POST") return next();
+    const ip = req.clientIp || "unknown";
+    const mine = photoBodiesByIp.get(ip) || 0;
+    if (mine >= PHOTO_BODIES_PER_IP) return res.status(429).json({ error: "another photo from you is still being processed — wait for it to finish" });
     if (photoBodies >= PHOTO_BODIES_MAX) return res.status(503).json({ error: "the server is busy — try again in a minute" });
     photoBodies++;
+    photoBodiesByIp.set(ip, mine + 1);
     let done = false;
-    const release = () => { if (!done) { done = true; photoBodies--; } };
+    const release = () => {
+      if (done) return;
+      done = true; photoBodies--;
+      const n = (photoBodiesByIp.get(ip) || 1) - 1;
+      if (n > 0) photoBodiesByIp.set(ip, n); else photoBodiesByIp.delete(ip);
+    };
     res.on("finish", release);
     res.on("close", release);
     next();
@@ -168,7 +184,8 @@ app.get("/health", async (req, res) => {
     // obvious from the one endpoint everybody checks.
     dryRun: DRY_RUN,
     network: NETWORK,
-    node: NODE_URL,
+    // Without credentials or a query string: a provider key there would be public.
+    node: (() => { try { const u = new URL(NODE_URL); return `${u.origin}${u.pathname}`.replace(/\/$/, ""); } catch { return null; } })(),
     appId: APP_ID,
     ocr: OCR_ENABLED,
     ocrProviders: ocrProviders(),
@@ -217,6 +234,7 @@ app.get("/health", async (req, res) => {
     storeReady: store.ready(),
     // false = the last save to durable storage failed: payouts pause until one lands.
     storeSaving: store.saveOk(),
+    stateBytes: store.stateBytes(),
     distributor: await distributorAddress().catch(() => null),
     poolB3TR: chain.poolB3TR,
     distributorAuthorized: chain.distributorAuthorized,
@@ -282,6 +300,58 @@ async function guardPayout(keys) {
   }
   return { release: async () => { for (const t of taken) await store.releaseOnce(t); } };
 }
+// One photo pays once. The hash list in the state blob already says so, but each
+// process reads its own copy — during a deploy's overlap the same photo sent to
+// both for two wallets passed both. Thirty days covers any overlap; the blob's
+// list keeps refusing it after that.
+const photoPayoutKey = (hash) => [`photo:${hash}`, 30 * DAY_MS, "duplicate photo — each submission needs a fresh photo"];
+
+// Paid photo checks (AI authenticity, Claude OCR) per wallet and in all, per day.
+// A failed attempt uses nothing up — no photo, no cooldown — so without a count
+// one wallet could send the same photo all day and run up the API bill. Counted
+// per submission that reaches the checks, whether or not any check is configured
+// (the count is cheap, and the limits are far above what a person sends).
+const PHOTO_CHECKS_PER_WALLET = Number(process.env.PHOTO_CHECKS_PER_WALLET_DAY || 15);
+const PHOTO_CHECKS_PER_DAY = Number(process.env.PHOTO_CHECKS_PER_DAY || 2000);
+const photoChecks = { day: "", total: 0, byWallet: new Map() };
+function photoCheckBudget(addr) {
+  const day = new Date().toISOString().slice(0, 10);
+  if (photoChecks.day !== day) { photoChecks.day = day; photoChecks.total = 0; photoChecks.byWallet.clear(); }
+  const a = String(addr || "").toLowerCase();
+  const mine = photoChecks.byWallet.get(a) || 0;
+  if (PHOTO_CHECKS_PER_WALLET > 0 && mine >= PHOTO_CHECKS_PER_WALLET) return "too many photo attempts today — try again tomorrow";
+  if (PHOTO_CHECKS_PER_DAY > 0 && photoChecks.total >= PHOTO_CHECKS_PER_DAY) return "the photo check has reached today's limit — please try again tomorrow";
+  photoChecks.byWallet.set(a, mine + 1);
+  photoChecks.total++;
+  return null;
+}
+
+// Payouts between "sent" and "recorded". Shutdown waits for these to finish:
+// cut off in between, the B3TR is gone and the record of it is not.
+let payoutsInFlight = 0;
+async function trackPayout(p) {
+  payoutsInFlight++;
+  try { return await p; } finally { payoutsInFlight--; }
+}
+
+// Error text can carry the gas-sponsor URL (the VeChain SDK puts it in its
+// messages) or a node URL with a provider key in it. Neither belongs in a log
+// line or in an answer.
+const SECRET_URLS = [process.env.DELEGATION_URL, process.env.NODE_URL].map((u) => String(u || "").trim())
+  .filter((u) => u.length > 8 && !/^https:\/\/(mainnet|testnet)\.vechain\.org\/?$/.test(u));
+function scrub(msg) {
+  let s = String(msg ?? "");
+  for (const u of SECRET_URLS) s = s.split(u).join("[url]");
+  return s;
+}
+// Every log line goes through it, so no single forgotten call site can leak.
+if (SECRET_URLS.length) {
+  for (const k of ["log", "warn", "error"]) {
+    const orig = console[k].bind(console);
+    console[k] = (...args) => orig(...args.map((x) => (typeof x === "string" ? scrub(x) : x instanceof Error ? scrub(x.stack || x.message) : x)));
+  }
+}
+
 const meterPayoutKeys = (addr, utility, meterNo, reading) => [
   ...(COOLDOWN_MS > 0 ? [[`cool:${String(addr).toLowerCase()}:${utility}`, COOLDOWN_MS, "cooldown active — this meter was already paid recently"]] : []),
   [`read:${utility}:${String(meterNo).trim().toLowerCase()}:${Number(reading)}`, 60 * DAY_MS, "this reading has already been paid"],
@@ -367,10 +437,11 @@ function backfillPasses() {
   let granted = 0;
   for (const w of known) {
     if (w.banned) continue;   // a blocked wallet shouldn't be handed a pass on the way in
-    // Only wallets that actually did something: own a meter (were paid for one),
-    // paired a reader, or claimed an eco bonus. "Seen" alone is an unauthenticated POST anyone can make for
-    // any address, so it would hand out passes to made-up wallets.
-    if (!w.hasMeter && !w.paired && !w.hasEco) continue;
+    // Only wallets that were paid: own a meter or claimed an eco bonus. "Seen" alone
+    // is an unauthenticated POST anyone can make for any address, and pairing a
+    // reader needs no more than a self-signed certificate — both would hand out
+    // passes to made-up wallets.
+    if (!w.hasMeter && !w.hasEco) continue;
     store.grantPass(w.address, { tier: "tester", note: "grandfathered when passes were enabled" });
     granted++;
   }
@@ -462,6 +533,11 @@ async function verifyAdmin(req, path) {
   if (path && !String(cert?.payload?.content || "").includes(canonicalAdminAction(path, req.body))) {
     return { ok: false, code: 401, error: "certificate does not authorise this action" };
   }
+  // ...on THIS network. Each server keeps its own list of used certificates, so one
+  // signed to open testnet up was accepted once by mainnet as well.
+  if (!certSays(String(cert?.payload?.content || ""), `Network: ${NETWORK}`)) {
+    return { ok: false, code: 401, error: `certificate was not signed for ${NETWORK} — reload the app and sign again` };
+  }
   // ...and be single-use (defence against replay within the freshness window).
   const spent = await spendCert(cert);
   if (spent === null) return { ok: false, code: 503, error: "the server can't check this signature right now — please try again in a minute" };
@@ -475,7 +551,20 @@ const shortAddr = (a) => { const s = String(a || ""); return s.length > 12 ? `${
 // Device recognition (device.js). Runs after the wallet signature, so only a wallet
 // that proved itself is ever recorded against a device. Returns an error to refuse
 // with, or null; what is only worth an admin's look goes into `flags`.
-function deviceGate(addr, device, flags) {
+// A payout went through for this wallet on this phone: its slot is kept even if
+// another attempt from the same phone, running at the same time, then fails.
+const deviceConfirmed = new Set();
+function confirmDevice(addr, device) {
+  const a = String(addr).toLowerCase();
+  const { install, fp } = deviceKeys(device);
+  if (install) deviceConfirmed.add(`${install}|${a}`);
+  if (fp) deviceConfirmed.add(`${fp}|${a}`);
+  if (deviceConfirmed.size > 20000) deviceConfirmed.clear();
+}
+// `undo` collects what to take back when the attempt pays nothing: a wallet newly
+// recorded on a phone keeps that phone's slot, so one refused try with the wrong
+// wallet used to lock the right one out for good.
+function deviceGate(addr, device, flags, undo = []) {
   const a = String(addr).toLowerCase();
   if (isAdminWallet(a)) return null;          // admins test with several wallets
   const { install, fp } = deviceKeys(device);
@@ -483,9 +572,12 @@ function deviceGate(addr, device, flags) {
     if (REQUIRE_DEVICE) return "the app didn't say which phone this is — reload the app and try again";
     flags.push("the app sent no device id");
   } else {
+    const isNew = !store.deviceWallets(install).includes(a);
     const w = store.linkDevice(install, a);
+    if (isNew && w.includes(a)) undo.push(() => { if (!deviceConfirmed.has(`${install}|${a}`)) store.unlinkDevice(install, a); });
     const pos = w.indexOf(a);
     if (DEVICE_MAX_WALLETS > 0 && (pos === -1 || pos >= DEVICE_MAX_WALLETS)) {
+      for (const u of undo.splice(0)) u();
       store.addFlag(`device-${a.slice(2, 10)}-${Date.now()}`, a,
         `refused: this phone was already used by ${w.filter((x) => x !== a).map(shortAddr).join(", ")}`);
       return `this phone is already used by ${DEVICE_MAX_WALLETS} other wallet${DEVICE_MAX_WALLETS === 1 ? "" : "s"} — one person, one wallet`;
@@ -494,7 +586,10 @@ function deviceGate(addr, device, flags) {
     if (others.length) flags.push(`phone shared with ${others.map(shortAddr).join(", ")}`);
   }
   if (fp && DEVICE_FP_FLAG > 0) {
-    const others = store.linkDevice(fp, a).filter((x) => x !== a);
+    const isNew = !store.deviceWallets(fp).includes(a);
+    const w = store.linkDevice(fp, a);
+    if (isNew && w.includes(a)) undo.push(() => { if (!deviceConfirmed.has(`${fp}|${a}`)) store.unlinkDevice(fp, a); });
+    const others = w.filter((x) => x !== a);
     if (others.length >= DEVICE_FP_FLAG) flags.push(`same device fingerprint as ${others.length} other wallets`);
   }
   return null;
@@ -584,6 +679,11 @@ app.post("/admin/set-baseline", async (req, res) => {
   }
   store.setLastReading(utility, meterKey, reading);
   if (isAddr(target)) store.bindMeter(utility, meterKey, target.toLowerCase());
+  // A baseline set by hand has no photo behind it. Without a photo date the
+  // automatic payouts treated the meter as one from before the photo rule and
+  // started its clock now: thirty days of readers' numbers with no photo ever.
+  // Due at once instead, so the first automatic payout waits for a photo.
+  if (store.photoAt(utility, meterKey) == null && AUTO_PHOTO_EVERY_MS > 0) store.setPhotoAt(utility, meterKey, Date.now() - AUTO_PHOTO_EVERY_MS - 1);
   res.json({ ok: true, meterNo: meterKey, utility, baseline: reading, owner: store.meterOwner(utility, meterKey) });
 });
 
@@ -695,7 +795,7 @@ app.post("/admin/signal", async (req, res) => {
     console.log(`[admin] signalled ${shortAddr(target)} by ${shortAddr(a.addr)}`);
     res.json({ ok: true, txid, targetWallet: target.toLowerCase() });
   } catch (e) {
-    const msg = e?.message || String(e);
+    const msg = scrub(e?.message || String(e));
     console.error("[/admin/signal]", msg);
     // The revert reason is the whole diagnostic here ("not authorised to signal"),
     // so pass it through instead of flattening it to a generic 502.
@@ -904,21 +1004,22 @@ app.post("/reward", async (req, res) => {
   }
 
   // 1c) One phone, many wallets (device.js).
-  const deviceFlags = [];
-  { const refuse = deviceGate(req.body.address, req.body.device, deviceFlags); if (refuse) return res.status(403).json({ error: refuse, device: true }); }
+  const deviceFlags = [], deviceUndo = [];
+  { const refuse = deviceGate(req.body.address, req.body.device, deviceFlags, deviceUndo); if (refuse) return res.status(403).json({ error: refuse, device: true }); }
 
   // Claim the in-flight lock SYNCHRONOUSLY, before any await, or two concurrent
   // requests both pass the has() check and double-pay (TOCTOU). Everything after
   // runs in the try so every early return still releases the lock in finally.
   const lockKey = `${String(req.body.address).toLowerCase()}:${req.body.utility}`;
-  if (inFlight.has(lockKey)) return res.status(429).json({ error: "a submission for this meter is already processing" });
+  if (inFlight.has(lockKey)) { for (const u of deviceUndo) u(); return res.status(429).json({ error: "a submission for this meter is already processing" }); }
   inFlight.add(lockKey);
   let photo = null, committed = false, guard = null;
   try {
+    { const busy = photoCheckBudget(req.body.address); if (busy) return res.status(429).json({ error: busy }); }
     // 2) Photo check — real image, not a reused one (and optional OCR match). This
     // reserves the photo hash immediately; the finally rolls it back unless we pay.
     photo = await verifyPhoto({ imageBase64: req.body.photo, reading: req.body.reading, registers, ocr: OCR_ENABLED, mime: req.body.photoMime });
-    if (!photo.ok) return res.status(400).json({ error: photo.error });
+    if (!photo.ok) return res.status(photo.unavailable ? 503 : 400).json({ error: photo.error });
 
     // 2b) AI authenticity — reject doctored / screenshotted / watermarked / hand-drawn
     // photos before issuing a reward. No-op (allows) when ANTHROPIC_API_KEY is unset.
@@ -965,6 +1066,7 @@ app.post("/reward", async (req, res) => {
 
     // 2d) One real meter photographed for several wallets (media.js photoPrint).
     const print = await photoPrint(req.body.photo);
+    if (print === false) return res.status(400).json({ error: "this photo can't be read — please take it again in the app" });
     {
       const near = nearestPrintFromOtherWallet(print, req.body.address, "meter");
       if (near && near.d <= PRINT_REFUSE) {
@@ -979,9 +1081,12 @@ app.post("/reward", async (req, res) => {
     // baseline (only on success).
     const pay = await scaledAmount(v.amount);
     if (pay.error) return res.status(503).json({ error: pay.error, budget: true });
-    guard = await guardPayout(meterPayoutKeys(req.body.address, req.body.utility, req.body.meterNo, req.body.reading));
+    // The checks above can take a minute or two. A shutdown or a failed save that
+    // began meanwhile must stop the payout here, before anything is sent.
+    if (shuttingDown || !store.ready()) return res.status(503).json({ error: shuttingDown ? "the server is restarting — nothing was used up, please try again in a minute" : notReadyMessage() });
+    guard = await guardPayout([...meterPayoutKeys(req.body.address, req.body.utility, req.body.meterNo, req.body.reading), photoPayoutKey(photo.hash)]);
     if (guard.error) { const g = guard; guard = null; return res.status(g.code).json({ error: g.error }); }
-    const txid = await distributeReward({
+    const txid = await trackPayout(distributeReward({
       utility:  req.body.utility,
       meterNo:  req.body.meterNo,
       reading:  req.body.reading,
@@ -991,13 +1096,16 @@ app.post("/reward", async (req, res) => {
       receiver: req.body.address,
       source:   "photo",
       noImpact: !!(v.firstReading || v.nearZero),
-    });
+    }));
+    // Paid from here on, whatever happens next: a throw in the bookkeeping below must
+    // not release the photo and guard keys and tell the user "nothing was used up".
+    committed = true;
+    confirmDevice(req.body.address, req.body.device);
     v.markPaid();
     store.setPhotoAt(req.body.utility, String(req.body.meterNo).trim().toLowerCase());
     if (regSeen) store.setMeterRegs(req.body.utility, String(req.body.meterNo).trim().toLowerCase(), registers, regSeen);
     recordPayout(v.amount);
     store.addPrint(req.body.address, "meter", print);
-    committed = true; // payout landed — keep the reserved photo hash + committed cooldown
     // Make the anti-farming state (cooldown, burnt hash, baseline) durable BEFORE
     // responding, so a hard crash in the debounce window can't replay this payout.
     await store.flush();
@@ -1034,13 +1142,18 @@ app.post("/reward", async (req, res) => {
     }
     res.json({ txid, amount: pay.amount, fullAmount: v.amount, factor: pay.factor, flagged: reasons.length > 0 });
   } catch (e) {
-    console.error("[/reward]", e?.message || e);
-    res.status(502).json({ error: e?.public ? e.message : "the payout couldn't be completed — nothing was used up, please try again later" });
+    console.error("[/reward]", scrub(e?.message || e));
+    if (!res.headersSent) {
+      res.status(502).json({ error: committed
+        ? "the reward was sent, but recording it hit a problem — check your wallet before trying again"
+        : e?.public ? e.message : "the payout couldn't be completed — nothing was used up, please try again later" });
+    }
   } finally {
     // Release the photo reservation if we didn't actually pay, so a failed payout
     // doesn't permanently burn the user's photo.
     if (!committed && photo?.ok) photo.unreserve();
     if (!committed && guard?.release) await guard.release();
+    if (!committed) for (const u of deviceUndo) u();
     inFlight.delete(lockKey);
   }
 });
@@ -1070,28 +1183,31 @@ app.post("/eco-action", async (req, res) => {
     const c = await requireBoundCert(req, ["confirm eco-mode bonus", `Appliance: ${appliance}`]);
     if (!c.ok) return res.status(c.code).json({ error: c.error });
   }
-  const deviceFlags = [];
-  { const refuse = deviceGate(addr, req.body.device, deviceFlags); if (refuse) return res.status(403).json({ error: refuse, device: true }); }
+  const deviceFlags = [], deviceUndo = [];
+  { const refuse = deviceGate(addr, req.body.device, deviceFlags, deviceUndo); if (refuse) return res.status(403).json({ error: refuse, device: true }); }
 
   // Two limits: max ECO_MAX_PER_WEEK per CALENDAR week (Mon–Sun, resets Monday
   // morning) and at least ECO_COOLDOWN_MS (24h) between two claims.
   const claims = store.ecoClaims(addr);
   const thisWeek = claims.filter((t) => ecoWeekKey(t) === ecoWeekKey());
   if (thisWeek.length >= ECO_MAX_PER_WEEK) {
+    for (const u of deviceUndo) u();
     return res.status(429).json({ error: `eco-bonus limit reached (${ECO_MAX_PER_WEEK} per week) — resets Monday` });
   }
   const last = claims.reduce((a, t) => Math.max(a, t), 0);
   const wait = ECO_COOLDOWN_MS - (Date.now() - last);
   if (last && wait > 0) {
+    for (const u of deviceUndo) u();
     return res.status(429).json({ error: `eco cooldown active — next claim in ~${Math.ceil(wait / 3600000)}h` });
   }
 
   // Claim the lock synchronously before any await (same TOCTOU fix as /reward).
   const lockKey = `${addr}:eco`;
-  if (inFlight.has(lockKey)) return res.status(429).json({ error: "an eco submission is already processing" });
+  if (inFlight.has(lockKey)) { for (const u of deviceUndo) u(); return res.status(429).json({ error: "an eco submission is already processing" }); }
   inFlight.add(lockKey);
   let photo = null, committed = false, guard = null;
   try {
+    { const busy = photoCheckBudget(addr); if (busy) return res.status(429).json({ error: busy }); }
     // Real image + never paid for before (reserved here). No OCR — no reading to match.
     photo = await verifyPhoto({ imageBase64: req.body.photo, ocr: false, mime: req.body.photoMime });
     if (!photo.ok) return res.status(400).json({ error: photo.error });
@@ -1103,6 +1219,7 @@ app.post("/eco-action", async (req, res) => {
 
     // The same appliance photographed for several wallets.
     const print = await photoPrint(req.body.photo);
+    if (print === false) return res.status(400).json({ error: "this photo can't be read — please take it again in the app" });
     const near = nearestPrintFromOtherWallet(print, req.body.address, "eco");
     if (near && near.d <= PRINT_REFUSE) {
       store.addFlag(`sybil-${addr.slice(2, 10)}-${Date.now()}`, req.body.address,
@@ -1112,9 +1229,12 @@ app.post("/eco-action", async (req, res) => {
 
     const pay = await scaledAmount(ECO_REWARD);
     if (pay.error) return res.status(503).json({ error: pay.error, budget: true });
-    guard = await guardPayout([[`eco:${addr}`, ECO_COOLDOWN_MS, "eco cooldown active — one eco bonus per 24 hours"]]);
+    if (shuttingDown || !store.ready()) return res.status(503).json({ error: shuttingDown ? "the server is restarting — nothing was used up, please try again in a minute" : notReadyMessage() });
+    guard = await guardPayout([[`eco:${addr}`, ECO_COOLDOWN_MS, "eco cooldown active — one eco bonus per 24 hours"], photoPayoutKey(photo.hash)]);
     if (guard.error) { const g = guard; guard = null; return res.status(g.code).json({ error: g.error }); }
-    const txid = await distributeEcoReward({ appliance, amount: pay.amount, receiver: req.body.address });
+    const txid = await trackPayout(distributeEcoReward({ appliance, amount: pay.amount, receiver: req.body.address }));
+    committed = true; // paid: see /reward
+    confirmDevice(addr, req.body.device);
     store.addEcoClaim(addr, Date.now());
     recordPayout(ECO_REWARD);
     store.addPrint(req.body.address, "eco", print);
@@ -1122,16 +1242,20 @@ app.post("/eco-action", async (req, res) => {
     if (ecoFlags.length) {
       try { store.addFlag(txid, req.body.address, ecoFlags.join("; ")); } catch {}
     }
-    committed = true; // payout landed — keep the reserved photo hash + recorded claim
     await store.flush(); // make the claim + burnt hash durable before responding
     archivePhoto(txid, req.body.photo, req.body.photoMime, req.body.address);
     res.json({ txid, amount: pay.amount, fullAmount: ECO_REWARD, factor: pay.factor, remaining: ECO_MAX_PER_WEEK - thisWeek.length - 1 });
   } catch (e) {
-    console.error("[/eco-action]", e?.message || e);
-    res.status(502).json({ error: e?.public ? e.message : "the payout couldn't be completed — nothing was used up, please try again later" });
+    console.error("[/eco-action]", scrub(e?.message || e));
+    if (!res.headersSent) {
+      res.status(502).json({ error: committed
+        ? "the reward was sent, but recording it hit a problem — check your wallet before trying again"
+        : e?.public ? e.message : "the payout couldn't be completed — nothing was used up, please try again later" });
+    }
   } finally {
     if (!committed && photo?.ok) photo.unreserve();
     if (!committed && guard?.release) await guard.release();
+    if (!committed) for (const u of deviceUndo) u();
     inFlight.delete(lockKey);
   }
 });
@@ -1165,10 +1289,10 @@ app.post("/meter/pair", async (req, res) => {
   }
   // Only a wallet that may earn can pair: every pairing is state the server keeps.
   { const pb = await passBlock(address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
-  const meterNo = String(req.body.meterNo || "").trim();
   // Remember which utility this meter is, so the scheduled auto-submit pays it at
   // the right rate/bounds/cooldown instead of always assuming electric.
   const utility = pickUtility(req.body.utility);
+  const meterNo = store.ownedSpelling(utility, String(req.body.meterNo || "").trim(), address);
   // A reader can only be paired to a meter that is yours, or nobody's yet. Without
   // this, anyone who knew a meter number could pair to it and push numbers against
   // someone else's baseline.
@@ -1246,6 +1370,7 @@ function forgetCloudLink(address, source) {
 // Powerfox right away, then stored sealed (powerfox.js) and used for nothing but
 // reading the meter. The account feeds an ordinary meter link, so everything a
 // reader's reading goes through (baseline, cooldown, bounds, payout) applies.
+const powerfoxLinking = new Set();
 app.post("/meter/powerfox/link", async (req, res) => {
   if (!powerfoxEnabled()) return res.status(503).json({ error: "the Powerfox connection isn't switched on for this server yet" });
   if (!store.loaded()) return res.status(503).json({ error: notReadyMessage() });
@@ -1263,18 +1388,32 @@ app.post("/meter/powerfox/link", async (req, res) => {
   if (!email || email.length > 200 || !password || password.length > 200) {
     return res.status(400).json({ error: "fill in the e-mail and password of your Powerfox account" });
   }
-  const meterNo = String(req.body.meterNo || "").trim();
+  const meterNo = store.ownedSpelling("electric", String(req.body.meterNo || "").trim(), address);
   if (!meterNo) return res.status(400).json({ error: "register your meter number first" });
   const owner = store.meterOwner("electric", meterNo.toLowerCase());
   if (owner && owner !== address.toLowerCase()) return res.status(403).json({ error: "this meter is registered to another wallet" });
 
   // One Powerfox account feeds one wallet, or a single login could pay many.
   const acct = createHash("sha256").update(`powerfox:${email.toLowerCase()}`).digest("hex").slice(0, 32);
-  if (store.allPowerfox().some((x) => x.acct === acct && x.address !== address.toLowerCase())) {
+  const takenByOther = () => store.allPowerfox().some((x) => x.acct === acct && x.address !== address.toLowerCase());
+  if (takenByOther()) {
     return res.status(409).json({ error: "this Powerfox account is already connected to another wallet" });
   }
-  const r = await fetchPowerfoxReading(email, password);
+  // The check above and the write below are a Powerfox round trip apart: two
+  // wallets linking one account at the same moment both passed. Reserved for the
+  // round trip (here, and in the storage every process shares), checked again after.
+  if (powerfoxLinking.has(acct)) return res.status(409).json({ error: "this Powerfox account is being connected right now — try again in a minute" });
+  powerfoxLinking.add(acct);
+  let r;
+  try {
+    const held = await store.takeOnce(`pfacct:${acct}`, 120000);
+    if (held !== true) return res.status(held === null ? 503 : 409).json({ error: "this Powerfox account is being connected right now — try again in a minute" });
+    try { r = await fetchPowerfoxReading(email, password); }
+    catch (e) { r = { ok: false, code: "unreachable", error: "couldn't reach Powerfox — please try again later" }; }
+    if (!r.ok) await store.releaseOnce(`pfacct:${acct}`);
+  } finally { powerfoxLinking.delete(acct); }
   if (!r.ok) return res.status(r.code === "unreachable" ? 503 : 400).json({ error: r.error, code: r.code });
+  if (takenByOther()) { await store.releaseOnce(`pfacct:${acct}`); return res.status(409).json({ error: "this Powerfox account is already connected to another wallet" }); }
 
   // The same meter link a P1 reader gets, so the app's status card, the payout on
   // arrival and the timer sweep all work unchanged.
@@ -1287,6 +1426,8 @@ app.post("/meter/powerfox/link", async (req, res) => {
   store.setPowerfox(address, { cred: sealCredentials(email, password), acct, token, linkedAt: Date.now(), lastPullAt: Date.now(), lastError: null });
   if (!r.outdated) store.setLinkReading(address, { reading: r.reading, meterNo, at: r.at, source: "powerfox" });
   await store.flush();
+  // Released once the link is stored where every process reads it.
+  await store.releaseOnce(`pfacct:${acct}`);
   console.log(`[powerfox] ${shortAddr(address)} linked`);
   res.json({ ok: true, token, reading: r.reading, at: r.at, outdated: r.outdated });
   if (AUTO_CLAIM_ON_PUSH && !r.outdated) setImmediate(() => { autoSettle({ token, ...link }, "powerfox").catch(() => {}); });
@@ -1326,7 +1467,7 @@ app.post("/meter/tibber/link", async (req, res) => {
   if (!/^[A-Za-z0-9._~+/=-]{20,400}$/.test(tibberToken)) {
     return res.status(400).json({ error: "paste the personal access token from developer.tibber.com" });
   }
-  const meterNo = String(req.body.meterNo || "").trim();
+  const meterNo = store.ownedSpelling("electric", String(req.body.meterNo || "").trim(), address);
   if (!meterNo) return res.status(400).json({ error: "register your meter number first" });
   const owner = store.meterOwner("electric", meterNo.toLowerCase());
   if (owner && owner !== address.toLowerCase()) return res.status(403).json({ error: "this meter is registered to another wallet" });
@@ -1649,9 +1790,10 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
   try {
     const pay = await scaledAmount(v.amount);
     if (pay.error) return { ok: false, code: 503, error: pay.error };
+    if (shuttingDown || !store.ready()) return { ok: false, code: 503, error: shuttingDown ? "the server is restarting — nothing was used up, please try again in a minute" : notReadyMessage() };
     guard = await guardPayout(meterPayoutKeys(addr, utility, meterNo, latest.reading));
     if (guard.error) { const g = guard; guard = null; return { ok: false, code: g.code, error: g.error }; }
-    const txid = await distributeReward({
+    const txid = await trackPayout(distributeReward({
       utility, meterNo,
       reading:  Number(latest.reading),
       prevRead: v.prev,
@@ -1661,9 +1803,9 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
       // "push" for a reader, "enode" for the API route; either way no photo exists.
       source:   latest.source || "reader",
       noImpact: !!(v.firstReading || v.nearZero),
-    });
-    v.markPaid();
+    }));
     paid = true;
+    v.markPaid();
     recordPayout(v.amount);
     if (v.nearZero) { try { store.addFlag(txid, addr, `${v.nearZero} (reader)`); } catch {} }
     // This pairing has now produced a real payout, which means its readings and the
@@ -1671,10 +1813,10 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
     // escape hatch exists for a starting point that was never comparable, not for
     // one that has already been used to pay.
     store.markAutoPaid(utility, meterNo.toLowerCase());
-    if (link?.token) {
-      const { token, ...rest } = link;
-      store.setMeterLink(token, { ...rest, autoPaidAt: Date.now(), lastPayout: { amount: pay.amount, txid, at: Date.now(), reading: Number(latest.reading) } });
-    }
+    // Read the link again: it may have been unpaired while the payout ran, and
+    // writing back the copy from before would bring a revoked device token back.
+    const cur = link?.token ? store.getMeterLink(link.token) : null;
+    if (cur) store.setMeterLink(link.token, { ...cur, autoPaidAt: Date.now(), lastPayout: { amount: pay.amount, txid, at: Date.now(), reading: Number(latest.reading) } });
     await store.flush(); // durable before returning, so a crash can't replay this reading
     return { ok: true, txid, amount: pay.amount, fullAmount: v.amount, factor: pay.factor, usage: v.usage, reading: Number(latest.reading), source: latest.source || "meter" };
   } finally {
@@ -1812,6 +1954,8 @@ app.post("/meter/fix-basis", async (req, res) => {
 
   const address = String(req.body.address || "");
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
+  // It runs the same paid photo checks as a payout, so the same people only.
+  { const pb = await passBlock(address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
   {
     const c = await requireBoundCert(req, ["reconcile tariff registers", `Meter: ${req.body.meterNo}`]);
     if (!c.ok) return res.status(c.code).json({ error: c.error });
@@ -1847,6 +1991,7 @@ app.post("/meter/fix-basis", async (req, res) => {
     return res.status(400).json({ error: `the registers add up to ${total}, which is not above the current starting point of ${prev} — nothing to reconcile` });
   }
 
+  { const busy = photoCheckBudget(address); if (busy) return res.status(429).json({ error: busy }); }
   let photo = null;
   try {
     // The photo carries the same weight as it does for a payout: it has to be a real,
@@ -2018,21 +2163,73 @@ if (PHOTO_RETENTION_MS > 0) {
   }, 60 * 60 * 1000);
 }
 
+// A number setting that doesn't read as a number turns its limit off without a
+// word: COOLDOWN_MS="20h" is NaN, and every comparison with NaN is false, so the
+// cooldown never applies. Refuse to start instead.
+{
+  const NUMERIC_ENV = ["COOLDOWN_MS", "MAX_REWARD", "MAX_PAYOUT_PER_SUBMISSION", "ECO_REWARD", "ECO_MAX_PER_WEEK",
+    "ECO_COOLDOWN_MS", "AUTO_PHOTO_EVERY_DAYS", "METER_MAX_AGE_MS", "DEVICE_MAX_WALLETS", "DEVICE_FP_FLAG",
+    "PHOTO_MAX_AGE_DAYS", "AI_PHOTO_MIN_CONFIDENCE", "PHOTO_LIKENESS_REFUSE", "PHOTO_LIKENESS_FLAG",
+    "CERT_MAX_AGE_MS", "OCR_DAILY_MAX", "OCR_DAILY_PER_IP", "BROADCAST_RETRY_MS", "REDIS_TIMEOUT_MS",
+    "BUDGET_POOL_B3TR", "BUDGET_WAITING_B3TR", "PHOTO_BODIES_MAX", "PHOTO_CHECKS_PER_WALLET_DAY", "PHOTO_CHECKS_PER_DAY"];
+  const bad = NUMERIC_ENV.filter((k) => String(process.env[k] ?? "").trim() !== "" && !Number.isFinite(Number(process.env[k])));
+  if (bad.length) {
+    console.error(`[boot] FATAL: these settings must be plain numbers: ${bad.map((k) => `${k}="${process.env[k]}"`).join(", ")}. Refusing to start.`);
+    process.exit(1);
+  }
+  // "Mainnet" or "main-net" fell back to testnet contracts AND skipped every guard below.
+  if (process.env.NETWORK && !["mainnet", "testnet"].includes(process.env.NETWORK)) {
+    console.error(`[boot] FATAL: NETWORK must be "mainnet" or "testnet", not "${process.env.NETWORK}". Refusing to start.`);
+    process.exit(1);
+  }
+}
+
 // Mainnet safety guards — fail closed on the config foot-guns the audit flagged.
 if (NETWORK === "mainnet") {
   if (!REQUIRE_CERT) {
     console.error("[boot] FATAL: NETWORK=mainnet requires REQUIRE_CERT=true (wallet-ownership proof). Refusing to start.");
     process.exit(1);
   }
+  // Without durable storage the records of what was paid live in this process: a
+  // restart, a wiped disk (Render's free plan, every deploy and every wake) or a
+  // deploy's two overlapping processes each pay the same reading again.
+  if (!store.isDurable()) {
+    console.error("[boot] FATAL: NETWORK=mainnet needs durable storage — set both UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN. Refusing to start.");
+    process.exit(1);
+  }
   // Without its own STATE_KEY, mainnet loads and writes the TESTNET state: every
   // tester's pass would earn real B3TR, and testnet readings would block mainnet
   // ones. The default key is testnet's, so it must be set, and say so.
-  if (process.env.UPSTASH_REDIS_REST_URL && !/mainnet/i.test(process.env.STATE_KEY || "")) {
+  if (!/mainnet/i.test(process.env.STATE_KEY || "")) {
     console.error("[boot] FATAL: NETWORK=mainnet needs STATE_KEY set to a mainnet key (e.g. greenutilitylog:mainnet). Refusing to start.");
     process.exit(1);
   }
-  if (!aiPhotoCheckEnabled() && !ocrEnabled()) {
-    console.warn("[boot] WARNING: mainnet with neither AI photo-authenticity nor OCR enabled — the photo layer adds little anti-fraud. Set ANTHROPIC_API_KEY or an OCR provider before real value flows.");
+  // Without a reading check the reading is whatever was typed: yesterday's number
+  // again is "no usage", the maximum, every day. Real B3TR needs the photo to say it.
+  if (readingCheckMode(ocrEnabled()) !== "strict") {
+    console.error("[boot] FATAL: NETWORK=mainnet needs the reading on the photo checked — set ANTHROPIC_API_KEY (or another OCR provider) and leave READING_CHECK unset or \"strict\". Refusing to start.");
+    process.exit(1);
+  }
+  if (!aiPhotoCheckEnabled()) {
+    console.warn("[boot] WARNING: mainnet without the AI photo check — doctored or screen photos are not refused. Set ANTHROPIC_API_KEY.");
+  }
+  if (!String(process.env.CERT_DOMAINS || "").trim()) {
+    console.warn("[boot] WARNING: mainnet without CERT_DOMAINS — signatures made on any website are accepted. Set it to the app's domain (see certDomains in /health).");
+  }
+  // NODE_URL pointing at another network than NETWORK: calls to contract addresses
+  // with no code there "succeed" and nothing is transferred, while every payout is
+  // recorded as paid. The node's genesis block says which chain it is.
+  if (!DRY_RUN) {
+    const MAINNET_GENESIS = "0x00000000851caf3cfdb6e899cf5958bfb1ac3413d346d43539627e6be7ec1b4a";
+    fetch(`${NODE_URL.replace(/\/$/, "")}/blocks/0`, { signal: AbortSignal.timeout(15000) })
+      .then((r) => r.json())
+      .then((b) => {
+        if (String(b?.id || "").toLowerCase() !== MAINNET_GENESIS) {
+          console.error(`[boot] FATAL: NETWORK=mainnet but the node at NODE_URL is on another chain (genesis ${b?.id}). Stopping.`);
+          process.exit(1);
+        }
+      })
+      .catch((e) => console.warn("[boot] could not read the node's genesis block to confirm it is mainnet:", e?.message || e));
   }
   if (ALLOWED_ORIGINS.includes("*")) {
     console.warn("[boot] WARNING: mainnet with ALLOWED_ORIGIN='*' — lock it to your exact frontend origin.");
@@ -2065,6 +2262,9 @@ const server = app.listen(PORT, () => {
   // would issue passes against empty state and then persist that over the real data.
   setTimeout(backfillPasses, 2000).unref?.();
 });
+// A request has two minutes to arrive in full (Node's default is five): a body
+// dripped in a byte at a time held a photo slot for all of that.
+server.requestTimeout = 120000;
 
 // Graceful shutdown: a redeploy/scale-down sends SIGTERM. Flush any debounced
 // anti-farming state (cooldowns, burnt photo hashes, baselines) before exiting so a
@@ -2073,12 +2273,23 @@ const server = app.listen(PORT, () => {
 // From the signal on no new payout starts (requests get 503, timers stop), the
 // ones under way can finish and are saved once more after the server closes, all
 // within 25 s — a payout broadcast but not saved before the kill lost its record.
+// A payout already sent must be recorded before the process goes: the receipt
+// wait alone can take 30 s, and the old fixed 25 s cut payouts off between "sent"
+// and "saved" — the B3TR left, the record of it did not. New payouts stop at the
+// signal (shuttingDown is checked again right before each one is sent); the ones
+// in flight are waited for, up to SHUTDOWN_MAX_MS (Render's maxShutdownDelaySeconds
+// in render.yaml must be longer).
+const SHUTDOWN_MAX_MS = 100000;
 async function shutdown(sig) {
   if (shuttingDown) return;
   shuttingDown = true;
-  console.log(`[shutdown] ${sig} — flushing state…`);
-  setTimeout(() => process.exit(0), 25000).unref();
+  console.log(`[shutdown] ${sig} — finishing ${payoutsInFlight} payout(s) in flight, then flushing state…`);
+  setTimeout(() => {
+    console.error(`[shutdown] gave up waiting with ${payoutsInFlight} payout(s) still in flight`);
+    process.exit(0);
+  }, SHUTDOWN_MAX_MS).unref();
   try { await store.flush(); } catch (e) { console.error("[shutdown] flush failed:", e?.message || e); }
+  while (payoutsInFlight > 0) await new Promise((r) => setTimeout(r, 200));
   server.close(async () => {
     try { await store.flush(); } catch (e) { console.error("[shutdown] last flush failed:", e?.message || e); }
     process.exit(0);

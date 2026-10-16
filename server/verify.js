@@ -22,6 +22,9 @@ export function validateSubmission(body) {
   // physical meter being farmed from several accounts.
   const owner = store.meterOwner(utility, meterKey);
   if (owner && owner !== addr) return { ok: false, error: "this meter is registered to another wallet" };
+  if (!owner && store.meterOverlapOwner(utility, meterKey, addr)) {
+    return { ok: false, error: "this meter number overlaps one registered to another wallet — check the full number on your meter" };
+  }
 
   // Number(), not parseFloat(): "1000x" is not a reading.
   const r = typeof reading === "number" || typeof reading === "string" ? Number(reading) : NaN;

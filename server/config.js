@@ -209,7 +209,13 @@ export const isBanned = (addr) => BANNED_ADDRESSES.has(String(addr || "").toLowe
 export const REQUIRE_PASS = !/^(0|false|no|off)$/i.test(String(process.env.REQUIRE_PASS || "").trim());
 // A wallet VeBetterDAO's passport considers a person needs no pass: that is the
 // ecosystem's own sybil check, and real VeBetter users get in without waiting.
-export const PASSPORT_GRANTS_ACCESS = !/^(0|false|no|off)$/i.test(String(process.env.PASSPORT_GRANTS_ACCESS || "").trim());
+// Off by default on mainnet: a passport can be delegated from wallet to wallet, so
+// one person could bring several in one after the other; there an admin's pass is
+// the way in unless PASSPORT_GRANTS_ACCESS=true is set on purpose.
+const passportRaw = String(process.env.PASSPORT_GRANTS_ACCESS || "").trim();
+export const PASSPORT_GRANTS_ACCESS = passportRaw
+  ? !/^(0|false|no|off)$/i.test(passportRaw)
+  : NETWORK !== "mainnet";
 
 // Cloudflare Turnstile (anti-bot captcha). Set TURNSTILE_SECRET to require a
 // valid captcha token on /reward; leave empty to disable the check.

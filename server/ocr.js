@@ -63,7 +63,8 @@ async function roboflowOcr(content) {
       .map((p) => String(p.class ?? "").replace(/[^0-9.]/g, ""))
       .join("");
     if (!text) return null;
-    return { text, numbers: numbersFromText(text) };
+    // A digit detector reads the display and nothing else, so all of it is the display.
+    return { text, numbers: numbersFromText(text), display: numbersFromText(text) };
   }
 }
 
@@ -82,7 +83,7 @@ async function customOcr(content) {
     const numbers = Array.isArray(data.numbers) ? data.numbers.map(Number).filter(Number.isFinite) : null;
     const text = data.text || data.reading || (numbers ? numbers.join(" ") : "");
     if (!text && !(numbers && numbers.length)) return null;
-    return { text: String(text), numbers: numbers || numbersFromText(text) };
+    return { text: String(text), numbers: numbers || numbersFromText(text), ...(data.reading ? { display: numbersFromText(String(data.reading)) } : {}) };
   }
 }
 
@@ -142,7 +143,10 @@ async function claudeOcr(content) {
   // Reading FIRST so pickMeterReading/autofill prefers it over serials etc.
   const rest = (Array.isArray(out.all_numbers) ? out.all_numbers : []).map(String);
   const all = [reading, ...rest].join(" ");
-  return { text: all, numbers: numbersFromText(all) };
+  // `display` is the meter reading alone. The typed reading is matched against it,
+  // never against all_numbers: those are serials, 230 V, 50 Hz, "1.8.0", years —
+  // claim one of them and the check passed.
+  return { text: all, numbers: numbersFromText(all), display: numbersFromText(reading) };
 }
 
 const RUNNERS = { roboflow: roboflowOcr, custom: customOcr, vision: visionOcr, claude: claudeOcr };
