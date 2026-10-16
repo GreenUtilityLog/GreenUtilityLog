@@ -62,7 +62,10 @@ jobs:
           waiting = (h.get("rewardBudget") or {}).get("waitingB3TR") or 0
           if waiting > 0: warn(f"{waiting} B3TR is waiting to be moved into the rewards pool: the app admin presses \"Move to rewards pool\"")
 
-          pool = h.get("poolB3TR")
+          # The pot payouts come from: with VeBetterDAO's rewards-pool feature on
+          # (every new app) that is the rewards pool, not the app's available funds.
+          pool = (h.get("rewardBudget") or {}).get("poolB3TR")
+          if pool is None: pool = h.get("rewardsPoolB3TR") if h.get("rewardsPoolEnabled") else h.get("poolB3TR")
           if pool is None: warn("could not read the B3TR pot from the chain")
           elif pool <= 0: err("the B3TR pot is empty: every payout is refused until the next round")
           elif pool < float(os.environ["POOL_WARN"]): warn(f"the B3TR pot is low: {pool} B3TR left")
