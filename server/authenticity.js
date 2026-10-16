@@ -15,9 +15,10 @@ import Anthropic from "@anthropic-ai/sdk";
 import { toApiImage } from "./apiimage.js";
 
 const API_KEY = (process.env.ANTHROPIC_API_KEY || "").trim();
-// Default to the most capable model. Set AI_PHOTO_MODEL=claude-haiku-4-5 to trade
-// some accuracy for much lower cost per check.
-const MODEL = (process.env.AI_PHOTO_MODEL || "claude-opus-4-8").trim();
+// Default to the cheap model: a fraction of a cent per check, so a small app can
+// afford to check every photo. Set AI_PHOTO_MODEL=claude-sonnet-5-5 (or an Opus) to
+// spot better-made fakes at a few cents per check.
+const MODEL = (process.env.AI_PHOTO_MODEL || "claude-haiku-5-5").trim();
 // Reject a payout only when a "bad" verdict carries at least this confidence.
 const MIN_CONFIDENCE = Number(process.env.AI_PHOTO_MIN_CONFIDENCE || "0.6");
 
@@ -25,6 +26,7 @@ const MIN_CONFIDENCE = Number(process.env.AI_PHOTO_MIN_CONFIDENCE || "0.6");
 const client = API_KEY ? new Anthropic({ apiKey: API_KEY, timeout: 45000, maxRetries: 1 }) : null;
 export const aiPhotoCheckEnabled = () => !!client;
 
+const LABELS = ["clean", "doctored_unrealistic", "screen_capture", "watermarked", "handdrawn", "multiple_flags", "inconclusive"];
 // Labels that should block a reward when confident enough.
 const BAD_LABELS = new Set([
   "doctored_unrealistic",
@@ -50,10 +52,7 @@ const SCHEMA = {
     watermark_text:              { type: "string" },
     painted_text_score:          { type: "number" },
     painted_text_reasons:        { type: "array", items: { type: "string" } },
-    final_label: {
-      type: "string",
-      enum: ["clean", "doctored_unrealistic", "screen_capture", "watermarked", "handdrawn", "multiple_flags", "inconclusive"],
-    },
+    final_label: { type: "string", enum: LABELS },
     final_confidence:            { type: "number" },
   },
   required: [
@@ -135,8 +134,13 @@ export async function checkPhotoAuthenticity(imageBase64, detectedMime = "") {
         },
       ],
     });
+    // A declined or cut-off answer carries no verdict. Reading it as "{}" used to
+    // mean "no bad label", i.e. paid unchecked — so anything short of a complete
+    // answer with a known label counts as the check not having run.
+    if (resp.stop_reason !== "end_turn") throw new Error(`no verdict (stop_reason ${resp.stop_reason})`);
     const text = resp.content.find((b) => b.type === "text")?.text || "{}";
     verdict = JSON.parse(text);
+    if (!LABELS.includes(verdict?.final_label)) throw new Error(`no verdict (label ${JSON.stringify(verdict?.final_label)})`);
   } catch (e) {
     console.warn(`[authenticity] check failed, submission refused: ${e?.message || e}`);
     return { ok: false, unavailable: true, reason: "the photo check is unavailable right now — nothing was used up, please try again in a few minutes" };

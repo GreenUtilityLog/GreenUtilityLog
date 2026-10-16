@@ -57,7 +57,7 @@ Render → **New → Web Service** → deze repository.
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | van een **nieuwe, eigen** Upstash-database voor mainnet — niet die van testnet (zie hieronder) |
 | `STATE_KEY` | `greenutilitylog:mainnet` — **verplicht**: houdt test- en echte gegevens gescheiden; zonder "mainnet" in de sleutel weigert de mainnet-server te starten |
 | `ALLOWED_ORIGIN` | `https://greenutilitylog.github.io` |
-| `ANTHROPIC_API_KEY` | sterk aangeraden: controle stand + meternummer op de foto |
+| `ANTHROPIC_API_KEY` | sterk aangeraden: controleert of de foto echt is en of stand + meternummer erop staan. Standaard met het goedkope model `claude-haiku-5-5` (fractie van een cent per foto). Koop $5 tegoed op console.anthropic.com en zet bij **Limits** een maandlimiet (bijv. $10) |
 | `MAX_PAYOUT_PER_SUBMISSION` | `1` voor de eerste week (veilige start), daarna weghalen (= 4) |
 | `ECO_REWARD` | `1` voor de eerste week, daarna weghalen (= 2) |
 | `REQUIRE_PASS` | niet invullen (staat standaard aan): alleen wallets met een pas worden uitbetaald |

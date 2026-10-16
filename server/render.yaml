@@ -34,7 +34,9 @@ services:
         sync: false
       # AI photo-authenticity check (optional). Set ANTHROPIC_API_KEY to enable a
       # Claude vision check that rejects doctored/screenshot/watermarked/hand-drawn
-      # meter photos before paying out. Costs Anthropic API usage per submission.
+      # meter photos before paying out. Costs Anthropic API usage per submission:
+      # a fraction of a cent on the default claude-haiku-5-5 (AI_PHOTO_MODEL and
+      # OCR_CLAUDE_MODEL pick another model).
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: AI_PHOTO_MODEL
