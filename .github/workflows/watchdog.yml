@@ -1,0 +1,95 @@
+# Daily check that the reward server can actually pay. Every problem it finds
+# fails the run with a ::error:: line, so a red run here means "look now"; a
+# ::warning:: is something to deal with this week. The last step prints a
+# snapshot of the numbers, which the weekly X-post draft reads as its source.
+#
+# The wake job (wake.yml) only reports "server did not answer" and stays green;
+# this is the job that turns a quiet failure into a visible one.
+name: Server watchdog
+on:
+  schedule:
+    - cron: "7 5 * * *"
+  workflow_dispatch:
+permissions: {}
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Add the mainnet server here once it exists.
+        server: ["https://greenutilitylog-rewards.onrender.com"]
+    steps:
+      - name: Fetch /health
+        env:
+          SERVER: ${{ matrix.server }}
+        run: |
+          # A sleeping free-plan server takes up to a minute to start; give it
+          # three tries before calling it down.
+          for i in 1 2 3; do
+            if curl -fsS --max-time 120 "$SERVER/health" -o health.json; then exit 0; fi
+            sleep 20
+          done
+          echo "::error::$SERVER/health did not answer after 3 tries"
+          exit 1
+
+      - name: Check what payouts depend on
+        env:
+          SERVER: ${{ matrix.server }}
+          # Below this the distributor can no longer pay gas for a payout.
+          VTHO_ERROR: "50"
+          VTHO_WARN: "300"
+          # This week's pot; below this the app starts refusing payouts soon.
+          POOL_WARN: "25"
+        run: |
+          python3 - <<'EOF'
+          import json, os, urllib.request
+          h = json.load(open("health.json"))
+          errors, warnings = [], []
+          def err(m): errors.append(m)
+          def warn(m): warnings.append(m)
+
+          if h.get("storeReady") is not True: err("storage not loaded (storeReady is not true): payouts are refused")
+          if h.get("storeSaving") is False: err("last save to storage failed (storeSaving false): payouts paused")
+          if h.get("durableState") is False: err("no durable storage configured: a restart forgets everything")
+          if h.get("dryRun"): warn("DRY_RUN is on: nothing is actually paid")
+          if h.get("distributorAuthorized") is False: err("the distributor wallet lost its reward-distributor role")
+          if h.get("distributorAuthorized") is None: warn("could not read the distributor role from the chain")
+          if h.get("distributionPaused") is True: err("reward distribution is paused on VeBetterDAO")
+          if h.get("rewardsPoolEnabled") is True: warn("rewards pool mode is on: check the pot was moved")
+
+          pool = h.get("poolB3TR")
+          if pool is None: warn("could not read the B3TR pot from the chain")
+          elif pool <= 0: err("the B3TR pot is empty: every payout is refused until the next round")
+          elif pool < float(os.environ["POOL_WARN"]): warn(f"the B3TR pot is low: {pool} B3TR left")
+
+          vtho = None
+          addr, node = h.get("distributor"), h.get("node")
+          if addr and node and not h.get("delegation"):
+            try:
+              acct = json.load(urllib.request.urlopen(f"{node.rstrip('/')}/accounts/{addr}", timeout=30))
+              vtho = int(acct["energy"], 16) / 1e18
+              if vtho < float(os.environ["VTHO_ERROR"]): err(f"distributor has {vtho:.0f} VTHO: too little gas to pay rewards")
+              elif vtho < float(os.environ["VTHO_WARN"]): warn(f"distributor gas is low: {vtho:.0f} VTHO")
+            except Exception as e:
+              warn(f"could not read the distributor's VTHO: {e}")
+
+          snap = {
+            "server": os.environ["SERVER"], "network": h.get("network"), "commit": h.get("commit"),
+            "poolB3TR": pool, "distributorVTHO": None if vtho is None else round(vtho),
+            "weekFactor": (h.get("rewardBudget") or {}).get("factor"),
+            "passes": h.get("passCount"), "phones": (h.get("device") or {}).get("known"),
+            "flagged": h.get("flaggedCount"),
+            "powerfoxLinked": (h.get("powerfox") or {}).get("linked"),
+            "tibberLinked": (h.get("tibber") or {}).get("linked"),
+            "aiPhotoCheck": h.get("aiPhotoCheck"),
+          }
+          print("SNAPSHOT " + json.dumps(snap))
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+            f.write("### " + os.environ["SERVER"] + "\n\n```json\n" + json.dumps(snap, indent=2) + "\n```\n")
+            for m in errors: f.write(f"- ❌ {m}\n")
+            for m in warnings: f.write(f"- ⚠️ {m}\n")
+          for m in warnings: print(f"::warning::{m}")
+          for m in errors: print(f"::error::{m}")
+          raise SystemExit(1 if errors else 0)
+          EOF
