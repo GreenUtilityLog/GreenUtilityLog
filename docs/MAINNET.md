@@ -67,6 +67,13 @@ Render → **New → Web Service** → deze repository.
 | `CERT_DOMAINS` | `greenutilitylog.github.io` — handtekeningen van andere sites worden dan geweigerd. Controleer de waarde: `/health` toont onder `certDomains.seen` met welke site-naam echte handtekeningen binnenkomen |
 | `POWERFOX_SECRET` | een lange willekeurige sleutel (anders dan op testnet) — zet de Powerfox- én Tibber-koppeling aan |
 
+**Bewust geaccepteerd risico — automatische standen:** een automatische meter (gul.js,
+Home Assistant, Powerfox, Tibber) kan een tijd te weinig verbruik doorgeven en dat later in
+een paar grote stappen inhalen. Dan krijgt hij in die tijd de hoogste bespaarbonus. De
+30-dagenfoto vangt dat niet, want een foto mag hoger zijn dan wat is uitbetaald. Gekozen is
+dit zo te laten: alleen wallets met een pas van jou kunnen meedoen. Let in het admin-paneel op
+meters met dagen op het maximum gevolgd door grote sprongen; dan de pas intrekken.
+
 **Een eigen Upstash-database voor mainnet:** maak in Upstash een **nieuwe** Redis-database
 aan (gratis plan kan) en gebruik die URL en token alleen hier. Deel je er één met
 testnet, dan delen beide versies ook de grenzen van het gratis plan: één budget aan

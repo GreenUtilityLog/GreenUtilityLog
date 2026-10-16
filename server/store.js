@@ -924,7 +924,8 @@ export const store = {
   // while saving is failing.
   loaded: () => !loadError,
   saveOk: () => !saveError,
-  stateBytes: () => lastBlobBytes,
+  // Measured once from what was loaded until the first save measures it again.
+  stateBytes: () => lastBlobBytes || (lastBlobBytes = JSON.stringify(state).length),
   // A save stuck for half a minute counts as failing: a payout made now might
   // never be recorded.
   ready: () => !loadError && !saveError && !(writing && Date.now() - writingSince > 30000),
