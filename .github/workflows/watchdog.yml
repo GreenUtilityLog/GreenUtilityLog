@@ -58,7 +58,9 @@ jobs:
           if h.get("distributorAuthorized") is None: warn("could not read the distributor role from the chain")
           if h.get("distributionPaused") is True: err("reward distribution is paused on VeBetterDAO")
           waiting = (h.get("rewardBudget") or {}).get("waitingB3TR") or 0
-          if waiting > 0: warn(f"{waiting} B3TR is waiting to be moved into the rewards pool: the app admin presses \"Move to rewards pool\"")
+          # Only on mainnet: testnet B3TR in the app's account cannot be moved across,
+          # so there this would repeat every day with nothing to do about it.
+          if waiting > 0 and h.get("network") == "mainnet": warn(f"{waiting} B3TR is waiting to be moved into the rewards pool: the app admin presses \"Move to rewards pool\"")
 
           # The pot payouts come from: with VeBetterDAO's rewards-pool feature on
           # (every new app) that is the rewards pool, not the app's available funds.
