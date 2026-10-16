@@ -13,4 +13,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Testnet server
-        run: curl -fsS --max-time 150 https://greenutilitylog-rewards.onrender.com/cron/tick || echo "server did not answer"
+        run: curl -fsS --max-time 150 https://greenutilitylog-rewards.onrender.com/cron/tick || echo "::warning title=wake::server did not answer"
