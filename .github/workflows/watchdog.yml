@@ -59,7 +59,8 @@ jobs:
           if h.get("distributorAuthorized") is False: err("the distributor wallet lost its reward-distributor role")
           if h.get("distributorAuthorized") is None: warn("could not read the distributor role from the chain")
           if h.get("distributionPaused") is True: err("reward distribution is paused on VeBetterDAO")
-          if h.get("rewardsPoolEnabled") is True: warn("rewards pool mode is on: check the pot was moved")
+          waiting = (h.get("rewardBudget") or {}).get("waitingB3TR") or 0
+          if waiting > 0: warn(f"{waiting} B3TR is waiting to be moved into the rewards pool: the app admin presses \"Move to rewards pool\"")
 
           pool = h.get("poolB3TR")
           if pool is None: warn("could not read the B3TR pot from the chain")
@@ -82,7 +83,7 @@ jobs:
             "poolB3TR": pool, "distributorVTHO": None if vtho is None else round(vtho),
             "weekFactor": (h.get("rewardBudget") or {}).get("factor"),
             "passes": h.get("passCount"), "phones": (h.get("device") or {}).get("known"),
-            "flagged": h.get("flaggedCount"),
+            "flagged": h.get("flaggedCount"), "waitingB3TR": waiting,
             "powerfoxLinked": (h.get("powerfox") or {}).get("linked"),
             "tibberLinked": (h.get("tibber") or {}).get("linked"),
             "aiPhotoCheck": h.get("aiPhotoCheck"),
