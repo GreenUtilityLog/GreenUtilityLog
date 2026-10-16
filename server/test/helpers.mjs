@@ -51,6 +51,8 @@ export async function startServer({ state = {}, env = {} } = {}) {
       // Passes are on by default in production; the tests that are about them turn
       // them on. Everything else is about other rules.
       REQUIRE_PASS: "false",
+      // Same for the device id the app sends with a payout (device.test.js).
+      REQUIRE_DEVICE: "false",
       // Keep the real file backend: tests assert on what was persisted.
       UPSTASH_REDIS_REST_URL: "",
       UPSTASH_REDIS_REST_TOKEN: "",

@@ -47,3 +47,16 @@ describe("utilities the app doesn't offer", () => {
     }
   });
 });
+
+// The rate limit counts per real client. Behind Cloudflare that is CF-Connecting-IP;
+// without it every user behind one edge would share one bucket.
+test("the rate limit is per client address, from CF-Connecting-IP", async () => {
+  const srv = await startServer({});
+  try {
+    let last;
+    for (let i = 0; i < 31; i++) last = await srv.get("/livez", { "CF-Connecting-IP": "203.0.113.7" });
+    assert.equal(last.status, 429, "the 31st call from one client in a minute is refused");
+    const other = await srv.get("/livez", { "CF-Connecting-IP": "203.0.113.8" });
+    assert.equal(other.status, 200, "another client is not affected");
+  } finally { await srv.stop(); }
+});

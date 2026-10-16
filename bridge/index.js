@@ -49,6 +49,7 @@ const { readFileSync, writeFileSync, appendFileSync, statSync, renameSync, chmod
 const { createInterface } = require("node:readline");
 const { basename, join } = require("node:path");
 const { spawnSync } = require("node:child_process");
+const { release } = require("node:os");
 
 // --name=value, --name value, or a bare --flag. Unknown flags are ignored rather
 // than fatal: a stray argument shouldn't stop someone's meter from reporting. A
@@ -77,8 +78,10 @@ const MISSING_VALUE = [];
   }
 }
 
+// An env var that is set but empty counts as unset: GUL_TOKEN="" must not hide the
+// token saved by an earlier run.
 const pick = (flag, env, fallback = "") =>
-  String(FLAGS[flag] ?? process.env[env] ?? fallback).trim();
+  String(FLAGS[flag] ?? (process.env[env] || undefined) ?? fallback).trim();
 
 // MUST match BRIDGE_DEFAULT_API in src/network.js.
 const DEFAULT_INGEST = "https://greenutilitylog-rewards.onrender.com/meter-ingest";
@@ -118,16 +121,24 @@ function saveConfig(patch) {
 }
 const saveToken = (token) => saveConfig({ token });
 const SAVED = readSaved();
+// Where to read, as set by the last --install (saved below). The scheduled task and
+// cron line used to carry these as flags: a long line on Windows, and for cron a
+// `%` in a --url (Tasmota's /cm?cmnd=Status%2010) cut the command off. Now they
+// live in the private settings file next to this script, like the token. A flag on
+// the command line still wins.
+const READ_FLAGS = ["ip", "url", "tasmota", "field", "interval"];
+const SAVED_READ = SAVED.read && typeof SAVED.read === "object" ? SAVED.read : {};
+const pickRead = (flag, env, fallback = "") => pick(flag, env, SAVED_READ[flag] ?? fallback);
 
 let TOKEN = pick("token", "GUL_TOKEN", SAVED.token || "");
-const FIXED_IP = pick("ip", "HW_IP");
+const FIXED_IP = pickRead("ip", "HW_IP");
 // Twelve hours, not one. A reading can only be claimed once per COOLDOWN_MS (20h)
 // and /meter-ingest keeps only the newest value, so 23 of 24 hourly pushes are
 // discarded. Two a day still leaves a wide margin against the 48h staleness rule,
 // and it lets a free-tier backend sleep instead of being woken every hour.
 // Seconds, as a plain number. Anything else ("12h", "") used to become NaN, and
 // setInterval(fn, NaN) fires as fast as it can — thousands of pushes a second.
-const INTERVAL_SEC = Number(pick("interval", "INTERVAL_SEC", 43200));
+const INTERVAL_SEC = Number(pickRead("interval", "INTERVAL_SEC", 43200));
 const INTERVAL_MS = (Number.isFinite(INTERVAL_SEC) && INTERVAL_SEC > 0 ? Math.max(60, INTERVAL_SEC) : 43200) * 1000;
 const ONCE = FLAGS.once === "1" || process.env.ONCE === "1";
 // --due: push only if the last reading that went through is older than this. The
@@ -143,9 +154,9 @@ const DUE_AFTER_MS = 11 * 60 * 60 * 1000;
 // --tasmota=<ip>: an IR reading head running Tasmota (Hichi and friends, common on
 // German, Austrian and Swiss meters). Its sensor JSON lives at /cm?cmnd=Status%2010
 // and the meter total in a group of the meter script, usually SML.Total_in.
-const TASMOTA = pick("tasmota", "TASMOTA_IP").replace(/^https?:\/\//i, "").replace(/\/.*$/, "");
-const READ_URL = pick("url", "READ_URL") || (TASMOTA ? `http://${TASMOTA}/cm?cmnd=Status%2010` : "");
-const READ_FIELD = pick("field", "READ_FIELD");
+const TASMOTA = pickRead("tasmota", "TASMOTA_IP").replace(/^https?:\/\//i, "").replace(/\/.*$/, "");
+const READ_URL = pickRead("url", "READ_URL") || (TASMOTA ? `http://${TASMOTA}/cm?cmnd=Status%2010` : "");
+const READ_FIELD = pickRead("field", "READ_FIELD");
 // --powerfox=<e-mail> (or bare --powerfox: the account saved by an earlier run).
 // The password is never a flag in a scheduled task: it is asked once and kept in
 // the private settings file next to this script, like the device token.
@@ -160,6 +171,19 @@ let SAVED_PF_OK = !!(SAVED.powerfoxUser && SAVED.powerfoxPass && SAVED.powerfoxU
 // there's a terminal to ask in, ask; when there isn't (Docker, a service), fail with
 // a message that names the flag AND the env var.
 async function ensureToken() {
+  // --ask-token: the setup line the app hands out. It carries no token — a token on
+  // the command line ends up in the shell's history file — so it always asks, and
+  // Enter keeps one saved by an earlier setup.
+  if (FLAGS["ask-token"] === "1" && !FLAGS.token && process.stdin.isTTY) {
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    const keep = TOKEN ? " — Enter keeps the saved one" : "";
+    const answer = await new Promise((res) =>
+      rl.question(`\nPaste your device token (app → Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup${keep}): `, res));
+    rl.close();
+    const given = String(answer || "").trim();
+    if (given) TOKEN = given;
+    if (!TOKEN) { console.error("No token given — nothing to do."); return false; }
+  }
   if (TOKEN) {
     // Given once on the command line, remembered from then on. Saving fails silently
     // on a read-only dir (Docker), which is fine — there the env var supplies it
@@ -486,7 +510,9 @@ async function cycle() {
 // disk, so anything scheduled has to be given these again or it quietly falls back
 // to auto-discovery — which is what fails for the people who needed --ip.
 function keptFlags() {
-  return [...["ip", "url", "tasmota", "field", "ingest", "interval"]
+  // Only --ingest: it picks which settings file is read (SUFFIX). The rest is in
+  // that file (see READ_FLAGS).
+  return [...["ingest"]
     .filter((k) => FLAGS[k] && FLAGS[k] !== "1")
     .map((k) => `--${k}=${FLAGS[k]}`),
     // Powerfox: only that it is Powerfox — the account comes from the settings file.
@@ -499,17 +525,19 @@ function taskCommand(action) {
   const script = process.argv[1];                // this file, wherever it was saved
   const name = TASK_NAME;
   if (action === "uninstall") return ["schtasks", ["/Delete", "/TN", name, "/F"]];
-  // Carry over whatever this run was told about WHERE to read and send. Only the
-  // token is saved to disk; --ip, --url, --field and --ingest are not, so a task
-  // without them would fall back to auto-discovery — which is exactly what fails
-  // for the people who needed --ip in the first place, and it would fail silently,
-  // twice a day, with nobody watching.
+  // Where to send (--ingest) and whether it is Powerfox; where to READ is in the
+  // settings file next to this script (READ_FLAGS), saved by this --install.
   const keep = keptFlags();
   // schtasks wants the whole command as ONE argument.
   // Every hour with --due, like cron: it only pushes once the last reading is 11 h
   // old, so twice a day in practice — but a run that failed (the PC just woke and
   // Wi-Fi wasn't back yet) is tried again the next hour instead of 12 hours later.
-  const run = `"${node}" "${script}" --once --due${keep ? " " + keep : ""}`;
+  const cmd = `"${node}" "${script}" --once --due${keep ? " " + keep : ""}`;
+  // node.exe is a console program, so Task Scheduler opened a window for it every
+  // hour, even when nothing was due. conhost --headless runs it without one; it
+  // exists from Windows 10 1809 (build 17763) on, so older builds keep the window.
+  const build = Number(String(release()).split(".")[2]) || 0;
+  const run = build >= 17763 ? `conhost.exe --headless ${cmd}` : cmd;
   return ["schtasks", ["/Create", "/TN", name, "/TR", run, "/SC", "HOURLY", "/MO", "1", "/F"]];
 }
 
@@ -545,7 +573,7 @@ function manageCron(action) {
   // Single-quoted for sh: a space in a path or an & in --url would otherwise split
   // or background the command. ' itself becomes '\''.
   const q = (v) => `'${String(v).replace(/'/g, "'\\''")}'`;
-  const keep = [...["ip", "url", "tasmota", "field", "ingest", "interval"].filter((k) => FLAGS[k] && FLAGS[k] !== "1").map((k) => q(`--${k}=${FLAGS[k]}`)), ...(POWERFOX ? ["--powerfox"] : [])].join(" ");
+  const keep = [...["ingest"].filter((k) => FLAGS[k] && FLAGS[k] !== "1").map((k) => q(`--${k}=${FLAGS[k]}`)), ...(POWERFOX ? ["--powerfox"] : [])].join(" ");
   const cmd = `${q(stableNodePath())} ${q(process.argv[1])} --once --due${keep ? " " + keep : ""}`;
   // Every hour, but --due makes it push only when the last reading is 11 h old:
   // twice a day in practice, and caught up within the hour when the machine wakes.
@@ -619,6 +647,11 @@ async function main() {
     // A task is useless without a token: it runs unattended and cannot ask.
     if (!(await ensureToken())) process.exit(1);
     if (!(await ensurePowerfox())) process.exit(1);
+    // What this setup was told about where to read — exactly that, so a re-install
+    // without --ip forgets an old IP. The schedule reads it from here.
+    const read = {};
+    for (const k of READ_FLAGS) if (FLAGS[k] && FLAGS[k] !== "1") read[k] = FLAGS[k];
+    saveConfig({ read });
     const code = manageTask("install");
     // And push once, right now. Scheduling alone sends nothing: the task first runs
     // at its next slot, which can be hours away, so someone who has just done

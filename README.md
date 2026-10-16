@@ -22,6 +22,8 @@ checks it and pays out on-chain.
 - One reading per meter per ~day (20 h cooldown), **at most 4 B3TR** per reading.
 - A reader's reading (P1 / Home Assistant) is paid the moment it arrives — nothing
   to tap in the app.
+- Automatic payouts need one photo of the meter every 30 days; a photo can't be
+  lower than what was paid, so a reader that ran ahead of the real meter is caught.
 - You earn for using *less* than a daily benchmark (8 kWh); the base is 0.2 B3TR.
   Almost no usage (under 0.1 kWh a day) pays the base only and is flagged: that is
   a stale or repeated reading, not a saving.

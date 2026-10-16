@@ -31,7 +31,7 @@ const flagsFor = (srv, addr) => Object.values(srv.readState().flags || {}).filte
 
 describe("device recognition", () => {
   let srv;
-  before(async () => { srv = await startServer({ state: state() }); });
+  before(async () => { srv = await startServer({ state: state(), env: { REQUIRE_DEVICE: "true" } }); });
   after(async () => { await srv.stop(); });
 
   test("is announced in /health: one wallet per phone", async () => {
@@ -58,11 +58,10 @@ describe("device recognition", () => {
     assert.equal((await submit(srv, 0, { ...PHONE })).status === 403, false);
   });
 
-  test("no device id is paid, but flagged", async () => {
+  test("no device id is refused", async () => {
     const r = await submit(srv, 3);
-    assert.equal(r.status, 200, JSON.stringify(r.body));
-    await srv.waitForState((s) => Object.values(s.flags || {}).some((f) => f.addr === W[3].toLowerCase()));
-    assert.match(flagsFor(srv, W[3]), /no device id/);
+    assert.equal(r.status, 403, JSON.stringify(r.body));
+    assert.match(r.body.error, /didn't say which phone this is/);
   });
 
   test("the state holds hashes only, never the install id itself", async () => {
@@ -75,7 +74,7 @@ describe("device recognition", () => {
 
 describe("two wallets per phone allowed", () => {
   let srv;
-  before(async () => { srv = await startServer({ state: state(), env: { DEVICE_MAX_WALLETS: "2" } }); });
+  before(async () => { srv = await startServer({ state: state(), env: { DEVICE_MAX_WALLETS: "2", REQUIRE_DEVICE: "true" } }); });
   after(async () => { await srv.stop(); });
 
   test("the second wallet is paid and flagged, the third refused", async () => {

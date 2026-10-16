@@ -28,7 +28,7 @@ const REDIS_KEY = process.env.STATE_KEY || "greenutilitylog:state";
 // `passes` is the access-pass registry (address → pass); `passesInit` records that the
 // one-time grandfathering has run, so turning REQUIRE_PASS on can't silently cut off
 // every existing tester — and can't re-grant a pass an admin has since revoked.
-const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {}, autoPaid: {}, payLog: [], prints: [], payDays: {}, meterRegs: {}, settings: {}, powerfox: {}, tibber: {}, devices: {} };
+const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {}, autoPaid: {}, payLog: [], prints: [], payDays: {}, meterRegs: {}, settings: {}, powerfox: {}, tibber: {}, devices: {}, photoAts: {} };
 // A fresh copy each time. Spreading EMPTY copies only its top level: every
 // "empty" state then shared EMPTY's own maps, so writing to one wrote to all of
 // them — and to the next "empty" state read from Redis.
@@ -451,6 +451,17 @@ export const store = {
     if (Object.prototype.hasOwnProperty.call(state.readings, k)) return state.readings[k];
     if (mFallback(utility) && Object.prototype.hasOwnProperty.call(state.readings, meterNo)) return state.readings[meterNo];
     return null;
+  },
+  // When this meter's reading was last proven by a photo (a paid photo submission
+  // or a fix-basis). Automatic payouts need one every AUTO_PHOTO_EVERY_DAYS.
+  photoAt: (utility, meterNo) => {
+    const k = mKey(utility, meterNo);
+    return isMap(state.photoAts) && Object.prototype.hasOwnProperty.call(state.photoAts, k) ? state.photoAts[k] : null;
+  },
+  setPhotoAt: (utility, meterNo, at = Date.now()) => {
+    if (!isMap(state.photoAts)) state.photoAts = {};
+    state.photoAts[mKey(utility, meterNo)] = at;
+    persist();
   },
   setLastReading: (utility, meterNo, val) => {
     const k = mKey(utility, meterNo);
