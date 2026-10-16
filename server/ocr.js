@@ -16,7 +16,7 @@ import { toApiImage } from "./apiimage.js";
 // reliably than Tesseract, and needs only ANTHROPIC_API_KEY (the same key that
 // powers the photo-authenticity check). Override the model with OCR_CLAUDE_MODEL.
 const ANTHROPIC_KEY = (process.env.ANTHROPIC_API_KEY || "").trim();
-const OCR_CLAUDE_MODEL = (process.env.OCR_CLAUDE_MODEL || "claude-opus-4-8").trim();
+const OCR_CLAUDE_MODEL = (process.env.OCR_CLAUDE_MODEL || "claude-haiku-5-5").trim();
 const anthropicClient = ANTHROPIC_KEY ? new Anthropic({ apiKey: ANTHROPIC_KEY, timeout: 45000, maxRetries: 1 }) : null;
 
 // Pull plausible numeric readings out of OCR text (handles , or . decimals).
@@ -117,7 +117,9 @@ async function claudeOcr(content) {
   if (!img) return null; // not an error: this photo simply cannot be sent
   const resp = await anthropicClient.messages.create({
     model: OCR_CLAUDE_MODEL,
-    max_tokens: 2000,
+    // Thinking counts toward this cap; only what is generated is billed, so the
+    // headroom costs nothing and keeps a long think from cutting the answer off.
+    max_tokens: 4000,
     thinking: { type: "adaptive" },
     output_config: { format: { type: "json_schema", schema: CLAUDE_OCR_SCHEMA } },
     messages: [
@@ -130,6 +132,9 @@ async function claudeOcr(content) {
       },
     ],
   });
+  // Declined or cut off: the provider did not run, which is not the same as "this
+  // photo has no readable number" — the user should retry, not retake the photo.
+  if (resp.stop_reason !== "end_turn") throw new Error(`no answer (stop_reason ${resp.stop_reason})`);
   const text = resp.content.find((b) => b.type === "text")?.text || "{}";
   const out = JSON.parse(text);
   const reading = String(out.reading || "").trim();

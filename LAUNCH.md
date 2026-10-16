@@ -30,7 +30,7 @@ photos · honest testnet copy · analytics dashboard · error toasts you can rea
 | What | Where | Note |
 |---|---|---|
 | Captcha (anti-bot) | Cloudflare Turnstile → `src/App.jsx` `TURNSTILE_SITE_KEY` = site key · **Render** `TURNSTILE_SECRET` = secret | free; both halves needed |
-| Better meter OCR | **Render** `ANTHROPIC_API_KEY` (+ optional `OCR_CLAUDE_MODEL=claude-haiku-4-5`) | reads meters far better than in-browser OCR; also enables the AI photo-authenticity check. Costs ~½¢/photo on haiku |
+| Better meter OCR | **Render** `ANTHROPIC_API_KEY` (model defaults to `claude-haiku-5-5`) | reads meters far better than in-browser OCR; also enables the AI photo-authenticity check. Costs a fraction of a cent per photo on the default model |
 | Lock CORS | **Render** `ALLOWED_ORIGIN` = `https://greenutilitylog.github.io` | replaces the open `*` |
 | Smart-meter push (beta) | nothing — always on | pair a P1/HAN reader or Home Assistant to auto-send readings. See `docs/SMART-METER.md` |
 | Smart-meter via Enode (beta) | **Render** `ENODE_CLIENT_ID` + `ENODE_CLIENT_SECRET` (+ `ENODE_ENV`) | optional global aggregator; sandbox is free/simulated, real meters need a paid Enode plan |
