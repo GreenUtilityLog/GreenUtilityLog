@@ -18,7 +18,7 @@ describe("rules and the next allowed submission", () => {
     const h = await srv.get("/health");
     assert.deepEqual(h.body.rules, {
       cooldownMs: 72000000, maxPayout: 1, ecoReward: 1, ecoMaxPerWeek: 4,
-      ecoCooldownMs: 86400000, utilities: ["electric"],
+      ecoCooldownMs: 86400000, ecoTz: "Europe/Amsterdam", utilities: ["electric"],
     });
   });
 

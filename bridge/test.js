@@ -116,7 +116,13 @@ test("--install on Mac/Linux adds one cron line, keeps the rest, and --uninstall
   let tab = readFileSync(cronFile, "utf8");
   assert.match(tab, /MAILTO=me\n5 4 \* \* \* \/usr\/bin\/backup\n/, "the user's own lines stay");
   assert.equal((tab.match(/# GreenUtilityLog/g) || []).length, 1);
-  assert.match(tab, /^0 \* \* \* \* .* --once --due '--ip=127\.0\.0\.1:\d+'/m, "hourly, pushing only when due, where to read carried into the job");
+  assert.match(tab, /^0 \* \* \* \* .* --once --due '--ingest=/m, "hourly, pushing only when due, to the same server");
+  assert.doesNotMatch(tab, /--ip=/, "where to read is in the settings file, not the cron line");
+  const cfg = JSON.parse(readFileSync(join(dir, ".gul-bridge-127.json"), "utf8"));
+  assert.equal(cfg.read.ip, `127.0.0.1:${reader.address().port}`);
+  // What cron runs: no --ip, yet it reads the same HomeWizard.
+  const sched = await run(["--once", flags[1]], env);
+  assert.match(sched.out, /pushed 300\.75 kWh/, sched.out);
 
   await run(["--install", ...flags], env);
   tab = readFileSync(cronFile, "utf8");
@@ -351,7 +357,7 @@ test("--field=a+b sends the sum of two tariff registers, and nothing when one is
   reader.close(); backend.close();
 });
 
-test("a % in a flag is escaped in the cron line, where cron would read it as a newline", async () => {
+test("a --url with a % never reaches the cron line, where cron would read it as a newline", async () => {
   if (process.platform === "win32") return;
   const { writeFileSync, chmodSync, mkdirSync } = require("node:fs");
   const bin = join(dir, "bin-pct");
@@ -368,8 +374,23 @@ test("a % in a flag is escaped in the cron line, where cron would read it as a n
   assert.equal(r.code, 0, r.out);
   assert.equal(path, "/cm?cmnd=Status%2010", "the run itself uses the URL as given");
   const tab = readFileSync(cronFile, "utf8");
-  assert.ok(tab.includes("cmnd=Status\\%2010"), tab);
-  assert.doesNotMatch(tab, /[^\\]%/, "no unescaped % left in the line");
+  assert.doesNotMatch(tab, /%|--url/, "the URL is kept in the settings file instead");
+  path = "";
+  const sched = await run(["--once", `--ingest=http://127.0.0.1:${backend.address().port}/meter-ingest`], env);
+  assert.equal(sched.code, 0, sched.out);
+  assert.equal(path, "/cm?cmnd=Status%2010", "and the scheduled run reads it from there");
   await run(["--uninstall"], env);
   reader.close(); backend.close();
+});
+
+test("--ask-token takes the token from the prompt, not the command line", async () => {
+  // Without a terminal there is no prompt: it falls back to the saved/env token.
+  // Here: no saved token and no TTY → refused, and it says how to give one.
+  const fresh = mkdtempSync(join(tmpdir(), "gul ask "));
+  copyFileSync(join(__dirname, "index.js"), join(fresh, "gul.js"));
+  const p = spawn(process.execPath, [join(fresh, "gul.js"), "--ask-token", "--once", "--ingest=http://127.0.0.1:9/x"], { env: { ...process.env, GUL_TOKEN: "" } });
+  let out = ""; p.stdout.on("data", (c) => (out += c)); p.stderr.on("data", (c) => (out += c));
+  const code = await new Promise((r) => p.on("exit", r));
+  assert.equal(code, 1, out);
+  assert.match(out, /No device token/);
 });

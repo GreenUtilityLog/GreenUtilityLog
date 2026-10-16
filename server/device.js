@@ -14,7 +14,7 @@
 // fingerprint is a hash already. Neither can be turned back into the device.
 // Both come from the client and can be forged or left out — this raises the
 // cost of farming, it doesn't make it impossible, and a request without them
-// is flagged rather than refused (automatic readers send none at all).
+// is refused (REQUIRE_DEVICE) — automatic readers send none and never pass here.
 
 import { createHash } from "node:crypto";
 
@@ -22,6 +22,9 @@ import { createHash } from "node:crypto";
 // for, say, a household that shares one phone.
 export const DEVICE_MAX_WALLETS = Number(process.env.DEVICE_MAX_WALLETS || 1);
 export const DEVICE_FP_FLAG = Number(process.env.DEVICE_FP_FLAG || 4);
+// The app always sends an install id; a payout without one is refused, or leaving
+// the field out would be all it took to get past the one-phone rule.
+export const REQUIRE_DEVICE = !/^(0|false|off|no)$/i.test(String(process.env.REQUIRE_DEVICE || "true"));
 
 const short = (s) => createHash("sha256").update(s).digest("hex").slice(0, 32);
 

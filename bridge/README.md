@@ -79,6 +79,7 @@ then the token saved by a previous run.
 | Flag | Env var | Default | What it does |
 |---|---|---|---|
 | `--token=` | `GUL_TOKEN` | asked for, then saved | Your device token from the app |
+| `--ask-token` | — | — | Always ask for the token (Enter keeps the saved one). The app's setup lines use this instead of `--token=`, so the token never lands in your shell history |
 | `--ip=` | `HW_IP` | auto-discover | Your HomeWizard’s IP, to skip mDNS discovery |
 | `--interval=` | `INTERVAL_SEC` | `43200` | Seconds between pushes, min 60. Twice a day by default: a reading can only be claimed once per 20 h, and only the newest one is kept. |
 | `--ingest=` | `GUL_INGEST_URL` | public backend | Override the ingest endpoint |

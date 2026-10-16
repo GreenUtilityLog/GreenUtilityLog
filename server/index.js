@@ -7,7 +7,7 @@ import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import express from "express";
 import cors from "cors";
 import { COOLDOWN_MS } from "./config.js";
-import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, REQUIRE_PASS, PASSPORT_GRANTS_ACCESS, ECO_REWARD, ECO_MAX_PER_WEEK, ECO_COOLDOWN_MS, ECO_APPLIANCES, ecoWeekKey, RATES, UNITS, pickUtility, pickAnyUtility, isEnabledUtility, MAX_PAYOUT_PER_SUBMISSION, ENABLED_UTILITIES } from "./config.js";
+import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, REQUIRE_PASS, PASSPORT_GRANTS_ACCESS, ECO_REWARD, ECO_MAX_PER_WEEK, ECO_COOLDOWN_MS, ECO_TZ, ECO_APPLIANCES, ecoWeekKey, RATES, UNITS, pickUtility, pickAnyUtility, isEnabledUtility, MAX_PAYOUT_PER_SUBMISSION, ENABLED_UTILITIES } from "./config.js";
 import { validateSubmission } from "./verify.js";
 import { verifyPhoto, checkReadingOnPhoto, readingCheckMode, meterNoOnPhoto, meterNoCheckMode, photoPrint, printDistance } from "./media.js";
 import { store } from "./store.js";
@@ -19,7 +19,7 @@ import { ocrImage, ocrEnabled, ocrProviders } from "./ocr.js";
 import { verifyWalletCertificate, REQUIRE_CERT, CERT_MAX_AGE_MS, certDomainsSeen } from "./auth.js";
 import { checkPhotoAuthenticity, aiPhotoCheckEnabled } from "./authenticity.js";
 import { verifyCaptcha, captchaEnabled } from "./captcha.js";
-import { deviceKeys, DEVICE_MAX_WALLETS, DEVICE_FP_FLAG } from "./device.js";
+import { deviceKeys, DEVICE_MAX_WALLETS, DEVICE_FP_FLAG, REQUIRE_DEVICE } from "./device.js";
 import { enodeEnabled, enodeInfo, createMeterLink, fetchLatestReading } from "./enode.js";
 import { powerfoxEnabled, sealCredentials, openCredentials, fetchPowerfoxReading } from "./powerfox.js";
 import { fetchTibberReading } from "./tibber.js";
@@ -60,8 +60,16 @@ app.use(cors({
 // from a flooding client is rejected before it's buffered. Keyed on the trusted
 // req.ip. (Replace with a Redis-backed limiter before horizontal scaling.)
 const hits = new Map();
+// Who is calling. Render runs behind Cloudflare, so with one trusted hop req.ip can
+// be a Cloudflare edge address that many users share — one shared 30/min bucket.
+// Cloudflare sets CF-Connecting-IP to the real client and overwrites any value a
+// client sends, so that header is used when it holds an address. Elsewhere set
+// CLIENT_IP_HEADER to your proxy's header, or to "none" to use req.ip only.
+const CLIENT_IP_HEADER = String(process.env.CLIENT_IP_HEADER || "cf-connecting-ip").toLowerCase();
+const looksLikeIp = (v) => /^[0-9a-f:.]{3,45}$/i.test(v) && (v.includes(".") || v.includes(":"));
 app.use((req, res, next) => {
-  const ip = req.ip || req.socket.remoteAddress || "unknown";
+  const fromHeader = CLIENT_IP_HEADER !== "none" ? String(req.get(CLIENT_IP_HEADER) || "").trim() : "";
+  const ip = (looksLikeIp(fromHeader) && fromHeader) || req.ip || req.socket.remoteAddress || "unknown";
   req.clientIp = ip;
   const now = Date.now();
   const win = hits.get(ip)?.filter((t) => now - t < 60_000) || [];
@@ -175,6 +183,8 @@ app.get("/health", async (req, res) => {
       ecoReward: ECO_REWARD,
       ecoMaxPerWeek: ECO_MAX_PER_WEEK,
       ecoCooldownMs: ECO_COOLDOWN_MS,
+      // The eco week runs Monday to Sunday in this timezone, wherever the user is.
+      ecoTz: ECO_TZ,
       utilities: [...ENABLED_UTILITIES],
     },
     // Whether the typed reading must be on the photo (off without an OCR provider).
@@ -469,8 +479,10 @@ function deviceGate(addr, device, flags) {
   const a = String(addr).toLowerCase();
   if (isAdminWallet(a)) return null;          // admins test with several wallets
   const { install, fp } = deviceKeys(device);
-  if (!install) flags.push("the app sent no device id");
-  else {
+  if (!install) {
+    if (REQUIRE_DEVICE) return "the app didn't say which phone this is — reload the app and try again";
+    flags.push("the app sent no device id");
+  } else {
     const w = store.linkDevice(install, a);
     const pos = w.indexOf(a);
     if (DEVICE_MAX_WALLETS > 0 && (pos === -1 || pos >= DEVICE_MAX_WALLETS)) {
@@ -981,6 +993,7 @@ app.post("/reward", async (req, res) => {
       noImpact: !!(v.firstReading || v.nearZero),
     });
     v.markPaid();
+    store.setPhotoAt(req.body.utility, String(req.body.meterNo).trim().toLowerCase());
     if (regSeen) store.setMeterRegs(req.body.utility, String(req.body.meterNo).trim().toLowerCase(), registers, regSeen);
     recordPayout(v.amount);
     store.addPrint(req.body.address, "meter", print);
@@ -1485,6 +1498,13 @@ app.get("/meter/latest", (req, res) => {
     // automatically" instead of offering a button for something already done.
     lastPayout: link?.lastPayout || null,
     autoClaimOnPush: AUTO_CLAIM_ON_PUSH,
+    // When automatic payouts pause until the next photo (null: no limit, or no
+    // photo-proven reading yet).
+    photoDueAt: (() => {
+      if (!(AUTO_PHOTO_EVERY_MS > 0) || !link?.meterNo) return null;
+      const shot = store.photoAt(utility, String(link.meterNo).toLowerCase());
+      return shot == null ? null : shot + AUTO_PHOTO_EVERY_MS;
+    })(),
     // A Powerfox account fetched by this server: when, and the last problem if any.
     powerfox: (() => { const pf = store.getPowerfox(address); return pf ? { linked: true, lastPullAt: pf.lastPullAt || null, lastError: pf.lastError || null } : null; })(),
     tibber: (() => { const tb = store.getTibber(address); return tb ? { linked: true, lastPullAt: tb.lastPullAt || null, lastError: tb.lastError || null } : null; })(),
@@ -1565,6 +1585,12 @@ app.post("/meter/enode/sync", async (req, res) => {
 // can pay automatically. Reuses validateSubmission, so the same cooldown,
 // monotonicity, plausibility bounds and per-payout cap all still apply.
 const METER_MAX_AGE_MS = Number(process.env.METER_MAX_AGE_MS || 48 * 60 * 60 * 1000);
+// An automatic reading is the reader's word. After the first photo a script could
+// push "baseline + a little" every day and be paid the maximum for ever. So a photo
+// is needed every so often to keep automatic payouts going: a photo can't be lower
+// than what was paid, so pushed numbers that ran ahead of the real meter are caught
+// the moment the photo is taken. 0 switches it off.
+const AUTO_PHOTO_EVERY_MS = Number(process.env.AUTO_PHOTO_EVERY_DAYS || 30) * 86400000;
 
 // Core settle logic shared by the manual endpoint (Step 2) and the scheduled
 // auto-submit (Step 3). Returns { ok, ... } or { ok:false, code, error }; it does
@@ -1597,6 +1623,15 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
   }
   if (Date.now() - (latest.at || 0) > METER_MAX_AGE_MS) {
     return { ok: false, code: 400, error: "the automatic reading is stale — refresh your reader/source, then try again" };
+  }
+  if (AUTO_PHOTO_EVERY_MS > 0) {
+    const mk = meterNo.toLowerCase();
+    const shot = store.photoAt(utility, mk);
+    // Meters paid before this rule existed start their clock now.
+    if (shot == null) store.setPhotoAt(utility, mk);
+    else if (Date.now() - shot > AUTO_PHOTO_EVERY_MS) {
+      return { ok: false, code: 400, needsPhoto: true, error: `automatic payouts are paused until you take one photo of your meter — once every ${Math.round(AUTO_PHOTO_EVERY_MS / 86400000)} days keeps them going` };
+    }
   }
   // The auto path never sets the FIRST reading, so a device can't invent a meter
   // or its starting value — a photo submission must have set the baseline first.
@@ -1664,7 +1699,7 @@ app.post("/reward-from-meter", async (req, res) => {
   }
   try {
     const r = await settleMeterReading({ address, utility: String(req.body.utility || "electric"), meterNo: req.body.meterNo });
-    if (!r.ok) return res.status(r.code || 400).json({ error: r.error });
+    if (!r.ok) return res.status(r.code || 400).json({ error: r.error, ...(r.needsPhoto ? { needsPhoto: true } : {}) });
     res.json({ txid: r.txid, amount: r.amount, usage: r.usage, reading: r.reading, source: r.source });
   } catch (e) {
     console.error("[/reward-from-meter]", e?.message || e);
@@ -1836,6 +1871,7 @@ app.post("/meter/fix-basis", async (req, res) => {
     if (rg.error || rg.wrong) { photo.unreserve(); return res.status(400).json({ error: rg.error || rg.wrong.message }); }
 
     store.setLastReading(utility, meterKey, total);
+    store.setPhotoAt(utility, meterKey);
     store.setMeterRegs(utility, meterKey, registers, rg.seen);
     store.bindMeter(utility, meterKey, address.toLowerCase());
     store.markBasisFixed(utility, meterKey, { from: prev, to: total, registers, addr: address.toLowerCase() });

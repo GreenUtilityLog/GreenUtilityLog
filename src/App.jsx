@@ -278,6 +278,9 @@ async function generateMonthlyPDF(b3tr, subs) {
     const { jsPDF } = window.jspdf || await new Promise((resolve, reject) => {
       const script = document.createElement('script');
       script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      // The file's own fingerprint: a changed or tampered copy is refused, not run.
+      script.integrity = 'sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk';
+      script.crossOrigin = 'anonymous';
       script.onload = () => resolve(window.jspdf); // the UMD build defines window.jspdf.jsPDF, not window.jsPDF
       script.onerror = reject;
       document.head.appendChild(script);
@@ -541,6 +544,7 @@ async function getUnsyncedSubmissions() {
     const req = db.transaction("submissions", "readonly").objectStore("submissions").getAll();
     req.onerror = () => reject(req.error);
     req.onsuccess = () => resolve((req.result || []).filter(s => !s.synced && !s.failed
+      && !(s.retryAfter && Date.now() < s.retryAfter)
       && (!s.broadcasting || !s.broadcastAt || Date.now() - s.broadcastAt > PAYOUT_MS + 60000)));
   });
 }
@@ -570,6 +574,13 @@ function markBroadcasting(id, flag) {
 // reading…). Retrying would ask for a signature on every reconnect, forever.
 function markFailed(id, reason) {
   return updateOfflineSubmission(id, { failed: true, failReason: String(reason || ""), broadcasting: false, broadcastAt: 0 });
+}
+
+// "Not yet" rather than "no": a cooldown that hasn't run out, or a wallet still
+// waiting for its access pass. Kept, and left alone until `ms` from now, so it
+// doesn't ask for a signature on every reconnect meanwhile.
+function markLater(id, ms, reason) {
+  return updateOfflineSubmission(id, { retryAfter: Date.now() + ms, failReason: String(reason || ""), broadcasting: false, broadcastAt: 0 });
 }
 
 // Mark a queued submission as broadcast so it isn't sent twice.
@@ -695,13 +706,34 @@ const MAX_SPAN_DAYS    = 7;
 // maxPayout is flat, NOT multiplied by the span: claiming daily should beat saving
 // a week and claiming once.
 const RULES = { cooldownMs: 20 * 60 * 60 * 1000, maxPayout: 4, ecoReward: 2, ecoMaxPerWeek: 4, ecoCooldownMs: 24 * 60 * 60 * 1000 };
+// The eco week (Monday–Sunday) in the server's timezone, from /health. A phone in
+// Helsinki or London used its own Monday and told people "x left" while the server
+// counted a different week.
+let ECO_TZ = "Europe/Amsterdam";
 function applyRules(r) {
   let changed = false;
   for (const k of Object.keys(RULES)) {
     const n = Number(r?.[k]);
     if (r?.[k] != null && Number.isFinite(n) && n >= 0 && RULES[k] !== n) { RULES[k] = n; changed = true; }
   }
+  if (typeof r?.ecoTz === "string" && r.ecoTz !== ECO_TZ) {
+    try { new Intl.DateTimeFormat("en", { timeZone: r.ecoTz }); ECO_TZ = r.ecoTz; changed = true; } catch { /* unknown zone: keep the default */ }
+  }
   return changed;
+}
+// Same as the server's ecoWeekKey: that week's Monday as "YYYY-MM-DD".
+function ecoWeekKey(ts = Date.now()) {
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", { timeZone: ECO_TZ, year: "numeric", month: "2-digit", day: "2-digit", weekday: "short" }).formatToParts(new Date(ts));
+    const get = (t) => parts.find((p) => p.type === t)?.value;
+    const back = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 }[get("weekday")] ?? 0;
+    const monday = new Date(Date.UTC(+get("year"), +get("month") - 1, +get("day")));
+    monday.setUTCDate(monday.getUTCDate() - back);
+    return monday.toISOString().slice(0, 10);
+  } catch {
+    const d = new Date(ts); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    return d.toISOString().slice(0, 10);
+  }
 }
 // Down to the cent, with a hair of slack: 0.57 is 0.5699999… in binary and would
 // otherwise show as 0.56 (the server rounds the same way).
@@ -900,6 +932,9 @@ async function loadTesseract() {
     // Exact versions, not "@5" and "@master": this code runs inside the page that
     // asks for wallet signatures, so what it loads should not change underneath us.
     s.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
+    // And its fingerprint, so a changed copy is refused rather than run.
+    s.integrity = "sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F";
+    s.crossOrigin = "anonymous";
     s.onload  = () => resolve(window.Tesseract);
     s.onerror = reject;
     document.head.appendChild(s);
@@ -2644,10 +2679,11 @@ function PowerfoxSetup({ T, API, wallet, meterNo, token, latest, health, onLinke
   ];
   const cmd = `${needNode}
 
-${fetchCmd(`--token=${token} --powerfox=YOUR_POWERFOX_EMAIL --install${INGEST_FLAG}`)}
+${fetchCmd(`--ask-token --powerfox=YOUR_POWERFOX_EMAIL --install${INGEST_FLAG}`)}
 
-# Asks your Powerfox password once (not shown as you type) and keeps it in a
-# private file next to gul.js. Then sends your reading by itself, every day.`;
+# It asks for your device token (tap “Copy token”) and your Powerfox password
+# (not shown as you type), once, and keeps them in a private file next to
+# gul.js. Then it sends your reading by itself, every day.`;
 
   return (
     <div style={{ marginBottom: 10 }}>
@@ -2713,6 +2749,9 @@ ${fetchCmd(`--token=${token} --powerfox=YOUR_POWERFOX_EMAIL --install${INGEST_FL
             </button>
             <pre style={{ fontFamily: "'SF Mono',Menlo,monospace", fontSize: 10, lineHeight: 1.5, color: T.text, background: T.card, border: `1px dashed ${T.border}`, padding: 10, borderRadius: 6, overflowX: "auto", margin: 0, whiteSpace: "pre" }}>{cmd}</pre>
           </div>
+          <button type="button" onClick={() => copy(token, "pfcomptok")} style={{ marginTop: 8, padding: "6px 10px", fontSize: 11, fontWeight: 700, borderRadius: 6, border: "none", background: copied === "pfcomptok" ? T.green3 : T.textSoft, color: "#fff", cursor: "pointer" }}>
+            {copied === "pfcomptok" ? "✓ Token copied" : "Copy token"}
+          </button>
         </div>
       )}
 
@@ -3011,6 +3050,16 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
                   {readerFresh ? "Connected" : "No new reading"}
                 </span>
               </div>
+              {/* Automatic payouts need a photo now and then (the server pauses them
+                  otherwise). Said here, before it happens: a week ahead, and plainly
+                  once it has. */}
+              {Number(latest?.photoDueAt) > 0 && Date.now() > Number(latest.photoDueAt) - 7 * 86400000 && (
+                <div role="status" style={{ marginTop: 8, fontSize: 11, fontWeight: 700, lineHeight: 1.5, color: Date.now() > Number(latest.photoDueAt) ? T.gas : T.textMid }}>
+                  {Date.now() > Number(latest.photoDueAt)
+                    ? "📸 Automatic payouts are paused — take one photo of your meter (Meter tab) and they start again."
+                    : `📸 Take one photo of your meter before ${new Date(Number(latest.photoDueAt)).toLocaleDateString()} to keep automatic payouts going.`}
+                </div>
+              )}
               <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 8 }}>
                 <span style={{ ...mono, fontSize: 22, fontWeight: 800, color: T.text }}>{rd.reading}</span>
                 <span style={{ fontSize: 11, fontWeight: 700, color: T.textSoft }}>kWh</span>
@@ -3145,7 +3194,8 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
 # your meter reading. Run it on a PC / Pi / NAS on the same network.
 ${needNode}
 
-${fetchCmd(`--token=${token} --install${INGEST_FLAG}`)}
+${fetchCmd(`--ask-token --install${INGEST_FLAG}`)}
+# It first asks for your device token: tap “Copy token only” and paste it.
 
 # That sends your first reading AND schedules it twice a day (Windows: Task
 # Scheduler, Mac/Linux/Pi: cron), so you can close this window — it keeps
@@ -3156,7 +3206,8 @@ ${fetchCmd(`--token=${token} --install${INGEST_FLAG}`)}
 # Run it on a PC / Pi / NAS on the same network. Replace TASMOTA_IP first.
 ${needNode}
 
-${fetchCmd(`--token=${token} --tasmota=TASMOTA_IP --install${INGEST_FLAG}`)}
+${fetchCmd(`--ask-token --tasmota=TASMOTA_IP --install${INGEST_FLAG}`)}
+# It first asks for your device token: tap “Copy token only” and paste it.
 
 # That sends your first reading AND schedules it twice a day, so you can
 # close this window. Total not found? Add --field=StatusSNS.<group>.<name>
@@ -3192,7 +3243,8 @@ curl -X POST ${ingestUrl} \\
   -d '{"token":"${token}","reading":12345.6}'
 
 # Or let the bridge read any HTTP/JSON reader for you — one file, no install:
-${fetchCmd(`--token=${token} --install --url=http://<reader-ip>/api/v1/data${INGEST_FLAG}`)}`;
+${fetchCmd(`--ask-token --install --url=http://<reader-ip>/api/v1/data${INGEST_FLAG}`)}
+# It first asks for your device token: tap “Copy token only” and paste it.`;
                     const snip = device === "ha" ? haYaml : device === "curl" ? curlSnippet : device === "tasmota" ? tasmotaCmd : bridgeCmd;
                     const hint = device === "homewizard"
                       ? 'Turn on "Local API" in the HomeWizard app first (Settings → Meters → your P1). The bridge finds your P1 itself — if your network blocks mDNS, add --ip=<your P1 IP>. Needs Node 18+ or Docker — nothing to clone, no git.'
@@ -5582,7 +5634,7 @@ const HELP_I18N = {
       { q:"Automatic reading (P1 reader / HomeWizard / Powerfox / Tibber)", a:"With a P1 reader, Home Assistant, or another reader, your meter can send its own reading — then you never photograph again.\nHave a Powerfox (poweropti) or a Tibber Pulse? Pick it in the setup: we can fetch your reading from their cloud, nothing to install.\nDo one photo submission first (it sets your baseline), then open Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup for your token and the ready-made setup.\nFull step-by-step guide for every setup: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"Where do I paste the setup code?", a:"In a terminal on the device that stays on — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. That device needs Node.js 18+.\nUsing Home Assistant? No terminal at all — install our integration via HACS. (The separate GreenUtilityLog Meter Bridge add-on runs the bridge on Home Assistant OS instead.)\nStep-by-step with screenshots of every route: https://greenutilitylog.github.io/GreenUtilityLog/guide.html\nToo technical? Just take a photo — that works just as well." },
       { q:"Which meters work?", a:"Netherlands and Belgium: almost any smart meter with a P1 port (Belgian Fluvius meters need the free Fluvius key in the HomeWizard app once).\nGermany: a Powerfox poweropti, or a Tasmota reading head (Hichi).\nSweden, Norway, Denmark, Finland: a Tibber Pulse.\nFrance, UK, Spain, Italy: no P1 port — for now only through Home Assistant.\nEverywhere: if Home Assistant shows your meter's kWh total, it works. And photos always work.\nAll the details per country: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
-      { q:"Do I always need a photo?", a:"A photo is required for a hand-entered reading. A connected P1 reader can submit without a photo, because its device token binds the reading to your wallet." },
+      { q:"Do I always need a photo?", a:"A photo is required for a hand-entered reading. A connected P1 reader can submit without a photo, because its device token binds the reading to your wallet. One photo every 30 days keeps automatic payouts going; the app tells you a week ahead." },
       { q:"Is this real money?", a:"No. Everything runs on VeChain testnet, so the B3TR you earn are test tokens with no real value — perfect for trying things out safely." },
       { q:"I submitted but got no B3TR — why?", a:"Most common reasons: the new reading isn't higher than your last one, the photo was reused, or a cooldown is active for that utility. Another wallet was already paid on this phone? One person, one wallet: only the first wallet on a phone can earn. Try a fresh photo of an actual meter." },
       { q:"My photo was rejected.", a:"Use a real, clear photo of your own meter — good lighting, numbers in focus, no screenshots or photos of a screen." },
@@ -5601,7 +5653,7 @@ const HELP_I18N = {
       { q:"Automatisch uitlezen (P1-reader / HomeWizard / Powerfox / Tibber)", a:"Met een P1-reader, Home Assistant of een andere reader kan je meter z’n eigen stand doorsturen — dan fotografeer je nooit meer.\nHeb je een Powerfox (poweropti) of een Tibber Pulse? Kies die in de instellingen: wij kunnen je stand uit hun cloud halen, niets te installeren.\nDoe eerst één foto-inzending (dat zet je baseline), ga dan naar Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup voor je token en de kant-en-klare instellingen.\nVolledige stap-voor-stap gids voor elke situatie: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"Waar plak ik de setup-code?", a:"In een terminal op het apparaat dat altijd aan staat — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. Daar moet Node.js 18+ op staan.\nGebruik je Home Assistant? Dan helemaal geen terminal — installeer onze integratie via HACS. (De aparte add-on GreenUtilityLog Meter Bridge draait in plaats daarvan de bridge op Home Assistant OS.)\nStap voor stap voor elke route: https://greenutilitylog.github.io/GreenUtilityLog/guide.html\nTe technisch? Maak gewoon een foto — dat werkt net zo goed." },
       { q:"Welke meters werken?", a:"Nederland en België: bijna elke slimme meter met een P1-poort (Belgische Fluvius-meters hebben één keer de gratis Fluvius-sleutel in de HomeWizard-app nodig).\nDuitsland: een Powerfox poweropti, of een Tasmota-leeskop (Hichi).\nZweden, Noorwegen, Denemarken, Finland: een Tibber Pulse.\nFrankrijk, VK, Spanje, Italië: geen P1-poort — voorlopig alleen via Home Assistant.\nOveral: toont Home Assistant de kWh-stand van je meter, dan werkt het. En foto’s werken altijd.\nAlles per land: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
-      { q:"Heb ik altijd een foto nodig?", a:"Voor een handmatig ingevoerde stand is een foto verplicht. Een gekoppelde P1-reader mag zonder foto insturen, omdat zijn device-token de stand aan jouw wallet koppelt." },
+      { q:"Heb ik altijd een foto nodig?", a:"Voor een handmatig ingevoerde stand is een foto verplicht. Een gekoppelde P1-reader mag zonder foto insturen, omdat zijn device-token de stand aan jouw wallet koppelt. Eén foto per 30 dagen houdt de automatische uitbetalingen gaande; de app waarschuwt een week van tevoren." },
       { q:"Is dit echt geld?", a:"Nee. Alles draait op VeChain testnet, dus de B3TR die je verdient zijn test-tokens zonder echte waarde — perfect om veilig te testen." },
       { q:"Ik heb ingezonden maar geen B3TR — waarom?", a:"Meest voorkomend: de nieuwe stand is niet hoger dan je vorige, de foto is hergebruikt, of er is een cooldown actief. Is er op deze telefoon al een andere wallet uitbetaald? Eén persoon, één wallet: alleen de eerste wallet op een telefoon kan verdienen. Probeer een verse foto van een echte meter." },
       { q:"Mijn foto werd geweigerd.", a:"Gebruik een echte, scherpe foto van je eigen meter — goed licht, cijfers in beeld, geen screenshots of foto's van een scherm." },
@@ -5620,7 +5672,7 @@ const HELP_I18N = {
       { q:"Automatisches Auslesen (P1-Reader / HomeWizard / Powerfox / Tibber)", a:"Mit einem P1-Reader, Home Assistant oder einem anderen Reader kann dein Zähler seinen Stand selbst senden — dann fotografierst du nie wieder.\nDu hast einen Powerfox (poweropti) oder einen Tibber Pulse? Wähl ihn in der Einrichtung: Wir holen deinen Stand aus deren Cloud, nichts zu installieren.\nMach zuerst eine Foto-Einreichung (setzt den Basiswert), dann Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup für Token und fertige Einrichtung.\nVollständige Schritt-für-Schritt-Anleitung: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"Wo füge ich den Setup-Code ein?", a:"In einem Terminal auf dem Dauergerät — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. Dort muss Node.js 18+ installiert sein.\nDu nutzt Home Assistant? Gar kein Terminal — installiere unsere Integration über HACS. (Das separate Add-on GreenUtilityLog Meter Bridge betreibt stattdessen die Bridge auf Home Assistant OS.)\nSchritt für Schritt für jede Route: https://greenutilitylog.github.io/GreenUtilityLog/guide.html\nZu technisch? Mach einfach ein Foto — das funktioniert genauso gut." },
       { q:"Welche Zähler funktionieren?", a:"Niederlande und Belgien: fast jeder Smart-Zähler mit P1-Anschluss (belgische Fluvius-Zähler brauchen einmal den kostenlosen Fluvius-Schlüssel in der HomeWizard-App).\nDeutschland: ein Powerfox poweropti oder ein Tasmota-Lesekopf (Hichi).\nSchweden, Norwegen, Dänemark, Finnland: ein Tibber Pulse.\nFrankreich, UK, Spanien, Italien: kein P1-Port — vorerst nur über Home Assistant.\nÜberall: Zeigt Home Assistant den kWh-Stand deines Zählers, funktioniert es. Und Fotos gehen immer.\nAlles pro Land: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
-      { q:"Brauche ich immer ein Foto?", a:"Für einen manuell eingegebenen Stand ist ein Foto nötig. Ein verbundener P1-Reader darf ohne Foto senden, weil sein Geräte-Token den Stand an dein Wallet bindet." },
+      { q:"Brauche ich immer ein Foto?", a:"Für einen manuell eingegebenen Stand ist ein Foto nötig. Ein verbundener P1-Reader darf ohne Foto senden, weil sein Geräte-Token den Stand an dein Wallet bindet. Ein Foto alle 30 Tage hält die automatischen Auszahlungen am Laufen; die App erinnert eine Woche vorher." },
       { q:"Ist das echtes Geld?", a:"Nein. Alles läuft im VeChain-Testnet, die B3TR sind Test-Token ohne realen Wert — ideal zum sicheren Ausprobieren." },
       { q:"Ich habe eingereicht, aber kein B3TR — warum?", a:"Häufigste Gründe: der neue Stand ist nicht höher als der letzte, das Foto wurde wiederverwendet, oder eine Sperrzeit ist aktiv. Wurde auf diesem Handy schon eine andere Wallet ausgezahlt? Eine Person, eine Wallet: nur die erste Wallet auf einem Handy kann verdienen. Versuch ein frisches Foto eines echten Zählers." },
       { q:"Mein Foto wurde abgelehnt.", a:"Nutze ein echtes, scharfes Foto deines eigenen Zählers — gutes Licht, Ziffern im Fokus, keine Screenshots oder Bildschirmfotos." },
@@ -5639,7 +5691,7 @@ const HELP_I18N = {
       { q:"Lecture automatique (lecteur P1 / HomeWizard / Powerfox / Tibber)", a:"Avec un lecteur P1, Home Assistant ou un autre lecteur, votre compteur envoie son relevé lui-même — vous ne photographiez plus.\nVous avez un Powerfox (poweropti) ou un Tibber Pulse ? Choisissez-le dans la configuration : nous récupérons votre relevé dans leur cloud, rien à installer.\nFaites d'abord une soumission photo (fixe votre base), puis Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup pour le jeton et la configuration prête.\nGuide complet pas à pas : https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"Où coller le code de configuration ?", a:"Dans un terminal sur l\u2019appareil qui reste allumé — Windows : PowerShell · Mac : Terminal · Pi/NAS : SSH. Il faut Node.js 18+.\nVous utilisez Home Assistant ? Aucun terminal — installez notre intégration via HACS. (L’add-on séparé GreenUtilityLog Meter Bridge fait plutôt tourner le bridge sur Home Assistant OS.)\nPas à pas pour chaque route : https://greenutilitylog.github.io/GreenUtilityLog/guide.html\nTrop technique ? Prenez simplement une photo." },
       { q:"Quels compteurs fonctionnent ?", a:"Pays-Bas et Belgique : presque tout compteur intelligent avec un port P1 (les compteurs belges Fluvius demandent une fois la clé Fluvius gratuite dans l'app HomeWizard).\nAllemagne : un Powerfox poweropti, ou une tête de lecture Tasmota (Hichi).\nSuède, Norvège, Danemark, Finlande : un Tibber Pulse.\nFrance, Royaume-Uni, Espagne, Italie : pas de port P1 — pour l'instant seulement via Home Assistant.\nPartout : si Home Assistant affiche le total kWh de votre compteur, ça marche. Et les photos marchent toujours.\nTout par pays : https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
-      { q:"Faut-il toujours une photo ?", a:"Une photo est requise pour un relevé saisi à la main. Un lecteur P1 connecté peut envoyer sans photo, car son jeton d'appareil lie le relevé à votre wallet." },
+      { q:"Faut-il toujours une photo ?", a:"Une photo est requise pour un relevé saisi à la main. Un lecteur P1 connecté peut envoyer sans photo, car son jeton d'appareil lie le relevé à votre wallet. Une photo tous les 30 jours garde les paiements automatiques actifs ; l'app prévient une semaine avant." },
       { q:"Est-ce de l'argent réel ?", a:"Non. Tout tourne sur le testnet VeChain ; les B3TR gagnés sont des jetons de test sans valeur réelle — parfait pour essayer en toute sécurité." },
       { q:"J'ai envoyé mais aucun B3TR — pourquoi ?", a:"Raisons fréquentes : le nouveau relevé n'est pas supérieur au précédent, la photo a été réutilisée, ou un délai est actif. Un autre wallet a déjà été payé sur ce téléphone ? Une personne, un wallet : seul le premier wallet d'un téléphone peut gagner. Essayez une photo fraîche d'un vrai compteur." },
       { q:"Ma photo a été refusée.", a:"Utilisez une vraie photo nette de votre compteur — bon éclairage, chiffres nets, pas de captures ni photos d'écran." },
@@ -5658,7 +5710,7 @@ const HELP_I18N = {
       { q:"Lectura automática (lector P1 / HomeWizard / Powerfox / Tibber)", a:"Con un lector P1, Home Assistant u otro lector, tu contador envía su lectura solo — ya no fotografías más.\n¿Tienes un Powerfox (poweropti) o un Tibber Pulse? Elígelo en la configuración: recogemos tu lectura de su nube, nada que instalar.\nHaz primero un envío con foto (fija tu base), luego Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup para el token y la configuración lista.\nGuía completa paso a paso: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"¿Dónde pego el código de configuración?", a:"En una terminal en el dispositivo que queda encendido — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. Necesita Node.js 18+.\n¿Usas Home Assistant? Ninguna terminal — instala nuestra integración vía HACS. (El add-on aparte GreenUtilityLog Meter Bridge ejecuta en cambio el bridge en Home Assistant OS.)\nPaso a paso para cada ruta: https://greenutilitylog.github.io/GreenUtilityLog/guide.html\n¿Demasiado técnico? Solo haz una foto." },
       { q:"¿Qué contadores funcionan?", a:"Países Bajos y Bélgica: casi cualquier contador inteligente con puerto P1 (los belgas de Fluvius necesitan una vez la clave gratuita de Fluvius en la app HomeWizard).\nAlemania: un Powerfox poweropti, o un cabezal Tasmota (Hichi).\nSuecia, Noruega, Dinamarca, Finlandia: un Tibber Pulse.\nFrancia, Reino Unido, España, Italia: sin puerto P1 — por ahora solo con Home Assistant.\nEn todas partes: si Home Assistant muestra el total kWh de tu contador, funciona. Y las fotos siempre funcionan.\nTodo por país: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
-      { q:"¿Siempre necesito una foto?", a:"Se requiere foto para una lectura escrita a mano. Un lector P1 conectado puede enviar sin foto, porque su token de dispositivo vincula la lectura a tu wallet." },
+      { q:"¿Siempre necesito una foto?", a:"Se requiere foto para una lectura escrita a mano. Un lector P1 conectado puede enviar sin foto, porque su token de dispositivo vincula la lectura a tu wallet. Una foto cada 30 días mantiene los pagos automáticos; la app avisa una semana antes." },
       { q:"¿Es dinero real?", a:"No. Todo corre en el testnet de VeChain; los B3TR son tokens de prueba sin valor real — perfecto para probar con seguridad." },
       { q:"Envié pero no recibí B3TR — ¿por qué?", a:"Motivos comunes: la nueva lectura no es mayor que la anterior, la foto se reutilizó, o hay un tiempo de espera activo. ¿Ya cobró otro wallet en este teléfono? Una persona, un wallet: solo el primer wallet de un teléfono puede ganar. Prueba una foto nueva de un contador real." },
       { q:"Rechazaron mi foto.", a:"Usa una foto real y nítida de tu propio contador — buena luz, cifras enfocadas, sin capturas ni fotos de pantalla." },
@@ -6339,6 +6391,12 @@ export default function App() {
           }
           if (!res.ok) {
             // 408/429 are "not now", not "no": those retry like a 5xx.
+            const notYet = data.needsPass || /cooldown|already processing/i.test(String(data.error || ""));
+            if (notYet) {
+              // Kept for later: after the cooldown, or once an admin gives the pass.
+              await markLater(item.id, data.needsPass ? 12 * 3600000 : 2 * 3600000, data.error);
+              continue;
+            }
             if (res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429) {
               // The server's final answer (cooldown, duplicate photo, lower reading…):
               // retrying can't change it, so take it out of the queue.
@@ -6657,10 +6715,10 @@ export default function App() {
   // Rules (server-enforced; these local values only drive the UI): max 4 per
   // CALENDAR week (Monday–Sunday, resets Monday morning) + 24h between claims.
   const [ecoBusy, setEcoBusy] = useState(false);
-  const ecoWeekStart = (() => { const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.getTime(); })();
   const ecoSubTs = (s) => s.submittedAt || localDayTs(s.date) || 0;
   const ecoSubs = subs.filter(s => s.type === "eco");
-  const ecoUsedThisWeek = ecoSubs.filter(s => ecoSubTs(s) >= ecoWeekStart).length;
+  const thisEcoWeek = ecoWeekKey();
+  const ecoUsedThisWeek = ecoSubs.filter(s => ecoSubTs(s) && ecoWeekKey(ecoSubTs(s)) === thisEcoWeek).length;
   const ecoLastTs = ecoSubs.reduce((a, s) => Math.max(a, ecoSubTs(s)), 0);
   const ecoCooldownMs = Math.max(0, RULES.ecoCooldownMs - (Date.now() - ecoLastTs));
   const handleEcoSubmit = async (file, appliance) => {
