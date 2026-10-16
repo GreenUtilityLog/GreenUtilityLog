@@ -1,7 +1,8 @@
 # Daily check that the reward server can actually pay. Every problem it finds
 # fails the run with a ::error:: line, so a red run here means "look now"; a
 # ::warning:: is something to deal with this week. The last step prints a
-# snapshot of the numbers, which the weekly X-post draft reads as its source.
+# snapshot of the numbers (also as a SNAPSHOT notice annotation), which the
+# daily check-in and the weekly X-post draft read as their source.
 #
 # The wake job (wake.yml) only reports "server did not answer" and stays green;
 # this is the job that turns a quiet failure into a visible one.
@@ -89,6 +90,8 @@ jobs:
             "aiPhotoCheck": h.get("aiPhotoCheck"),
           }
           print("SNAPSHOT " + json.dumps(snap))
+          # Also as an annotation: readable from the public API without a login.
+          print("::notice title=SNAPSHOT::" + json.dumps(snap))
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
             f.write("### " + os.environ["SERVER"] + "\n\n```json\n" + json.dumps(snap, indent=2) + "\n```\n")
             for m in errors: f.write(f"- ❌ {m}\n")
