@@ -10,6 +10,9 @@ on:
   schedule:
     - cron: "7 5 * * *"
   workflow_dispatch:
+  push:
+    branches: ["claude/loving-gauss-VUrYi"]
+    paths: [".github/workflows/watchdog.yml"]
 permissions: {}
 jobs:
   check:
