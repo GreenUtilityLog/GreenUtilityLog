@@ -129,16 +129,27 @@ export async function startServer({ state = {}, env = {} } = {}) {
   };
 }
 
-// A real JPEG, large enough to clear MIN_BYTES, unique per call so the photo
-// dedupe doesn't swallow the second request in a test that needs two.
+// A real, decodable JPEG, large enough to clear MIN_BYTES, unique per call so the
+// photo dedupe doesn't swallow the second request in a test that needs two. The
+// server refuses a photo it cannot decode, so these are real images: a pool of
+// random-noise pictures (different enough that the likeness check never takes two
+// for the same scene), each given a unique comment segment.
+const sharp = (await import("sharp")).default;
+const POOL = await Promise.all(Array.from({ length: 48 }, async () => {
+  const raw = Buffer.alloc(32 * 32 * 3);
+  for (let i = 0; i < raw.length; i++) raw[i] = Math.floor(Math.random() * 256);
+  return sharp(raw, { raw: { width: 32, height: 32, channels: 3 } }).jpeg({ quality: 90 }).toBuffer();
+}));
 let photoSeq = 0;
 export function photo(tag = "") {
-  const seed = `${tag}:${photoSeq++}:${Math.random()}`;
+  const n = photoSeq++;
+  const seed = `${tag}:${n}:${Math.random()}`;
   const pad = Buffer.alloc(9000);
   pad.write(seed.repeat(200).slice(0, 9000));
   const len = pad.length + 2;
   const com = Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from([len >> 8, len & 0xff]), pad]);
-  return Buffer.concat([Buffer.from([0xff, 0xd8]), com, Buffer.from([0xff, 0xd9])]).toString("base64");
+  const img = POOL[n % POOL.length];
+  return Buffer.concat([img.subarray(0, 2), com, img.subarray(2)]).toString("base64");
 }
 
 export const WALLET = "0x1111111111111111111111111111111111111111";

@@ -147,6 +147,11 @@ export async function checkPhotoAuthenticity(imageBase64, detectedMime = "") {
   }
 
   const label = verdict?.final_label;
+  // "I could not judge this photo" is not "this photo is fine": a blurred or dark
+  // shot steered the model there and was paid unchecked. Retake, not pay.
+  if (label === "inconclusive" || verdict?.evaluation_feasible === false) {
+    return { ok: false, verdict, reason: "the photo couldn't be checked — take it again, sharp and well lit, with the display filling most of the picture" };
+  }
   const conf = Number(verdict?.final_confidence || 0);
   const flagged = BAD_LABELS.has(label) && conf >= MIN_CONFIDENCE;
   return {

@@ -12,6 +12,9 @@ services:
     startCommand: npm start
     # /livez answers at once; /health waits for the chain and can be slow.
     healthCheckPath: /livez
+    # A payout already sent is finished and recorded before the old process exits
+    # (index.js waits up to 100 s); Render's default 30 s would cut it off.
+    maxShutdownDelaySeconds: 120
     envVars:
       - key: NETWORK
         value: testnet

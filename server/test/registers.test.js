@@ -16,7 +16,7 @@ function fakeOcr() {
   const o = { reads: [] };
   o.srv = createServer((req, res) => {
     req.resume();
-    req.on("end", () => res.end(JSON.stringify({ numbers: o.reads, text: o.reads.join(" ") })));
+    req.on("end", () => res.end(JSON.stringify({ numbers: o.reads, text: o.reads.join(" "), reading: String(o.reads[0] ?? "") })));
   });
   return new Promise((r) => o.srv.listen(0, "127.0.0.1", () => { o.url = `http://127.0.0.1:${o.srv.address().port}/ocr`; r(o); }));
 }

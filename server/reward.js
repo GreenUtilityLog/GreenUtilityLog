@@ -323,7 +323,17 @@ export async function sendClauseTo(to, abi, args, comment) {
       break;
     }
   }
-  if (lastErr) throw lastErr; // never arrived after three tries: nothing was sent
+  // Three "not on the node" answers can all come from nodes behind a load balancer
+  // that the one which took it hasn't gossiped to yet. Once more after a pause —
+  // a "not sent" here releases the guards and the user's retry signs a new one.
+  if (lastErr) {
+    await new Promise((r) => setTimeout(r, 3 * BROADCAST_RETRY_MS));
+    if (await nodeHasTransaction(txid) !== false) {
+      console.warn(`[reward] broadcast of ${txid} failed three times, but the node now has it (or can't say) — treating it as sent`);
+      lastErr = null;
+    }
+  }
+  if (lastErr) throw lastErr; // never arrived: nothing was sent
   let receipt = null;
   try {
     receipt = await thor.transactions.waitForTransaction(txid, { timeoutMs: 30000, intervalMs: 2000 });

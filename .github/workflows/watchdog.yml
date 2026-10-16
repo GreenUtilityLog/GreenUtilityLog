@@ -54,6 +54,11 @@ jobs:
           if h.get("storeSaving") is False: err("last save to storage failed (storeSaving false): payouts paused")
           if h.get("durableState") is False: err("no durable storage configured: a restart forgets everything")
           if h.get("dryRun"): warn("DRY_RUN is on: nothing is actually paid")
+          # The whole state is one value, written in full on every save; past the
+          # storage's request limit every save fails and payouts pause.
+          size = h.get("stateBytes") or 0
+          if size > 8_000_000: err(f"saved state is {size/1e6:.1f} MB: saves will start failing; old photo hashes need moving out")
+          elif size > 3_000_000: warn(f"saved state is {size/1e6:.1f} MB and growing")
           if h.get("distributorAuthorized") is False: err("the distributor wallet lost its reward-distributor role")
           if h.get("distributorAuthorized") is None: warn("could not read the distributor role from the chain")
           if h.get("distributionPaused") is True: err("reward distribution is paused on VeBetterDAO")
@@ -86,7 +91,7 @@ jobs:
             "poolB3TR": pool, "distributorVTHO": None if vtho is None else round(vtho),
             "weekFactor": (h.get("rewardBudget") or {}).get("factor"),
             "passes": h.get("passCount"), "phones": (h.get("device") or {}).get("known"),
-            "flagged": h.get("flaggedCount"), "waitingB3TR": waiting,
+            "flagged": h.get("flaggedCount"), "waitingB3TR": waiting, "stateKB": round(size / 1000),
             "powerfoxLinked": (h.get("powerfox") or {}).get("linked"),
             "tibberLinked": (h.get("tibber") or {}).get("linked"),
             "aiPhotoCheck": h.get("aiPhotoCheck"),

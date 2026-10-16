@@ -170,12 +170,25 @@ async function takeOnce(key, ttlMs) {
   if (localOnce.size > 20000) for (const [k, t] of localOnce) if (t <= now) localOnce.delete(k);
   return true;
 }
+// A release that fails leaves an honest user blocked (20 h cooldown, 60 days on a
+// reading) after being told nothing was used up — so it is tried twice, and a key
+// that still could not be released is logged for an admin to clear.
 async function releaseOnce(key) {
-  if (USE_REDIS) { try { await redisCmd(["DEL", `${REDIS_KEY}:once:${key}`]); } catch {} return; }
+  if (USE_REDIS) {
+    for (let i = 0; i < 2; i++) {
+      try { await redisCmd(["DEL", `${REDIS_KEY}:once:${key}`]); return; }
+      catch (e) { if (i) console.error(`[store] could not release guard "${key}":`, e?.message || e); }
+    }
+    return;
+  }
   localOnce.delete(key);
 }
 
 let saveError = false;
+// Size of the last state written. The whole state is one value, read and written
+// in full on every save: past the storage's request limit or its time limit every
+// save fails and payouts pause. Shown in /health so the daily check sees it grow.
+let lastBlobBytes = 0;
 let saveRetry = null;
 let hashAdds = 0;
 
@@ -262,6 +275,7 @@ async function mergedWrite() {
       const { remote, ver } = await readStored();
       applyMine(remote, changes);
       const blob = JSON.stringify(remote);
+      lastBlobBytes = blob.length;
       if (casSupported) {
         let r;
         try { r = await redisCmd(["EVAL", CAS_SCRIPT, "2", REDIS_KEY, VERSION_KEY, ver, blob]); }
@@ -345,6 +359,7 @@ async function writeOnce() {
     return;
   }
   const blob = JSON.stringify(state);
+  lastBlobBytes = blob.length;
   try {
     // Atomic-ish: write a temp file then rename, so a crash mid-write can't
     // corrupt the live state file (the old boot loader silently started fresh).
@@ -422,6 +437,40 @@ export const store = {
       const i = key.indexOf(":");
       const u = i < 0 ? "electric" : key.slice(0, i);
       if (u === utility && canonicalMeter(i < 0 ? key : key.slice(i + 1)) === canon) return owner;
+    }
+    return null;
+  },
+  // How this wallet's meter is spelled where its state is kept: "E-1000" typed at
+  // pairing while the photo set up "E1000". Everything per meter (baseline, photo
+  // date, markers) is stored under the exact spelling, so pairing under the other
+  // one found no baseline and every automatic payout was refused.
+  ownedSpelling: (utility, meterNo, addr) => {
+    const canon = canonicalMeter(meterNo);
+    const me = String(addr || "").toLowerCase();
+    if (!canon) return meterNo;
+    for (const [key, owner] of Object.entries(state.meterOwners)) {
+      if (String(owner).toLowerCase() !== me) continue;
+      const i = key.indexOf(":");
+      if ((i < 0 ? "electric" : key.slice(0, i)) !== utility) continue;
+      const spelled = i < 0 ? key : key.slice(i + 1);
+      if (canonicalMeter(spelled) === canon) return spelled;
+    }
+    return meterNo;
+  },
+  // Another wallet's meter whose number contains this one or is contained in it
+  // ("2345678" inside "E12345678", or a look-alike letter stripped away). Such a
+  // number passes the meter-number-on-photo check against the other wallet's
+  // sticker, while ownership treats it as a different meter. Returns that owner.
+  meterOverlapOwner: (utility, meterNo, addr) => {
+    const canon = canonicalMeter(meterNo);
+    if (canon.length < 4) return null;
+    const me = String(addr || "").toLowerCase();
+    for (const [key, owner] of Object.entries(state.meterOwners)) {
+      if (String(owner).toLowerCase() === me) continue;
+      const i = key.indexOf(":");
+      if ((i < 0 ? "electric" : key.slice(0, i)) !== utility) continue;
+      const other = canonicalMeter(i < 0 ? key : key.slice(i + 1));
+      if (other.length >= 4 && other !== canon && (other.includes(canon) || canon.includes(other))) return owner;
     }
     return null;
   },
@@ -574,6 +623,14 @@ export const store = {
     state.meterOwners[newK] = String(addr || owner || "").toLowerCase();
     if (last != null) state.readings[newK] = last;
     delete state.meterOwners[oldK]; delete state.readings[oldK];
+    // Everything else known about the meter moves with it. Left behind, a rename
+    // reset the photo clock (30 photo-free days), reopened the one-time rebaseline
+    // and fix-basis, and counted the next usage as one day.
+    for (const f of ["readingAts", "photoAts", "autoPaid", "rebased", "basisFixed", "meterRegs"]) {
+      if (!isMap(state[f])) continue;
+      if (has(state[f], oldK)) { state[f][newK] = state[f][oldK]; delete state[f][oldK]; }
+      else if (mFallback(utility) && has(state[f], oldMeterNo)) { state[f][newK] = state[f][oldMeterNo]; delete state[f][oldMeterNo]; }
+    }
     if (mFallback(utility)) { delete state.meterOwners[oldMeterNo]; delete state.readings[oldMeterNo]; }
     persist();
     return { meterNo: newMeterNo, owner: state.meterOwners[newK] || null, lastReading: (last != null ? last : null) };
@@ -582,14 +639,16 @@ export const store = {
   // Eco-bonus claims per wallet: timestamps of paid eco photos. Pruned to the
   // last 14 days on read — enough to evaluate both the current calendar week
   // and the between-claims cooldown.
+  // Reading must not write: an assignment here marks the wallet's list as changed,
+  // and a process holding an older copy then wrote its stale list over a claim the
+  // other process had just recorded (deploy overlap). Pruned only when adding.
   ecoClaims: (addr) => {
     const now = Date.now();
-    const list = (state.ecoClaims[addr] || []).filter((t) => now - t < 14 * 24 * 60 * 60 * 1000);
-    state.ecoClaims[addr] = list;
-    return list;
+    return (state.ecoClaims[addr] || []).filter((t) => now - t < 14 * 24 * 60 * 60 * 1000);
   },
   addEcoClaim: (addr, ts) => {
-    (state.ecoClaims[addr] = state.ecoClaims[addr] || []).push(ts);
+    const now = Date.now();
+    state.ecoClaims[addr] = [...(state.ecoClaims[addr] || []).filter((t) => now - t < 14 * 24 * 60 * 60 * 1000), ts];
     persist();
   },
 
@@ -630,6 +689,22 @@ export const store = {
     }
     persist();
     return w;
+  },
+  deviceWallets: (key) => {
+    if (!key || !isMap(state.devices) || !Object.prototype.hasOwnProperty.call(state.devices, key)) return [];
+    return Array.isArray(state.devices[key]?.w) ? [...state.devices[key].w] : [];
+  },
+  // Undo a linkDevice that added this wallet, when the attempt it was for paid
+  // nothing — one refused try with the wrong wallet took the phone's only slot.
+  unlinkDevice: (key, addr) => {
+    const a = String(addr).toLowerCase();
+    if (!key || !isMap(state.devices) || !Object.prototype.hasOwnProperty.call(state.devices, key)) return;
+    const w = Array.isArray(state.devices[key]?.w) ? state.devices[key].w : [];
+    if (!w.includes(a)) return;
+    const rest = w.filter((x) => x !== a);
+    if (rest.length) state.devices[key] = { ...state.devices[key], w: rest };
+    else delete state.devices[key];
+    persist();
   },
   deviceCount: () => (isMap(state.devices) ? Object.keys(state.devices).length : 0),
   // Tibber accounts, per wallet: { cred (sealed token, see tibber.js), token (the
@@ -849,6 +924,7 @@ export const store = {
   // while saving is failing.
   loaded: () => !loadError,
   saveOk: () => !saveError,
+  stateBytes: () => lastBlobBytes,
   // A save stuck for half a minute counts as failing: a payout made now might
   // never be recorded.
   ready: () => !loadError && !saveError && !(writing && Date.now() - writingSince > 30000),
