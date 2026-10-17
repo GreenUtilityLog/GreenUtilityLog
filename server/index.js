@@ -311,7 +311,7 @@ const photoPayoutKey = (hash) => [`photo:${hash}`, 30 * DAY_MS, "duplicate photo
 // one wallet could send the same photo all day and run up the API bill. Counted
 // per submission that reaches the checks, whether or not any check is configured
 // (the count is cheap, and the limits are far above what a person sends).
-const PHOTO_CHECKS_PER_WALLET = Number(process.env.PHOTO_CHECKS_PER_WALLET_DAY || 15);
+const PHOTO_CHECKS_PER_WALLET = Number(process.env.PHOTO_CHECKS_PER_WALLET_DAY || 5);
 const PHOTO_CHECKS_PER_DAY = Number(process.env.PHOTO_CHECKS_PER_DAY || 2000);
 const photoChecks = { day: "", total: 0, byWallet: new Map() };
 function photoCheckBudget(addr) {
