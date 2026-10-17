@@ -804,7 +804,8 @@ EU = {
           ('🇫🇷 France', 'Linky: TIC port', 'No P1 port, so for now only Home Assistant (e.g. with a ZLinky). Or photos.'),
           ('🇬🇧 United Kingdom', 'SMETS2: no port (Zigbee)', 'No P1 port, so for now only Home Assistant (e.g. with a Hildebrand Glow). Or photos.'),
           ('🇪🇸 Spain', 'No port', 'No P1 port, so for now only Home Assistant (e.g. with Datadis). Or photos.'),
-          ('🇮🇹 Italy', 'Chain 2 (needs a device such as a Sinapsi Alfa)', 'No P1 port, so for now only Home Assistant. Or photos.')],
+          ('🇮🇹 Italy', 'Chain 2 (needs a device such as a Sinapsi Alfa)', 'No P1 port, so for now only Home Assistant. Or photos.'),
+          ('🇺🇸 🇨🇦 USA & Canada', 'No P1 port (Zigbee, only if the utility enables it)', 'Photos, if the display shows the kWh total. Home Assistant with a Rainforest EAGLE where the utility allows it. Quebec (Hydro-Québec): photos only.')],
     trouble=("this phone is already used by 1 other wallet", "One person, one wallet: a phone can be used by one wallet to earn. The wallet that was paid first on this phone keeps working. Switched to a new wallet for good? Ask an admin via Send Feedback in the app."),
   ),
   "nl": dict(
@@ -815,7 +816,8 @@ EU = {
           ('🇫🇷 Frankrijk', 'Linky: TIC-poort', 'Geen P1-poort, dus voorlopig alleen Home Assistant (bijv. met een ZLinky). Of foto’s.'),
           ('🇬🇧 Verenigd Koninkrijk', 'SMETS2: geen poort (Zigbee)', 'Geen P1-poort, dus voorlopig alleen Home Assistant (bijv. met een Hildebrand Glow). Of foto’s.'),
           ('🇪🇸 Spanje', 'Geen poort', 'Geen P1-poort, dus voorlopig alleen Home Assistant (bijv. met Datadis). Of foto’s.'),
-          ('🇮🇹 Italië', 'Chain 2 (met een kastje zoals de Sinapsi Alfa)', 'Geen P1-poort, dus voorlopig alleen Home Assistant. Of foto’s.')],
+          ('🇮🇹 Italië', 'Chain 2 (met een kastje zoals de Sinapsi Alfa)', 'Geen P1-poort, dus voorlopig alleen Home Assistant. Of foto’s.'),
+          ('🇺🇸 🇨🇦 VS en Canada', 'Geen P1-poort (Zigbee, alleen als de netbeheerder het aanzet)', 'Foto’s, als de display de kWh-stand toont. Home Assistant met een Rainforest EAGLE waar de netbeheerder dat toestaat. Quebec (Hydro-Québec): alleen foto’s.')],
     trouble=("this phone is already used by 1 other wallet", "Eén persoon, één wallet: op een telefoon kan één wallet verdienen. De wallet die als eerste op deze telefoon is uitbetaald, blijft werken. Ben je definitief overgestapt op een nieuwe wallet? Vraag het een admin via Send Feedback in de app."),
   ),
   "de": dict(
@@ -826,7 +828,8 @@ EU = {
           ('🇫🇷 Frankreich', 'Linky: TIC-Schnittstelle', 'Kein P1-Port, also vorerst nur Home Assistant (z. B. mit einem ZLinky). Oder Fotos.'),
           ('🇬🇧 Vereinigtes Königreich', 'SMETS2: kein Port (Zigbee)', 'Kein P1-Port, also vorerst nur Home Assistant (z. B. mit einem Hildebrand Glow). Oder Fotos.'),
           ('🇪🇸 Spanien', 'Kein Port', 'Kein P1-Port, also vorerst nur Home Assistant (z. B. mit Datadis). Oder Fotos.'),
-          ('🇮🇹 Italien', 'Chain 2 (mit einem Gerät wie dem Sinapsi Alfa)', 'Kein P1-Port, also vorerst nur Home Assistant. Oder Fotos.')],
+          ('🇮🇹 Italien', 'Chain 2 (mit einem Gerät wie dem Sinapsi Alfa)', 'Kein P1-Port, also vorerst nur Home Assistant. Oder Fotos.'),
+          ('🇺🇸 🇨🇦 USA & Kanada', 'Kein P1-Port (Zigbee, nur wenn der Versorger es freischaltet)', 'Fotos, wenn das Display den kWh-Stand zeigt. Home Assistant mit einem Rainforest EAGLE, wo der Versorger es erlaubt. Quebec (Hydro-Québec): nur Fotos.')],
     trouble=("this phone is already used by 1 other wallet", "Eine Person, eine Wallet: Auf einem Handy kann eine Wallet verdienen. Die Wallet, die auf diesem Handy zuerst ausgezahlt wurde, funktioniert weiter. Endgültig auf eine neue Wallet umgestiegen? Frag einen Admin über Send Feedback in der App."),
   ),
   "fr": dict(
@@ -837,7 +840,8 @@ EU = {
           ('🇫🇷 France', 'Linky : port TIC', 'Pas de port P1, donc pour l’instant seulement Home Assistant (par ex. avec un ZLinky). Ou des photos.'),
           ('🇬🇧 Royaume-Uni', 'SMETS2 : pas de port (Zigbee)', 'Pas de port P1, donc pour l’instant seulement Home Assistant (par ex. avec un Hildebrand Glow). Ou des photos.'),
           ('🇪🇸 Espagne', 'Pas de port', 'Pas de port P1, donc pour l’instant seulement Home Assistant (par ex. avec Datadis). Ou des photos.'),
-          ('🇮🇹 Italie', 'Chain 2 (avec un boîtier comme le Sinapsi Alfa)', 'Pas de port P1, donc pour l’instant seulement Home Assistant. Ou des photos.')],
+          ('🇮🇹 Italie', 'Chain 2 (avec un boîtier comme le Sinapsi Alfa)', 'Pas de port P1, donc pour l’instant seulement Home Assistant. Ou des photos.'),
+          ('🇺🇸 🇨🇦 États-Unis et Canada', 'Pas de port P1 (Zigbee, seulement si le distributeur l’active)', 'Des photos, si l’afficheur montre le total kWh. Home Assistant avec un Rainforest EAGLE là où le distributeur l’autorise. Québec (Hydro-Québec) : photos seulement.')],
     trouble=("this phone is already used by 1 other wallet", "Une personne, un wallet : sur un téléphone, un seul wallet peut gagner. Le wallet payé en premier sur ce téléphone continue de marcher. Vous êtes passé définitivement à un nouveau wallet ? Demandez à un admin via Send Feedback dans l'app."),
   ),
   "es": dict(
@@ -848,7 +852,8 @@ EU = {
           ('🇫🇷 Francia', 'Linky: puerto TIC', 'Sin puerto P1, así que por ahora solo Home Assistant (p. ej. con un ZLinky). O fotos.'),
           ('🇬🇧 Reino Unido', 'SMETS2: sin puerto (Zigbee)', 'Sin puerto P1, así que por ahora solo Home Assistant (p. ej. con un Hildebrand Glow). O fotos.'),
           ('🇪🇸 España', 'Sin puerto', 'Sin puerto P1, así que por ahora solo Home Assistant (p. ej. con Datadis). O fotos.'),
-          ('🇮🇹 Italia', 'Chain 2 (con un aparato como el Sinapsi Alfa)', 'Sin puerto P1, así que por ahora solo Home Assistant. O fotos.')],
+          ('🇮🇹 Italia', 'Chain 2 (con un aparato como el Sinapsi Alfa)', 'Sin puerto P1, así que por ahora solo Home Assistant. O fotos.'),
+          ('🇺🇸 🇨🇦 EE. UU. y Canadá', 'Sin puerto P1 (Zigbee, solo si la compañía lo activa)', 'Fotos, si la pantalla muestra el total de kWh. Home Assistant con un Rainforest EAGLE donde la compañía lo permita. Quebec (Hydro-Québec): solo fotos.')],
     trouble=("this phone is already used by 1 other wallet", "Una persona, un wallet: en un teléfono solo un wallet puede ganar. El wallet que cobró primero en este teléfono sigue funcionando. ¿Te cambiaste a un wallet nuevo para siempre? Pide ayuda a un admin con Send Feedback en la app."),
   ),
 }
