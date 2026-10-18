@@ -12,7 +12,7 @@ import { validateSubmission } from "./verify.js";
 import { verifyPhoto, checkReadingOnPhoto, readingCheckMode, meterNoOnPhoto, meterNoCheckMode, photoPrint, printDistance } from "./media.js";
 import { store } from "./store.js";
 import { putPhoto, getPhotoDataUrl, deletePhoto, photoStoreEnabled } from "./photostore.js";
-import { distributeReward, distributeEcoReward, distributorAddress, chainDiagnostics, moveToRewardsPool, DRY_RUN } from "./reward.js";
+import { distributeReward, distributeEcoReward, distributorAddress, chainDiagnostics, moveToRewardsPool, DRY_RUN, hasDistributorKey } from "./reward.js";
 import { signalStatus, passportFor, signalUser, passportVouches } from "./passport.js";
 import { budgetState, scaledAmount, recordPayout, autoClaimAllocation, autoMoveToRewardsPool } from "./budget.js";
 import { ocrImage, ocrEnabled, ocrProviders } from "./ocr.js";
@@ -234,6 +234,8 @@ app.get("/health", async (req, res) => {
     storeReady: store.ready(),
     // false = the last save to durable storage failed: payouts pause until one lands.
     storeSaving: store.saveOk(),
+    // The emergency stop (PAYOUTS_PAUSED): true = no payout goes out at all.
+    payoutsPaused: PAYOUTS_PAUSED,
     stateBytes: store.stateBytes(),
     distributor: await distributorAddress().catch(() => null),
     poolB3TR: chain.poolB3TR,
@@ -286,7 +288,12 @@ const AUTO_CLAIM_ON_PUSH = String(process.env.AUTO_CLAIM_ON_PUSH || "on").toLowe
 // happened when a deploy briefly ran two processes that each trusted only their
 // own memory. Released again if the payout doesn't go through.
 const DAY_MS = 86400000;
+// Emergency stop: PAYOUTS_PAUSED=true in the server's settings stops every payout
+// (photo, eco, automatic) before anything is sent, until it is removed. The one
+// switch for "something is wrong, stop now" — see docs/MAINNET.md, Noodstop.
+const PAYOUTS_PAUSED = /^(1|true|yes|on)$/i.test(String(process.env.PAYOUTS_PAUSED || "").trim());
 async function guardPayout(keys) {
+  if (PAYOUTS_PAUSED) return { code: 503, error: "payouts are paused for maintenance — nothing was used up, please try again later" };
   const taken = [];
   for (const [key, ttl, msg] of keys) {
     const ok = await store.takeOnce(key, ttl);
@@ -313,16 +320,30 @@ const photoPayoutKey = (hash) => [`photo:${hash}`, 30 * DAY_MS, "duplicate photo
 // (the count is cheap, and the limits are far above what a person sends).
 const PHOTO_CHECKS_PER_WALLET = Number(process.env.PHOTO_CHECKS_PER_WALLET_DAY || 5);
 const PHOTO_CHECKS_PER_DAY = Number(process.env.PHOTO_CHECKS_PER_DAY || 2000);
-const photoChecks = { day: "", total: 0, byWallet: new Map() };
-function photoCheckBudget(addr) {
+// Kept in the stored state, not in memory: a free-plan server sleeps after a quarter
+// of an hour without visitors and wakes with empty memory, which reset every daily
+// count — the "5 a day" was 5 per wake-up.
+function dailyCounter(name) {
   const day = new Date().toISOString().slice(0, 10);
-  if (photoChecks.day !== day) { photoChecks.day = day; photoChecks.total = 0; photoChecks.byWallet.clear(); }
+  let c = store.getSetting(name);
+  if (!c || c.day !== day || typeof c.by !== "object") c = { day, total: 0, by: {} };
+  return {
+    total: c.total,
+    of: (key) => Number(c.by[key]) || 0,
+    add: (key) => {
+      c = { ...c, total: c.total + 1, by: { ...c.by, [key]: (Number(c.by[key]) || 0) + 1 } };
+      const keys = Object.keys(c.by);
+      if (keys.length > 5000) c.by = Object.fromEntries(keys.slice(-5000).map((k) => [k, c.by[k]]));
+      store.setSetting(name, c);
+    },
+  };
+}
+function photoCheckBudget(addr) {
   const a = String(addr || "").toLowerCase();
-  const mine = photoChecks.byWallet.get(a) || 0;
-  if (PHOTO_CHECKS_PER_WALLET > 0 && mine >= PHOTO_CHECKS_PER_WALLET) return "too many photo attempts today — try again tomorrow";
-  if (PHOTO_CHECKS_PER_DAY > 0 && photoChecks.total >= PHOTO_CHECKS_PER_DAY) return "the photo check has reached today's limit — please try again tomorrow";
-  photoChecks.byWallet.set(a, mine + 1);
-  photoChecks.total++;
+  const count = dailyCounter("photoChecks");
+  if (PHOTO_CHECKS_PER_WALLET > 0 && count.of(a) >= PHOTO_CHECKS_PER_WALLET) return "too many photo attempts today — try again tomorrow";
+  if (PHOTO_CHECKS_PER_DAY > 0 && count.total >= PHOTO_CHECKS_PER_DAY) return "the photo check has reached today's limit — please try again tomorrow";
+  count.add(a);
   return null;
 }
 
@@ -514,6 +535,14 @@ async function requireBoundCert(req, mustContain = []) {
     if (!certSays(content, needle)) {
       return { ok: false, code: 401, error: "this signature does not authorise this request — please sign again" };
     }
+  }
+  // Signed for this network. Both app copies run on one site, so a signature made
+  // for the test copy could be presented to the mainnet server within its lifetime.
+  // Required on mainnet; elsewhere a signature from an app that predates the line
+  // is still accepted, but one that names the other network is not.
+  const says = content.split(/\r?\n/).find((l) => /^Network: /.test(l.trim()));
+  if (says ? says.trim() !== `Network: ${NETWORK}` : NETWORK === "mainnet") {
+    return { ok: false, code: 401, error: `this signature was not made for ${NETWORK} — reload the app and sign again` };
   }
   const spent = await spendCert(cert);
   if (spent === null) return { ok: false, code: 503, error: "the server can't check this signature right now — please try again in a minute" };
@@ -865,9 +894,10 @@ app.post("/admin/photo-delete", async (req, res) => {
 // provider that recognises it (Roboflow → custom → Vision). Keys/URLs stay on the
 // server. Returns 503 when no provider is configured, so the app falls back to
 // in-browser OCR.
-const OCR_DAILY_MAX = Number(process.env.OCR_DAILY_MAX || 1000);
-const OCR_DAILY_PER_IP = Number(process.env.OCR_DAILY_PER_IP || 40);
-const ocrQuota = { day: "", total: 0, byIp: new Map() };
+// Lower on mainnet: there every call is a paid Claude call that only pre-fills the
+// form, and the payout reads the photo again anyway.
+const OCR_DAILY_MAX = Number(process.env.OCR_DAILY_MAX || (NETWORK === "mainnet" ? 300 : 1000));
+const OCR_DAILY_PER_IP = Number(process.env.OCR_DAILY_PER_IP || (NETWORK === "mainnet" ? 15 : 40));
 app.post("/ocr", async (req, res) => {
   if (!ocrEnabled()) return res.status(503).json({ ok: false, error: "ocr not configured" });
   // This forwards to PAID providers (Vision/Roboflow/Claude), so guard the cost:
@@ -883,13 +913,13 @@ app.post("/ocr", async (req, res) => {
   }
   // Every call here costs money at a paid provider and needs no signature, so cap
   // the damage a script can do: per IP and in total, per UTC day.
-  const day = new Date().toISOString().slice(0, 10);
-  if (ocrQuota.day !== day) { ocrQuota.day = day; ocrQuota.total = 0; ocrQuota.byIp.clear(); }
-  const ipCount = ocrQuota.byIp.get(req.clientIp) || 0;
-  if (ocrQuota.total >= OCR_DAILY_MAX || ipCount >= OCR_DAILY_PER_IP) {
+  // Kept in the stored state (dailyCounter), so a server waking from sleep doesn't
+  // start the day's count again.
+  const ocrCount = dailyCounter("ocrQuota");
+  if (ocrCount.total >= OCR_DAILY_MAX || ocrCount.of(req.clientIp) >= OCR_DAILY_PER_IP) {
     return res.status(429).json({ ok: false, error: "photo reading limit reached for today — type the reading in yourself" });
   }
-  ocrQuota.total++; ocrQuota.byIp.set(req.clientIp, ipCount + 1);
+  ocrCount.add(req.clientIp);
   const { text, numbers, provider } = await ocrImage(image);
   res.json({ ok: true, text, numbers, provider });
 });
@@ -2209,6 +2239,20 @@ if (NETWORK === "mainnet") {
   if (readingCheckMode(ocrEnabled()) !== "strict") {
     console.error("[boot] FATAL: NETWORK=mainnet needs the reading on the photo checked — set ANTHROPIC_API_KEY (or another OCR provider) and leave READING_CHECK unset or \"strict\". Refusing to start.");
     process.exit(1);
+  }
+  // Without a key every payout fails at the last step, after the photo checks have
+  // run and been paid for; without its own admin list the two built-in addresses
+  // would be the admins of real money.
+  if (!hasDistributorKey && !DRY_RUN) {
+    console.error("[boot] FATAL: NETWORK=mainnet needs the distributor key — set DISTRIBUTOR_PRIVATE_KEY (or DISTRIBUTOR_MNEMONIC). Refusing to start.");
+    process.exit(1);
+  }
+  if (!String(process.env.ADMIN_WALLETS || "").trim()) {
+    console.error("[boot] FATAL: NETWORK=mainnet needs ADMIN_WALLETS set to your own admin wallet address(es). Refusing to start.");
+    process.exit(1);
+  }
+  if (DRY_RUN) {
+    console.warn("[boot] WARNING: mainnet with DISTRIBUTOR_DRY_RUN on — nothing is sent, but readings and cooldowns are recorded as paid. Not an emergency stop: use PAYOUTS_PAUSED=true for that.");
   }
   if (!aiPhotoCheckEnabled()) {
     console.warn("[boot] WARNING: mainnet without the AI photo check — doctored or screen photos are not refused. Set ANTHROPIC_API_KEY.");

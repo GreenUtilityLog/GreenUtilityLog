@@ -923,18 +923,20 @@ async function detectScreenshot(base64, mime) {
   });
 }
 
+const TESSERACT_FILES = new URL(`${import.meta.env.BASE_URL}tesseract/`, window.location.href).href;
+// workerBlobURL false: the worker is started from its own file on this site instead
+// of a blob made from fetched code.
+const TESSERACT_OPTS = { workerPath: TESSERACT_FILES + "worker.min.js", corePath: TESSERACT_FILES, workerBlobURL: false, logger: () => {} };
 let _tesseractReady = null;
 async function loadTesseract() {
   if (window.Tesseract) return window.Tesseract;
   if (_tesseractReady) return _tesseractReady;
   _tesseractReady = new Promise((resolve, reject) => {
     const s = document.createElement("script");
-    // Exact versions, not "@5" and "@master": this code runs inside the page that
-    // asks for wallet signatures, so what it loads should not change underneath us.
-    s.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
-    // And its fingerprint, so a changed copy is refused rather than run.
-    s.integrity = "sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F";
-    s.crossOrigin = "anonymous";
+    // Served from this site (vite.config.js copies it from the pinned npm package),
+    // together with the worker and the WebAssembly core it loads: from a CDN those
+    // two could not be pinned, and they run as this page, next to the wallet session.
+    s.src = TESSERACT_FILES + "tesseract.min.js";
     s.onload  = () => resolve(window.Tesseract);
     s.onerror = reject;
     document.head.appendChild(s);
@@ -1009,8 +1011,8 @@ const SSD_LANG_PATH = "https://cdn.jsdelivr.net/gh/Shreeshrii/tessdata_ssd@e493a
 
 async function makeWorker(Tesseract, model) {
   const worker = model === "ssd"
-    ? await Tesseract.createWorker("ssd", 1, { langPath: SSD_LANG_PATH, gzip: false, logger: () => {} })
-    : await Tesseract.createWorker("eng", 1, { logger: () => {} });
+    ? await Tesseract.createWorker("ssd", 1, { ...TESSERACT_OPTS, langPath: SSD_LANG_PATH, gzip: false })
+    : await Tesseract.createWorker("eng", 1, TESSERACT_OPTS);
   // PSM 7 = treat the image as a SINGLE TEXT LINE. A cropped meter reading is one
   // line of digits, so this reads it as one number instead of fragmenting it into
   // several (which is what made the picker grab a wrong/"random" figure).
@@ -1283,7 +1285,7 @@ async function ocrFullText(file) {
     const Tesseract = await loadTesseract();
     if (!Tesseract?.createWorker) return "";
     const src = await preprocessForOCR(file, false, false).catch(() => file); // greyscale full image
-    const worker = await Tesseract.createWorker("eng", 1, { logger: () => {} });
+    const worker = await Tesseract.createWorker("eng", 1, TESSERACT_OPTS);
     try {
       await worker.setParameters({ tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", tessedit_pageseg_mode: "6" });
       const data = await worker.recognize(src).then(r => r.data).catch(() => null);
@@ -2515,7 +2517,7 @@ function TibberSetup({ T, API, wallet, meterNo, token, latest, health, onLinked,
   const label = { display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".8px", color: T.textSoft, margin: "10px 0 5px" };
   const primary = { width: "100%", minHeight: 44, marginTop: 10, border: "none", borderRadius: 6, background: T.green2, color: T === DARK ? T.bg : "#fff", fontWeight: 800, fontSize: 13, cursor: "pointer" };
   const sign = async (content) => {
-    const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } });
+    const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } }, { signer: wallet });
     return { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
   };
   const connect = async () => {
@@ -2525,7 +2527,7 @@ function TibberSetup({ T, API, wallet, meterNo, token, latest, health, onLinked,
     if (!consent) { setMsg({ ok: false, text: "Tick the box to allow us to keep your Tibber token." }); return; }
     setBusy(true);
     try {
-      const certificate = await sign(`Green Utility Log — link Tibber\nWallet: ${wallet}\nTime: ${new Date().toISOString()}`);
+      const certificate = await sign(`Green Utility Log — link Tibber\nWallet: ${wallet}\nNetwork: ${NETWORK}\nTime: ${new Date().toISOString()}`);
       const r = await fetchT(`${API}/meter/tibber/link`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: wallet, meterNo, tibberToken: tibberToken.trim(), certificate }) }, 60000);
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || `connecting failed (${r.status})`);
@@ -2540,7 +2542,7 @@ function TibberSetup({ T, API, wallet, meterNo, token, latest, health, onLinked,
     if (!window.confirm("Disconnect Tibber? Your Tibber token is deleted from our server.")) return;
     setBusy(true);
     try {
-      const certificate = await sign(`Green Utility Log — unlink Tibber\nWallet: ${wallet}\nTime: ${new Date().toISOString()}`);
+      const certificate = await sign(`Green Utility Log — unlink Tibber\nWallet: ${wallet}\nNetwork: ${NETWORK}\nTime: ${new Date().toISOString()}`);
       const r = await fetchT(`${API}/meter/tibber/unlink`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: wallet, certificate }) });
       if (!r.ok) throw new Error("couldn't disconnect — try again");
       setMsg({ ok: true, text: "Disconnected — your Tibber token is deleted." });
@@ -2637,7 +2639,7 @@ function PowerfoxSetup({ T, API, wallet, meterNo, token, latest, health, onLinke
   const label = { display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".8px", color: T.textSoft, margin: "10px 0 5px" };
   const primary = { width: "100%", minHeight: 44, marginTop: 10, border: "none", borderRadius: 6, background: T.green2, color: T === DARK ? T.bg : "#fff", fontWeight: 800, fontSize: 13, cursor: "pointer" };
   const sign = async (content) => {
-    const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } });
+    const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } }, { signer: wallet });
     return { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
   };
   const connect = async () => {
@@ -2647,7 +2649,7 @@ function PowerfoxSetup({ T, API, wallet, meterNo, token, latest, health, onLinke
     if (!consent) { setMsg({ ok: false, text: "Tick the box to allow us to keep your Powerfox login." }); return; }
     setBusy(true);
     try {
-      const certificate = await sign(`Green Utility Log — link Powerfox\nWallet: ${wallet}\nTime: ${new Date().toISOString()}`);
+      const certificate = await sign(`Green Utility Log — link Powerfox\nWallet: ${wallet}\nNetwork: ${NETWORK}\nTime: ${new Date().toISOString()}`);
       const r = await fetchT(`${API}/meter/powerfox/link`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: wallet, meterNo, email: email.trim(), password, certificate }) }, 60000);
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || `connecting failed (${r.status})`);
@@ -2664,7 +2666,7 @@ function PowerfoxSetup({ T, API, wallet, meterNo, token, latest, health, onLinke
     if (!window.confirm("Disconnect Powerfox? Your Powerfox login is deleted from our server.")) return;
     setBusy(true);
     try {
-      const certificate = await sign(`Green Utility Log — unlink Powerfox\nWallet: ${wallet}\nTime: ${new Date().toISOString()}`);
+      const certificate = await sign(`Green Utility Log — unlink Powerfox\nWallet: ${wallet}\nNetwork: ${NETWORK}\nTime: ${new Date().toISOString()}`);
       const r = await fetchT(`${API}/meter/powerfox/unlink`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: wallet, certificate }) });
       if (!r.ok) throw new Error("couldn't disconnect — try again");
       setMsg({ ok: true, text: "Disconnected — your Powerfox login is deleted." });
@@ -2810,8 +2812,8 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
   });
 
   const signCert = async () => {
-    const content = `Green Utility Log — link smart meter\nWallet: ${wallet}\nTime: ${new Date().toISOString()}`;
-    const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } });
+    const content = `Green Utility Log — link smart meter\nWallet: ${wallet}\nNetwork: ${NETWORK}\nTime: ${new Date().toISOString()}`;
+    const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } }, { signer: wallet });
     return { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
   };
 
@@ -2916,8 +2918,8 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
       // Its own purpose line, not the pairing one it used to borrow: the server
       // binds each signature to the action it was signed for, so a signature made
       // to pair a reader cannot be spent on moving a baseline.
-      const content = `Green Utility Log — confirm starting point correction\nWallet: ${wallet}\nMeter: ${meterNo || ""}\nTime: ${new Date().toISOString()}`;
-      const c = await requestCertificate({ purpose: "identification", payload: { type: "text", content } });
+      const content = `Green Utility Log — confirm starting point correction\nWallet: ${wallet}\nMeter: ${meterNo || ""}\nNetwork: ${NETWORK}\nTime: ${new Date().toISOString()}`;
+      const c = await requestCertificate({ purpose: "identification", payload: { type: "text", content } }, { signer: wallet });
       const certificate = { purpose: "identification", payload: { type: "text", content }, domain: c.annex.domain, timestamp: c.annex.timestamp, signer: c.annex.signer, signature: c.signature };
       const r = await fetchT(`${API}/meter/rebaseline`, {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -6170,8 +6172,8 @@ export default function App() {
     if (!fixBasis || !wallet) return;
     setFixBusy(true);
     try {
-      const content = `Green Utility Log — reconcile tariff registers\nWallet: ${wallet}\nMeter: ${fixBasis.meterNo}\nTime: ${new Date().toISOString()}`;
-      const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } });
+      const content = `Green Utility Log — reconcile tariff registers\nWallet: ${wallet}\nMeter: ${fixBasis.meterNo}\nNetwork: ${NETWORK}\nTime: ${new Date().toISOString()}`;
+      const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } }, { signer: wallet });
       const certificate = { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
       const res = await fetchT(`${REWARD_API.replace(/\/$/, "")}/meter/fix-basis`, {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -6350,6 +6352,9 @@ export default function App() {
     let cancelled = false;
     (async () => {
       if (syncingRef.current) return;
+      // Same rule as a live submission: an app and a server on different networks
+      // must not exchange readings — the queue waits until that is fixed.
+      if (!serverNetwork || networkMismatch) return;
       syncingRef.current = true;
       try {
         const pending = await getUnsyncedSubmissions();
@@ -6366,8 +6371,8 @@ export default function App() {
           // simply stays queued — no flag to get stuck on.
           let certificate;
           try {
-            const content = `Green Utility Log — confirm submission\nWallet: ${wallet}\nUtility: ${item.type}\nReading: ${item.cur}\nTime: ${new Date().toISOString()}`;
-            const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } });
+            const content = `Green Utility Log — confirm submission\nWallet: ${wallet}\nUtility: ${item.type}\nReading: ${item.cur}\nNetwork: ${NETWORK}\nTime: ${new Date().toISOString()}`;
+            const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } }, { signer: wallet });
             certificate = { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
           } catch { continue; }
           if (cancelled) break;
@@ -6395,6 +6400,13 @@ export default function App() {
             if (notYet) {
               // Kept for later: after the cooldown, or once an admin gives the pass.
               await markLater(item.id, data.needsPass ? 12 * 3600000 : 2 * 3600000, data.error);
+              continue;
+            }
+            // A signature problem (signed by another account in the wallet, expired,
+            // already used) says nothing about the reading: it used to remove the
+            // reading and its photo from the queue for good. Signed again next time.
+            if (res.status === 401) {
+              await markLater(item.id, 10 * 60000, data.error);
               continue;
             }
             if (res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429) {
@@ -6438,7 +6450,7 @@ export default function App() {
       }
     })();
     return () => { cancelled = true; };
-  }, [online, wallet]);
+  }, [online, wallet, serverNetwork]);
 
   // The best-known "previous reading" for a meter: the most recent submission's
   // reading, falling back to the registered baseline. This is what next time's
@@ -6575,7 +6587,7 @@ export default function App() {
       // Bind the signature to this exact action+params (server re-derives + checks).
       const canonical = `/admin/move-rewards-pool|${JSON.stringify({ amount: amt }, ["amount"])}`;
       const content = `Green Utility Log — admin action\n${canonical}\nNetwork: ${NETWORK}\nWallet: ${wallet}\nTime: ${new Date().toISOString()}`;
-      const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } });
+      const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } }, { signer: wallet });
       const certificate = { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
       const res = await fetchT(`${REWARD_API.replace(/\/$/, "")}/admin/move-rewards-pool`, {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -6599,7 +6611,7 @@ export default function App() {
     // same string and rejects a cert that doesn't authorise it, or that's re-used).
     const canonical = `${path}|${JSON.stringify(b, Object.keys(b).sort())}`;
     const content = `Green Utility Log — admin action\n${canonical}\nNetwork: ${NETWORK}\nWallet: ${wallet}\nTime: ${new Date().toISOString()}`;
-    const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } });
+    const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } }, { signer: wallet });
     const certificate = { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
     const res = await fetchT(`${REWARD_API.replace(/\/$/, "")}${path}`, {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -6736,8 +6748,8 @@ export default function App() {
       const base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] || ""); r.onerror = rej; r.readAsDataURL(upload); });
       let certificate = null;
       try {
-        const content = `Green Utility Log — confirm eco-mode bonus\nWallet: ${wallet}\nAppliance: ${appliance}\nTime: ${new Date().toISOString()}`;
-        const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } });
+        const content = `Green Utility Log — confirm eco-mode bonus\nWallet: ${wallet}\nAppliance: ${appliance}\nNetwork: ${NETWORK}\nTime: ${new Date().toISOString()}`;
+        const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } }, { signer: wallet });
         certificate = { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
       } catch {
         showToast("✋ Sign the confirmation in your wallet to claim the eco bonus");
@@ -6786,8 +6798,8 @@ export default function App() {
     try {
       let certificate;
       try {
-        const content = `Green Utility Log — confirm automatic meter submission\nWallet: ${wallet}\nMeter: ${meterNo}\nTime: ${new Date().toISOString()}`;
-        const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } });
+        const content = `Green Utility Log — confirm automatic meter submission\nWallet: ${wallet}\nMeter: ${meterNo}\nNetwork: ${NETWORK}\nTime: ${new Date().toISOString()}`;
+        const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } }, { signer: wallet });
         certificate = { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
       } catch {
         setMeterAutoBusy(false);
@@ -6973,8 +6985,8 @@ export default function App() {
         // issue B3TR to an address someone just typed into the request.
         let certificate;
         try {
-          const content = `Green Utility Log — confirm submission\nWallet: ${wallet}\nUtility: ${selUtil}\nReading: ${reading}\nTime: ${new Date().toISOString()}`;
-          const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } });
+          const content = `Green Utility Log — confirm submission\nWallet: ${wallet}\nUtility: ${selUtil}\nReading: ${reading}\nNetwork: ${NETWORK}\nTime: ${new Date().toISOString()}`;
+          const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } }, { signer: wallet });
           certificate = { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
         } catch {
           setBusy(false);

@@ -195,6 +195,20 @@ describe("photo uploads per caller", () => {
   });
 });
 
+describe("the emergency stop", () => {
+  let srv;
+  before(async () => { srv = await startServer({ state: stateWithBaseline(), env: { PAYOUTS_PAUSED: "true" } }); });
+  after(async () => { await srv.stop(); });
+
+  test("PAYOUTS_PAUSED stops a payout before anything is sent, and says so in /health", async () => {
+    assert.equal((await srv.get("/health")).body.payoutsPaused, true);
+    const r = await srv.post("/reward", { utility: "electric", meterNo: "E1000", address: WALLET, reading: 1005, prevRead: 1000, photo: photo("paused"), photoMime: "image/jpeg" });
+    assert.equal(r.status, 503, JSON.stringify(r.body));
+    assert.match(r.body.error, /paused/);
+    assert.equal(srv.readState().readings["electric:e1000"], 1000, "nothing recorded");
+  });
+});
+
 // ── Boot: a server that would pay wrongly must not start ─────────────────────
 function boot(env) {
   return new Promise(async (resolve) => {
@@ -228,6 +242,16 @@ describe("boot refuses", () => {
     const r = await boot({ redis: true, vars: MAINNET });
     assert.equal(r.code, 1, r.out);
     assert.match(r.out, /needs the reading on the photo checked/);
+  });
+
+  test("mainnet without its own admin list, or without the distributor key", async () => {
+    const ready = { ...MAINNET, CUSTOM_OCR_URL: "http://127.0.0.1:9/ocr", OCR_PROVIDER_ORDER: "custom" };
+    let r = await boot({ redis: true, vars: ready });
+    assert.equal(r.code, 1, r.out);
+    assert.match(r.out, /needs ADMIN_WALLETS/);
+    r = await boot({ redis: true, vars: { ...ready, ADMIN_WALLETS: "0x1111111111111111111111111111111111111111", DISTRIBUTOR_DRY_RUN: "" } });
+    assert.equal(r.code, 1, r.out);
+    assert.match(r.out, /needs the distributor key/);
   });
 
   test("a network name that would fall back to testnet and skip every guard", async () => {

@@ -83,6 +83,7 @@ function loadKeyBytes() {
 }
 
 const keyBytes = loadKeyBytes();
+export const hasDistributorKey = !!keyBytes;
 if (!keyBytes) {
   console.warn("[reward] No distributor key set — set DISTRIBUTOR_PRIVATE_KEY or DISTRIBUTOR_MNEMONIC; /reward will fail until you do.");
 }

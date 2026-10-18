@@ -36,7 +36,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: home-assistant/actions/hassfest@master
+      # Pinned to a commit, not a moving branch: a changed action runs with this
+      # repository's checkout. Update the SHA on purpose when needed.
+      - uses: home-assistant/actions/hassfest@cd6f3635a740c84d8a14f6121a90068b8ece6bf6 # master, 2026-10-18
 
   hacs:
     name: HACS validation
@@ -48,7 +50,7 @@ jobs:
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
-      - uses: hacs/action@main
+      - uses: hacs/action@1ebf01c408f29afcb6406bd431bc98fd8cbb15aa # main, 2026-10-18
         with:
           category: integration
 

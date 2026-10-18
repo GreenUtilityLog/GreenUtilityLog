@@ -25,7 +25,18 @@ const hw = (req, res) => {
   res.setHeader("content-type", "application/json");
   res.end(JSON.stringify({ total_power_import_t1_kwh: 100.5, total_power_import_t2_kwh: 200.25 }));
 };
-function run(args, env = {}) {
+// Each test reads a different fake meter, but they share one settings file — and
+// the bridge refuses a total lower than the one it sent last. Forget it between
+// runs unless a test is about exactly that (keepLast).
+function forgetLast() {
+  const { readdirSync, writeFileSync } = require("node:fs");
+  for (const f of readdirSync(dir)) {
+    if (!/^\.gul-bridge.*\.json$/.test(f)) continue;
+    try { const c = JSON.parse(readFileSync(join(dir, f), "utf8")); if ("lastReading" in c) { delete c.lastReading; writeFileSync(join(dir, f), JSON.stringify(c)); } } catch {}
+  }
+}
+function run(args, env = {}, { keepLast = false } = {}) {
+  if (!keepLast) forgetLast();
   return new Promise((resolve) => {
     const p = spawn(process.execPath, [GUL, ...args], { env: { ...process.env, GUL_RETRY_WAIT_MS: "50", ...env } });
     let out = "";
@@ -393,4 +404,27 @@ test("--ask-token takes the token from the prompt, not the command line", async 
   const code = await new Promise((r) => p.on("exit", r));
   assert.equal(code, 1, out);
   assert.match(out, /No device token/);
+});
+
+test("a total that went down, or a 0 from a reader that just rebooted, is not sent", async () => {
+  let total = 5000.5;
+  const reader = await fake((req, res) => res.end(JSON.stringify({ StatusSNS: { SML: { Total_in: total } } })));
+  const seen = [];
+  const backend = await fake((req, res) => { let b = ""; req.on("data", (c) => (b += c)); req.on("end", () => { seen.push(JSON.parse(b).reading); res.end("{}"); }); });
+  const flags = ["--once", "--token=t-down", `--tasmota=127.0.0.1:${reader.address().port}`, `--ingest=http://127.0.0.1:${backend.address().port}/meter-ingest`];
+  let r = await run(flags);
+  assert.equal(r.code, 0, r.out);
+  total = 0;
+  r = await run(flags, {}, { keepLast: true });
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /not a meter total/);
+  total = 4999;
+  r = await run(flags, {}, { keepLast: true });
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /a meter never goes down/);
+  assert.deepEqual(seen, [5000.5], "neither was sent");
+  r = await run([...flags, "--forget-last"], {}, { keepLast: true });   // a new meter
+  assert.equal(r.code, 0, r.out);
+  assert.deepEqual(seen, [5000.5, 4999]);
+  reader.close(); backend.close();
 });

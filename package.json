@@ -16,6 +16,8 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.0.0",
+    "tesseract.js": "5.1.1",
+    "tesseract.js-core": "5.1.1",
     "vite": "^4.3.9",
     "vite-plugin-node-polyfills": "^0.28.0"
   },

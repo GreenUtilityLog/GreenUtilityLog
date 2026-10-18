@@ -71,6 +71,18 @@ describe("a signature on a real submission", () => {
     assert.match(again.body.error, /already used/i);
   });
 
+  test("a signature made for the other network is refused; one naming this network passes", async () => {
+    // Both app copies run on one site: a signature made for the mainnet copy must
+    // not pay on testnet, nor the other way round.
+    const other = await sign(submissionText("electric", 1024).replace("\nTime:", "\nNetwork: mainnet\nTime:"));
+    const refused = await srv.post("/reward", body({ certificate: other, reading: 1024 }));
+    assert.equal(refused.status, 401);
+    assert.match(refused.body.error, /not made for testnet/);
+    const own = await sign(submissionText("electric", 1024).replace("\nTime:", "\nNetwork: testnet\nTime:"));
+    const ok = await srv.post("/reward", body({ certificate: own, reading: 1024 }));
+    assert.equal(ok.status, 200, JSON.stringify(ok.body));
+  });
+
   test("a signature for one reading doesn't cover a longer number that starts the same", async () => {
     // "Reading: 104" is a substring of "Reading: 1040" — it must not count.
     const certificate = await sign(submissionText("electric", 104));

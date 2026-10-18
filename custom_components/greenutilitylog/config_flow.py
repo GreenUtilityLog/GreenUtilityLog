@@ -8,6 +8,7 @@ energy sensors, so the list is short even on a busy Home Assistant.
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import urlparse
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
@@ -60,12 +61,25 @@ def _schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
     )
 
 
+def _secure_url(url: str) -> bool:
+    parsed = urlparse(url)
+    if parsed.scheme == "https" and parsed.hostname:
+        return True
+    return parsed.scheme == "http" and parsed.hostname in ("localhost", "127.0.0.1", "::1")
+
+
 def _validate(hass, user_input: dict[str, Any]) -> dict[str, str]:
     """Catch the two mistakes that would otherwise fail silently every hour."""
     errors: dict[str, str] = {}
 
     if not str(user_input.get(CONF_TOKEN, "")).strip():
         errors[CONF_TOKEN] = "token_required"
+
+    # The token travels with every push: over plain http anyone on the way can read
+    # it and send readings for this wallet. Only a server on this machine is exempt.
+    url = str(user_input.get(CONF_INGEST_URL) or "").strip()
+    if url and not _secure_url(url):
+        errors[CONF_INGEST_URL] = "url_not_https"
 
     entity_id = user_input.get(CONF_SOURCE_ENTITY)
     state = hass.states.get(entity_id) if entity_id else None

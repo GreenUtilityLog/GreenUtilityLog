@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
+import { copyFileSync, mkdirSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
 
 // The page's description and link preview mention testnet only on a testnet build
 // (VITE_NETWORK, set per build by the deploy; a local build is testnet).
@@ -13,6 +15,26 @@ const networkMeta = () => ({
       .replaceAll('__NETWORK_NOTE_OG__', mainnet ? '' : ' Testnet beta — test tokens, no real value.')
   },
 })
+
+// The in-browser OCR (tesseract.js) is served from this site, not from a CDN. Its
+// loader script could be pinned with SRI, but the worker and the WebAssembly core it
+// then fetches could not — and they run as this origin, next to the wallet session.
+// Copied from the exact npm versions in package.json into <outDir>/tesseract/.
+const selfHostTesseract = () => {
+  let outDir = 'dist'
+  return {
+    name: 'self-host-tesseract',
+    configResolved(c) { outDir = c.build.outDir },
+    closeBundle() {
+      const dest = join(outDir, 'tesseract')
+      mkdirSync(dest, { recursive: true })
+      for (const f of ['tesseract.min.js', 'worker.min.js']) copyFileSync(join('node_modules/tesseract.js/dist', f), join(dest, f))
+      for (const f of readdirSync('node_modules/tesseract.js-core')) {
+        if (f.endsWith('.wasm.js')) copyFileSync(join('node_modules/tesseract.js-core', f), join(dest, f))
+      }
+    },
+  }
+}
 
 export default defineConfig({
   // The deploy also builds a test copy under /GreenUtilityLog/testnet/ (VITE_BASE).
@@ -32,6 +54,7 @@ export default defineConfig({
   plugins: [
     react(),
     networkMeta(),
+    selfHostTesseract(),
     // VeChain libraries (vechain-kit, dapp-kit, sdk-core, WalletConnect)
     // expect Node globals/builtins that don't exist in the browser.
     // Without these the site shows a blank page or "Buffer is not defined".

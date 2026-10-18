@@ -1,5 +1,5 @@
 name: GreenUtilityLog Meter Bridge
-version: "1.4.0"
+version: "1.5.0"
 slug: gul_bridge
 description: Sends your smart-meter reading to GreenUtilityLog automatically — no terminal, no scripts.
 url: https://github.com/GreenUtilityLog/GreenUtilityLog/tree/main/bridge
@@ -24,8 +24,9 @@ options:
   powerfox_email: ""
   powerfox_password: ""
 schema:
-  # Device token from the app: Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup.
-  token: str
+  # Device token from the app: Meter → ⚡ Automatic setup. A password field, so it
+  # isn't shown in clear on the Configuration tab.
+  token: password
   # Seconds between pushes (min 60, max once a minute is plenty for a meter).
   interval_sec: int(60,86400)
   # Optional: your HomeWizard's IP, if mDNS discovery is blocked on your network.

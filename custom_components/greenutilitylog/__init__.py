@@ -12,6 +12,7 @@ in the UI whether pushing actually works.
 from __future__ import annotations
 
 import asyncio
+import math
 from collections.abc import Callable
 from datetime import timedelta
 from typing import Any
@@ -40,6 +41,8 @@ from .const import (
     PUSH_TIMEOUT_SECONDS,
     PUSH_TRIES,
     SERVICE_PUSH_NOW,
+    STALE_AFTER_HOURS,
+    UNIT_TO_KWH,
 )
 
 # A few Home Assistant helpers are imported inside the functions that use them rather
@@ -162,6 +165,35 @@ class GreenUtilityLogPusher:
             reading = float(state.state)
         except (TypeError, ValueError):
             self.last_error = f"{entity_id} is not a number: {state.state!r}"
+            LOGGER.warning("GreenUtilityLog: %s", self.last_error)
+            return
+
+        # The unit is checked when the sensor is picked, but HA lets anyone switch an
+        # energy sensor's display unit later: Wh made every reading 1000x too high
+        # (refused as implausible), MWh made it go down (refused as running backwards),
+        # and the server's 200 on arrival hid both. Converted here, every time.
+        unit = state.attributes.get("unit_of_measurement")
+        factor = UNIT_TO_KWH.get(unit) if unit else 1.0
+        if factor is None:
+            self.last_error = f"{entity_id} is in {unit}, not kWh — pick the meter's kWh total"
+            LOGGER.warning("GreenUtilityLog: %s", self.last_error)
+            return
+        reading = round(reading * factor, 3)
+
+        # 0 (a reader that just restarted), negative, inf or nan is not a meter total;
+        # sent anyway it replaced the good reading on the server.
+        if not math.isfinite(reading) or reading <= 0:
+            self.last_error = f"{entity_id} reports {state.state} — not a meter total, nothing sent"
+            LOGGER.warning("GreenUtilityLog: %s", self.last_error)
+            return
+
+        # A sensor whose source went quiet (the P1 cable out, the reader offline) keeps
+        # its last value, restored even across restarts. Pushed as fresh, it reads as
+        # a day without use. last_reported moves on every update, also when the value
+        # didn't change, so a quiet night is not mistaken for a dead reader.
+        seen = getattr(state, "last_reported", None) or getattr(state, "last_updated", None)
+        if seen is not None and dt_util.utcnow() - seen > timedelta(hours=STALE_AFTER_HOURS):
+            self.last_error = f"{entity_id} hasn't reported for over {STALE_AFTER_HOURS} hours — is the meter reader online?"
             LOGGER.warning("GreenUtilityLog: %s", self.last_error)
             return
 
