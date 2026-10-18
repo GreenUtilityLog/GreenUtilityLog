@@ -1030,6 +1030,14 @@ out_path = os.path.join(HERE, "guide.html")
 bridge_src = os.path.join(HERE, os.pardir, "bridge", "index.js")
 io.open(os.path.join(HERE, "gul.js"), "w", encoding="utf8").write(
     io.open(bridge_src, encoding="utf8").read())
+# The Home Assistant add-on ships the same file (ha-addon/gul-bridge/Dockerfile
+# copies it in). Written here too; bump the add-on's version when it changes, or
+# installed add-ons keep the old one.
+_addon_copy = os.path.join(HERE, os.pardir, "ha-addon", "gul-bridge", "gul.js")
+_bridge = io.open(bridge_src, encoding="utf8").read()
+if not os.path.exists(_addon_copy) or io.open(_addon_copy, encoding="utf8").read() != _bridge:
+    io.open(_addon_copy, "w", encoding="utf8").write(_bridge)
+    print("ha-addon/gul-bridge/gul.js updated — bump the version in ha-addon/gul-bridge/config.yaml")
 
 shell = io.open(shell_path, encoding="utf8").read()
 if "<!--CONTENT-->" not in shell:

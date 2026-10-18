@@ -1,15 +1,13 @@
 ARG BUILD_FROM
 FROM $BUILD_FROM
 
-# The bridge is a single dependency-free Node file. Fetch it from the repo at build
-# time rather than vendoring a copy here, so there's one source of truth and the
-# add-on can't drift from bridge/index.js.
-ARG BRIDGE_REF=main
-RUN apk add --no-cache nodejs curl \
-  && mkdir -p /opt/bridge \
-  && curl -fsSL "https://raw.githubusercontent.com/GreenUtilityLog/GreenUtilityLog/${BRIDGE_REF}/bridge/index.js" \
-       -o /opt/bridge/index.js \
-  && apk del curl
+# The bridge is a single dependency-free Node file, copied in with the add-on. It
+# used to be downloaded from `main` at build time: unpinned code, and an installed
+# add-on never got a fix because its version number didn't change. Now the copy
+# here is the release, and CI fails when it differs from bridge/index.js — so a
+# bridge change can't ship without a new add-on version.
+RUN apk add --no-cache nodejs && mkdir -p /opt/bridge
+COPY gul.js /opt/bridge/index.js
 
 COPY run.sh /
 RUN chmod a+x /run.sh

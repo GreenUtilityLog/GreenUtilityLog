@@ -36,3 +36,10 @@ FAILED_PUSH_RETRIES = 4
 
 SERVICE_PUSH_NOW = "push_now"
 ATTR_CONFIG_ENTRY_ID = "config_entry_id"
+
+# Energy units Home Assistant can show a sensor in, as a factor to kWh; anything
+# else is refused at push time (the display unit can be changed after setup).
+UNIT_TO_KWH = {"kWh": 1.0, "Wh": 0.001, "MWh": 1000.0}
+# A source sensor that hasn't reported for this long is a reader gone quiet; its
+# last value is not pushed as a fresh reading.
+STALE_AFTER_HOURS = 6

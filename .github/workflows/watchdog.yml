@@ -54,11 +54,14 @@ jobs:
           if h.get("storeSaving") is False: err("last save to storage failed (storeSaving false): payouts paused")
           if h.get("durableState") is False: err("no durable storage configured: a restart forgets everything")
           if h.get("dryRun"): warn("DRY_RUN is on: nothing is actually paid")
+          if h.get("payoutsPaused"): warn("payouts are paused (PAYOUTS_PAUSED): remove it in Render to resume")
           # The whole state is one value, written in full on every save; past the
           # storage's request limit every save fails and payouts pause.
           size = h.get("stateBytes") or 0
-          if size > 8_000_000: err(f"saved state is {size/1e6:.1f} MB: saves will start failing; old photo hashes need moving out")
-          elif size > 3_000_000: warn(f"saved state is {size/1e6:.1f} MB and growing")
+          # Upstash's free plan refuses a request over about 1 MB, and the whole state
+          # is one request: warn well before, fail just before.
+          if size > 900_000: err(f"saved state is {size/1e3:.0f} KB, close to Upstash's 1 MB request limit: saves will fail; old photo hashes need moving out")
+          elif size > 500_000: warn(f"saved state is {size/1e3:.0f} KB and growing (Upstash free plan limit ~1 MB per save)")
           if h.get("distributorAuthorized") is False: err("the distributor wallet lost its reward-distributor role")
           if h.get("distributorAuthorized") is None: warn("could not read the distributor role from the chain")
           if h.get("distributionPaused") is True: err("reward distribution is paused on VeBetterDAO")

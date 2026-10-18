@@ -155,7 +155,11 @@ const DUE_AFTER_MS = 11 * 60 * 60 * 1000;
 // German, Austrian and Swiss meters). Its sensor JSON lives at /cm?cmnd=Status%2010
 // and the meter total in a group of the meter script, usually SML.Total_in.
 const TASMOTA = pickRead("tasmota", "TASMOTA_IP").replace(/^https?:\/\//i, "").replace(/\/.*$/, "");
-const READ_URL = pickRead("url", "READ_URL") || (TASMOTA ? `http://${TASMOTA}/cm?cmnd=Status%2010` : "");
+// What is typed now beats what was saved: a --tasmota given today used to lose to
+// a --url saved by an older setup, and the old address kept being read.
+const TASMOTA_URL = TASMOTA ? `http://${TASMOTA}/cm?cmnd=Status%2010` : "";
+const READ_URL = (FLAGS.url ? pick("url", "READ_URL") : "") || (FLAGS.tasmota ? TASMOTA_URL : "")
+  || pickRead("url", "READ_URL") || TASMOTA_URL;
 const READ_FIELD = pickRead("field", "READ_FIELD");
 // --powerfox=<e-mail> (or bare --powerfox: the account saved by an earlier run).
 // The password is never a flag in a scheduled task: it is asked once and kept in
@@ -167,6 +171,17 @@ const PF = {
 };
 let SAVED_PF_OK = !!(SAVED.powerfoxUser && SAVED.powerfoxPass && SAVED.powerfoxUser === PF.user && SAVED.powerfoxPass === PF.pass);
 
+// A credential is not echoed: a token on screen ends up in screenshots and in the
+// scrollback of a shared terminal.
+async function askHidden(question) {
+  const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true });
+  let muted = false;
+  rl._writeToOutput = (str) => { if (!muted) process.stdout.write(str); };
+  const answer = await new Promise((res) => { rl.question(question, res); muted = true; });
+  rl.close(); process.stdout.write("\n");
+  return answer;
+}
+
 // Nobody should have to read documentation to find out they forgot the token. When
 // there's a terminal to ask in, ask; when there isn't (Docker, a service), fail with
 // a message that names the flag AND the env var.
@@ -175,11 +190,8 @@ async function ensureToken() {
   // the command line ends up in the shell's history file — so it always asks, and
   // Enter keeps one saved by an earlier setup.
   if (FLAGS["ask-token"] === "1" && !FLAGS.token && process.stdin.isTTY) {
-    const rl = createInterface({ input: process.stdin, output: process.stdout });
     const keep = TOKEN ? " — Enter keeps the saved one" : "";
-    const answer = await new Promise((res) =>
-      rl.question(`\nPaste your device token (app → Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup${keep}): `, res));
-    rl.close();
+    const answer = await askHidden(`\nPaste your device token (app → Meter → ⚡ Automatic setup; not shown as you paste${keep}): `);
     const given = String(answer || "").trim();
     if (given) TOKEN = given;
     if (!TOKEN) { console.error("No token given — nothing to do."); return false; }
@@ -198,10 +210,7 @@ async function ensureToken() {
     toFile(`${new Date().toISOString()} ${msg}`);
     return false;
   }
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  const answer = await new Promise((res) =>
-    rl.question("\nPaste your device token (app → Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup): ", res));
-  rl.close();
+  const answer = await askHidden("\nPaste your device token (app → Meter → ⚡ Automatic setup; not shown as you paste): ");
   TOKEN = String(answer || "").trim();
   if (!TOKEN) { console.error("No token given — nothing to do."); return false; }
   if (saveToken(TOKEN)) console.log(FLAGS.install === "1" ? "Saved.\n" : `Saved. Next time just run: node ${SELF}\n`);
@@ -298,20 +307,39 @@ function parseARecords(buf) {
   } catch { /* malformed packet — ignore */ }
   return ips;
 }
-function discover(timeoutMs = 5000) {
+// Every HomeWizard device answers to this name: Energy Sockets and kWh meters too,
+// and they serve a total_power_import_kwh of their own. Taking the first answer
+// pushed a plug's consumption as the meter's. So every address that answers is
+// collected, and only one whose /api says it is a P1 meter (HWE-P1) is used.
+function discoverAll(timeoutMs = 4000) {
   return new Promise((resolve) => {
     const sock = dgram.createSocket({ type: "udp4", reuseAddr: true });
+    const found = new Set();
     let done = false;
-    const finish = (ip) => { if (done) return; done = true; try { sock.close(); } catch {} resolve(ip); };
-    sock.on("message", (msg) => { const ips = parseARecords(msg); if (ips.length) finish(ips[0]); });
-    sock.on("error", () => finish(null));
+    const finish = () => { if (done) return; done = true; try { sock.close(); } catch {} resolve([...found]); };
+    sock.on("message", (msg) => { for (const ip of parseARecords(msg)) found.add(ip); });
+    sock.on("error", finish);
     sock.bind(() => {
       try { sock.setMulticastTTL(255); sock.addMembership("224.0.0.251"); } catch {}
       const q = buildQuery("_hwenergy._tcp.local");
       sock.send(q, 0, q.length, 5353, "224.0.0.251");
     });
-    setTimeout(() => finish(null), timeoutMs);
+    setTimeout(finish, timeoutMs);
   });
+}
+const isP1 = (info) => String(info?.product_type || "").toUpperCase() === "HWE-P1";
+async function discover() {
+  const ips = await discoverAll();
+  const others = [];
+  for (const ip of ips) {
+    try {
+      const info = await getJson(`http://${ip}/api`, 5000);
+      if (isP1(info)) return ip;
+      others.push(`${info?.product_name || info?.product_type || "device"} at ${ip}`);
+    } catch { /* not answering: not the one */ }
+  }
+  if (others.length) log(`found HomeWizard devices, but no P1 meter among them (${others.join(", ")}) — add --ip=<your P1 meter's IP>`);
+  return null;
 }
 
 // ── HomeWizard read + push ───────────────────────────────────────────────────
@@ -478,12 +506,24 @@ async function cycle() {
       if (reading == null) { log("couldn't find a total import kWh — is this a HomeWizard P1? (or use --url=)"); return false; }
       split = tariffSplit(data);
     }
+    // Not worth sending: a reader that just rebooted reports 0 until its first
+    // telegram, and a meter total never goes down. Sent anyway, such a number
+    // replaced the good one on the server and the next claim was refused.
+    if (!(typeof reading === "number" && Number.isFinite(reading) && reading > 0)) {
+      log(`the reader gave ${reading} — not a meter total, nothing sent`); return false;
+    }
+    if (FLAGS["forget-last"] === "1") saveConfig({ lastReading: null });
+    const prevSent = Number(readSaved().lastReading);
+    if (FLAGS["forget-last"] !== "1" && Number.isFinite(prevSent) && prevSent > 0 && reading < prevSent - 0.001) {
+      log(`the reader gave ${reading} kWh, lower than the ${prevSent} kWh sent last time — a meter never goes down, so nothing was sent. A new meter? Run once with --forget-last.`);
+      return false;
+    }
     const body = await push(reading);
     // The server says when a reading can next be paid (its cooldown). --due then
     // pushes at that hour instead of up to 11 hours later.
     let nextAt = null;
     try { const n = Number(JSON.parse(body || "{}").nextAt); if (Number.isFinite(n) && n > 0) nextAt = n; } catch {}
-    saveConfig({ lastPushAt: Date.now(), nextAt });
+    saveConfig({ lastPushAt: Date.now(), nextAt, lastReading: reading });
     log(`pushed ${reading} kWh ✓${split}`);
     return true;
   } catch (e) {
@@ -643,7 +683,9 @@ async function main() {
     process.exit(1);
   }
   if (FLAGS.uninstall === "1") process.exit(manageTask("uninstall"));
+  const warnHttp = () => { if (!/^https:/i.test(INGEST)) log("WARNING: GUL_INGEST_URL is not https — your token would be sent in cleartext. Use the default https endpoint."); };
   if (FLAGS.install === "1") {
+    warnHttp(); // before the setup's own first push
     // A task is useless without a token: it runs unattended and cannot ask.
     if (!(await ensureToken())) process.exit(1);
     if (!(await ensurePowerfox())) process.exit(1);
@@ -679,13 +721,18 @@ async function main() {
     if (DUE && ONCE && last <= Date.now() && Date.now() < dueAt) process.exit(0);
   }
   const src = POWERFOX ? `Powerfox (${PF.user})` : READ_URL ? `reader ${READ_URL}` : (FIXED_IP ? `HomeWizard ${FIXED_IP}` : "HomeWizard (auto-discover)");
-  if (!/^https:/i.test(INGEST)) log("WARNING: GUL_INGEST_URL is not https — your token would be sent in cleartext. Use the default https endpoint.");
+  warnHttp();
   log(`GreenUtilityLog bridge starting — ${src}, pushing every ${INTERVAL_MS / 1000}s to ${INGEST}`);
   const ok = await cycle();
   // Exit 1 on failure, so Task Scheduler / cron / Docker see a failed run instead of
   // "completed successfully" while nothing arrived.
   if (ONCE) process.exit(ok ? 0 : 1);
-  setInterval(cycle, INTERVAL_MS);
+  // Running on (Docker, the Home Assistant add-on): a failed run tries again within
+  // 15 minutes instead of a whole interval later — a reading must be under 48 hours
+  // old, and a meter not yet reachable right after boot cost half of that.
+  const RETRY_SOON_MS = Math.min(INTERVAL_MS, 15 * 60 * 1000);
+  const next = (wasOk) => setTimeout(async () => next(await cycle()), wasOk ? INTERVAL_MS : RETRY_SOON_MS);
+  next(ok);
 }
 
 // Run it. There used to be an "only when invoked directly" guard here that compared

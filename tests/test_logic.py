@@ -332,3 +332,58 @@ def test_the_timeout_allows_a_cold_start():
     session = _session()
     asyncio.run(_push(FakeHass({METER: FakeState("8421.3")}), _entry(), session))
     assert session.post.call_args[1]["timeout"].total >= 90
+
+
+# ── what is pushed: unit, freshness, plausibility ────────────────────────────
+
+@pytest.mark.parametrize("state,unit,sent", [("8421300", "Wh", 8421.3), ("8.4213", "MWh", 8421.3), ("8421.3", "kWh", 8421.3)])
+def test_a_changed_display_unit_is_converted_to_kwh(state, unit, sent):
+    """HA lets the display unit be changed after setup; the server only knows kWh."""
+    session = _session()
+    asyncio.run(_push(FakeHass({METER: FakeState(state, unit=unit)}), _entry(), session))
+    assert session.post.call_args[1]["json"]["reading"] == sent
+
+
+def test_a_non_energy_unit_is_not_sent():
+    session = _session()
+    pusher = asyncio.run(_push(FakeHass({METER: FakeState("412", unit="W")}), _entry(), session))
+    session.post.assert_not_called()
+    assert "not kWh" in pusher.last_error
+
+
+@pytest.mark.parametrize("state", ["0", "-5", "nan", "inf"])
+def test_zero_negative_or_non_finite_is_not_sent(state):
+    """A reader that just restarted reports 0; sent, it replaced the good reading."""
+    session = _session()
+    pusher = asyncio.run(_push(FakeHass({METER: FakeState(state)}), _entry(), session))
+    session.post.assert_not_called()
+    assert "not a meter total" in pusher.last_error
+
+
+def test_a_reader_gone_quiet_is_not_pushed_as_fresh():
+    import datetime as _dt
+    stale = FakeState("8421.3")
+    stale.last_reported = _dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(hours=7)
+    session = _session()
+    pusher = asyncio.run(_push(FakeHass({METER: stale}), _entry(), session))
+    session.post.assert_not_called()
+    assert "hasn't reported" in pusher.last_error
+
+    fresh = FakeState("8421.3")
+    fresh.last_reported = _dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(minutes=5)
+    session = _session()
+    asyncio.run(_push(FakeHass({METER: fresh}), _entry(), session))
+    session.post.assert_called_once()
+
+
+@pytest.mark.parametrize("url,ok", [
+    ("https://example.org/meter-ingest", True),
+    ("http://example.org/meter-ingest", False),
+    ("http://localhost:8787/meter-ingest", True),
+    ("ftp://example.org/x", False),
+])
+def test_the_server_address_must_be_https(url, ok):
+    """The token travels with every push; over plain http it can be read on the way."""
+    hass = FakeHass({METER: FakeState("8421.3")})
+    errors = _validate(hass, {CONF_TOKEN: "abc", CONF_SOURCE_ENTITY: METER, CONF_INGEST_URL: url})
+    assert (CONF_INGEST_URL not in errors) == ok
