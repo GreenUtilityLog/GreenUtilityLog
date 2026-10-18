@@ -15,11 +15,16 @@
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.0.0",
-    "vite": "^4.3.9",
+    "@vitejs/plugin-react": "^6.1.2",
+    "vite": "^8.3.4",
     "vite-plugin-node-polyfills": "^0.28.0"
   },
   "overrides": {
-    "valtio": "1.13.2"
+    "valtio": "1.13.2",
+    "@walletconnect/sign-client": "2.23.10",
+    "@walletconnect/core": "2.23.10",
+    "@walletconnect/utils": "2.23.10",
+    "@walletconnect/types": "2.23.10",
+    "viem": "^2.57.7"
   }
 }

@@ -44,11 +44,9 @@ export default defineConfig({
     outDir: 'dist',
     // Some VeChain/WalletConnect dependencies (e.g. mersenne-twister, used for
     // wallet avatars) are CommonJS modules that are imported from ES modules.
-    // Without transformMixedEsModules, Rollup leaves bare `require(...)` calls
-    // in the bundle, which throw "require is not defined" in the browser and
-    // produce a blank page. This converts those CommonJS requires for the browser.
-    commonjsOptions: {
-      transformMixedEsModules: true,
-    },
+    // Vite 4 needed build.commonjsOptions.transformMixedEsModules or the bundle
+    // kept bare `require(...)` calls ("require is not defined", blank page).
+    // Since Vite 8 the bundler (Rolldown) converts those itself and that option
+    // is a no-op, so it's gone.
   },
 })
