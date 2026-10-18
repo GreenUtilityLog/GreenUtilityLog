@@ -258,6 +258,10 @@
 # automations.yaml — twice a day (you can claim once per 20h)
 - alias: Push meter to GreenUtilityLog
   trigger: { platform: time_pattern, hours: &quot;/12&quot; }
+  # only a real kWh total: not 0 after a restart, not unavailable
+  condition:
+    - condition: template
+      value_template: &#x27;{{ is_number(states(&quot;sensor.YOUR_ENTITY&quot;)) and states(&quot;sensor.YOUR_ENTITY&quot;) | float &gt; 0 and state_attr(&quot;sensor.YOUR_ENTITY&quot;, &quot;unit_of_measurement&quot;) == &quot;kWh&quot; }}&#x27;
   action: { service: rest_command.gul_push }</pre></div>
       </li>
       </ol>
@@ -484,6 +488,10 @@
 # automations.yaml — twee keer per dag (claimen kan 1x per 20 uur)
 - alias: Push meter to GreenUtilityLog
   trigger: { platform: time_pattern, hours: &quot;/12&quot; }
+  # alleen een echte kWh-stand: geen 0 na een herstart, geen unavailable
+  condition:
+    - condition: template
+      value_template: &#x27;{{ is_number(states(&quot;sensor.JOUW_ENTITY&quot;)) and states(&quot;sensor.JOUW_ENTITY&quot;) | float &gt; 0 and state_attr(&quot;sensor.JOUW_ENTITY&quot;, &quot;unit_of_measurement&quot;) == &quot;kWh&quot; }}&#x27;
   action: { service: rest_command.gul_push }</pre></div>
       </li>
       </ol>
@@ -710,6 +718,10 @@
 # automations.yaml — zweimal am Tag (einlösen geht alle 20 h)
 - alias: Push meter to GreenUtilityLog
   trigger: { platform: time_pattern, hours: &quot;/12&quot; }
+  # nur ein echter kWh-Zählerstand: keine 0 nach einem Neustart, kein unavailable
+  condition:
+    - condition: template
+      value_template: &#x27;{{ is_number(states(&quot;sensor.DEINE_ENTITY&quot;)) and states(&quot;sensor.DEINE_ENTITY&quot;) | float &gt; 0 and state_attr(&quot;sensor.DEINE_ENTITY&quot;, &quot;unit_of_measurement&quot;) == &quot;kWh&quot; }}&#x27;
   action: { service: rest_command.gul_push }</pre></div>
       </li>
       </ol>
@@ -936,6 +948,10 @@
 # automations.yaml — deux fois par jour (réclamation possible toutes les 20 h)
 - alias: Push meter to GreenUtilityLog
   trigger: { platform: time_pattern, hours: &quot;/12&quot; }
+  # seulement un vrai total en kWh : pas 0 après un redémarrage, pas unavailable
+  condition:
+    - condition: template
+      value_template: &#x27;{{ is_number(states(&quot;sensor.VOTRE_ENTITE&quot;)) and states(&quot;sensor.VOTRE_ENTITE&quot;) | float &gt; 0 and state_attr(&quot;sensor.VOTRE_ENTITE&quot;, &quot;unit_of_measurement&quot;) == &quot;kWh&quot; }}&#x27;
   action: { service: rest_command.gul_push }</pre></div>
       </li>
       </ol>
@@ -1162,6 +1178,10 @@
 # automations.yaml — dos veces al día (puedes reclamar cada 20 h)
 - alias: Push meter to GreenUtilityLog
   trigger: { platform: time_pattern, hours: &quot;/12&quot; }
+  # solo un total real en kWh: no 0 tras un reinicio, no unavailable
+  condition:
+    - condition: template
+      value_template: &#x27;{{ is_number(states(&quot;sensor.TU_ENTIDAD&quot;)) and states(&quot;sensor.TU_ENTIDAD&quot;) | float &gt; 0 and state_attr(&quot;sensor.TU_ENTIDAD&quot;, &quot;unit_of_measurement&quot;) == &quot;kWh&quot; }}&#x27;
   action: { service: rest_command.gul_push }</pre></div>
       </li>
       </ol>
