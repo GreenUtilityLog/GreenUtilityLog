@@ -42,6 +42,8 @@ function fakeNode(mode, { revertSelector = null } = {}) {
         if (mode === "lost-reply") { res.socket.destroy(); return; } // took it, reply never came back
         return send({ id: "0x" });
       }
+      // A transaction the node has but no block yet holds: no receipt.
+      if (mode === "no-receipt" && u.includes("/receipt")) return send(null);
       if (req.method === "GET" && u.startsWith("/transactions/")) return send(seen.size ? { id: "0x" } : null);
       send(null);
     });
@@ -123,4 +125,24 @@ test("a pool without the metadata variant still gets proof and impact", async ()
   const flat = JSON.stringify(args, (k, v) => (typeof v === "bigint" ? v.toString() : v));
   assert.match(flat, /electric reading 1008 \(previous 1000\), meter E1x/, "meter text stripped of the quote and backslash");
   assert.match(flat, /"carbon"/, "and impact is there");
+});
+
+test("sent but not yet in a block: reported as pending, not as paid", async () => {
+  const node = await fakeNode("no-receipt");
+  const script = `
+    const { sendClauseTo, payoutPending } = await import("./reward.js");
+    const abi = { name: "claim", type: "function", stateMutability: "nonpayable", inputs: [], outputs: [] };
+    const r = await sendClauseTo("0x${"3".repeat(40)}", abi, [], "test");
+    console.log("PENDING " + payoutPending(r.txid));
+    process.exit(0);
+  `;
+  const child = spawn(process.execPath, ["--input-type=module", "-e", script], {
+    cwd: SERVER_DIR,
+    env: { ...process.env, RECEIPT_WAIT_MS: "300", BROADCAST_RETRY_MS: "50", NODE_URL: node.url, DISTRIBUTOR_PRIVATE_KEY: randomBytes(32).toString("hex"), DISTRIBUTOR_DRY_RUN: "", NETWORK: "testnet" },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  let out = ""; child.stdout.on("data", (d) => (out += d)); child.stderr.on("data", (d) => (out += d));
+  await new Promise((r) => child.on("exit", r));
+  node.srv.close();
+  assert.match(out, /PENDING true/, out);   // the fake node never returns a receipt
 });

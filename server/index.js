@@ -12,7 +12,7 @@ import { validateSubmission } from "./verify.js";
 import { verifyPhoto, checkReadingOnPhoto, readingCheckMode, meterNoOnPhoto, meterNoCheckMode, photoPrint, printDistance } from "./media.js";
 import { store } from "./store.js";
 import { putPhoto, getPhotoDataUrl, deletePhoto, photoStoreEnabled } from "./photostore.js";
-import { distributeReward, distributeEcoReward, distributorAddress, chainDiagnostics, moveToRewardsPool, DRY_RUN, hasDistributorKey } from "./reward.js";
+import { distributeReward, distributeEcoReward, distributorAddress, chainDiagnostics, moveToRewardsPool, DRY_RUN, hasDistributorKey, payoutPending } from "./reward.js";
 import { signalStatus, passportFor, signalUser, passportVouches } from "./passport.js";
 import { budgetState, scaledAmount, recordPayout, autoClaimAllocation, autoMoveToRewardsPool } from "./budget.js";
 import { ocrImage, ocrEnabled, ocrProviders } from "./ocr.js";
@@ -1170,7 +1170,7 @@ app.post("/reward", async (req, res) => {
       try { store.addFlag(txid, req.body.address, reasons.join(" · ")); }
       catch (e) { console.error("[/reward] could not record flag:", e?.message || e); }
     }
-    res.json({ txid, amount: pay.amount, fullAmount: v.amount, factor: pay.factor, flagged: reasons.length > 0 });
+    res.json({ txid, amount: pay.amount, fullAmount: v.amount, factor: pay.factor, flagged: reasons.length > 0, pending: payoutPending(txid) });
   } catch (e) {
     console.error("[/reward]", scrub(e?.message || e));
     if (!res.headersSent) {
@@ -1274,7 +1274,7 @@ app.post("/eco-action", async (req, res) => {
     }
     await store.flush(); // make the claim + burnt hash durable before responding
     archivePhoto(txid, req.body.photo, req.body.photoMime, req.body.address);
-    res.json({ txid, amount: pay.amount, fullAmount: ECO_REWARD, factor: pay.factor, remaining: ECO_MAX_PER_WEEK - thisWeek.length - 1 });
+    res.json({ txid, amount: pay.amount, fullAmount: ECO_REWARD, factor: pay.factor, remaining: ECO_MAX_PER_WEEK - thisWeek.length - 1, pending: payoutPending(txid) });
   } catch (e) {
     console.error("[/eco-action]", scrub(e?.message || e));
     if (!res.headersSent) {
@@ -1848,7 +1848,7 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
     const cur = link?.token ? store.getMeterLink(link.token) : null;
     if (cur) store.setMeterLink(link.token, { ...cur, autoPaidAt: Date.now(), lastPayout: { amount: pay.amount, txid, at: Date.now(), reading: Number(latest.reading) } });
     await store.flush(); // durable before returning, so a crash can't replay this reading
-    return { ok: true, txid, amount: pay.amount, fullAmount: v.amount, factor: pay.factor, usage: v.usage, reading: Number(latest.reading), source: latest.source || "meter" };
+    return { ok: true, txid, amount: pay.amount, fullAmount: v.amount, factor: pay.factor, usage: v.usage, reading: Number(latest.reading), source: latest.source || "meter", pending: payoutPending(txid) };
   } finally {
     if (!paid && guard?.release) await guard.release();
     inFlight.delete(lockKey);
@@ -1872,7 +1872,7 @@ app.post("/reward-from-meter", async (req, res) => {
   try {
     const r = await settleMeterReading({ address, utility: String(req.body.utility || "electric"), meterNo: req.body.meterNo });
     if (!r.ok) return res.status(r.code || 400).json({ error: r.error, ...(r.needsPhoto ? { needsPhoto: true } : {}) });
-    res.json({ txid: r.txid, amount: r.amount, usage: r.usage, reading: r.reading, source: r.source });
+    res.json({ txid: r.txid, amount: r.amount, usage: r.usage, reading: r.reading, source: r.source, pending: !!r.pending });
   } catch (e) {
     console.error("[/reward-from-meter]", e?.message || e);
     res.status(502).json({ error: e?.public ? e.message : "the payout couldn't be completed — nothing was used up, please try again later" });
@@ -2201,7 +2201,8 @@ if (PHOTO_RETENTION_MS > 0) {
     "ECO_COOLDOWN_MS", "AUTO_PHOTO_EVERY_DAYS", "METER_MAX_AGE_MS", "DEVICE_MAX_WALLETS", "DEVICE_FP_FLAG",
     "PHOTO_MAX_AGE_DAYS", "AI_PHOTO_MIN_CONFIDENCE", "PHOTO_LIKENESS_REFUSE", "PHOTO_LIKENESS_FLAG",
     "CERT_MAX_AGE_MS", "OCR_DAILY_MAX", "OCR_DAILY_PER_IP", "BROADCAST_RETRY_MS", "REDIS_TIMEOUT_MS",
-    "BUDGET_POOL_B3TR", "BUDGET_WAITING_B3TR", "PHOTO_BODIES_MAX", "PHOTO_CHECKS_PER_WALLET_DAY", "PHOTO_CHECKS_PER_DAY"];
+    "BUDGET_POOL_B3TR", "BUDGET_WAITING_B3TR", "PHOTO_BODIES_MAX", "PHOTO_CHECKS_PER_WALLET_DAY", "PHOTO_CHECKS_PER_DAY",
+    "RECEIPT_WAIT_MS"];
   const bad = NUMERIC_ENV.filter((k) => String(process.env[k] ?? "").trim() !== "" && !Number.isFinite(Number(process.env[k])));
   if (bad.length) {
     console.error(`[boot] FATAL: these settings must be plain numbers: ${bad.map((k) => `${k}="${process.env[k]}"`).join(", ")}. Refusing to start.`);
