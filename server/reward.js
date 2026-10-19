@@ -337,11 +337,13 @@ export async function sendClauseTo(to, abi, args, comment) {
   if (lastErr) throw lastErr; // never arrived: nothing was sent
   let receipt = null;
   try {
-    receipt = await thor.transactions.waitForTransaction(txid, { timeoutMs: 30000, intervalMs: 2000 });
+    receipt = await thor.transactions.waitForTransaction(txid, { timeoutMs: RECEIPT_WAIT_MS, intervalMs: Math.min(2000, RECEIPT_WAIT_MS) });
   } catch (e) {
     console.warn(`[reward] receipt check inconclusive for ${txid}: ${e?.message || e}`);
   }
-  // On a rare receipt timeout treat as pending (not reverted).
+  // On a rare receipt timeout treat as pending (not reverted): sent, not yet seen in
+  // a block. Remembered, so the answer to the app can say "pending" instead of "paid".
+  if (!receipt) notConfirmed(txid);
   return { txid, reverted: !!(receipt && receipt.reverted) };
 }
 
@@ -382,6 +384,16 @@ export function publicError(message) {
 }
 
 export const DRY_RUN = /^(1|true|yes)$/i.test(process.env.DISTRIBUTOR_DRY_RUN || "");
+
+// Payouts sent whose receipt didn't come within the wait: on their way, not yet in
+// a block. The app shows these as "pending" until the chain lists them.
+const RECEIPT_WAIT_MS = Number(process.env.RECEIPT_WAIT_MS || 30000);
+const unconfirmed = new Set();
+function notConfirmed(txid) {
+  unconfirmed.add(String(txid));
+  if (unconfirmed.size > 1000) unconfirmed.delete(unconfirmed.values().next().value);
+}
+export const payoutPending = (txid) => unconfirmed.has(String(txid));
 if (DRY_RUN) {
   console.warn("[reward] DISTRIBUTOR_DRY_RUN is on — rewards are NOT sent on-chain.");
 }

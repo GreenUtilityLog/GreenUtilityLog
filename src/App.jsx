@@ -377,13 +377,21 @@ function saveSubs(wallet, subs) {
   try { localStorage.setItem(subsKey(wallet), JSON.stringify((subs || []).slice(0, 500))); } catch {}
 }
 // Merge on-chain (authoritative) with local entries that aren't represented there.
+// A payout the server sent but had not yet seen in a block is "pending" until the
+// chain lists it (then the chain's row replaces it). One that still isn't there
+// after PENDING_GIVE_UP_MS never made it — a VeChain transaction expires within
+// minutes — and is shown as "failed", not as money earned.
+const PENDING_GIVE_UP_MS = 30 * 60 * 1000;
 function mergeSubs(local, chain) {
   const same = (a, b) =>
     (a.txHash && b.txHash && a.txHash === b.txHash) ||
     (a.type === b.type && String(a.cur) === String(b.cur) && String(a.meterNo) === String(b.meterNo) && a.date === b.date);
-  const extras = (local || []).filter(l => !(chain || []).some(c => same(l, c)));
+  const extras = (local || []).filter(l => !(chain || []).some(c => same(l, c)))
+    .map(l => (l.status === "pending" && Date.now() - (l.submittedAt || 0) > PENDING_GIVE_UP_MS ? { ...l, status: "failed" } : l));
   return [...(chain || []), ...extras].sort((a, b) => (b.submittedAt || 0) - (a.submittedAt || 0));
 }
+// What counts as earned: only payouts that are in a block.
+const earnedTotal = (subs) => (subs || []).reduce((a, s) => a + (s.status === "pending" || s.status === "failed" ? 0 : (parseFloat(s.b3tr) || 0)), 0);
 
 // ────────────────────────────────────────────────────────────────────────────
 // ANTI-FARMING ENGINE
@@ -1436,6 +1444,8 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .hb3tr{font-size:14px;font-weight:800;color:${T.green1};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-variant-numeric:tabular-nums;}
 .hstatus{font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:1px 5px;border-radius:999px;margin-top:4px;display:inline-block;}
 .s-confirmed{background:${T.green5};color:${T.green2};border:1px solid ${T.green4};}
+.s-pending{background:rgba(230,160,40,.12);color:#b7791f;border:1px solid rgba(230,160,40,.45);}
+.s-failed{background:rgba(220,80,60,.10);color:#c0392b;border:1px solid rgba(220,80,60,.45);}
 
 .sub-header{padding:20px 18px 10px;}
 .sub-title{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:22px;font-weight:800;color:${T.text};letter-spacing:-0.4px;}
@@ -3383,7 +3393,7 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
   // history for this meter) still get the editable "Previous" field.
   const [editPrev, setEditPrev] = useState(false);
   useEffect(() => { setEditPrev(false); }, [selUtil]); // switching meters resets the chip
-  const lastSub = (subs || []).find(s => s.type === selUtil && s.status !== "pending" && Number.isFinite(parseFloat(s.cur)));
+  const lastSub = (subs || []).find(s => s.type === selUtil && s.status !== "failed" && Number.isFinite(parseFloat(s.cur)));
   const lastKnown = lastSub ? String(lastSub.cur) : "";
   const knowPrev = !!lastKnown && !editPrev;
   const [tipsOpen, setTipsOpen] = useState(false); // photo tips collapsed by default
@@ -3860,8 +3870,8 @@ function ChartsScreen({ subs, T, part }) {
   const ecoSubs   = subs.filter(s => s.type === "eco");
 
   // ── Headline impact numbers (same model as the on-chain proofs) ────────────
-  const totalB3TR = subs.reduce((a, s) => a + (parseFloat(s.b3tr) || 0), 0);
-  const ecoB3TR   = ecoSubs.reduce((a, s) => a + (parseFloat(s.b3tr) || 0), 0);
+  const totalB3TR = earnedTotal(subs);
+  const ecoB3TR   = earnedTotal(ecoSubs);
   let savedUnits = 0, co2g = ecoSubs.length * ECO_CO2_PER_CLAIM, kwhSaved = ecoSubs.length * ECO_KWH_PER_CLAIM;
   for (const s of meterSubs) {
     const bench = USAGE_BENCHMARK[s.type] ?? 0;
@@ -6219,7 +6229,7 @@ export default function App() {
     const local = loadSubs(addr);
     subsHydratedRef.current = addr;
     setSubs(local);
-    setB3tr(local.reduce((a, s) => a + (parseFloat(s.b3tr) || 0), 0));
+    setB3tr(earnedTotal(local));
     setReading(""); setPrevRead(""); prevReadEdited.current = false; setAiOk(false); setPhoto(null);
     setVerifyKey(k => k + 1);
     setTab("home");
@@ -6258,7 +6268,7 @@ export default function App() {
         if (res.ok && res.rows.length) {
           const merged = mergeSubs(local, res.rows);
           setSubs(merged);
-          setB3tr(merged.reduce((a, s) => a + (parseFloat(s.b3tr) || 0), 0));
+          setB3tr(earnedTotal(merged));
           saveSubs(addr, merged);
         }
       })
@@ -6284,7 +6294,7 @@ export default function App() {
           if (!sameWallet(a) || sessionWalletRef.current !== a || !res.ok || !res.rows.length) return;
           const merged = mergeSubs(subsRef.current, res.rows);
           setSubs(merged);
-          setB3tr(merged.reduce((t, s) => t + (parseFloat(s.b3tr) || 0), 0));
+          setB3tr(earnedTotal(merged));
           saveSubs(a, merged);
         })
         .catch(() => {});
@@ -6427,14 +6437,14 @@ export default function App() {
           setSubs(prev => [{
             id: item.id, type: item.type, meterNo: item.meterNo || "",
             cur: item.cur, prev: item.prev, date: dayKey(new Date(item.id)),
-            b3tr: paid, status: "confirmed", txHash: data.txid || "", submittedAt: item.id,
+            b3tr: paid, status: data.pending ? "pending" : "confirmed", txHash: data.txid || "", submittedAt: item.id,
             // Carry the flag through. Without it this row had status "review" but no
             // `flagged`, so the history fell through to rendering the bare word
             // "review" — unstyled, unexplained, on a submission that was paid. The
             // badge only appears when `flagged` is set.
             flagged: !!item.flagged, flagReason: item.flagReason || "",
           }, ...prev]);
-          setB3tr(b => b + (parseFloat(paid) || 0));
+          if (data.pending) uncertain = true; else setB3tr(b => b + (parseFloat(paid) || 0));
           synced++;
         }
         if (cancelled) return;
@@ -6768,9 +6778,9 @@ export default function App() {
       // Switched wallets while this was paying: it's the other wallet's money, and
       // shows in its history (from chain) when that one connects again.
       if (!sameWallet(payWallet)) { showToast(`🌿 Eco bonus +${paid} B3TR paid to ${payWallet.slice(0, 6)}…${payWallet.slice(-4)} (the wallet you started with)`); return; }
-      setSubs(prev => [{ id: Date.now(), type: "eco", appliance, cur: "", prev: "", meterNo: "", date: dayKey(new Date()), b3tr: paid, status: "confirmed", txHash: data.txid || "", submittedAt: Date.now() }, ...prev]);
-      setB3tr(b => b + paid);
-      showToast(`🌿 Eco bonus: +${paid} B3TR!`);
+      setSubs(prev => [{ id: Date.now(), type: "eco", appliance, cur: "", prev: "", meterNo: "", date: dayKey(new Date()), b3tr: paid, status: data.pending ? "pending" : "confirmed", txHash: data.txid || "", submittedAt: Date.now() }, ...prev]);
+      if (data.pending) { recheckPayout(payWallet); showToast(`🌿 Eco bonus +${paid} B3TR sent — pending until it's in a block`); }
+      else { setB3tr(b => b + paid); showToast(`🌿 Eco bonus: +${paid} B3TR!`); }
     } catch (e) {
       if (sent && !isRefusal(e)) recheckPayout(payWallet);
       showToast(`❌ Eco bonus failed: ${e?.message || "try again later"}`);
@@ -6821,10 +6831,10 @@ export default function App() {
       const curN = Number(data.reading), useN = Number(data.usage);
       const cur = data.reading != null && Number.isFinite(curN) ? String(data.reading) : "";
       const prev = cur && data.usage != null && Number.isFinite(useN) ? String(+(curN - useN).toFixed(3)) : "";
-      setSubs(prev0 => [{ id: Date.now(), type: "electric", meterNo, cur, prev, date: dayKey(new Date()), b3tr: paid, status: "confirmed", txHash: data.txid || "", submittedAt: Date.now() }, ...prev0]);
-      setB3tr(b => b + paid);
+      setSubs(prev0 => [{ id: Date.now(), type: "electric", meterNo, cur, prev, date: dayKey(new Date()), b3tr: paid, status: data.pending ? "pending" : "confirmed", txHash: data.txid || "", submittedAt: Date.now() }, ...prev0]);
       setCooldown("electric");
-      showToast(`⚡ Automatic reading: +${paid} B3TR!`);
+      if (data.pending) { recheckPayout(payWallet); showToast(`⚡ Automatic reading +${paid} B3TR sent — pending until it's in a block`); }
+      else { setB3tr(b => b + paid); showToast(`⚡ Automatic reading: +${paid} B3TR!`); }
     } catch (e) {
       if (sent && !isRefusal(e)) recheckPayout(payWallet);
       showToast(`❌ Automatic submit failed: ${e?.message || "try again later"}`);
@@ -6974,7 +6984,7 @@ export default function App() {
       //    the B3TR (the production model; the user signs nothing).
       //  • otherwise (admin only) → the connected wallet signs distributeReward
       //    directly; only works if that wallet holds the distributor role.
-      let txid;
+      let txid, onChainPending = false;
       // The server recomputes the payout from its own recorded baseline, so the
       // amount actually paid on-chain can differ from the client's `earned`. Show
       // and store the server's number when it returns one; fall back to `earned`.
@@ -7003,6 +7013,7 @@ export default function App() {
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw httpError(data.error || `Reward service error ${res.status}`, res.status);
         txid = data.txid;
+        onChainPending = !!data.pending;
         if (data.amount != null && Number.isFinite(Number(data.amount))) paidAmount = Number(data.amount);
       } else {
         const clauses = buildRewardClauses(selUtil, reading, prevRead, earned, wallet, meterNo);
@@ -7028,14 +7039,14 @@ export default function App() {
         prev: prevRead,
         date: dateStr,
         b3tr: paidAmount,
-        status: "confirmed",
+        status: onChainPending ? "pending" : "confirmed",
         flagged: !photoConfirmed,
         flagReason,
         txHash: txid || "",
         submittedAt: Date.now()
       }, ...prev]);
 
-      setB3tr(b => b + paidAmount);
+      if (onChainPending) recheckPayout(wallet); else setB3tr(b => b + paidAmount);
       if (registers) setRegTick(t => t + 1);
       setCooldown(selUtil);
       setAiOk(false);
@@ -7044,7 +7055,9 @@ export default function App() {
       setPrevRead("");
       prevReadEdited.current = false;
       setVerifyKey(k => k + 1);
-      showToast(`✅ +${paidAmount.toFixed(2)} B3TR on ${NETWORK_LABEL}${txid ? ` • TX: ${txid.slice(0, 10)}...` : ""}`);
+      showToast(onChainPending
+        ? `⏳ +${paidAmount.toFixed(2)} B3TR sent on ${NETWORK_LABEL} — pending until it's in a block${txid ? ` • TX: ${txid.slice(0, 10)}...` : ""}`
+        : `✅ +${paidAmount.toFixed(2)} B3TR on ${NETWORK_LABEL}${txid ? ` • TX: ${txid.slice(0, 10)}...` : ""}`);
       setBusy(false);
     } catch (e) {
       setBusy(false);
