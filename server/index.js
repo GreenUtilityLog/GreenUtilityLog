@@ -184,6 +184,8 @@ app.get("/health", async (req, res) => {
     // obvious from the one endpoint everybody checks.
     dryRun: DRY_RUN,
     network: NETWORK,
+    // Which Node.js runs this server — to check a security update reached the host.
+    runtime: process.version,
     // Without credentials or a query string: a provider key there would be public.
     node: (() => { try { const u = new URL(NODE_URL); return `${u.origin}${u.pathname}`.replace(/\/$/, ""); } catch { return null; } })(),
     appId: APP_ID,

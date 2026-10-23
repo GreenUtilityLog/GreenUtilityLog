@@ -28,7 +28,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # The same major line Render runs (server/package.json engines).
+          node-version: 26
       # npm install, not ci: the server's optional deps (tesseract, sharp) don't all
       # build on every runner and none of them are needed for these tests.
       - run: npm install --omit=optional
@@ -46,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node: [18, 20, 22]
+        node: [18, 20, 22, 24, 26]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

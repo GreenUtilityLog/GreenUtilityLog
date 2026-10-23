@@ -90,7 +90,7 @@ jobs:
               warn(f"could not read the distributor's VTHO: {e}")
 
           snap = {
-            "server": os.environ["SERVER"], "network": h.get("network"), "commit": h.get("commit"),
+            "server": os.environ["SERVER"], "network": h.get("network"), "commit": h.get("commit"), "runtime": h.get("runtime"),
             "poolB3TR": pool, "distributorVTHO": None if vtho is None else round(vtho),
             "weekFactor": (h.get("rewardBudget") or {}).get("factor"),
             "passes": h.get("passCount"), "phones": (h.get("device") or {}).get("known"),
