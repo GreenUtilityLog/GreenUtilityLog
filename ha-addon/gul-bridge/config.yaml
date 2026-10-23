@@ -1,5 +1,5 @@
 name: GreenUtilityLog Meter Bridge
-version: "1.5.0"
+version: "1.5.1"
 slug: gul_bridge
 description: Sends your smart-meter reading to GreenUtilityLog automatically — no terminal, no scripts.
 url: https://github.com/GreenUtilityLog/GreenUtilityLog/tree/main/bridge
