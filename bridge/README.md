@@ -13,7 +13,7 @@ Two modes:
   Not out of the box: dsmr-reader's API wants an `X-AUTHKEY` header, and a Shelly
   reports its own energy counter, not the meter's register.
 
-Zero dependencies — just Node ≥ 18 (or Docker).
+Zero dependencies — just Node ≥ 22 (or Docker); it still runs on 18 and 20, but those no longer get security updates.
 
 ## Before you start
 1. In the HomeWizard Energy app: **Settings → Meters → your P1 → turn on “Local API.”**

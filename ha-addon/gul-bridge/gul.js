@@ -683,7 +683,13 @@ async function main() {
     process.exit(1);
   }
   if (FLAGS.uninstall === "1") process.exit(manageTask("uninstall"));
-  const warnHttp = () => { if (!/^https:/i.test(INGEST)) log("WARNING: GUL_INGEST_URL is not https — your token would be sent in cleartext. Use the default https endpoint."); };
+  const warnHttp = () => {
+    if (!/^https:/i.test(INGEST)) log("WARNING: GUL_INGEST_URL is not https — your token would be sent in cleartext. Use the default https endpoint.");
+    // Still works on 18 and 20, but those get no security fixes any more, and this
+    // runs unattended on a machine that is online all day.
+    const major = Number(process.versions.node.split(".")[0]);
+    if (major < 22) log(`NOTE: Node ${process.versions.node} no longer gets security updates — install Node 22 or newer (nodejs.org, LTS).`);
+  };
   if (FLAGS.install === "1") {
     warnHttp(); // before the setup's own first push
     // A task is useless without a token: it runs unattended and cannot ask.
