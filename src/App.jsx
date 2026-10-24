@@ -4335,7 +4335,7 @@ function AdminAccountTools({ T, onAdminApi, onToast }) {
         <div style={lbl}>Look up (meter number or wallet)</div>
         <div style={{ display: "flex", gap: 8 }}>
           <input value={lookW} onChange={e => setLookW(e.target.value)} placeholder="Meter number or 0x…" spellCheck={false} style={inp} />
-          <button disabled={busy === "look" || !lookW.trim()} onClick={() => run("look", () => onAdminApi("/admin/lookup", isAddr(lookW) ? { targetWallet: lookW.trim() } : { meterNo: lookW.trim() }), () => `🔎 Loaded`)} style={btn("transparent", T.textMid, busy === "look" || !lookW.trim())}>{busy === "look" ? "…" : "Look up"}</button>
+          <button disabled={busy === "look" || !lookW.trim()} onClick={() => run("look", () => onAdminApi("/admin/lookup", isAddr(lookW) ? { targetWallet: lookW.trim(), check: true } : { meterNo: lookW.trim() }), () => `🔎 Loaded`)} style={btn("transparent", T.textMid, busy === "look" || !lookW.trim())}>{busy === "look" ? "…" : "Look up"}</button>
         </div>
         {result && (
           <pre style={{ margin: "8px 0 0", padding: 10, background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, fontSize: 11, color: T.text, fontFamily: "'SF Mono',Menlo,'Courier New',monospace", overflowX: "auto", lineHeight: 1.5 }}>{JSON.stringify(result, null, 2)}</pre>

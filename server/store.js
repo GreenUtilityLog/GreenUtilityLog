@@ -28,7 +28,7 @@ const REDIS_KEY = process.env.STATE_KEY || "greenutilitylog:state";
 // `passes` is the access-pass registry (address → pass); `passesInit` records that the
 // one-time grandfathering has run, so turning REQUIRE_PASS on can't silently cut off
 // every existing tester — and can't re-grant a pass an admin has since revoked.
-const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {}, autoPaid: {}, payLog: [], prints: [], payDays: {}, meterRegs: {}, settings: {}, powerfox: {}, tibber: {}, devices: {}, photoAts: {} };
+const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {}, autoPaid: {}, payLog: [], prints: [], payDays: {}, meterRegs: {}, settings: {}, powerfox: {}, tibber: {}, devices: {}, photoAts: {}, walletChecks: {} };
 // A fresh copy each time. Spreading EMPTY copies only its top level: every
 // "empty" state then shared EMPTY's own maps, so writing to one wrote to all of
 // them — and to the next "empty" state read from Redis.
@@ -689,6 +689,29 @@ export const store = {
     }
     persist();
     return w;
+  },
+  // Wallet checks (walletcheck.js), kept small: they sit in the one stored state
+  // that is saved whole. { at, f: funder, s: 1 when suspicious }. The oldest go
+  // first past WALLET_CHECKS_MAX.
+  getWalletCheck: (addr) => {
+    const k = String(addr || "").toLowerCase();
+    return isMap(state.walletChecks) && Object.prototype.hasOwnProperty.call(state.walletChecks, k) ? state.walletChecks[k] : null;
+  },
+  setWalletCheck: (addr, v) => {
+    if (!isMap(state.walletChecks)) state.walletChecks = {};
+    state.walletChecks[String(addr).toLowerCase()] = v;
+    const keys = Object.keys(state.walletChecks);
+    if (keys.length > 3000) {
+      keys.sort((x, y) => (state.walletChecks[x]?.at || 0) - (state.walletChecks[y]?.at || 0));
+      for (const k of keys.slice(0, keys.length - 3000)) delete state.walletChecks[k];
+    }
+    persist();
+  },
+  // Other wallets here whose first VET/VTHO came from this source.
+  walletsFundedBy: (funder, except) => {
+    if (!funder || !isMap(state.walletChecks)) return 0;
+    const f = String(funder).toLowerCase(), me = String(except || "").toLowerCase();
+    return Object.entries(state.walletChecks).filter(([a, v]) => a !== me && v?.f === f).length;
   },
   deviceWallets: (key) => {
     if (!key || !isMap(state.devices) || !Object.prototype.hasOwnProperty.call(state.devices, key)) return [];
