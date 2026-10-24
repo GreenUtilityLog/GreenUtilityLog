@@ -7,7 +7,7 @@ import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import express from "express";
 import cors from "cors";
 import { COOLDOWN_MS } from "./config.js";
-import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, REQUIRE_PASS, PASSPORT_GRANTS_ACCESS, ECO_REWARD, ECO_MAX_PER_WEEK, ECO_COOLDOWN_MS, ECO_TZ, ECO_APPLIANCES, ecoWeekKey, RATES, UNITS, pickUtility, pickAnyUtility, isEnabledUtility, MAX_PAYOUT_PER_SUBMISSION, ENABLED_UTILITIES } from "./config.js";
+import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, REQUIRE_PASS, PASSPORT_GRANTS_ACCESS, ECO_REWARD, ECO_MAX_PER_WEEK, ECO_COOLDOWN_MS, ECO_TZ, ECO_APPLIANCES, ecoWeekKey, RATES, UNITS, pickUtility, pickAnyUtility, isEnabledUtility, MAX_PAYOUT_PER_SUBMISSION, ENABLED_UTILITIES, REWARD_BASE } from "./config.js";
 import { validateSubmission } from "./verify.js";
 import { verifyPhoto, checkReadingOnPhoto, readingCheckMode, meterNoOnPhoto, meterNoCheckMode, photoPrint, printDistance } from "./media.js";
 import { store } from "./store.js";
@@ -23,6 +23,7 @@ import { deviceKeys, DEVICE_MAX_WALLETS, DEVICE_FP_FLAG, REQUIRE_DEVICE } from "
 import { enodeEnabled, enodeInfo, createMeterLink, fetchLatestReading } from "./enode.js";
 import { powerfoxEnabled, sealCredentials, openCredentials, fetchPowerfoxReading } from "./powerfox.js";
 import { fetchTibberReading } from "./tibber.js";
+import { inspectWallet, judgeWallet } from "./walletcheck.js";
 
 const app = express();
 
@@ -236,6 +237,7 @@ app.get("/health", async (req, res) => {
     storeReady: store.ready(),
     // false = the last save to durable storage failed: payouts pause until one lands.
     storeSaving: store.saveOk(),
+    walletCheck: WALLET_CHECK,
     // The emergency stop (PAYOUTS_PAUSED): true = no payout goes out at all.
     payoutsPaused: PAYOUTS_PAUSED,
     stateBytes: store.stateBytes(),
@@ -347,6 +349,37 @@ function photoCheckBudget(addr) {
   if (PHOTO_CHECKS_PER_DAY > 0 && count.total >= PHOTO_CHECKS_PER_DAY) return "the photo check has reached today's limit — please try again tomorrow";
   count.add(a);
   return null;
+}
+
+// ── Wallet check (walletcheck.js) ────────────────────────────────────────────
+// At a wallet's first payout: its history on chain, who funded it, and what the
+// VeBetterDAO passport says. "flag" (default) records findings for the admin;
+// "base" also holds meter payouts of a suspicious wallet to the base amount;
+// "off" skips it. Remembered for WALLET_CHECK_DAYS, so it costs a few node calls
+// per wallet per week. An unreadable node never blocks a payout.
+const WALLET_CHECK = (() => { const m = String(process.env.WALLET_CHECK || "flag").trim().toLowerCase(); return ["off", "flag", "base"].includes(m) ? m : "flag"; })();
+const WALLET_CHECK_DAYS = Number(process.env.WALLET_CHECK_DAYS || 7);
+const WALLET_FUNDER_FLAG = Number(process.env.WALLET_FUNDER_FLAG || 3);
+async function walletVerdict(addr) {
+  const a = String(addr || "").toLowerCase();
+  if (WALLET_CHECK === "off" || isAdminWallet(a)) return { suspicious: false };
+  const cached = store.getWalletCheck(a);
+  if (cached && Date.now() - (cached.at || 0) < WALLET_CHECK_DAYS * DAY_MS) return { suspicious: !!cached.s };
+  const check = await Promise.race([inspectWallet(a), new Promise((r) => setTimeout(() => r(null), 12000).unref?.())]);
+  if (!check || check.error) return { suspicious: false, unknown: true };   // try again next time
+  const { suspicious, reasons } = judgeWallet(check, store.walletsFundedBy(check.funder, a), WALLET_FUNDER_FLAG);
+  store.setWalletCheck(a, { at: Date.now(), f: check.funder || null, s: suspicious ? 1 : 0 });
+  if (reasons.length) {
+    try { store.addFlag(`wallet-${a.slice(2, 10)}-${Date.now()}`, a, `wallet check: ${reasons.join("; ")}${suspicious && WALLET_CHECK === "base" ? " — meter payouts held to the base amount" : ""}`); } catch {}
+  }
+  return { suspicious, reasons };
+}
+// The amount a meter payout may be, after the wallet check: the base amount only
+// for a suspicious wallet in "base" mode.
+async function walletCappedAmount(addr, utility, amount) {
+  const wv = await walletVerdict(addr);
+  if (WALLET_CHECK === "base" && wv.suspicious) return Math.min(amount, REWARD_BASE[utility] ?? amount);
+  return amount;
 }
 
 // Payouts between "sent" and "recorded". Shutdown waits for these to finish:
@@ -686,6 +719,13 @@ app.post("/admin/lookup", async (req, res) => {
     pass: isAddr(target) ? store.getPass(target) : null,
     // Every meter registered to this wallet (incl. ones added but not yet submitted).
     meters: isAddr(target) ? store.metersForWallet(target) : [],
+    // A fresh wallet check (history on chain, who funded it, the passport) — only
+    // when asked (check: true): it reads the chain, and the role panel uses this
+    // lookup too without needing it.
+    walletCheck: isAddr(target) && req.body.check === true ? await (async () => {
+      const c = await inspectWallet(target);
+      return { ...c, ...judgeWallet(c, store.walletsFundedBy(c.funder, target), WALLET_FUNDER_FLAG), sameFunder: store.walletsFundedBy(c.funder, target) };
+    })() : null,
   });
 });
 
@@ -1111,7 +1151,7 @@ app.post("/reward", async (req, res) => {
 
     // 3) Scale to this week's budget (budget.js), pay out, then commit cooldown +
     // baseline (only on success).
-    const pay = await scaledAmount(v.amount);
+    const pay = await scaledAmount(await walletCappedAmount(req.body.address, req.body.utility, v.amount));
     if (pay.error) return res.status(503).json({ error: pay.error, budget: true });
     // The checks above can take a minute or two. A shutdown or a failed save that
     // began meanwhile must stop the payout here, before anything is sent.
@@ -1259,6 +1299,7 @@ app.post("/eco-action", async (req, res) => {
       return res.status(400).json({ error: "this photo looks like one another wallet already submitted" });
     }
 
+    await walletVerdict(addr);   // findings go to the admin; the eco bonus is fixed
     const pay = await scaledAmount(ECO_REWARD);
     if (pay.error) return res.status(503).json({ error: pay.error, budget: true });
     if (shuttingDown || !store.ready()) return res.status(503).json({ error: shuttingDown ? "the server is restarting — nothing was used up, please try again in a minute" : notReadyMessage() });
@@ -1820,7 +1861,7 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
   inFlight.add(lockKey);
   let guard = null, paid = false;
   try {
-    const pay = await scaledAmount(v.amount);
+    const pay = await scaledAmount(await walletCappedAmount(addr, utility, v.amount));
     if (pay.error) return { ok: false, code: 503, error: pay.error };
     if (shuttingDown || !store.ready()) return { ok: false, code: 503, error: shuttingDown ? "the server is restarting — nothing was used up, please try again in a minute" : notReadyMessage() };
     guard = await guardPayout(meterPayoutKeys(addr, utility, meterNo, latest.reading));
@@ -2204,7 +2245,7 @@ if (PHOTO_RETENTION_MS > 0) {
     "PHOTO_MAX_AGE_DAYS", "AI_PHOTO_MIN_CONFIDENCE", "PHOTO_LIKENESS_REFUSE", "PHOTO_LIKENESS_FLAG",
     "CERT_MAX_AGE_MS", "OCR_DAILY_MAX", "OCR_DAILY_PER_IP", "BROADCAST_RETRY_MS", "REDIS_TIMEOUT_MS",
     "BUDGET_POOL_B3TR", "BUDGET_WAITING_B3TR", "PHOTO_BODIES_MAX", "PHOTO_CHECKS_PER_WALLET_DAY", "PHOTO_CHECKS_PER_DAY",
-    "RECEIPT_WAIT_MS"];
+    "RECEIPT_WAIT_MS", "WALLET_CHECK_DAYS", "WALLET_FUNDER_FLAG"];
   const bad = NUMERIC_ENV.filter((k) => String(process.env[k] ?? "").trim() !== "" && !Number.isFinite(Number(process.env[k])));
   if (bad.length) {
     console.error(`[boot] FATAL: these settings must be plain numbers: ${bad.map((k) => `${k}="${process.env[k]}"`).join(", ")}. Refusing to start.`);

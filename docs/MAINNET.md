@@ -79,6 +79,7 @@ blueprint (`server/render.yaml`) beschrijft de testnet-service en zou die naam e
 | `DISTRIBUTOR_ADDRESS` | alleen bij `DISTRIBUTOR_MNEMONIC`: welk adres uit die woorden de distributor is |
 | `CERT_DOMAINS` | de site-naam waarmee handtekeningen binnenkomen — waarschijnlijk `greenutilitylog.github.io`. **Controleer hem vooraf op testnet**: open `https://greenutilitylog-rewards.onrender.com/health` en kijk onder `certDomains.seen` (beide app-versies staan op dezelfde site, dus het is dezelfde naam). Een verkeerde waarde sluit iedereen buiten, jou als admin ook |
 | `PAYOUTS_PAUSED` | **niet** invullen. Dit is de noodstop (zie onderaan): `true` stopt alle uitbetalingen |
+| `WALLET_CHECK` | niet invullen bij de besloten start (= `flag`: verdachte wallets komen bij de meldingen). Zet de app later open voor iedereen? Dan `base`: wallets die uit dezelfde bron gevuld zijn of door VeBetterDAO gesignaleerd, krijgen alleen het basisbedrag |
 | `POWERFOX_SECRET` | een lange willekeurige sleutel (anders dan op testnet) — zet de Powerfox- én Tibber-koppeling aan |
 
 **Bewust geaccepteerd risico — automatische standen:** een automatische meter (gul.js,

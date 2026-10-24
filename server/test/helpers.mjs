@@ -54,6 +54,8 @@ export async function startServer({ state = {}, env = {} } = {}) {
       // Same for the device id the app sends with a payout (device.test.js).
       REQUIRE_DEVICE: "false",
       PHOTO_CHECKS_PER_WALLET_DAY: "0",
+      // The wallet check reads the chain; off unless a test is about it (wallet-check.test.js).
+      WALLET_CHECK: "off",
       // Keep the real file backend: tests assert on what was persisted.
       UPSTASH_REDIS_REST_URL: "",
       UPSTASH_REDIS_REST_TOKEN: "",
