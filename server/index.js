@@ -353,11 +353,12 @@ function photoCheckBudget(addr) {
 
 // ── Wallet check (walletcheck.js) ────────────────────────────────────────────
 // At a wallet's first payout: its history on chain, who funded it, and what the
-// VeBetterDAO passport says. "flag" (default) records findings for the admin;
-// "base" also holds meter payouts of a suspicious wallet to the base amount;
+// VeBetterDAO passport says. "flag" records findings for the admin; "base"
+// (default) also holds meter payouts of a suspicious wallet to the base amount;
 // "off" skips it. Remembered for WALLET_CHECK_DAYS, so it costs a few node calls
-// per wallet per week. An unreadable node never blocks a payout.
-const WALLET_CHECK = (() => { const m = String(process.env.WALLET_CHECK || "flag").trim().toLowerCase(); return ["off", "flag", "base"].includes(m) ? m : "flag"; })();
+// per wallet per week. An unreadable node never blocks a payout. On by default in
+// "base": what it catches is held to the base amount, everything is flagged.
+const WALLET_CHECK = (() => { const m = String(process.env.WALLET_CHECK || "base").trim().toLowerCase(); return ["off", "flag", "base"].includes(m) ? m : "base"; })();
 const WALLET_CHECK_DAYS = Number(process.env.WALLET_CHECK_DAYS || 7);
 const WALLET_FUNDER_FLAG = Number(process.env.WALLET_FUNDER_FLAG || 3);
 async function walletVerdict(addr) {
