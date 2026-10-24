@@ -191,7 +191,7 @@
   <h2>Which setup do you have?</h2>
   <div class="routes">
     <div class="route pick"><div><h3>I use Home Assistant</h3><p>Works with almost any meter HA already reads. Install our integration, or paste a few lines of YAML.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Easiest</span></div></div>
-    <div class="route"><div><h3>I have a HomeWizard P1</h3><p>No Home Assistant needed. A small helper finds your meter on the network by itself.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Some tech</span></div></div>
+    <div class="route"><div><h3>I have a HomeWizard P1</h3><p>No Home Assistant needed. Works in 🇳🇱 🇧🇪 🇱🇺 🇩🇰 🇸🇪 🇭🇺 — a small helper finds your meter on the network by itself.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Some tech</span></div></div>
     <div class="route"><div><h3>I have another reader</h3><p>P1 Monitor, a Tasmota reading head (Hichi), or any reader that serves the meter's kWh total as JSON on your network.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span><span>Technical</span></div></div>
     <div class="route pick"><div><h3>I have a Powerfox (poweropti)</h3><p>Common in Germany. We can fetch your reading from the Powerfox cloud — nothing to install, nothing to keep switched on.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Easiest</span></div></div>
     <div class="route pick"><div><h3>I have a Tibber Pulse</h3><p>Common in Sweden, Norway, Denmark and Finland. We fetch your reading from Tibber with your personal token — nothing to install.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Easiest</span></div></div>
@@ -202,13 +202,13 @@
   <p class="lede" style="font-size:15.5px">The socket on your meter differs per country, so not every reader works everywhere. What always works: <strong>if Home Assistant already shows your meter's total, Route A works</strong> — whatever country you're in.</p>
   <div class="scroll"><table><tr><th>Country</th><th>Your meter has</th><th>What to use</th></tr>
     <tr><td>🇳🇱 Netherlands</td><td>P1 port (RJ12)</td><td>Any route. HomeWizard works out of the box.</td></tr>
-    <tr><td>🇧🇪 Belgium</td><td>P1 port (RJ12)</td><td>Same — plus the free Fluvius decryption key, once.</td></tr>
-    <tr><td>🇱🇺 Luxembourg</td><td>P1 port (Dutch DSMR)</td><td>Same as the Netherlands.</td></tr>
-    <tr><td>🇸🇪 Sweden · 🇫🇮 Finland</td><td>HAN port (RJ12)</td><td>Tibber Pulse: Route E. Otherwise a P1/HAN reader, or Home Assistant.</td></tr>
-    <tr><td>🇩🇰 Denmark</td><td>HAN (pin header, encrypted)</td><td>Tibber Pulse: Route E. Otherwise a reader with the right connector, or Home Assistant.</td></tr>
+    <tr><td>🇧🇪 Belgium</td><td>P1 port (RJ12, off by default)</td><td>Any route, once the port is on: switch it on for free in the Fluvius portal (other grid operators: ask yours).</td></tr>
+    <tr><td>🇱🇺 Luxembourg</td><td>P1 port (Smarty, encrypted)</td><td>HomeWizard P1: ask your grid operator for the P1 key once. Or Home Assistant.</td></tr>
+    <tr><td>🇸🇪 Sweden · 🇫🇮 Finland</td><td>HAN port (RJ12)</td><td>🇸🇪 HomeWizard P1 (Route B) — the grid operator may have to switch the port on first. Tibber Pulse: Route E. Otherwise a P1/HAN reader, or Home Assistant.</td></tr>
+    <tr><td>🇩🇰 Denmark</td><td>P1 (off by default) or HAN</td><td>HomeWizard P1 (Route B), once your grid operator switches the P1 port on — a HAN port needs a converter. Tibber Pulse: Route E. Otherwise a reader with the right connector, or Home Assistant.</td></tr>
+    <tr><td>🇭🇺 Hungary</td><td>P1 port (depends on the grid operator)</td><td>HomeWizard P1 with some meters — check HomeWizard's list first. Or Home Assistant, or photos.</td></tr>
     <tr><td>🇳🇴 Norway</td><td>HAN (RJ45, M-BUS)</td><td>Tibber Pulse: Route E. Otherwise a Norwegian HAN reader + Home Assistant.</td></tr>
     <tr><td>🇩🇪 Germany</td><td>Smart-Meter-Gateway / optical head</td><td>Powerfox poweropti: Route D. Tasmota reading head (Hichi): Route C. Otherwise Home Assistant.</td></tr>
-    <tr><td>🇺🇸 United States</td><td>No socket — Zigbee radio (HAN)</td><td>A Rainforest EAGLE/RAVEn, switched on by your utility.</td></tr>
     <tr><td>🇦🇹 Austria</td><td>Customer interface (M-Bus) / optical port</td><td>Tibber Pulse: Route E. Tasmota reading head (Hichi): Route C. Otherwise Home Assistant.</td></tr>
     <tr><td>🇨🇭 Switzerland</td><td>Customer interface / optical port</td><td>Tasmota reading head (Hichi): Route C. Otherwise Home Assistant.</td></tr>
     <tr><td>🇫🇷 France</td><td>Linky: TIC port</td><td>No P1 port, so for now only Home Assistant (e.g. with a ZLinky). Or photos.</td></tr>
@@ -218,7 +218,7 @@
     <tr><td>🇺🇸 🇨🇦 USA & Canada</td><td>No P1 port (Zigbee, only if the utility enables it)</td><td>Photos, if the display shows the kWh total. Home Assistant with a Rainforest EAGLE where the utility allows it. Quebec (Hydro-Québec): photos only.</td></tr>
     <tr><td>Anywhere else</td><td>Varies</td><td>If Home Assistant reads your meter, Route A works.</td></tr>
   </table></div>
-  <div class="note">Not sure? Open Home Assistant and look for your meter under Developer tools → States. If a kWh value is there and counting up, you're set.</div>
+  <div class="note">Not sure? Open Home Assistant and look for your meter under Developer tools → States. If a kWh value is there and counting up, you're set. HomeWizard P1? Check your meter on <a href="https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter">HomeWizard's list</a>.</div>
   <h2>All automatic routes: get your token</h2>
   <ol class="steps">
       <li><p class="steptitle">Copy your device token</p>
@@ -386,7 +386,7 @@
       <p>Nothing to tap: each reading is paid automatically when it arrives, at most once a day, and the panel’s <strong>Timeline</strong> shows <span class="k">Paid +… B3TR</span>. Don't want to wait? <strong>Claim now</strong> does the same.</p>
       </li>
       </ol>
-  <div class="note flag"><b>🇧🇪 Belgium (Fluvius meters)</b>Digital Fluvius meters send encrypted data. Ask Fluvius for your free decryption key and enter it once in your reader's app — after that everything works the same.</div>
+  <div class="note flag"><b>🇧🇪 Belgium (Fluvius meters)</b>The P1 port on Belgian meters is off by default. With Fluvius you switch it on for free in their online portal; with another grid operator, ask them. After that everything works the same.</div>
   <h2>If something doesn't work</h2>
   <div class="scroll"><table class="stack"><tr><th>You see</th><th>What to do</th></tr>
     <tr><td>&#x27;node&#x27; is not recognized</td><td>Node.js isn’t installed, or that window was already open when you installed it. On Windows: <span class="k">winget install OpenJS.NodeJS.LTS</span>. Elsewhere: nodejs.org. Then open a <strong>new</strong> terminal and paste the line again. You do not need git.</td></tr>
@@ -421,7 +421,7 @@
   <h2>Welke situatie heb jij?</h2>
   <div class="routes">
     <div class="route pick"><div><h3>Ik gebruik Home Assistant</h3><p>Werkt met vrijwel elke meter die HA al uitleest. Installeer onze integratie, of plak een paar regels YAML.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Makkelijkst</span></div></div>
-    <div class="route"><div><h3>Ik heb een HomeWizard P1</h3><p>Geen Home Assistant nodig. Een klein hulpprogramma vindt je meter zelf op het netwerk.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Beetje techniek</span></div></div>
+    <div class="route"><div><h3>Ik heb een HomeWizard P1</h3><p>Geen Home Assistant nodig. Werkt in 🇳🇱 🇧🇪 🇱🇺 🇩🇰 🇸🇪 🇭🇺 — een klein hulpprogramma vindt je meter zelf op het netwerk.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Beetje techniek</span></div></div>
     <div class="route"><div><h3>Ik heb een andere reader</h3><p>P1 Monitor, een Tasmota-leeskop (Hichi), of elke reader die de kWh-stand van je meter als JSON op je netwerk aanbiedt.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span><span>Technisch</span></div></div>
     <div class="route pick"><div><h3>Ik heb een Powerfox (poweropti)</h3><p>Veel gebruikt in Duitsland. Wij kunnen je stand ophalen uit de Powerfox-cloud — niets installeren, niets dat aan hoeft te blijven.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Makkelijkst</span></div></div>
     <div class="route pick"><div><h3>Ik heb een Tibber Pulse</h3><p>Veel gebruikt in Zweden, Noorwegen, Denemarken en Finland. Wij halen je stand bij Tibber op met je persoonlijke token — niets te installeren.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Makkelijkst</span></div></div>
@@ -432,13 +432,13 @@
   <p class="lede" style="font-size:15.5px">De aansluiting op je meter verschilt per land, dus niet elke reader werkt overal. Wat altijd werkt: <strong>toont Home Assistant je meterstand al, dan werkt Route A</strong> — in welk land je ook zit.</p>
   <div class="scroll"><table><tr><th>Land</th><th>Jouw meter heeft</th><th>Wat je gebruikt</th></tr>
     <tr><td>🇳🇱 Nederland</td><td>P1-poort (RJ12)</td><td>Elke route. HomeWizard werkt direct.</td></tr>
-    <tr><td>🇧🇪 België</td><td>P1-poort (RJ12)</td><td>Hetzelfde — plus eenmalig de gratis Fluvius-sleutel.</td></tr>
-    <tr><td>🇱🇺 Luxemburg</td><td>P1-poort (Nederlandse DSMR)</td><td>Hetzelfde als Nederland.</td></tr>
-    <tr><td>🇸🇪 Zweden · 🇫🇮 Finland</td><td>HAN-poort (RJ12)</td><td>Tibber Pulse: Route E. Anders een P1/HAN-reader, of Home Assistant.</td></tr>
-    <tr><td>🇩🇰 Denemarken</td><td>HAN (pin-header, versleuteld)</td><td>Tibber Pulse: Route E. Anders een reader met de juiste connector, of Home Assistant.</td></tr>
+    <tr><td>🇧🇪 België</td><td>P1-poort (RJ12, standaard uit)</td><td>Elke route, zodra de poort aan staat: gratis aanzetten in het Fluvius-portaal (andere netbeheerder: vraag het hen).</td></tr>
+    <tr><td>🇱🇺 Luxemburg</td><td>P1-poort (Smarty, versleuteld)</td><td>HomeWizard P1: vraag één keer de P1-sleutel aan je netbeheerder. Of Home Assistant.</td></tr>
+    <tr><td>🇸🇪 Zweden · 🇫🇮 Finland</td><td>HAN-poort (RJ12)</td><td>🇸🇪 HomeWizard P1 (Route B) — de netbeheerder moet de poort soms eerst aanzetten. Tibber Pulse: Route E. Anders een P1/HAN-reader, of Home Assistant.</td></tr>
+    <tr><td>🇩🇰 Denemarken</td><td>P1 (standaard uit) of HAN</td><td>HomeWizard P1 (Route B), zodra je netbeheerder de P1-poort aanzet — een HAN-poort heeft een omvormer nodig. Tibber Pulse: Route E. Anders een reader met de juiste connector, of Home Assistant.</td></tr>
+    <tr><td>🇭🇺 Hongarije</td><td>P1-poort (hangt af van de netbeheerder)</td><td>HomeWizard P1 bij sommige meters — check eerst de lijst van HomeWizard. Of Home Assistant, of foto’s.</td></tr>
     <tr><td>🇳🇴 Noorwegen</td><td>HAN (RJ45, M-BUS)</td><td>Tibber Pulse: Route E. Anders een Noorse HAN-reader + Home Assistant.</td></tr>
     <tr><td>🇩🇪 Duitsland</td><td>Smart-Meter-Gateway / optische kop</td><td>Powerfox poweropti: Route D. Tasmota-leeskop (Hichi): Route C. Anders Home Assistant.</td></tr>
-    <tr><td>🇺🇸 Verenigde Staten</td><td>Geen poort — Zigbee-radio (HAN)</td><td>Een Rainforest EAGLE/RAVEn, door je leverancier geactiveerd.</td></tr>
     <tr><td>🇦🇹 Oostenrijk</td><td>Klantinterface (M-Bus) / optische poort</td><td>Tibber Pulse: Route E. Tasmota-leeskop (Hichi): Route C. Anders Home Assistant.</td></tr>
     <tr><td>🇨🇭 Zwitserland</td><td>Klantinterface / optische poort</td><td>Tasmota-leeskop (Hichi): Route C. Anders Home Assistant.</td></tr>
     <tr><td>🇫🇷 Frankrijk</td><td>Linky: TIC-poort</td><td>Geen P1-poort, dus voorlopig alleen Home Assistant (bijv. met een ZLinky). Of foto’s.</td></tr>
@@ -448,7 +448,7 @@
     <tr><td>🇺🇸 🇨🇦 VS en Canada</td><td>Geen P1-poort (Zigbee, alleen als de netbeheerder het aanzet)</td><td>Foto’s, als de display de kWh-stand toont. Home Assistant met een Rainforest EAGLE waar de netbeheerder dat toestaat. Quebec (Hydro-Québec): alleen foto’s.</td></tr>
     <tr><td>Elders</td><td>Verschilt</td><td>Leest Home Assistant je meter, dan werkt Route A.</td></tr>
   </table></div>
-  <div class="note">Niet zeker? Open Home Assistant en zoek je meter onder Ontwikkelhulpmiddelen → Statussen. Staat er een kWh-waarde die oploopt, dan zit je goed.</div>
+  <div class="note">Niet zeker? Open Home Assistant en zoek je meter onder Ontwikkelhulpmiddelen → Statussen. Staat er een kWh-waarde die oploopt, dan zit je goed. HomeWizard P1? Check je meter op <a href="https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter">de lijst van HomeWizard</a>.</div>
   <h2>Alle automatische routes: haal je token op</h2>
   <ol class="steps">
       <li><p class="steptitle">Kopieer je device-token</p>
@@ -616,7 +616,7 @@
       <p>Niets te tikken: elke stand wordt automatisch uitbetaald zodra hij binnenkomt, hooguit één keer per dag, en de <strong>Timeline</strong> in dat paneel toont <span class="k">Paid +… B3TR</span>. Geen zin om te wachten? <strong>Claim now</strong> doet hetzelfde.</p>
       </li>
       </ol>
-  <div class="note flag"><b>🇧🇪 België (Fluvius-meters)</b>Digitale Fluvius-meters sturen versleutelde data. Vraag bij Fluvius je gratis decryptiesleutel op en voer die één keer in de app van je reader in — daarna werkt alles hetzelfde.</div>
+  <div class="note flag"><b>🇧🇪 België (Fluvius-meters)</b>De P1-poort op Belgische meters staat standaard uit. Bij Fluvius zet je hem gratis aan in hun online portaal; bij een andere netbeheerder vraag je het hen. Daarna werkt alles hetzelfde.</div>
   <h2>Als er iets niet werkt</h2>
   <div class="scroll"><table class="stack"><tr><th>Je ziet</th><th>Wat te doen</th></tr>
     <tr><td>&#x27;node&#x27; is not recognized</td><td>Node.js staat er niet op, of het venster stond al open toen je het installeerde. Op Windows: <span class="k">winget install OpenJS.NodeJS.LTS</span>. Elders: nodejs.org. Open daarna een <strong>nieuw</strong> venster en plak de regel opnieuw. Git heb je niet nodig.</td></tr>
@@ -651,7 +651,7 @@
   <h2>Welche Situation hast du?</h2>
   <div class="routes">
     <div class="route pick"><div><h3>Ich nutze Home Assistant</h3><p>Funktioniert mit fast jedem Zähler, den HA schon ausliest. Installiere unsere Integration oder füge ein paar Zeilen YAML ein.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Am einfachsten</span></div></div>
-    <div class="route"><div><h3>Ich habe einen HomeWizard P1</h3><p>Kein Home Assistant nötig. Ein kleines Hilfsprogramm findet deinen Zähler selbst im Netzwerk.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Etwas Technik</span></div></div>
+    <div class="route"><div><h3>Ich habe einen HomeWizard P1</h3><p>Kein Home Assistant nötig. Funktioniert in 🇳🇱 🇧🇪 🇱🇺 🇩🇰 🇸🇪 🇭🇺 — ein kleines Hilfsprogramm findet deinen Zähler selbst im Netzwerk.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Etwas Technik</span></div></div>
     <div class="route"><div><h3>Ich habe einen anderen Reader</h3><p>P1 Monitor, ein Tasmota-Lesekopf (Hichi) oder jeder Reader, der den kWh-Zählerstand als JSON in deinem Netzwerk anbietet.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span><span>Technisch</span></div></div>
     <div class="route pick"><div><h3>Ich habe einen Powerfox (poweropti)</h3><p>In Deutschland weit verbreitet. Wir holen deinen Stand aus der Powerfox-Cloud — nichts installieren, nichts muss eingeschaltet bleiben.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Am einfachsten</span></div></div>
     <div class="route pick"><div><h3>Ich habe einen Tibber Pulse</h3><p>Verbreitet in Schweden, Norwegen, Dänemark und Finnland. Wir holen deinen Stand bei Tibber mit deinem persönlichen Token — nichts zu installieren.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Am einfachsten</span></div></div>
@@ -662,13 +662,13 @@
   <p class="lede" style="font-size:15.5px">Der Anschluss am Zähler unterscheidet sich je Land, nicht jeder Reader passt überall. Was immer geht: <strong>zeigt Home Assistant deinen Zählerstand bereits, funktioniert Route A</strong> — egal in welchem Land.</p>
   <div class="scroll"><table><tr><th>Land</th><th>Dein Zähler hat</th><th>Was du nutzt</th></tr>
     <tr><td>🇳🇱 Niederlande</td><td>P1-Port (RJ12)</td><td>Jede Route. HomeWizard läuft direkt.</td></tr>
-    <tr><td>🇧🇪 Belgien</td><td>P1-Port (RJ12)</td><td>Genauso — plus einmalig den kostenlosen Fluvius-Schlüssel.</td></tr>
-    <tr><td>🇱🇺 Luxemburg</td><td>P1-Port (niederländischer DSMR)</td><td>Wie in den Niederlanden.</td></tr>
-    <tr><td>🇸🇪 Schweden · 🇫🇮 Finnland</td><td>HAN-Port (RJ12)</td><td>Tibber Pulse: Route E. Sonst ein P1/HAN-Reader, oder Home Assistant.</td></tr>
-    <tr><td>🇩🇰 Dänemark</td><td>HAN (Pin-Header, verschlüsselt)</td><td>Tibber Pulse: Route E. Sonst ein Reader mit passendem Stecker, oder Home Assistant.</td></tr>
+    <tr><td>🇧🇪 Belgien</td><td>P1-Port (RJ12, standardmäßig aus)</td><td>Jede Route, sobald der Port an ist: kostenlos im Fluvius-Portal einschalten (anderer Netzbetreiber: dort fragen).</td></tr>
+    <tr><td>🇱🇺 Luxemburg</td><td>P1-Port (Smarty, verschlüsselt)</td><td>HomeWizard P1: einmal den P1-Schlüssel beim Netzbetreiber anfragen. Oder Home Assistant.</td></tr>
+    <tr><td>🇸🇪 Schweden · 🇫🇮 Finnland</td><td>HAN-Port (RJ12)</td><td>🇸🇪 HomeWizard P1 (Route B) — der Netzbetreiber muss den Port eventuell erst einschalten. Tibber Pulse: Route E. Sonst ein P1/HAN-Reader, oder Home Assistant.</td></tr>
+    <tr><td>🇩🇰 Dänemark</td><td>P1 (standardmäßig aus) oder HAN</td><td>HomeWizard P1 (Route B), sobald dein Netzbetreiber den P1-Port einschaltet — ein HAN-Port braucht einen Wandler. Tibber Pulse: Route E. Sonst ein Reader mit passendem Stecker, oder Home Assistant.</td></tr>
+    <tr><td>🇭🇺 Ungarn</td><td>P1-Port (abhängig vom Netzbetreiber)</td><td>HomeWizard P1 bei manchen Zählern — erst die Liste von HomeWizard prüfen. Oder Home Assistant, oder Fotos.</td></tr>
     <tr><td>🇳🇴 Norwegen</td><td>HAN (RJ45, M-BUS)</td><td>Tibber Pulse: Route E. Sonst ein norwegischer HAN-Reader + Home Assistant.</td></tr>
     <tr><td>🇩🇪 Deutschland</td><td>Smart-Meter-Gateway / Lesekopf</td><td>Powerfox poweropti: Route D. Tasmota-Lesekopf (Hichi): Route C. Sonst Home Assistant.</td></tr>
-    <tr><td>🇺🇸 USA</td><td>Kein Port — Zigbee-Funk (HAN)</td><td>Ein Rainforest EAGLE/RAVEn, vom Versorger freigeschaltet.</td></tr>
     <tr><td>🇦🇹 Österreich</td><td>Kundenschnittstelle (M-Bus) / optische Schnittstelle</td><td>Tibber Pulse: Route E. Tasmota-Lesekopf (Hichi): Route C. Sonst Home Assistant.</td></tr>
     <tr><td>🇨🇭 Schweiz</td><td>Kundenschnittstelle / optische Schnittstelle</td><td>Tasmota-Lesekopf (Hichi): Route C. Sonst Home Assistant.</td></tr>
     <tr><td>🇫🇷 Frankreich</td><td>Linky: TIC-Schnittstelle</td><td>Kein P1-Port, also vorerst nur Home Assistant (z. B. mit einem ZLinky). Oder Fotos.</td></tr>
@@ -678,7 +678,7 @@
     <tr><td>🇺🇸 🇨🇦 USA & Kanada</td><td>Kein P1-Port (Zigbee, nur wenn der Versorger es freischaltet)</td><td>Fotos, wenn das Display den kWh-Stand zeigt. Home Assistant mit einem Rainforest EAGLE, wo der Versorger es erlaubt. Quebec (Hydro-Québec): nur Fotos.</td></tr>
     <tr><td>Anderswo</td><td>Unterschiedlich</td><td>Liest Home Assistant deinen Zähler, funktioniert Route A.</td></tr>
   </table></div>
-  <div class="note">Unsicher? Öffne Home Assistant und such deinen Zähler unter Entwicklerwerkzeuge → Zustände. Steht dort ein kWh-Wert, der hochzählt, passt es.</div>
+  <div class="note">Unsicher? Öffne Home Assistant und such deinen Zähler unter Entwicklerwerkzeuge → Zustände. Steht dort ein kWh-Wert, der hochzählt, passt es. HomeWizard P1? Prüf deinen Zähler auf <a href="https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter">der Liste von HomeWizard</a>.</div>
   <h2>Alle automatischen Routen: Token holen</h2>
   <ol class="steps">
       <li><p class="steptitle">Geräte-Token kopieren</p>
@@ -846,7 +846,7 @@
       <p>Nichts zu tippen: jeder Stand wird automatisch ausgezahlt, sobald er ankommt, höchstens einmal am Tag, und die <strong>Timeline</strong> darin zeigt <span class="k">Paid +… B3TR</span>. Keine Lust zu warten? <strong>Claim now</strong> macht dasselbe.</p>
       </li>
       </ol>
-  <div class="note flag"><b>🇧🇪 Belgien (Fluvius-Zähler)</b>Digitale Fluvius-Zähler senden verschlüsselt. Frag bei Fluvius deinen kostenlosen Entschlüsselungscode an und gib ihn einmal in der App deines Readers ein — danach läuft alles gleich.</div>
+  <div class="note flag"><b>🇧🇪 Belgien (Fluvius-Zähler)</b>Der P1-Port belgischer Zähler ist standardmäßig aus. Bei Fluvius schaltest du ihn kostenlos im Online-Portal ein; bei einem anderen Netzbetreiber frag dort. Danach läuft alles gleich.</div>
   <h2>Wenn etwas nicht klappt</h2>
   <div class="scroll"><table class="stack"><tr><th>Du siehst</th><th>Was tun</th></tr>
     <tr><td>&#x27;node&#x27; is not recognized</td><td>Node.js fehlt, oder das Fenster war schon offen, als du es installiert hast. Unter Windows: <span class="k">winget install OpenJS.NodeJS.LTS</span>. Sonst: nodejs.org. Öffne dann ein <strong>neues</strong> Fenster und füg die Zeile erneut ein. Git brauchst du nicht.</td></tr>
@@ -881,7 +881,7 @@
   <h2>Quelle est votre situation ?</h2>
   <div class="routes">
     <div class="route pick"><div><h3>J'utilise Home Assistant</h3><p>Fonctionne avec presque tout compteur que HA lit déjà. Installez notre intégration, ou collez quelques lignes de YAML.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Le plus simple</span></div></div>
-    <div class="route"><div><h3>J'ai un HomeWizard P1</h3><p>Pas besoin de Home Assistant. Un petit utilitaire trouve votre compteur tout seul sur le réseau.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Un peu technique</span></div></div>
+    <div class="route"><div><h3>J'ai un HomeWizard P1</h3><p>Pas besoin de Home Assistant. Marche en 🇳🇱 🇧🇪 🇱🇺 🇩🇰 🇸🇪 🇭🇺 — un petit utilitaire trouve votre compteur tout seul sur le réseau.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Un peu technique</span></div></div>
     <div class="route"><div><h3>J'ai un autre lecteur</h3><p>P1 Monitor, une tête de lecture Tasmota (Hichi), ou tout lecteur qui expose le total kWh du compteur en JSON sur votre réseau.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span><span>Technique</span></div></div>
     <div class="route pick"><div><h3>J'ai un Powerfox (poweropti)</h3><p>Courant en Allemagne. Nous récupérons votre relevé dans le cloud Powerfox — rien à installer, rien à laisser allumé.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Le plus simple</span></div></div>
     <div class="route pick"><div><h3>J'ai un Tibber Pulse</h3><p>Courant en Suède, Norvège, Danemark et Finlande. Nous récupérons votre relevé chez Tibber avec votre jeton personnel — rien à installer.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Le plus simple</span></div></div>
@@ -892,13 +892,13 @@
   <p class="lede" style="font-size:15.5px">La prise de votre compteur diffère selon le pays, donc tous les lecteurs ne fonctionnent pas partout. Ce qui marche toujours : <strong>si Home Assistant affiche déjà votre relevé, la Route A fonctionne</strong> — quel que soit le pays.</p>
   <div class="scroll"><table><tr><th>Pays</th><th>Votre compteur a</th><th>Quoi utiliser</th></tr>
     <tr><td>🇳🇱 Pays-Bas</td><td>Port P1 (RJ12)</td><td>Toutes les routes. HomeWizard marche directement.</td></tr>
-    <tr><td>🇧🇪 Belgique</td><td>Port P1 (RJ12)</td><td>Pareil — plus la clé Fluvius gratuite, une fois.</td></tr>
-    <tr><td>🇱🇺 Luxembourg</td><td>Port P1 (DSMR néerlandais)</td><td>Comme aux Pays-Bas.</td></tr>
-    <tr><td>🇸🇪 Suède · 🇫🇮 Finlande</td><td>Port HAN (RJ12)</td><td>Tibber Pulse : Route E. Sinon un lecteur P1/HAN, ou Home Assistant.</td></tr>
-    <tr><td>🇩🇰 Danemark</td><td>HAN (connecteur à broches, chiffré)</td><td>Tibber Pulse : Route E. Sinon un lecteur au bon connecteur, ou Home Assistant.</td></tr>
+    <tr><td>🇧🇪 Belgique</td><td>Port P1 (RJ12, désactivé par défaut)</td><td>Toutes les routes, une fois le port activé : gratuitement dans le portail Fluvius (autre gestionnaire de réseau : demandez-lui).</td></tr>
+    <tr><td>🇱🇺 Luxembourg</td><td>Port P1 (Smarty, chiffré)</td><td>HomeWizard P1 : demandez une fois la clé P1 à votre gestionnaire de réseau. Ou Home Assistant.</td></tr>
+    <tr><td>🇸🇪 Suède · 🇫🇮 Finlande</td><td>Port HAN (RJ12)</td><td>🇸🇪 HomeWizard P1 (Route B) — le gestionnaire de réseau doit parfois d'abord activer le port. Tibber Pulse : Route E. Sinon un lecteur P1/HAN, ou Home Assistant.</td></tr>
+    <tr><td>🇩🇰 Danemark</td><td>P1 (désactivé par défaut) ou HAN</td><td>HomeWizard P1 (Route B), dès que votre gestionnaire de réseau active le port P1 — un port HAN demande un convertisseur. Tibber Pulse : Route E. Sinon un lecteur au bon connecteur, ou Home Assistant.</td></tr>
+    <tr><td>🇭🇺 Hongrie</td><td>Port P1 (selon le gestionnaire de réseau)</td><td>HomeWizard P1 avec certains compteurs — vérifiez d’abord la liste de HomeWizard. Ou Home Assistant, ou des photos.</td></tr>
     <tr><td>🇳🇴 Norvège</td><td>HAN (RJ45, M-BUS)</td><td>Tibber Pulse : Route E. Sinon un lecteur HAN norvégien + Home Assistant.</td></tr>
     <tr><td>🇩🇪 Allemagne</td><td>Smart-Meter-Gateway / tête optique</td><td>Powerfox poweropti : Route D. Tête de lecture Tasmota (Hichi) : Route C. Sinon Home Assistant.</td></tr>
-    <tr><td>🇺🇸 États-Unis</td><td>Pas de prise — radio Zigbee (HAN)</td><td>Un Rainforest EAGLE/RAVEn, activé par votre fournisseur.</td></tr>
     <tr><td>🇦🇹 Autriche</td><td>Interface client (M-Bus) / port optique</td><td>Tibber Pulse : Route E. Tête de lecture Tasmota (Hichi) : Route C. Sinon Home Assistant.</td></tr>
     <tr><td>🇨🇭 Suisse</td><td>Interface client / port optique</td><td>Tête de lecture Tasmota (Hichi) : Route C. Sinon Home Assistant.</td></tr>
     <tr><td>🇫🇷 France</td><td>Linky : port TIC</td><td>Pas de port P1, donc pour l’instant seulement Home Assistant (par ex. avec un ZLinky). Ou des photos.</td></tr>
@@ -908,7 +908,7 @@
     <tr><td>🇺🇸 🇨🇦 États-Unis et Canada</td><td>Pas de port P1 (Zigbee, seulement si le distributeur l’active)</td><td>Des photos, si l’afficheur montre le total kWh. Home Assistant avec un Rainforest EAGLE là où le distributeur l’autorise. Québec (Hydro-Québec) : photos seulement.</td></tr>
     <tr><td>Ailleurs</td><td>Variable</td><td>Si Home Assistant lit votre compteur, la Route A marche.</td></tr>
   </table></div>
-  <div class="note">Pas sûr ? Ouvrez Home Assistant et cherchez votre compteur dans Outils de développement → États. Si une valeur en kWh monte, c'est bon.</div>
+  <div class="note">Pas sûr ? Ouvrez Home Assistant et cherchez votre compteur dans Outils de développement → États. Si une valeur en kWh monte, c'est bon. HomeWizard P1 ? Vérifiez votre compteur sur <a href="https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter">la liste de HomeWizard</a>.</div>
   <h2>Toutes les routes automatiques : récupérez votre jeton</h2>
   <ol class="steps">
       <li><p class="steptitle">Copiez votre jeton</p>
@@ -1076,7 +1076,7 @@
       <p>Rien à toucher : chaque relevé est payé automatiquement à son arrivée, au plus une fois par jour, et la <strong>Timeline</strong> du panneau affiche <span class="k">Paid +… B3TR</span>. Pas envie d'attendre ? <strong>Claim now</strong> fait la même chose.</p>
       </li>
       </ol>
-  <div class="note flag"><b>🇧🇪 Belgique (compteurs Fluvius)</b>Les compteurs Fluvius numériques envoient des données chiffrées. Demandez votre clé gratuite à Fluvius et saisissez-la une fois dans l'app de votre lecteur — ensuite tout fonctionne pareil.</div>
+  <div class="note flag"><b>🇧🇪 Belgique (compteurs Fluvius)</b>Le port P1 des compteurs belges est désactivé par défaut. Avec Fluvius, vous l'activez gratuitement dans leur portail en ligne ; avec un autre gestionnaire de réseau, demandez-lui. Ensuite tout fonctionne pareil.</div>
   <h2>Si ça ne marche pas</h2>
   <div class="scroll"><table class="stack"><tr><th>Vous voyez</th><th>Que faire</th></tr>
     <tr><td>&#x27;node&#x27; is not recognized</td><td>Node.js n’est pas installé, ou la fenêtre était déjà ouverte quand vous l’avez installé. Sous Windows : <span class="k">winget install OpenJS.NodeJS.LTS</span>. Ailleurs : nodejs.org. Puis ouvrez une <strong>nouvelle</strong> fenêtre et recollez la ligne. Git n’est pas nécessaire.</td></tr>
@@ -1111,7 +1111,7 @@
   <h2>¿Cuál es tu caso?</h2>
   <div class="routes">
     <div class="route pick"><div><h3>Uso Home Assistant</h3><p>Funciona con casi cualquier contador que HA ya lee. Instala nuestra integración, o pega unas líneas de YAML.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Lo más fácil</span></div></div>
-    <div class="route"><div><h3>Tengo un HomeWizard P1</h3><p>Sin Home Assistant. Un pequeño programa encuentra tu contador solo en la red.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Algo técnico</span></div></div>
+    <div class="route"><div><h3>Tengo un HomeWizard P1</h3><p>Sin Home Assistant. Funciona en 🇳🇱 🇧🇪 🇱🇺 🇩🇰 🇸🇪 🇭🇺 — un pequeño programa encuentra tu contador solo en la red.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Algo técnico</span></div></div>
     <div class="route"><div><h3>Tengo otro lector</h3><p>P1 Monitor, un cabezal de lectura Tasmota (Hichi), o cualquier lector que sirva el total de kWh del contador en JSON en tu red.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span><span>Técnico</span></div></div>
     <div class="route pick"><div><h3>Tengo un Powerfox (poweropti)</h3><p>Habitual en Alemania. Recogemos tu lectura de la nube de Powerfox — nada que instalar, nada que dejar encendido.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Lo más fácil</span></div></div>
     <div class="route pick"><div><h3>Tengo un Tibber Pulse</h3><p>Habitual en Suecia, Noruega, Dinamarca y Finlandia. Recogemos tu lectura de Tibber con tu token personal — nada que instalar.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Lo más fácil</span></div></div>
@@ -1122,13 +1122,13 @@
   <p class="lede" style="font-size:15.5px">La toma de tu contador varía según el país, así que no todos los lectores sirven en todas partes. Lo que siempre funciona: <strong>si Home Assistant ya muestra tu lectura, la Ruta A funciona</strong> — estés donde estés.</p>
   <div class="scroll"><table><tr><th>País</th><th>Tu contador tiene</th><th>Qué usar</th></tr>
     <tr><td>🇳🇱 Países Bajos</td><td>Puerto P1 (RJ12)</td><td>Cualquier ruta. HomeWizard funciona directamente.</td></tr>
-    <tr><td>🇧🇪 Bélgica</td><td>Puerto P1 (RJ12)</td><td>Igual — más la clave gratuita de Fluvius, una vez.</td></tr>
-    <tr><td>🇱🇺 Luxemburgo</td><td>Puerto P1 (DSMR neerlandés)</td><td>Igual que Países Bajos.</td></tr>
-    <tr><td>🇸🇪 Suecia · 🇫🇮 Finlandia</td><td>Puerto HAN (RJ12)</td><td>Tibber Pulse: Ruta E. Si no, un lector P1/HAN, o Home Assistant.</td></tr>
-    <tr><td>🇩🇰 Dinamarca</td><td>HAN (conector de pines, cifrado)</td><td>Tibber Pulse: Ruta E. Si no, un lector con el conector correcto, o Home Assistant.</td></tr>
+    <tr><td>🇧🇪 Bélgica</td><td>Puerto P1 (RJ12, desactivado por defecto)</td><td>Cualquier ruta, una vez activado el puerto: gratis en el portal de Fluvius (otra distribuidora: pregúntale).</td></tr>
+    <tr><td>🇱🇺 Luxemburgo</td><td>Puerto P1 (Smarty, cifrado)</td><td>HomeWizard P1: pide una vez la clave P1 a tu distribuidora. O Home Assistant.</td></tr>
+    <tr><td>🇸🇪 Suecia · 🇫🇮 Finlandia</td><td>Puerto HAN (RJ12)</td><td>🇸🇪 HomeWizard P1 (Ruta B) — puede que la distribuidora tenga que activar el puerto primero. Tibber Pulse: Ruta E. Si no, un lector P1/HAN, o Home Assistant.</td></tr>
+    <tr><td>🇩🇰 Dinamarca</td><td>P1 (desactivado por defecto) o HAN</td><td>HomeWizard P1 (Ruta B), cuando tu distribuidora active el puerto P1 — un puerto HAN necesita un conversor. Tibber Pulse: Ruta E. Si no, un lector con el conector correcto, o Home Assistant.</td></tr>
+    <tr><td>🇭🇺 Hungría</td><td>Puerto P1 (según la distribuidora)</td><td>HomeWizard P1 con algunos contadores — consulta antes la lista de HomeWizard. O Home Assistant, o fotos.</td></tr>
     <tr><td>🇳🇴 Noruega</td><td>HAN (RJ45, M-BUS)</td><td>Tibber Pulse: Ruta E. Si no, un lector HAN noruego + Home Assistant.</td></tr>
     <tr><td>🇩🇪 Alemania</td><td>Smart-Meter-Gateway / cabezal óptico</td><td>Powerfox poweropti: Ruta D. Cabezal Tasmota (Hichi): Ruta C. Si no, Home Assistant.</td></tr>
-    <tr><td>🇺🇸 Estados Unidos</td><td>Sin toma — radio Zigbee (HAN)</td><td>Un Rainforest EAGLE/RAVEn, activado por tu compañía.</td></tr>
     <tr><td>🇦🇹 Austria</td><td>Interfaz de cliente (M-Bus) / puerto óptico</td><td>Tibber Pulse: Ruta E. Cabezal Tasmota (Hichi): Ruta C. Si no, Home Assistant.</td></tr>
     <tr><td>🇨🇭 Suiza</td><td>Interfaz de cliente / puerto óptico</td><td>Cabezal Tasmota (Hichi): Ruta C. Si no, Home Assistant.</td></tr>
     <tr><td>🇫🇷 Francia</td><td>Linky: puerto TIC</td><td>Sin puerto P1, así que por ahora solo Home Assistant (p. ej. con un ZLinky). O fotos.</td></tr>
@@ -1138,7 +1138,7 @@
     <tr><td>🇺🇸 🇨🇦 EE. UU. y Canadá</td><td>Sin puerto P1 (Zigbee, solo si la compañía lo activa)</td><td>Fotos, si la pantalla muestra el total de kWh. Home Assistant con un Rainforest EAGLE donde la compañía lo permita. Quebec (Hydro-Québec): solo fotos.</td></tr>
     <tr><td>En otro lugar</td><td>Varía</td><td>Si Home Assistant lee tu contador, la Ruta A funciona.</td></tr>
   </table></div>
-  <div class="note">¿No estás seguro? Abre Home Assistant y busca tu contador en Herramientas para desarrolladores → Estados. Si hay un valor en kWh que sube, listo.</div>
+  <div class="note">¿No estás seguro? Abre Home Assistant y busca tu contador en Herramientas para desarrolladores → Estados. Si hay un valor en kWh que sube, listo. ¿HomeWizard P1? Comprueba tu contador en <a href="https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter">la lista de HomeWizard</a>.</div>
   <h2>Todas las rutas automáticas: consigue tu token</h2>
   <ol class="steps">
       <li><p class="steptitle">Copia tu token</p>
@@ -1306,7 +1306,7 @@
       <p>Nada que tocar: cada lectura se paga automáticamente en cuanto llega, como mucho una vez al día, y la <strong>Timeline</strong> del panel muestra <span class="k">Paid +… B3TR</span>. ¿No quieres esperar? <strong>Claim now</strong> hace lo mismo.</p>
       </li>
       </ol>
-  <div class="note flag"><b>🇧🇪 Bélgica (contadores Fluvius)</b>Los contadores Fluvius digitales envían datos cifrados. Pide tu clave gratuita a Fluvius e introdúcela una vez en la app de tu lector — después todo funciona igual.</div>
+  <div class="note flag"><b>🇧🇪 Bélgica (contadores Fluvius)</b>El puerto P1 de los contadores belgas está desactivado por defecto. Con Fluvius lo activas gratis en su portal en línea; con otra distribuidora, pregúntale. Después todo funciona igual.</div>
   <h2>Si algo no funciona</h2>
   <div class="scroll"><table class="stack"><tr><th>Ves</th><th>Qué hacer</th></tr>
     <tr><td>&#x27;node&#x27; is not recognized</td><td>Node.js no está instalado, o la ventana ya estaba abierta cuando lo instalaste. En Windows: <span class="k">winget install OpenJS.NodeJS.LTS</span>. En otros sistemas: nodejs.org. Abre después una ventana <strong>nueva</strong> y vuelve a pegar la línea. No necesitas git.</td></tr>

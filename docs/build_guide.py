@@ -864,6 +864,84 @@ for _c, _p in EU.items():
     _d["country_rows"][-1:-1] = _p["rows"]     # before "anywhere else"
     _d["trouble"][-1:-1] = [_p["trouble"]]
 
+# ─────────────────────── HOMEWIZARD P1: WHICH COUNTRIES ───────────────────────
+# HomeWizard's own list (its helpdesk article "Werkt de P1 Meter met mijn slimme
+# meter?") names six countries, each with its own catch. The country table and the
+# HomeWizard card say so, and link that list.
+HW_CHECK = "https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter"
+HWC = {
+  "en": dict(
+    card="No Home Assistant needed. Works in 🇳🇱 🇧🇪 🇱🇺 🇩🇰 🇸🇪 🇭🇺 — a small helper finds your meter on the network by itself.",
+    be="P1 port (RJ12, off by default)", be_x="Any route, once the port is on: switch it on for free in the Fluvius portal (other grid operators: ask yours).",
+    lu="P1 port (Smarty, encrypted)", lu_x="HomeWizard P1: ask your grid operator for the P1 key once. Or Home Assistant.",
+    dk_b="P1 (off by default) or HAN",
+    dk="HomeWizard P1 (Route B), once your grid operator switches the P1 port on — a HAN port needs a converter. ",
+    se="🇸🇪 HomeWizard P1 (Route B) — the grid operator may have to switch the port on first. ",
+    hu=('🇭🇺 Hungary', 'P1 port (depends on the grid operator)', 'HomeWizard P1 with some meters — check HomeWizard\'s list first. Or Home Assistant, or photos.'),
+    be_b="The P1 port on Belgian meters is off by default. With Fluvius you switch it on for free in their online portal; with another grid operator, ask them. After that everything works the same.",
+    close=" HomeWizard P1? Check your meter on <a href=\"{u}\">HomeWizard's list</a>.",
+  ),
+  "nl": dict(
+    card="Geen Home Assistant nodig. Werkt in 🇳🇱 🇧🇪 🇱🇺 🇩🇰 🇸🇪 🇭🇺 — een klein hulpprogramma vindt je meter zelf op het netwerk.",
+    be="P1-poort (RJ12, standaard uit)", be_x="Elke route, zodra de poort aan staat: gratis aanzetten in het Fluvius-portaal (andere netbeheerder: vraag het hen).",
+    lu="P1-poort (Smarty, versleuteld)", lu_x="HomeWizard P1: vraag één keer de P1-sleutel aan je netbeheerder. Of Home Assistant.",
+    dk_b="P1 (standaard uit) of HAN",
+    dk="HomeWizard P1 (Route B), zodra je netbeheerder de P1-poort aanzet — een HAN-poort heeft een omvormer nodig. ",
+    se="🇸🇪 HomeWizard P1 (Route B) — de netbeheerder moet de poort soms eerst aanzetten. ",
+    hu=('🇭🇺 Hongarije', 'P1-poort (hangt af van de netbeheerder)', 'HomeWizard P1 bij sommige meters — check eerst de lijst van HomeWizard. Of Home Assistant, of foto’s.'),
+    be_b="De P1-poort op Belgische meters staat standaard uit. Bij Fluvius zet je hem gratis aan in hun online portaal; bij een andere netbeheerder vraag je het hen. Daarna werkt alles hetzelfde.",
+    close=" HomeWizard P1? Check je meter op <a href=\"{u}\">de lijst van HomeWizard</a>.",
+  ),
+  "de": dict(
+    card="Kein Home Assistant nötig. Funktioniert in 🇳🇱 🇧🇪 🇱🇺 🇩🇰 🇸🇪 🇭🇺 — ein kleines Hilfsprogramm findet deinen Zähler selbst im Netzwerk.",
+    be="P1-Port (RJ12, standardmäßig aus)", be_x="Jede Route, sobald der Port an ist: kostenlos im Fluvius-Portal einschalten (anderer Netzbetreiber: dort fragen).",
+    lu="P1-Port (Smarty, verschlüsselt)", lu_x="HomeWizard P1: einmal den P1-Schlüssel beim Netzbetreiber anfragen. Oder Home Assistant.",
+    dk_b="P1 (standardmäßig aus) oder HAN",
+    dk="HomeWizard P1 (Route B), sobald dein Netzbetreiber den P1-Port einschaltet — ein HAN-Port braucht einen Wandler. ",
+    se="🇸🇪 HomeWizard P1 (Route B) — der Netzbetreiber muss den Port eventuell erst einschalten. ",
+    hu=('🇭🇺 Ungarn', 'P1-Port (abhängig vom Netzbetreiber)', 'HomeWizard P1 bei manchen Zählern — erst die Liste von HomeWizard prüfen. Oder Home Assistant, oder Fotos.'),
+    be_b="Der P1-Port belgischer Zähler ist standardmäßig aus. Bei Fluvius schaltest du ihn kostenlos im Online-Portal ein; bei einem anderen Netzbetreiber frag dort. Danach läuft alles gleich.",
+    close=" HomeWizard P1? Prüf deinen Zähler auf <a href=\"{u}\">der Liste von HomeWizard</a>.",
+  ),
+  "fr": dict(
+    card="Pas besoin de Home Assistant. Marche en 🇳🇱 🇧🇪 🇱🇺 🇩🇰 🇸🇪 🇭🇺 — un petit utilitaire trouve votre compteur tout seul sur le réseau.",
+    be="Port P1 (RJ12, désactivé par défaut)", be_x="Toutes les routes, une fois le port activé : gratuitement dans le portail Fluvius (autre gestionnaire de réseau : demandez-lui).",
+    lu="Port P1 (Smarty, chiffré)", lu_x="HomeWizard P1 : demandez une fois la clé P1 à votre gestionnaire de réseau. Ou Home Assistant.",
+    dk_b="P1 (désactivé par défaut) ou HAN",
+    dk="HomeWizard P1 (Route B), dès que votre gestionnaire de réseau active le port P1 — un port HAN demande un convertisseur. ",
+    se="🇸🇪 HomeWizard P1 (Route B) — le gestionnaire de réseau doit parfois d'abord activer le port. ",
+    hu=('🇭🇺 Hongrie', 'Port P1 (selon le gestionnaire de réseau)', 'HomeWizard P1 avec certains compteurs — vérifiez d’abord la liste de HomeWizard. Ou Home Assistant, ou des photos.'),
+    be_b="Le port P1 des compteurs belges est désactivé par défaut. Avec Fluvius, vous l'activez gratuitement dans leur portail en ligne ; avec un autre gestionnaire de réseau, demandez-lui. Ensuite tout fonctionne pareil.",
+    close=" HomeWizard P1 ? Vérifiez votre compteur sur <a href=\"{u}\">la liste de HomeWizard</a>.",
+  ),
+  "es": dict(
+    card="Sin Home Assistant. Funciona en 🇳🇱 🇧🇪 🇱🇺 🇩🇰 🇸🇪 🇭🇺 — un pequeño programa encuentra tu contador solo en la red.",
+    be="Puerto P1 (RJ12, desactivado por defecto)", be_x="Cualquier ruta, una vez activado el puerto: gratis en el portal de Fluvius (otra distribuidora: pregúntale).",
+    lu="Puerto P1 (Smarty, cifrado)", lu_x="HomeWizard P1: pide una vez la clave P1 a tu distribuidora. O Home Assistant.",
+    dk_b="P1 (desactivado por defecto) o HAN",
+    dk="HomeWizard P1 (Ruta B), cuando tu distribuidora active el puerto P1 — un puerto HAN necesita un conversor. ",
+    se="🇸🇪 HomeWizard P1 (Ruta B) — puede que la distribuidora tenga que activar el puerto primero. ",
+    hu=('🇭🇺 Hungría', 'Puerto P1 (según la distribuidora)', 'HomeWizard P1 con algunos contadores — consulta antes la lista de HomeWizard. O Home Assistant, o fotos.'),
+    be_b="El puerto P1 de los contadores belgas está desactivado por defecto. Con Fluvius lo activas gratis en su portal en línea; con otra distribuidora, pregúntale. Después todo funciona igual.",
+    close=" ¿HomeWizard P1? Comprueba tu contador en <a href=\"{u}\">la lista de HomeWizard</a>.",
+  ),
+}
+for _c, _p in HWC.items():
+    _d = L[_c]
+    _d["routes"] = [(t, _p["card"] if "HomeWizard P1" in t else desc, dots, lab) for t, desc, dots, lab in _d["routes"]]
+    _rows = []
+    for a, b, x in _d["country_rows"]:
+        if a.startswith("🇧🇪"): b, x = _p["be"], _p["be_x"]
+        elif a.startswith("🇱🇺"): b, x = _p["lu"], _p["lu_x"]
+        elif a.startswith("🇩🇰"): b, x = _p["dk_b"], _p["dk"] + x
+        elif a.startswith("🇸🇪"): x = _p["se"] + x
+        if a.startswith("🇺🇸") and not a.startswith("🇺🇸 🇨🇦"): continue   # superseded by the USA & Canada row
+        _rows.append((a, b, x))
+        if a.startswith("🇩🇰"): _rows.append(_p["hu"])
+    _d["country_rows"] = _rows
+    _d["be_b"] = _p["be_b"]
+    _d["country_close"] = _d["country_close"] + _p["close"].format(u=HW_CHECK)
+
 # ─────────────────────────── A PHOTO EVERY 30 DAYS ───────────────────────────
 # Automatic payouts pause when the meter's last photo is over 30 days old (the
 # server's AUTO_PHOTO_EVERY_DAYS): a photo can't be lower than what was paid, so a
