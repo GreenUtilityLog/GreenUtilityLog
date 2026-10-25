@@ -1587,6 +1587,40 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 // Full-screen gate shown after the intro until a wallet is connected, so the
 // user signs in BEFORE reaching the dashboard. Once connected, every meter
 // submission only needs a single signature (no separate login step).
+// A phone browser with no wallet in it — most often the in-app browser of X,
+// Telegram or Instagram after tapping a link in a post. dapp-kit's VeWorld button
+// then sends the page to veworld.com, meant as a link that opens the VeWorld app;
+// inside those in-app browsers it doesn't, and people land on VeWorld's website
+// instead of back here. Say so before they tap, in their own language.
+const NO_WALLET_HINT = {
+  en: { t: "Opened this from X or another app?", d: "Connecting works inside the VeWorld app. Copy the link, then in VeWorld open Discover and paste it. Or tap ⋯ and choose \"Open in browser\" first.", copy: "Copy link", done: "Link copied ✓" },
+  nl: { t: "Via X of een andere app geopend?", d: "Verbinden werkt in de VeWorld-app. Kopieer de link en plak hem in VeWorld bij Discover. Of tik eerst op ⋯ en kies \"Openen in browser\".", copy: "Link kopiëren", done: "Link gekopieerd ✓" },
+  de: { t: "Über X oder eine andere App geöffnet?", d: "Verbinden klappt in der VeWorld-App. Kopiere den Link und füge ihn in VeWorld unter Discover ein. Oder tippe zuerst auf ⋯ und wähle \"Im Browser öffnen\".", copy: "Link kopieren", done: "Link kopiert ✓" },
+  fr: { t: "Ouvert depuis X ou une autre app ?", d: "La connexion fonctionne dans l'app VeWorld. Copiez le lien, puis collez-le dans VeWorld sous Discover. Ou touchez d'abord ⋯ et choisissez « Ouvrir dans le navigateur ».", copy: "Copier le lien", done: "Lien copié ✓" },
+  es: { t: "¿Lo abriste desde X u otra app?", d: "La conexión funciona dentro de la app VeWorld. Copia el enlace y pégalo en VeWorld en Discover. O toca primero ⋯ y elige «Abrir en el navegador».", copy: "Copiar enlace", done: "Enlace copiado ✓" },
+};
+
+function NoWalletHint() {
+  const [copied, setCopied] = useState(false);
+  if (!IS_MOBILE || typeof window === "undefined" || window.vechain) return null;
+  let lang = "en";
+  try { const s = localStorage.getItem("gul_help_lang"); const n = (navigator.language || "").slice(0,2).toLowerCase(); lang = NO_WALLET_HINT[s] ? s : NO_WALLET_HINT[n] ? n : "en"; } catch {}
+  const L = NO_WALLET_HINT[lang];
+  const link = window.location.origin + window.location.pathname;
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(link); setCopied(true); } catch { window.prompt(L.copy, link); }
+  };
+  return (
+    <div style={{ marginTop:18, padding:"12px 14px", borderRadius:8, background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.25)", textAlign:"left" }}>
+      <div style={{ fontSize:12.5, fontWeight:700, color:"#fff", marginBottom:4 }}>{L.t}</div>
+      <div style={{ fontSize:12, color:"rgba(255,255,255,0.8)", lineHeight:1.5 }}>{L.d}</div>
+      <button onClick={copy} style={{ marginTop:10, padding:"6px 12px", borderRadius:6, border:"1px solid rgba(255,255,255,0.5)", background:"transparent", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+        {copied ? L.done : `📋 ${L.copy}`}
+      </button>
+    </div>
+  );
+}
+
 function WalletGate({ onConnect, online }) {
   return (
     /* One centred block — logo, headline, copy and the CTA travel together, so the
@@ -1609,6 +1643,7 @@ function WalletGate({ onConnect, online }) {
         <div style={{ marginTop:14, fontSize:11, color:"rgba(255,255,255,0.55)", lineHeight:1.5 }}>
           Your wallet stays in your control — we never see your keys.
         </div>
+        <NoWalletHint />
       </div>
     </div>
   );
