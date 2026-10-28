@@ -9,7 +9,7 @@ import {
   VeChainPrivateKeySigner,
 } from "@vechain/sdk-network";
 import { Clause, Address, ABIFunction, HDKey, Transaction, HexUInt } from "@vechain/sdk-core";
-import { NODE_URL, CONTRACTS, APP_ID, APP_VERSION, USAGE_BENCHMARK, SAVING_UTILS } from "./config.js";
+import { NODE_URL, CONTRACTS, APP_ID, APP_VERSION, USAGE_BENCHMARK, SAVING_UTILS, MAX_SPAN_DAYS } from "./config.js";
 
 // The official VeBetterDAO distribution call (X2EarnRewardsPool v10 ABI). The
 // CONTRACT builds the standard proof-of-impact JSON on-chain from these typed
@@ -191,13 +191,17 @@ const CO2_PER_UNIT = { electric: 400, gas: 1900, water: 0.34, solar: 400 };
 // solar it's the clean energy you produced (which offsets grid power). Uses the
 // same server-known benchmark the reward is based on — no client-supplied average,
 // so the on-chain impact can't be fabricated. Returns {} when there's nothing
-// positive to claim. `usage` is the server-validated usage in the meter's unit.
-function computeImpact({ utility, usage }) {
+// positive to claim. `usage` is the server-validated usage in the meter's unit,
+// `days` the span it covers: the benchmark covers the same days, exactly as in the
+// reward (config.js computeReward), so the chain records the saving that was paid.
+const spanOf = (days) => Math.min(Math.max(Number(days) || 1, 1), MAX_SPAN_DAYS);
+const savedBelowBenchmark = (utility, usage, days) => Math.max(0, (USAGE_BENCHMARK[utility] ?? 0) * spanOf(days) - usage);
+function computeImpact({ utility, usage, days = 1 }) {
   const factor = CO2_PER_UNIT[utility];
   if (!factor || !(usage >= 0)) return {};
   let avoidedUnits;
   if (!SAVING_UTILS.has(utility)) avoidedUnits = usage;                          // solar: clean energy produced
-  else avoidedUnits = Math.max(0, (USAGE_BENCHMARK[utility] ?? 0) - usage);      // saved below the benchmark
+  else avoidedUnits = savedBelowBenchmark(utility, usage, days);                 // saved below the benchmark
   const grams = Math.round(avoidedUnits * factor);
   return grams > 0 ? { carbon: grams } : {};
 }
@@ -367,7 +371,7 @@ const sendClause = (abi, args, comment) =>
 // proxy predates it — we automatically retry once via the legacy distributeReward
 // with a self-built proof JSON, so a payout succeeds on whichever path the
 // deployed contract supports. Only a mined, non-reverted tx counts as success.
-// Every reward — meter and eco alike — reaches the chain through this one function,
+// Every reward reaches the chain through this one function,
 // so this is the only place a test harness needs to stop. Without it the payout path
 // could never be exercised end to end: validation could be tested, the effects of a
 // successful payout (cooldown started, baseline advanced, pairing marked as paid)
@@ -479,21 +483,21 @@ const proofNum = (v) => (Number.isFinite(Number(v)) ? String(Number(v)) : "?");
 // `noImpact`: a payout held to the base amount (a meter's first reading, almost no
 // usage) claims no saving — its "usage" is the submitter's word or a stale value,
 // and the chain record shouldn't present it as kilograms of CO2 avoided.
-export async function distributeReward({ utility, meterNo, reading, prevRead, usage, amount, receiver, source, noImpact = false }) {
+export async function distributeReward({ utility, meterNo, reading, prevRead, usage, days = 1, amount, receiver, source, noImpact = false }) {
   const label = UTILITY_LABELS[utility] || utility;
   const u = Math.max(0, Number(usage) || 0);
   // Units as VeBetterDAO defines them (vechain-ai-skills, sustainability-proofs):
   // carbon g CO2e, energy Wh saved, water ml, clean_energy_production_wh Wh made.
   const impacts = {};
   if (!noImpact) {
-    Object.assign(impacts, computeImpact({ utility, usage: u })); // { carbon: grams } or {}
+    Object.assign(impacts, computeImpact({ utility, usage: u, days })); // { carbon: grams } or {}
     if (utility === "electric") {
-      const savedKwh = Math.max(0, (USAGE_BENCHMARK.electric ?? 0) - u);
+      const savedKwh = savedBelowBenchmark("electric", u, days);
       if (savedKwh > 0) impacts.energy = savedKwh * 1000; // Wh
     } else if (utility === "solar") {
       impacts.clean_energy_production_wh = u * 1000; // Wh produced
     } else if (utility === "water") {
-      const savedL = Math.max(0, (USAGE_BENCHMARK.water ?? 0) - u);
+      const savedL = savedBelowBenchmark("water", u, days);
       if (savedL > 0) impacts.water = savedL * 1000; // ml
     }
   }
@@ -501,6 +505,10 @@ export async function distributeReward({ utility, meterNo, reading, prevRead, us
     action: "meter_reading", utility,
     meterNo: meterNo || "", reading: String(reading), prevRead: String(prevRead),
     usage: u, b3tr: amount, timestamp: new Date().toISOString(), appVersion: APP_VERSION,
+    // The span this reading covers and what was saved below the benchmark over it:
+    // the figure the reward is paid on, so anyone reading the chain can redo the sum.
+    days: +spanOf(days).toFixed(2),
+    ...(SAVING_UTILS.has(utility) ? { savedKwh: noImpact ? 0 : +savedBelowBenchmark(utility, u, days).toFixed(3) } : {}),
     // Where the number came from. An admin reviewing a payout could not tell a
     // photographed reading from one a reader pushed, which matters: only the first
     // has a photo to check, and only the second was never seen by a human. Written
@@ -518,23 +526,3 @@ export async function distributeReward({ utility, meterNo, reading, prevRead, us
   });
 }
 
-// Eco-mode bonus: a fixed reward for photographing an appliance running in eco
-// mode. The impact is a conservative fixed estimate (an eco cycle saves roughly
-// 0.5 kWh vs a normal cycle ≈ 200 g CO2e) — deliberately small and honest.
-const ECO_APPLIANCE_LABELS = { washer: "Washing machine", dryer: "Dryer", dishwasher: "Dishwasher" };
-
-export async function distributeEcoReward({ appliance, amount, receiver }) {
-  const label = ECO_APPLIANCE_LABELS[appliance] || "Appliance";
-  const metadata = JSON.stringify({
-    action: "eco_mode", utility: "eco", appliance,
-    b3tr: amount, timestamp: new Date().toISOString(), appVersion: APP_VERSION,
-  });
-  return sendProofReward({
-    amount, receiver,
-    proofText:   `${label} photographed running in eco mode`,
-    impacts:     { carbon: 200, energy: 500 }, // ≈0.5 kWh saved per eco cycle
-    description: `${label} run in eco mode, logged via Green Utility Log`,
-    metadata,
-    comment:     `Green Utility Log — eco-mode bonus (${amount} B3TR)`,
-  });
-}

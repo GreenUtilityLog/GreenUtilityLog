@@ -403,8 +403,8 @@ const earnedTotal = (subs) => (subs || []).reduce((a, s) => a + (s.status === "p
 const USAGE_RANGES = { electric: { min:0.1, max:80 }, gas: { min:0.01, max:20 }, water: { min:10, max:1000}, solar: { min:0.1, max:60 } };
 
 // Less than the per-day floor over the whole span (0.1 kWh a day for electricity):
-// not a saving but a stale or repeated reading, so the server pays the base amount
-// only. MUST match nearZero in server/verify.js.
+// not a saving but a stale or repeated reading, so the server records it without a
+// reward. MUST match nearZero in server/verify.js.
 function nearZeroUsage(utilId, usageVal, days = 1) {
   const range = USAGE_RANGES[utilId];
   if (!range || !SAVING_UTILS.has(utilId)) return false;
@@ -421,8 +421,8 @@ function checkPlausibility(utilId, usageVal, days = 1) {
   // who doesn't submit daily was blocked by their own client.
   const span = Math.min(Math.max(Number(days) || 1, 1), MAX_SPAN_DAYS);
   const ceiling = +(range.max * span).toFixed(2);
-  // Almost no usage on a saving meter is accepted (the server pays the base amount
-  // and flags it — see nearZeroUsage); only for production meters is a tiny-but-
+  // Almost no usage on a saving meter is accepted (the server records it without a
+  // reward and flags it — see nearZeroUsage); only for production meters is a tiny-but-
   // nonzero value treated as a typo. High is abnormal either way.
   if (!SAVING_UTILS.has(utilId) && usageVal > 0 && usageVal < range.min) return { ok:false, reason:`Usage too low (${usageVal} < ${range.min})` };
   if (usageVal > ceiling) return { ok:false, reason:`Abnormally high (${usageVal} > ${ceiling})`, tooHigh:true };
@@ -696,13 +696,13 @@ const UTILS_PHRASE = UTIL_WORDS.length === 1
 
 
 // ── Conservation-based reward (MUST match server/config.js) ───────────────────
-// We reward USING LESS, not using more:
-//   reward = base + max(0, benchmark - usage) * rate     (consumption meters)
-//   reward = base + usage * rate                         (solar — produced energy)
-// USAGE_BENCHMARK is a fixed "efficient usage" threshold per reading (not an
-// average — works from the first submission). Below it you earn the bonus; above
-// it you still get the base for logging. Tune to your reading cadence (~1/day).
-const REWARD_BASE     = { electric: 0.2, gas: 0.2, water: 0.1, solar: 0.2 };
+// We reward USING LESS, and only that — every B3TR is saved kWh × rate:
+//   reward = max(0, benchmark × days - usage) * rate     (consumption meters)
+//   reward = usage * rate                                (solar — produced energy)
+// USAGE_BENCHMARK is a fixed "efficient usage" threshold per day (not an average
+// — works from the first submission). A reading that saves nothing, and a meter's
+// first reading (it only sets the starting point), is recorded without a reward.
+const REWARD_BASE     = { electric: 0, gas: 0, water: 0, solar: 0 };
 const USAGE_BENCHMARK = { electric: 8,   gas: 6,   water: 300, solar: 0   };
 const SAVING_UTILS    = new Set(["electric", "gas", "water"]); // solar rewards production
 // MUST mirror server/config.js — the preview here and the payout there have to
@@ -713,35 +713,14 @@ const MAX_SPAN_DAYS    = 7;
 // or a longer cooldown, is also what the app previews and counts down.
 // maxPayout is flat, NOT multiplied by the span: claiming daily should beat saving
 // a week and claiming once.
-const RULES = { cooldownMs: 20 * 60 * 60 * 1000, maxPayout: 4, ecoReward: 2, ecoMaxPerWeek: 4, ecoCooldownMs: 24 * 60 * 60 * 1000 };
-// The eco week (Monday–Sunday) in the server's timezone, from /health. A phone in
-// Helsinki or London used its own Monday and told people "x left" while the server
-// counted a different week.
-let ECO_TZ = "Europe/Amsterdam";
+const RULES = { cooldownMs: 20 * 60 * 60 * 1000, maxPayout: 4 };
 function applyRules(r) {
   let changed = false;
   for (const k of Object.keys(RULES)) {
     const n = Number(r?.[k]);
     if (r?.[k] != null && Number.isFinite(n) && n >= 0 && RULES[k] !== n) { RULES[k] = n; changed = true; }
   }
-  if (typeof r?.ecoTz === "string" && r.ecoTz !== ECO_TZ) {
-    try { new Intl.DateTimeFormat("en", { timeZone: r.ecoTz }); ECO_TZ = r.ecoTz; changed = true; } catch { /* unknown zone: keep the default */ }
-  }
   return changed;
-}
-// Same as the server's ecoWeekKey: that week's Monday as "YYYY-MM-DD".
-function ecoWeekKey(ts = Date.now()) {
-  try {
-    const parts = new Intl.DateTimeFormat("en-CA", { timeZone: ECO_TZ, year: "numeric", month: "2-digit", day: "2-digit", weekday: "short" }).formatToParts(new Date(ts));
-    const get = (t) => parts.find((p) => p.type === t)?.value;
-    const back = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 }[get("weekday")] ?? 0;
-    const monday = new Date(Date.UTC(+get("year"), +get("month") - 1, +get("day")));
-    monday.setUTCDate(monday.getUTCDate() - back);
-    return monday.toISOString().slice(0, 10);
-  } catch {
-    const d = new Date(ts); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-    return d.toISOString().slice(0, 10);
-  }
 }
 // Down to the cent, with a hair of slack: 0.57 is 0.5699999… in binary and would
 // otherwise show as 0.56 (the server rounds the same way).
@@ -1446,6 +1425,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .s-confirmed{background:${T.green5};color:${T.green2};border:1px solid ${T.green4};}
 .s-pending{background:rgba(230,160,40,.12);color:#b7791f;border:1px solid rgba(230,160,40,.45);}
 .s-failed{background:rgba(220,80,60,.10);color:#c0392b;border:1px solid rgba(220,80,60,.45);}
+.s-recorded{background:${T.bgAlt};color:${T.textMid};border:1px solid ${T.border};}
 
 .sub-header{padding:20px 18px 10px;}
 .sub-title{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:22px;font-weight:800;color:${T.text};letter-spacing:-0.4px;}
@@ -1679,7 +1659,7 @@ function IntroScreen({ onStart }) {
   const slides = [
     { icon: 'logo', title: 'Welcome to Green Utility Log', sub: `Track ${UTILS_PHRASE}. Earn B3TR rewards on VeChain.` },
     { icon: '📸', title: 'Verify Your Meters', sub: 'Take a photo of your meter. AI-powered OCR verifies readings instantly.' },
-    { icon: '💰', title: 'Earn B3TR Rewards', sub: NETWORK === "mainnet" ? 'Earn B3TR for logging your meter and saving energy — real tokens, straight to your wallet.' : 'Earn B3TR for logging your meter and saving energy. Testnet beta — test tokens, no real-world value yet.' },
+    { icon: '💰', title: 'Earn B3TR Rewards', sub: NETWORK === "mainnet" ? 'Every kWh you use below the daily target earns B3TR — real tokens, straight to your wallet.' : 'Every kWh you use below the daily target earns B3TR. Testnet beta — test tokens, no real-world value yet.' },
     { icon: '🏆', title: 'Climb the Leaderboard', sub: 'Compete globally. Unlock achievement badges. Build your sustainability streak.' },
   ];
   
@@ -2338,9 +2318,13 @@ function HistItem({ s, T }) {
         <div className="hdate">{s.date}{txUrl ? <span style={{color:T.textSoft}}> · tx ↗</span> : null}</div>
         <div style={{color: T[s.type] || T.electric, fontSize: isEco ? 12 : undefined}}>{delta}{util.unit && delta !== "—" ? ` ${util.unit}` : ""}</div>
       </div>
-      <div className="hright">
-        <div className="hb3tr">+{parseFloat(s.b3tr).toFixed(2)}</div>
-        <div className={`hstatus s-${s.status}`}>{s.status}</div>
+      {/* A reading recorded without a reward (no kWh saved, or a first reading) has
+          no amount to show; a failed payout's amount was never received. */}
+      <div className="hright" title={s.status === "recorded" ? (s.note || "Recorded — no saving to reward") : undefined}>
+        {s.status === "recorded"
+          ? <div className="hb3tr" style={{ color: T.textSoft }}>—</div>
+          : <div className="hb3tr" style={s.status === "failed" ? { color: T.textSoft, textDecoration: "line-through" } : undefined}>+{parseFloat(s.b3tr).toFixed(2)} <span style={{ fontSize: 10, fontWeight: 700 }}>B3TR</span></div>}
+        <div className={`hstatus s-${s.status}`}>{s.status === "recorded" ? "no saving" : s.status}</div>
       </div>
     </div>
   );
@@ -3412,15 +3396,12 @@ ${fetchCmd(`--ask-token --install --url=http://<reader-ip>/api/v1/data${INGEST_F
 
 function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading, setReading, prevRead, setPrevRead,
   dualTariff, setDualTariff, regLow, setRegLow, regNormal, setRegNormal, photoRegister,
-  fixBasis, fixBusy, runFixBasis, dismissFixBasis, busy, usage, reward, days, handleSubmit, verifyKey, wallet, setShowWallet, subs, meters, T, setTab, onEcoSubmit, ecoBusy, ecoUsedThisWeek, ecoCooldownMs, onMeterAutoSubmit, meterAutoBusy, onRegisterMeter, startOnReader = false, onStartedReader }) {
+  fixBasis, fixBusy, runFixBasis, dismissFixBasis, busy, usage, reward, days, handleSubmit, verifyKey, wallet, setShowWallet, subs, meters, T, setTab, onMeterAutoSubmit, meterAutoBusy, onRegisterMeter, startOnReader = false, onStartedReader }) {
   const meterNo  = (meters?.[selUtil] || "").trim();
   // Submittable when current ≥ previous (equal = zero usage = valid, max reward).
   const _r = parseFloat(reading), _p = parseFloat(prevRead);
   const readingReady = Number.isFinite(_r) && Number.isFinite(_p) && _r >= _p;
   const readingLower = Number.isFinite(_r) && Number.isFinite(_p) && _r < _p;
-  // Two sub-tabs: the meter-reading flow and the eco-mode bonus each get their
-  // own screen instead of being stacked below each other.
-  const [subTab, setSubTab] = useState("meter");
 
   // Returning users already have a known previous reading (auto-filled from their
   // last submission). Show it as a compact chip and ask for only the CURRENT value,
@@ -3457,16 +3438,12 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
   return (
     <>
       <div className="sub-header">
-        <div className="sub-title">{subTab === "eco" ? "Eco Bonus" : "Meter Reading"}</div>
-        <div className="sub-sub">{subTab === "eco" ? "Appliance on eco mode · Earn B3TR" : "Photograph your meter · Earn B3TR"}</div>
+        <div className="sub-title">Meter Reading</div>
+        <div className="sub-sub">Photograph your meter · Earn B3TR</div>
       </div>
 
-      {/* Captcha lives OUTSIDE the sub-view conditionals: both the meter submission
-          and the eco claim ride the same token, and the widget must stay mounted
-          when the user switches views. */}
       {TURNSTILE_SITE_KEY && <div id="cf-turnstile" style={{display:"flex",justifyContent:"center",margin:"0 0 12px"}} />}
 
-      {subTab === "meter" && (<>
       {/* Utility picker only when there's an actual choice — with a single active
           utility a full-width "tab" reads as a button that does nothing. */}
       {UTILS.length > 1 && (
@@ -3658,18 +3635,17 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
           const span  = Math.min(Math.max(Number(days) || 1, 1), MAX_SPAN_DAYS);
           const bench = +((USAGE_BENCHMARK[u.id] ?? 0) * span).toFixed(1);
           const saved = Math.max(0, bench - usage());
-          const base  = REWARD_BASE[u.id] ?? 0;
           const isSaving = SAVING_UTILS.has(u.id);
-          // Almost no usage pays the base only (as the server does), so the line must
-          // not promise a saving it won't pay.
+          // Almost no usage pays nothing (as the server does), so the line must not
+          // promise a saving it won't pay.
           const nearZero = isSaving && nearZeroUsage(u.id, usage(), days);
           const rateText = isSaving
             ? (nearZero
-                ? `Base only (${base}) — almost no usage recorded`
+                ? `No reward — almost no usage recorded`
                 : saved > 0
-                ? `${base} base + ${saved.toFixed(1)} ${u.unit} saved × ${u.rate} B3TR (target ≤ ${bench} ${u.unit} per submission)`
-                : `Base only — used ${usage()} ${u.unit}, target is ≤ ${bench} ${u.unit} per submission`)
-            : `${base} base + ${usage()} ${u.unit} produced × ${u.rate} B3TR`;
+                ? `${saved.toFixed(1)} ${u.unit} saved × ${u.rate} B3TR (target ≤ ${bench} ${u.unit})`
+                : `No saving — used ${usage()} ${u.unit}, target is ≤ ${bench} ${u.unit}. Recorded, no reward`)
+            : `${usage()} ${u.unit} produced × ${u.rate} B3TR`;
           // Beyond this the submission cannot be paid under any span, so promising a
           // reward for it is a lie the server will contradict a moment later. The
           // usual cause is a starting point covering one tariff register against a
@@ -3693,14 +3669,14 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
             <div className="reward-preview">
               <div>
                 <div className="rp-label">Estimated Reward</div>
-                <div className="rp-rate">{subs.some(x => x.type === selUtil && x.status === "confirmed")
+                <div className="rp-rate">{subs.some(x => x.type === selUtil && x.status !== "failed")
                   ? <>Use less, earn more · {rateText}</>
                   : <>First reading sets your starting point · savings pay from the next one</>}</div>
                 {rewardFactor < 1 && (
                   <div className="rp-rate" style={{marginTop:3}}>This week's B3TR is shared by everyone: rewards at {Math.round(rewardFactor * 100)}%</div>
                 )}
                 {String(reading).trim() !== "" && String(prevRead).trim() !== "" && nearZeroUsage(selUtil, usage(), days) && (
-                  <div className="rp-rate" style={{marginTop:3}}>Almost no usage since your last reading — that pays the base amount only. Check the number?</div>
+                  <div className="rp-rate" style={{marginTop:3}}>Almost no usage since your last reading — that is recorded without a reward. Check the number?</div>
                 )}
               </div>
               <div style={{textAlign:"right"}}>
@@ -3769,125 +3745,7 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
       </>) : (
         <SmartMeterCard embedded wallet={wallet} setReading={setReading} T={T} onAutoSubmit={onMeterAutoSubmit} autoBusy={meterAutoBusy} meterNo={meterNo} />
       )}
-      </>)}
-
-      {subTab === "eco" && onEcoSubmit && (<>
-        <div style={{margin:"0 14px 12px"}}>
-          <button onClick={() => setSubTab("meter")} style={{background:"none",border:"none",padding:"6px 0",cursor:"pointer",fontSize:12,fontWeight:700,color:T.textMid}}>← Back to meter reading</button>
-        </div>
-        <EcoBonusCard T={T} wallet={wallet} setShowWallet={setShowWallet} onSubmit={onEcoSubmit} busy={ecoBusy} usedThisWeek={ecoUsedThisWeek} cooldownMs={ecoCooldownMs} rewardFactor={rewardFactor} />
-      </>)}
     </>
-  );
-}
-
-// The Eco tab: a second way to earn, on its own tab so people find it.
-function EcoScreen({ T, wallet, setShowWallet, onSubmit, busy, usedThisWeek, cooldownMs, rewardFactor }) {
-  return (
-    <>
-      <div className="sub-header">
-        <div className="sub-title">Eco bonus</div>
-        <div className="sub-sub">Appliance on eco mode · earn B3TR</div>
-      </div>
-      {TURNSTILE_SITE_KEY && <div id="cf-turnstile" style={{display:"flex",justifyContent:"center",margin:"0 0 12px"}} />}
-      <EcoBonusCard T={T} wallet={wallet} setShowWallet={setShowWallet} onSubmit={onSubmit} busy={busy} usedThisWeek={usedThisWeek} cooldownMs={cooldownMs} rewardFactor={rewardFactor} />
-    </>
-  );
-}
-
-// ── Eco-mode bonus card ───────────────────────────────────────────────────────
-// Photograph an appliance (washer / dryer / dishwasher) running in eco mode →
-// a small fixed B3TR bonus, max 4× per rolling week (enforced server-side; the
-// counter shown here is the local view of it).
-const ECO_APPLIANCE_OPTIONS = [
-  { id: "washer",     label: "Washer",     icon: "🧺" },
-  { id: "dryer",      label: "Dryer",      icon: "🌀" },
-  { id: "dishwasher", label: "Dishwasher", icon: "🍽️" },
-];
-
-function EcoBonusCard({ T, wallet, setShowWallet, onSubmit, busy, usedThisWeek, cooldownMs, rewardFactor = 1 }) {
-  const [appliance, setAppliance] = useState("washer");
-  const [preview, setPreview] = useState(null); // { file, url } — shown before submitting
-  const fileRef = useRef(null);
-  const left = Math.max(0, RULES.ecoMaxPerWeek - (usedThisWeek || 0));
-  const coolingDown = (cooldownMs || 0) > 0;
-  const canClaim = left > 0 && !coolingDown;
-  const hours = Math.ceil((cooldownMs || 0) / 3600000);
-  const clearPreview = () => setPreview(p => { if (p?.url) { try { URL.revokeObjectURL(p.url); } catch {} } return null; });
-  useEffect(() => () => { if (preview?.url) { try { URL.revokeObjectURL(preview.url); } catch {} } }, [preview]);
-  return (
-    <div style={{background:T.card,border:`1px solid ${T.green4||T.border}`,borderRadius:6,padding:"14px",margin:"0 14px 14px"}}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
-        <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".6px",color:T.green3}}>🌿 Eco Mode Bonus</div>
-        <div style={{fontSize:10,fontWeight:700,color:left ? T.green3 : T.textSoft}}>{left}/{RULES.ecoMaxPerWeek} left this week</div>
-      </div>
-      <div style={{fontSize:10.5,color:T.textMid,lineHeight:1.5,marginBottom:10}}>
-        Running your washer, dryer or dishwasher on the <b>eco setting</b>? Photograph the appliance with the eco mode visible and earn <b>{RULES.ecoReward} B3TR</b>{rewardFactor < 1 ? ` (${floor2(RULES.ecoReward * rewardFactor)} this week)` : ""}. Fresh photo every time — max {RULES.ecoMaxPerWeek} per week (Mon–Sun), one per {Math.round(RULES.ecoCooldownMs / 3600000)}h.
-      </div>
-
-      {/* Example of a valid photo, shown BEFORE the user shoots/uploads one: the
-          appliance's panel with the ECO setting clearly selected and readable. */}
-      <div style={{display:"flex",gap:10,alignItems:"center",background:T.bgAlt,border:`1px dashed ${T.border}`,borderRadius:6,padding:"8px 10px",marginBottom:10}}>
-        <svg width="92" height="60" viewBox="0 0 92 60" aria-label="Example: appliance panel with ECO selected" style={{flexShrink:0}}>
-          <rect x="1" y="1" width="90" height="58" rx="6" fill={T.card} stroke={T.border}/>
-          <rect x="8" y="8" width="40" height="20" rx="3" fill={T.green5} stroke={T.green4||T.border}/>
-          <text x="28" y="22" textAnchor="middle" fontSize="11" fontWeight="800" fill={T.green3} fontFamily="-apple-system,sans-serif">ECO</text>
-          <circle cx="68" cy="30" r="14" fill={T.bgAlt} stroke={T.border}/>
-          <line x1="68" y1="30" x2="58" y2="22" stroke={T.green3} strokeWidth="2.5" strokeLinecap="round"/>
-          <circle cx="54" cy="18" r="2.5" fill={T.green3}/>
-          <rect x="8" y="34" width="12" height="12" rx="2" fill={T.bgAlt} stroke={T.border}/>
-          <rect x="24" y="34" width="12" height="12" rx="2" fill={T.bgAlt} stroke={T.border}/>
-          <text x="14" y="55" fontSize="6.5" fill={T.textSoft} fontFamily="-apple-system,sans-serif">40°</text>
-          <text x="30" y="55" fontSize="6.5" fill={T.textSoft} fontFamily="-apple-system,sans-serif">60°</text>
-        </svg>
-        <div style={{fontSize:10,color:T.textMid,lineHeight:1.5}}>
-          <b style={{color:T.green3}}>Example photo:</b> the appliance's panel or dial with <b>ECO</b> selected and clearly readable. Include the whole panel, not just the light.
-        </div>
-      </div>
-
-      <div style={{display:"flex",gap:6,marginBottom:10}}>
-        {ECO_APPLIANCE_OPTIONS.map(a => (
-          <button key={a.id} onClick={() => setAppliance(a.id)}
-            style={{flex:1,padding:"8px 4px",minHeight:44,borderRadius:6,fontSize:11,fontWeight:700,cursor:"pointer",
-              border:`1px solid ${appliance===a.id ? T.green2 : T.border}`,
-              background: appliance===a.id ? T.green5 : T.bgAlt,
-              color: appliance===a.id ? T.green3 : T.textMid}}>
-            {a.icon} {a.label}
-          </button>
-        ))}
-      </div>
-      {/* After shooting, PREVIEW the photo and let the user confirm or retake
-          before it's submitted — no accidental sends. */}
-      {preview ? (
-        <div>
-          <img src={preview.url} alt="Eco mode photo" style={{width:"100%",maxHeight:220,objectFit:"cover",borderRadius:6,border:`1px solid ${T.border}`,display:"block"}} />
-          <div style={{fontSize:10.5,color:T.textMid,margin:"8px 0 10px"}}>Is the <b>ECO</b> setting clearly visible? Submit for your {ECO_APPLIANCE_OPTIONS.find(a=>a.id===appliance)?.label} bonus, or retake.</div>
-          <div style={{display:"flex",gap:8}}>
-            <button className="sbtn" style={{flex:1}} disabled={busy}
-              onClick={() => { const f = preview.file; clearPreview(); onSubmit(f, appliance); }}>
-              {busy ? <><span className="spin-sm"/> Submitting…</> : "✅ Submit for bonus"}
-            </button>
-            <label htmlFor="gul-eco-photo" onClick={() => clearPreview()}
-              style={{background:"transparent",color:T.textMid,border:`1px solid ${T.border}`,borderRadius:6,padding:"0 16px",fontWeight:700,fontSize:12,cursor:"pointer",display:"flex",alignItems:"center"}}>↻ Retake</label>
-          </div>
-        </div>
-      ) : !IS_MOBILE
-        ? <button className="sbtn" disabled style={{opacity:.55}}>📵 Phone camera required — open on your phone</button>
-        : !wallet
-        ? <button className="sbtn" onClick={() => setShowWallet(true)}>Connect Wallet</button>
-        : !canClaim || busy
-        ? <button className="sbtn" disabled style={{opacity:.55}}>
-            {busy ? <><span className="spin-sm"/> Submitting…</>
-              : !left ? "Weekly limit reached — resets Monday"
-              : `Next eco bonus in ~${hours}h`}
-          </button>
-        : <label className="sbtn" htmlFor="gul-eco-photo" style={{display:"block",textAlign:"center"}}>
-            📸 Photograph eco mode
-          </label>
-      }
-      <input id="gul-eco-photo" type="file" ref={fileRef} accept="image/*" capture="environment" style={HIDDEN_FILE_INPUT}
-        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) setPreview({ file: f, url: URL.createObjectURL(f) }); }} />
-    </div>
   );
 }
 
@@ -3936,7 +3794,6 @@ function ChartsScreen({ subs, T, part }) {
   }
   const weekMax = Math.max(...weeks.map(w => w.b3tr), 0);
   const wkLabel = (t) => { const d = new Date(t); return `${d.getDate()}/${d.getMonth() + 1}`; };
-  const ecoThisWeek = ecoSubs.filter(s => (s.submittedAt || localDayTs(s.date) || 0) >= thisWeek).length;
 
   // ── Personal records ────────────────────────────────────────────────────────
   const bestDay = meterSubs.length ? meterSubs.reduce((a, s) => usageOf(s) < usageOf(a) ? s : a) : null;
@@ -4061,20 +3918,6 @@ function ChartsScreen({ subs, T, part }) {
         </div>
         <div style={{display:"flex",gap:4,padding:"2px 2px 0"}}>
           {weeks.map((w, i) => <div key={i} style={{flex:1,textAlign:"center",fontSize:10,color: w.start === thisWeek ? T.green3 : T.textSoft,fontWeight: w.start === thisWeek ? 700 : 400}}>{w.start === thisWeek ? "now" : wkLabel(w.start)}</div>)}
-        </div>
-      </div>
-
-      {/* Eco bonus + personal records */}
-      <div className="chart-card">
-        <div className="chart-hdr"><div className="chart-title">🌿 Eco bonus this week</div><div style={{fontSize:10,color:T.textSoft}}>resets Monday</div></div>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginTop:4}}>
-          <div style={{display:"flex",gap:5}}>
-            {Array.from({ length: 4 }, (_, i) => (
-              <div key={i} style={{width:26,height:26,borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,
-                background: i < ecoThisWeek ? T.green5 : T.bgAlt,border:`1px solid ${i < ecoThisWeek ? T.green3 : T.border}`}}>{i < ecoThisWeek ? "🌿" : ""}</div>
-            ))}
-          </div>
-          <div style={{fontSize:11,color:T.textMid,lineHeight:1.45}}>{ecoThisWeek}/4 claims used · {ecoSubs.length} total ({ecoB3TR.toFixed(2)} B3TR)</div>
         </div>
       </div>
 
@@ -5107,8 +4950,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
             return (
               <div>
                 <div style={{fontSize:10,color:T.textSoft,marginBottom:8}}>No submissions yet — here's what they'll look like (example):</div>
-                {ghost("⚡", "Meter reading", "3775 → 3776 · 1.0 kWh used", "+4.47")}
-                {ghost("🌿", "Eco bonus", "washer on eco mode", "+8.00")}
+                {ghost("⚡", "Meter reading", "3775 → 3781 · 6.0 kWh used", "+1.22")}
               </div>
             );
           })()}
@@ -5675,7 +5517,7 @@ const HELP_I18N = {
       { t:"Connect your wallet", d:"Tap Connect and open VeWorld (set to Testnet) or WalletConnect. This is a test app — no real funds are used." },
       { t:"Register your meters", d:"Enter your electricity meter number and its current reading (the starting point)." },
       { t:"Submit a reading", d:"Go to Meter, photograph the meter (the app reads the number for you), check it, and send." },
-      { t:"Earn B3TR", d:"A valid reading rewards you with B3TR on testnet. Track your total on Home and your position on the Leaderboard." },
+      { t:"Earn B3TR", d:"Every kWh you use below the target (8 kWh a day) earns B3TR on testnet. Your first reading sets your starting point; a reading without savings is recorded, not rewarded. Track your total on Home and your position on the Leaderboard." },
     ], faqs:[
       { q:"Where do I find my meter number?", a:"Two spots on the meter:\n1) On the little screen — press the meter's buttons until the number appears.\n2) Under the barcode, on a sticker on the front or side.\nEnter the whole number including the letter — electricity usually starts with E, gas with G. It's also on your energy bill or your supplier's online account." },
       { q:"Automatic reading (P1 reader / HomeWizard / Powerfox / Tibber)", a:"With a P1 reader, Home Assistant, or another reader, your meter can send its own reading — then you never photograph again.\nHave a Powerfox (poweropti) or a Tibber Pulse? Pick it in the setup: we can fetch your reading from their cloud, nothing to install.\nDo one photo submission first (it sets your baseline), then open Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup for your token and the ready-made setup.\nFull step-by-step guide for every setup: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
@@ -5683,7 +5525,7 @@ const HELP_I18N = {
       { q:"Which meters work?", a:"Netherlands, Belgium, Luxembourg: almost any smart meter with a P1 port, with a HomeWizard P1 (Belgium: switch the port on for free in the Fluvius portal · Luxembourg: ask your grid operator for the P1 key).\nDenmark, Sweden, Hungary: a HomeWizard P1 too, once your grid operator switches the port on (Hungary: some meters only). Does it fit your meter? https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter\nGermany: a Powerfox poweropti, or a Tasmota reading head (Hichi).\nSweden, Norway, Denmark, Finland: a Tibber Pulse.\nFrance, UK, Spain, Italy: no P1 port — for now only through Home Assistant.\nUSA and Canada: no P1 port — photos work if your meter's display shows the kWh total; Home Assistant with a Rainforest EAGLE where your utility allows it.\nEverywhere: if Home Assistant shows your meter's kWh total, it works. And photos always work.\nAll the details per country: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"Do I always need a photo?", a:"A photo is required for a hand-entered reading. A connected P1 reader can submit without a photo, because its device token binds the reading to your wallet. One photo every 30 days keeps automatic payouts going; the app tells you a week ahead." },
       { q:"Is this real money?", a:"No. Everything runs on VeChain testnet, so the B3TR you earn are test tokens with no real value — perfect for trying things out safely." },
-      { q:"I submitted but got no B3TR — why?", a:"Most common reasons: the new reading isn't higher than your last one, the photo was reused, or a cooldown is active for that utility. Another wallet was already paid on this phone? One person, one wallet: only the first wallet on a phone can earn. Try a fresh photo of an actual meter." },
+      { q:"I submitted but got no B3TR — why?", a:"Your first reading only sets your starting point, and a reading where you used the target (8 kWh a day) or more is recorded without a reward — B3TR comes only from kWh saved. Refused altogether? Most common reasons: the new reading isn't higher than your last one, the photo was reused, or a cooldown is active for that utility. Another wallet was already paid on this phone? One person, one wallet: only the first wallet on a phone can earn. Try a fresh photo of an actual meter." },
       { q:"My photo was rejected.", a:"Use a real, clear photo of your own meter — good lighting, numbers in focus, no screenshots or photos of a screen." },
       { q:"I reconnected and lost my meters?", a:"Reconnecting the SAME wallet keeps your meters and baselines. Only connecting a different wallet starts a fresh setup." },
       { q:"My wallet won't connect.", a:"Make sure VeWorld is switched to Testnet. On mobile, use the in-app browser or WalletConnect QR." },
@@ -5694,7 +5536,7 @@ const HELP_I18N = {
       { t:"Verbind je wallet", d:"Tik op Connect en open VeWorld (op Testnet) of WalletConnect. Dit is een test-app — er wordt geen echt geld gebruikt." },
       { t:"Registreer je meters", d:"Voer het nummer van je stroommeter en de huidige stand (het startpunt) in." },
       { t:"Doe een inzending", d:"Ga naar Meter, fotografeer je meter (de app leest het nummer), controleer het en verstuur." },
-      { t:"Verdien B3TR", d:"Een geldige stand levert B3TR op testnet op. Zie je totaal op Home en je positie in het klassement." },
+      { t:"Verdien B3TR", d:"Elke kWh die je onder de norm (8 kWh per dag) blijft, levert B3TR op testnet op. Je eerste stand is je beginpunt; een stand zonder besparing wordt vastgelegd, niet beloond. Zie je totaal op Home en je positie in het klassement." },
     ], faqs:[
       { q:"Waar vind ik mijn meternummer?", a:"Twee plekken op de meter:\n1) Op het schermpje — druk op de knopjes tot het nummer verschijnt.\n2) Onder de streepjescode, op een sticker aan de voor- of zijkant.\nNeem het hele nummer over, mét de letter — stroom begint meestal met E, gas met G. Het staat ook op je energierekening of in je online account bij je leverancier." },
       { q:"Automatisch uitlezen (P1-reader / HomeWizard / Powerfox / Tibber)", a:"Met een P1-reader, Home Assistant of een andere reader kan je meter z’n eigen stand doorsturen — dan fotografeer je nooit meer.\nHeb je een Powerfox (poweropti) of een Tibber Pulse? Kies die in de instellingen: wij kunnen je stand uit hun cloud halen, niets te installeren.\nDoe eerst één foto-inzending (dat zet je baseline), ga dan naar Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup voor je token en de kant-en-klare instellingen.\nVolledige stap-voor-stap gids voor elke situatie: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
@@ -5702,7 +5544,7 @@ const HELP_I18N = {
       { q:"Welke meters werken?", a:"Nederland, België, Luxemburg: bijna elke slimme meter met een P1-poort, met een HomeWizard P1 (België: zet de poort gratis aan in het Fluvius-portaal · Luxemburg: vraag de P1-sleutel aan je netbeheerder).\nDenemarken, Zweden, Hongarije: ook een HomeWizard P1, zodra je netbeheerder de poort aanzet (Hongarije: alleen sommige meters). Past hij op jouw meter? https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter\nDuitsland: een Powerfox poweropti, of een Tasmota-leeskop (Hichi).\nZweden, Noorwegen, Denemarken, Finland: een Tibber Pulse.\nFrankrijk, VK, Spanje, Italië: geen P1-poort — voorlopig alleen via Home Assistant.\nVS en Canada: geen P1-poort — foto’s werken als de display van je meter de kWh-stand toont; Home Assistant met een Rainforest EAGLE waar je netbeheerder dat toestaat.\nOveral: toont Home Assistant de kWh-stand van je meter, dan werkt het. En foto’s werken altijd.\nAlles per land: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"Heb ik altijd een foto nodig?", a:"Voor een handmatig ingevoerde stand is een foto verplicht. Een gekoppelde P1-reader mag zonder foto insturen, omdat zijn device-token de stand aan jouw wallet koppelt. Eén foto per 30 dagen houdt de automatische uitbetalingen gaande; de app waarschuwt een week van tevoren." },
       { q:"Is dit echt geld?", a:"Nee. Alles draait op VeChain testnet, dus de B3TR die je verdient zijn test-tokens zonder echte waarde — perfect om veilig te testen." },
-      { q:"Ik heb ingezonden maar geen B3TR — waarom?", a:"Meest voorkomend: de nieuwe stand is niet hoger dan je vorige, de foto is hergebruikt, of er is een cooldown actief. Is er op deze telefoon al een andere wallet uitbetaald? Eén persoon, één wallet: alleen de eerste wallet op een telefoon kan verdienen. Probeer een verse foto van een echte meter." },
+      { q:"Ik heb ingezonden maar geen B3TR — waarom?", a:"Je eerste stand legt alleen je beginpunt vast, en een stand waarbij je de norm (8 kWh per dag) of meer verbruikte wordt vastgelegd zonder beloning — B3TR komt alleen uit bespaarde kWh. Helemaal geweigerd? Meest voorkomend: de nieuwe stand is niet hoger dan je vorige, de foto is hergebruikt, of er is een cooldown actief. Is er op deze telefoon al een andere wallet uitbetaald? Eén persoon, één wallet: alleen de eerste wallet op een telefoon kan verdienen. Probeer een verse foto van een echte meter." },
       { q:"Mijn foto werd geweigerd.", a:"Gebruik een echte, scherpe foto van je eigen meter — goed licht, cijfers in beeld, geen screenshots of foto's van een scherm." },
       { q:"Ik verbond opnieuw en mijn meters zijn weg?", a:"Opnieuw verbinden met DEZELFDE wallet behoudt je meters en baselines. Alleen een ándere wallet start opnieuw." },
       { q:"Mijn wallet verbindt niet.", a:"Zorg dat VeWorld op Testnet staat. Op mobiel: gebruik de in-app browser of WalletConnect-QR." },
@@ -5713,7 +5555,7 @@ const HELP_I18N = {
       { t:"Wallet verbinden", d:"Tippe auf Connect und öffne VeWorld (auf Testnet) oder WalletConnect. Dies ist eine Test-App — es wird kein echtes Geld verwendet." },
       { t:"Zähler registrieren", d:"Gib die Nummer deines Stromzählers und den aktuellen Stand (den Startwert) ein." },
       { t:"Stand einreichen", d:"Geh zu Meter, fotografiere deinen Zähler (die App liest die Zahl), prüfe sie und sende." },
-      { t:"B3TR verdienen", d:"Ein gültiger Stand belohnt dich mit B3TR im Testnet. Sieh dein Gesamt auf Home und deine Position in der Rangliste." },
+      { t:"B3TR verdienen", d:"Jede kWh unter dem Zielwert (8 kWh pro Tag) bringt dir B3TR im Testnet. Dein erster Stand ist dein Startpunkt; ein Stand ohne Einsparung wird erfasst, aber nicht belohnt. Sieh dein Gesamt auf Home und deine Position in der Rangliste." },
     ], faqs:[
       { q:"Wo finde ich meine Zählernummer?", a:"Zwei Stellen am Zähler:\n1) Auf dem kleinen Display — drücke die Tasten, bis die Nummer erscheint.\n2) Unter dem Barcode, auf einem Aufkleber vorne oder seitlich.\nGib die ganze Nummer inklusive Buchstabe ein — Strom beginnt meist mit E, Gas mit G. Sie steht auch auf deiner Energierechnung oder im Online-Konto deines Anbieters." },
       { q:"Automatisches Auslesen (P1-Reader / HomeWizard / Powerfox / Tibber)", a:"Mit einem P1-Reader, Home Assistant oder einem anderen Reader kann dein Zähler seinen Stand selbst senden — dann fotografierst du nie wieder.\nDu hast einen Powerfox (poweropti) oder einen Tibber Pulse? Wähl ihn in der Einrichtung: Wir holen deinen Stand aus deren Cloud, nichts zu installieren.\nMach zuerst eine Foto-Einreichung (setzt den Basiswert), dann Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup für Token und fertige Einrichtung.\nVollständige Schritt-für-Schritt-Anleitung: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
@@ -5721,7 +5563,7 @@ const HELP_I18N = {
       { q:"Welche Zähler funktionieren?", a:"Niederlande, Belgien, Luxemburg: fast jeder Smart-Zähler mit P1-Anschluss, mit einem HomeWizard P1 (Belgien: den Port kostenlos im Fluvius-Portal einschalten · Luxemburg: den P1-Schlüssel beim Netzbetreiber anfragen).\nDänemark, Schweden, Ungarn: auch ein HomeWizard P1, sobald der Netzbetreiber den Port einschaltet (Ungarn: nur manche Zähler). Passt er zu deinem Zähler? https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter\nDeutschland: ein Powerfox poweropti oder ein Tasmota-Lesekopf (Hichi).\nSchweden, Norwegen, Dänemark, Finnland: ein Tibber Pulse.\nFrankreich, UK, Spanien, Italien: kein P1-Port — vorerst nur über Home Assistant.\nUSA und Kanada: kein P1-Port — Fotos gehen, wenn das Display deines Zählers den kWh-Stand zeigt; Home Assistant mit einem Rainforest EAGLE, wo dein Versorger das erlaubt.\nÜberall: Zeigt Home Assistant den kWh-Stand deines Zählers, funktioniert es. Und Fotos gehen immer.\nAlles pro Land: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"Brauche ich immer ein Foto?", a:"Für einen manuell eingegebenen Stand ist ein Foto nötig. Ein verbundener P1-Reader darf ohne Foto senden, weil sein Geräte-Token den Stand an dein Wallet bindet. Ein Foto alle 30 Tage hält die automatischen Auszahlungen am Laufen; die App erinnert eine Woche vorher." },
       { q:"Ist das echtes Geld?", a:"Nein. Alles läuft im VeChain-Testnet, die B3TR sind Test-Token ohne realen Wert — ideal zum sicheren Ausprobieren." },
-      { q:"Ich habe eingereicht, aber kein B3TR — warum?", a:"Häufigste Gründe: der neue Stand ist nicht höher als der letzte, das Foto wurde wiederverwendet, oder eine Sperrzeit ist aktiv. Wurde auf diesem Handy schon eine andere Wallet ausgezahlt? Eine Person, eine Wallet: nur die erste Wallet auf einem Handy kann verdienen. Versuch ein frisches Foto eines echten Zählers." },
+      { q:"Ich habe eingereicht, aber kein B3TR — warum?", a:"Dein erster Stand legt nur den Startpunkt fest, und ein Stand, bei dem du den Zielwert (8 kWh pro Tag) oder mehr verbraucht hast, wird ohne Belohnung erfasst — B3TR gibt es nur für eingesparte kWh. Ganz abgelehnt? Häufigste Gründe: der neue Stand ist nicht höher als der letzte, das Foto wurde wiederverwendet, oder eine Sperrzeit ist aktiv. Wurde auf diesem Handy schon eine andere Wallet ausgezahlt? Eine Person, eine Wallet: nur die erste Wallet auf einem Handy kann verdienen. Versuch ein frisches Foto eines echten Zählers." },
       { q:"Mein Foto wurde abgelehnt.", a:"Nutze ein echtes, scharfes Foto deines eigenen Zählers — gutes Licht, Ziffern im Fokus, keine Screenshots oder Bildschirmfotos." },
       { q:"Neu verbunden und meine Zähler sind weg?", a:"Erneutes Verbinden mit DEMSELBEN Wallet behält deine Zähler und Basiswerte. Nur ein anderes Wallet startet neu." },
       { q:"Mein Wallet verbindet nicht.", a:"Stelle sicher, dass VeWorld auf Testnet steht. Mobil: nutze den In-App-Browser oder WalletConnect-QR." },
@@ -5732,7 +5574,7 @@ const HELP_I18N = {
       { t:"Connectez votre wallet", d:"Touchez Connect et ouvrez VeWorld (sur Testnet) ou WalletConnect. C'est une app de test — aucun fonds réel n'est utilisé." },
       { t:"Enregistrez vos compteurs", d:"Saisissez le numéro de votre compteur d'électricité et son relevé actuel (le point de départ)." },
       { t:"Envoyez un relevé", d:"Allez dans Meter, photographiez votre compteur (l'app lit le relevé), vérifiez-le et envoyez." },
-      { t:"Gagnez des B3TR", d:"Un relevé valide vous récompense en B3TR sur testnet. Suivez votre total sur Home et votre place au classement." },
+      { t:"Gagnez des B3TR", d:"Chaque kWh sous l'objectif (8 kWh par jour) vous rapporte des B3TR sur testnet. Votre premier relevé est votre point de départ ; un relevé sans économie est enregistré, pas récompensé. Suivez votre total sur Home et votre place au classement." },
     ], faqs:[
       { q:"Où trouver le numéro de mon compteur ?", a:"Deux endroits sur le compteur :\n1) Sur le petit écran — appuyez sur les boutons jusqu'à voir le numéro.\n2) Sous le code-barres, sur une étiquette à l'avant ou sur le côté.\nSaisissez tout le numéro avec la lettre — l'électricité commence souvent par E, le gaz par G. Il figure aussi sur votre facture ou votre compte en ligne fournisseur." },
       { q:"Lecture automatique (lecteur P1 / HomeWizard / Powerfox / Tibber)", a:"Avec un lecteur P1, Home Assistant ou un autre lecteur, votre compteur envoie son relevé lui-même — vous ne photographiez plus.\nVous avez un Powerfox (poweropti) ou un Tibber Pulse ? Choisissez-le dans la configuration : nous récupérons votre relevé dans leur cloud, rien à installer.\nFaites d'abord une soumission photo (fixe votre base), puis Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup pour le jeton et la configuration prête.\nGuide complet pas à pas : https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
@@ -5740,7 +5582,7 @@ const HELP_I18N = {
       { q:"Quels compteurs fonctionnent ?", a:"Pays-Bas, Belgique, Luxembourg : presque tout compteur intelligent avec un port P1, avec un HomeWizard P1 (Belgique : activez le port gratuitement dans le portail Fluvius · Luxembourg : demandez la clé P1 à votre gestionnaire de réseau).\nDanemark, Suède, Hongrie : un HomeWizard P1 aussi, dès que le gestionnaire de réseau active le port (Hongrie : certains compteurs seulement). Compatible avec votre compteur ? https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter\nAllemagne : un Powerfox poweropti, ou une tête de lecture Tasmota (Hichi).\nSuède, Norvège, Danemark, Finlande : un Tibber Pulse.\nFrance, Royaume-Uni, Espagne, Italie : pas de port P1 — pour l'instant seulement via Home Assistant.\nÉtats-Unis et Canada : pas de port P1 — les photos marchent si l'afficheur de votre compteur montre le total kWh ; Home Assistant avec un Rainforest EAGLE là où votre distributeur l'autorise.\nPartout : si Home Assistant affiche le total kWh de votre compteur, ça marche. Et les photos marchent toujours.\nTout par pays : https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"Faut-il toujours une photo ?", a:"Une photo est requise pour un relevé saisi à la main. Un lecteur P1 connecté peut envoyer sans photo, car son jeton d'appareil lie le relevé à votre wallet. Une photo tous les 30 jours garde les paiements automatiques actifs ; l'app prévient une semaine avant." },
       { q:"Est-ce de l'argent réel ?", a:"Non. Tout tourne sur le testnet VeChain ; les B3TR gagnés sont des jetons de test sans valeur réelle — parfait pour essayer en toute sécurité." },
-      { q:"J'ai envoyé mais aucun B3TR — pourquoi ?", a:"Raisons fréquentes : le nouveau relevé n'est pas supérieur au précédent, la photo a été réutilisée, ou un délai est actif. Un autre wallet a déjà été payé sur ce téléphone ? Une personne, un wallet : seul le premier wallet d'un téléphone peut gagner. Essayez une photo fraîche d'un vrai compteur." },
+      { q:"J'ai envoyé mais aucun B3TR — pourquoi ?", a:"Votre premier relevé ne fixe que votre point de départ, et un relevé où vous avez consommé l'objectif (8 kWh par jour) ou plus est enregistré sans récompense — les B3TR viennent uniquement des kWh économisés. Refusé ? Raisons fréquentes : le nouveau relevé n'est pas supérieur au précédent, la photo a été réutilisée, ou un délai est actif. Un autre wallet a déjà été payé sur ce téléphone ? Une personne, un wallet : seul le premier wallet d'un téléphone peut gagner. Essayez une photo fraîche d'un vrai compteur." },
       { q:"Ma photo a été refusée.", a:"Utilisez une vraie photo nette de votre compteur — bon éclairage, chiffres nets, pas de captures ni photos d'écran." },
       { q:"Reconnecté et j'ai perdu mes compteurs ?", a:"Se reconnecter avec le MÊME wallet garde vos compteurs et bases. Seul un autre wallet repart de zéro." },
       { q:"Mon wallet ne se connecte pas.", a:"Assurez-vous que VeWorld est sur Testnet. Sur mobile : navigateur intégré ou QR WalletConnect." },
@@ -5751,7 +5593,7 @@ const HELP_I18N = {
       { t:"Conecta tu wallet", d:"Toca Connect y abre VeWorld (en Testnet) o WalletConnect. Es una app de prueba — no se usa dinero real." },
       { t:"Registra tus contadores", d:"Introduce el número de tu contador de luz y su lectura actual (el punto de partida)." },
       { t:"Envía una lectura", d:"Ve a Meter, fotografía tu contador (la app lee la lectura), revísala y envía." },
-      { t:"Gana B3TR", d:"Una lectura válida te premia con B3TR en testnet. Mira tu total en Home y tu puesto en la clasificación." },
+      { t:"Gana B3TR", d:"Cada kWh por debajo del objetivo (8 kWh al día) te da B3TR en testnet. Tu primera lectura es tu punto de partida; una lectura sin ahorro se registra, pero no se premia. Mira tu total en Home y tu puesto en la clasificación." },
     ], faqs:[
       { q:"¿Dónde encuentro el número de mi contador?", a:"Dos sitios en el contador:\n1) En la pantallita — pulsa los botones hasta que aparezca el número.\n2) Bajo el código de barras, en una pegatina delante o al lado.\nIntroduce el número completo con la letra — la luz suele empezar por E, el gas por G. También está en tu factura o en la cuenta online de tu comercializadora." },
       { q:"Lectura automática (lector P1 / HomeWizard / Powerfox / Tibber)", a:"Con un lector P1, Home Assistant u otro lector, tu contador envía su lectura solo — ya no fotografías más.\n¿Tienes un Powerfox (poweropti) o un Tibber Pulse? Elígelo en la configuración: recogemos tu lectura de su nube, nada que instalar.\nHaz primero un envío con foto (fija tu base), luego Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup para el token y la configuración lista.\nGuía completa paso a paso: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
@@ -5759,7 +5601,7 @@ const HELP_I18N = {
       { q:"¿Qué contadores funcionan?", a:"Países Bajos, Bélgica, Luxemburgo: casi cualquier contador inteligente con puerto P1, con un HomeWizard P1 (Bélgica: activa el puerto gratis en el portal de Fluvius · Luxemburgo: pide la clave P1 a tu distribuidora).\nDinamarca, Suecia, Hungría: también un HomeWizard P1, cuando la distribuidora active el puerto (Hungría: solo algunos contadores). ¿Sirve para tu contador? https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter\nAlemania: un Powerfox poweropti, o un cabezal Tasmota (Hichi).\nSuecia, Noruega, Dinamarca, Finlandia: un Tibber Pulse.\nFrancia, Reino Unido, España, Italia: sin puerto P1 — por ahora solo con Home Assistant.\nEE. UU. y Canadá: sin puerto P1 — las fotos funcionan si la pantalla del contador muestra el total de kWh; Home Assistant con un Rainforest EAGLE donde tu compañía lo permita.\nEn todas partes: si Home Assistant muestra el total kWh de tu contador, funciona. Y las fotos siempre funcionan.\nTodo por país: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"¿Siempre necesito una foto?", a:"Se requiere foto para una lectura escrita a mano. Un lector P1 conectado puede enviar sin foto, porque su token de dispositivo vincula la lectura a tu wallet. Una foto cada 30 días mantiene los pagos automáticos; la app avisa una semana antes." },
       { q:"¿Es dinero real?", a:"No. Todo corre en el testnet de VeChain; los B3TR son tokens de prueba sin valor real — perfecto para probar con seguridad." },
-      { q:"Envié pero no recibí B3TR — ¿por qué?", a:"Motivos comunes: la nueva lectura no es mayor que la anterior, la foto se reutilizó, o hay un tiempo de espera activo. ¿Ya cobró otro wallet en este teléfono? Una persona, un wallet: solo el primer wallet de un teléfono puede ganar. Prueba una foto nueva de un contador real." },
+      { q:"Envié pero no recibí B3TR — ¿por qué?", a:"Tu primera lectura solo fija tu punto de partida, y una lectura en la que usaste el objetivo (8 kWh al día) o más se registra sin premio — los B3TR solo vienen de kWh ahorrados. ¿Rechazada? Motivos comunes: la nueva lectura no es mayor que la anterior, la foto se reutilizó, o hay un tiempo de espera activo. ¿Ya cobró otro wallet en este teléfono? Una persona, un wallet: solo el primer wallet de un teléfono puede ganar. Prueba una foto nueva de un contador real." },
       { q:"Rechazaron mi foto.", a:"Usa una foto real y nítida de tu propio contador — buena luz, cifras enfocadas, sin capturas ni fotos de pantalla." },
       { q:"Reconecté y perdí mis contadores.", a:"Reconectar con la MISMA wallet mantiene tus contadores y bases. Solo otra wallet empieza de cero." },
       { q:"Mi wallet no conecta.", a:"Asegúrate de que VeWorld esté en Testnet. En móvil: navegador interno o QR de WalletConnect." },
@@ -5770,11 +5612,11 @@ const HELP_I18N = {
 // The help above is written for testnet ("test tokens, no real money"). On the
 // mainnet build those four answers would be untrue, so they are replaced.
 const HELP_MAINNET = {
-  en: { connect: "Tap Connect and open VeWorld (set to Mainnet) or WalletConnect.", earn: "A valid reading rewards you with real B3TR in your own wallet. Track your total on Home and your position on the Leaderboard.", real: "Yes. The app runs on VeChain mainnet: the B3TR you earn are real tokens in your own wallet. The amount per reading follows the weekly VeBetterDAO budget.", wallet: "Make sure VeWorld is switched to Mainnet. On mobile, use the in-app browser or WalletConnect QR." },
-  nl: { connect: "Tik op Connect en open VeWorld (op Mainnet) of WalletConnect.", earn: "Een geldige stand levert echte B3TR op in je eigen wallet. Zie je totaal op Home en je positie in het klassement.", real: "Ja. De app draait op VeChain mainnet: de B3TR die je verdient zijn echte tokens in je eigen wallet. Het bedrag per stand volgt het wekelijkse budget van VeBetterDAO.", wallet: "Zorg dat VeWorld op Mainnet staat. Op mobiel: gebruik de in-app browser of WalletConnect-QR." },
-  de: { connect: "Tippe auf Connect und öffne VeWorld (auf Mainnet) oder WalletConnect.", earn: "Ein gültiger Stand bringt dir echte B3TR in deine eigene Wallet. Sieh dein Gesamt auf Home und deine Position in der Rangliste.", real: "Ja. Die App läuft im VeChain-Mainnet: die B3TR, die du verdienst, sind echte Token in deiner eigenen Wallet. Der Betrag pro Stand folgt dem wöchentlichen VeBetterDAO-Budget.", wallet: "Stelle sicher, dass VeWorld auf Mainnet steht. Mobil: nutze den In-App-Browser oder WalletConnect-QR." },
-  fr: { connect: "Touchez Connect et ouvrez VeWorld (sur Mainnet) ou WalletConnect.", earn: "Un relevé valide vous rapporte de vrais B3TR dans votre propre wallet. Suivez votre total sur Home et votre place au classement.", real: "Oui. L’app tourne sur le mainnet VeChain : les B3TR gagnés sont de vrais jetons dans votre propre wallet. Le montant par relevé suit le budget hebdomadaire de VeBetterDAO.", wallet: "Assurez-vous que VeWorld est sur Mainnet. Sur mobile : navigateur intégré ou QR WalletConnect." },
-  es: { connect: "Toca Connect y abre VeWorld (en Mainnet) o WalletConnect.", earn: "Una lectura válida te da B3TR reales en tu propio wallet. Mira tu total en Home y tu puesto en la clasificación.", real: "Sí. La app funciona en la mainnet de VeChain: los B3TR que ganas son tokens reales en tu propio wallet. La cantidad por lectura sigue el presupuesto semanal de VeBetterDAO.", wallet: "Asegúrate de que VeWorld esté en Mainnet. En móvil: navegador interno o QR de WalletConnect." },
+  en: { connect: "Tap Connect and open VeWorld (set to Mainnet) or WalletConnect.", earn: "Every kWh you use below the target (8 kWh a day) earns real B3TR in your own wallet. Your first reading sets your starting point; a reading without savings is recorded, not rewarded. Track your total on Home and your position on the Leaderboard.", real: "Yes. The app runs on VeChain mainnet: the B3TR you earn are real tokens in your own wallet. The amount per kWh saved follows the weekly VeBetterDAO budget.", wallet: "Make sure VeWorld is switched to Mainnet. On mobile, use the in-app browser or WalletConnect QR." },
+  nl: { connect: "Tik op Connect en open VeWorld (op Mainnet) of WalletConnect.", earn: "Elke kWh onder de norm (8 kWh per dag) levert echte B3TR op in je eigen wallet. Je eerste stand is je beginpunt; een stand zonder besparing wordt vastgelegd, niet beloond. Zie je totaal op Home en je positie in het klassement.", real: "Ja. De app draait op VeChain mainnet: de B3TR die je verdient zijn echte tokens in je eigen wallet. Het bedrag per bespaarde kWh volgt het wekelijkse budget van VeBetterDAO.", wallet: "Zorg dat VeWorld op Mainnet staat. Op mobiel: gebruik de in-app browser of WalletConnect-QR." },
+  de: { connect: "Tippe auf Connect und öffne VeWorld (auf Mainnet) oder WalletConnect.", earn: "Jede kWh unter dem Zielwert (8 kWh pro Tag) bringt dir echte B3TR in deine eigene Wallet. Dein erster Stand ist dein Startpunkt; ein Stand ohne Einsparung wird erfasst, aber nicht belohnt. Sieh dein Gesamt auf Home und deine Position in der Rangliste.", real: "Ja. Die App läuft im VeChain-Mainnet: die B3TR, die du verdienst, sind echte Token in deiner eigenen Wallet. Der Betrag pro eingesparter kWh folgt dem wöchentlichen VeBetterDAO-Budget.", wallet: "Stelle sicher, dass VeWorld auf Mainnet steht. Mobil: nutze den In-App-Browser oder WalletConnect-QR." },
+  fr: { connect: "Touchez Connect et ouvrez VeWorld (sur Mainnet) ou WalletConnect.", earn: "Chaque kWh sous l'objectif (8 kWh par jour) vous rapporte de vrais B3TR dans votre propre wallet. Votre premier relevé est votre point de départ ; un relevé sans économie est enregistré, pas récompensé. Suivez votre total sur Home et votre place au classement.", real: "Oui. L’app tourne sur le mainnet VeChain : les B3TR gagnés sont de vrais jetons dans votre propre wallet. Le montant par kWh économisé suit le budget hebdomadaire de VeBetterDAO.", wallet: "Assurez-vous que VeWorld est sur Mainnet. Sur mobile : navigateur intégré ou QR WalletConnect." },
+  es: { connect: "Toca Connect y abre VeWorld (en Mainnet) o WalletConnect.", earn: "Cada kWh por debajo del objetivo (8 kWh al día) te da B3TR reales en tu propio wallet. Tu primera lectura es tu punto de partida; una lectura sin ahorro se registra, pero no se premia. Mira tu total en Home y tu puesto en la clasificación.", real: "Sí. La app funciona en la mainnet de VeChain: los B3TR que ganas son tokens reales en tu propio wallet. La cantidad por kWh ahorrado sigue el presupuesto semanal de VeBetterDAO.", wallet: "Asegúrate de que VeWorld esté en Mainnet. En móvil: navegador interno o QR de WalletConnect." },
 };
 if (NETWORK === "mainnet") {
   for (const [lang, h] of Object.entries(HELP_MAINNET)) {
@@ -6472,14 +6314,15 @@ export default function App() {
           setSubs(prev => [{
             id: item.id, type: item.type, meterNo: item.meterNo || "",
             cur: item.cur, prev: item.prev, date: dayKey(new Date(item.id)),
-            b3tr: paid, status: data.pending ? "pending" : "confirmed", txHash: data.txid || "", submittedAt: item.id,
+            b3tr: data.recorded ? 0 : paid, status: data.recorded ? "recorded" : data.pending ? "pending" : "confirmed", txHash: data.txid || "", submittedAt: item.id,
+            ...(data.recorded ? { note: data.reason || "no saving to reward this time" } : {}),
             // Carry the flag through. Without it this row had status "review" but no
             // `flagged`, so the history fell through to rendering the bare word
             // "review" — unstyled, unexplained, on a submission that was paid. The
             // badge only appears when `flagged` is set.
             flagged: !!item.flagged, flagReason: item.flagReason || "",
           }, ...prev]);
-          if (data.pending) uncertain = true; else setB3tr(b => b + (parseFloat(paid) || 0));
+          if (data.pending) uncertain = true; else if (!data.recorded) setB3tr(b => b + (parseFloat(paid) || 0));
           synced++;
         }
         if (cancelled) return;
@@ -6742,7 +6585,7 @@ export default function App() {
 
   // A reading is submittable when it's a number that's EQUAL TO or higher than
   // the previous one. Equal means zero consumption: valid, but (like almost no
-  // usage) it pays the base amount only — a meter that doesn't move is more often
+  // usage) it is recorded without a reward — a meter that doesn't move is more often
   // a reading that wasn't taken than a household that used nothing. Only a LOWER
   // reading is rejected (a real meter never runs backwards).
   const readingReady = () => { const r=parseFloat(reading),p=parseFloat(prevRead); return Number.isFinite(r)&&Number.isFinite(p)&&r>=p; };
@@ -6754,75 +6597,19 @@ export default function App() {
     const last = subs.find(x => x.type === selUtil && x.submittedAt);
     return last ? spanDays(Date.now() - last.submittedAt) : 1;
   };
-  // A meter's first paid reading earns the base amount only (the server can't vouch
-  // for a starting point it never recorded); the saving is paid from the next one.
-  // Paid rows come back from chain on connect, so "none yet" is a fair signal here.
-  const firstForUtil = () => !subs.some(x => x.type === selUtil && x.status === "confirmed");
+  // A meter's first reading earns nothing (the server can't vouch for a starting
+  // point it never recorded); the saving is paid from the next one. Paid rows come
+  // back from chain on connect, recorded ones are kept on this device.
+  const firstForUtil = () => !subs.some(x => x.type === selUtil && x.status !== "failed" && x.type !== "eco");
+  // The full-rate amount: kWh saved × rate, nothing for a first or near-zero reading.
+  const fullReward = () => {
+    if (!readingReady()) return 0;
+    if (firstForUtil() || nearZeroUsage(selUtil, usage(), daysSinceLast())) return 0;
+    return computeReward(selUtil, usage(), daysSinceLast());
+  };
   // Scaled to this week's budget exactly as the server does (budget.js): the
   // full-rate amount × rewardFactor, rounded down to the cent.
-  const reward = () => {
-    if (!readingReady()) return 0;
-    const baseOnly = firstForUtil() || nearZeroUsage(selUtil, usage(), daysSinceLast());
-    const full = baseOnly ? Math.min(REWARD_BASE[selUtil] ?? 0, computeReward(selUtil, usage(), daysSinceLast())) : computeReward(selUtil, usage(), daysSinceLast());
-    return floor2(full * rewardFactor);
-  };
-
-  // ── Eco-mode bonus ──────────────────────────────────────────────────────────
-  // Photo of an appliance running in eco mode → fixed bonus via the backend.
-  // Rules (server-enforced; these local values only drive the UI): max 4 per
-  // CALENDAR week (Monday–Sunday, resets Monday morning) + 24h between claims.
-  const [ecoBusy, setEcoBusy] = useState(false);
-  const ecoSubTs = (s) => s.submittedAt || localDayTs(s.date) || 0;
-  const ecoSubs = subs.filter(s => s.type === "eco");
-  const thisEcoWeek = ecoWeekKey();
-  const ecoUsedThisWeek = ecoSubs.filter(s => ecoSubTs(s) && ecoWeekKey(ecoSubTs(s)) === thisEcoWeek).length;
-  const ecoLastTs = ecoSubs.reduce((a, s) => Math.max(a, ecoSubTs(s)), 0);
-  const ecoCooldownMs = Math.max(0, RULES.ecoCooldownMs - (Date.now() - ecoLastTs));
-  const handleEcoSubmit = async (file, appliance) => {
-    if (networkMismatch) { showToast(`⚠️ This app is on ${NETWORK} but its server is on ${serverNetwork} — submitting is paused`); return; }
-    if (!wallet) { openConnectModal(); return; }
-    if (!online) { showToast("🌿 Eco bonus needs a connection — try again when online"); return; }
-    if (!REWARD_API) { showToast("Eco bonus isn't available yet"); return; }
-    if (TURNSTILE_SITE_KEY && !captchaToken) { showToast("🤖 Complete the verification checkbox first"); return; }
-    if (photoTooOld(file)) { showToast("📸 Take the photo live with your camera — saved images aren't accepted"); return; }
-    setEcoBusy(true);
-    const payWallet = wallet;
-    let sent = false;
-    try {
-      const upload = await uploadablePhoto(file);
-      const base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] || ""); r.onerror = rej; r.readAsDataURL(upload); });
-      let certificate = null;
-      try {
-        const content = `Green Utility Log — confirm eco-mode bonus\nWallet: ${wallet}\nAppliance: ${appliance}\nNetwork: ${NETWORK}\nTime: ${new Date().toISOString()}`;
-        const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } }, { signer: wallet });
-        certificate = { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
-      } catch {
-        showToast("✋ Sign the confirmation in your wallet to claim the eco bonus");
-        return;
-      }
-      const device = await deviceInfo();
-      sent = true;
-      const res = await fetchT(`${REWARD_API.replace(/\/$/, "")}/eco-action`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: wallet, appliance, photo: base64, photoMime: upload.type || "", certificate, captchaToken, device }),
-      }, PAYOUT_MS);
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw httpError(data.error || `eco service error ${res.status}`, res.status);
-      const paid = Number(data.amount) || 0;
-      // Switched wallets while this was paying: it's the other wallet's money, and
-      // shows in its history (from chain) when that one connects again.
-      if (!sameWallet(payWallet)) { showToast(`🌿 Eco bonus +${paid} B3TR paid to ${payWallet.slice(0, 6)}…${payWallet.slice(-4)} (the wallet you started with)`); return; }
-      setSubs(prev => [{ id: Date.now(), type: "eco", appliance, cur: "", prev: "", meterNo: "", date: dayKey(new Date()), b3tr: paid, status: data.pending ? "pending" : "confirmed", txHash: data.txid || "", submittedAt: Date.now() }, ...prev]);
-      if (data.pending) { recheckPayout(payWallet); showToast(`🌿 Eco bonus +${paid} B3TR sent — pending until it's in a block`); }
-      else { setB3tr(b => b + paid); showToast(`🌿 Eco bonus: +${paid} B3TR!`); }
-    } catch (e) {
-      if (sent && !isRefusal(e)) recheckPayout(payWallet);
-      showToast(`❌ Eco bonus failed: ${e?.message || "try again later"}`);
-    } finally {
-      setEcoBusy(false);
-    }
-  };
+  const reward = () => floor2(fullReward() * rewardFactor);
 
   // ── Photoless automatic submission (Step 2) ─────────────────────────────────
   // Submit the latest automatically-received meter reading — no photo. The backend
@@ -6866,9 +6653,10 @@ export default function App() {
       const curN = Number(data.reading), useN = Number(data.usage);
       const cur = data.reading != null && Number.isFinite(curN) ? String(data.reading) : "";
       const prev = cur && data.usage != null && Number.isFinite(useN) ? String(+(curN - useN).toFixed(3)) : "";
-      setSubs(prev0 => [{ id: Date.now(), type: "electric", meterNo, cur, prev, date: dayKey(new Date()), b3tr: paid, status: data.pending ? "pending" : "confirmed", txHash: data.txid || "", submittedAt: Date.now() }, ...prev0]);
+      setSubs(prev0 => [{ id: Date.now(), type: "electric", meterNo, cur, prev, date: dayKey(new Date()), b3tr: data.recorded ? 0 : paid, status: data.recorded ? "recorded" : data.pending ? "pending" : "confirmed", txHash: data.txid || "", submittedAt: Date.now(), ...(data.recorded ? { note: data.reason || "" } : {}) }, ...prev0]);
       setCooldown("electric");
-      if (data.pending) { recheckPayout(payWallet); showToast(`⚡ Automatic reading +${paid} B3TR sent — pending until it's in a block`); }
+      if (data.recorded) showToast(`📝 Automatic reading recorded — ${data.reason || "no saving to reward this time"}`);
+      else if (data.pending) { recheckPayout(payWallet); showToast(`⚡ Automatic reading +${paid} B3TR sent — pending until it's in a block`); }
       else { setB3tr(b => b + paid); showToast(`⚡ Automatic reading: +${paid} B3TR!`); }
     } catch (e) {
       if (sent && !isRefusal(e)) recheckPayout(payWallet);
@@ -6900,9 +6688,11 @@ export default function App() {
         : "⚠️ Enter the current meter reading");
       return;
     }
-    // A fine reading that would pay nothing: this week's B3TR is spread so thin
-    // (or gone) that the amount rounds to 0. Say that, not "enter a reading".
-    if (!(earned > 0)) {
+    // A reading that saves something but would pay nothing: this week's B3TR is
+    // spread so thin (or gone) that the amount rounds to 0. Say that, not "enter a
+    // reading". A reading that saves nothing goes through: it is recorded without a
+    // reward, and is the starting point for the next one.
+    if (fullReward() > 0 && !(earned > 0)) {
       setBusy(false);
       showToast("⏳ This week's reward budget is used up — rewards resume after the next VeBetterDAO round");
       return;
@@ -7023,7 +6813,7 @@ export default function App() {
       // The server recomputes the payout from its own recorded baseline, so the
       // amount actually paid on-chain can differ from the client's `earned`. Show
       // and store the server's number when it returns one; fall back to `earned`.
-      let paidAmount = earned;
+      let paidAmount = earned, recordedOnly = "";
       if (REWARD_API) {
         // Prove wallet ownership: the user signs a gasless certificate, so the
         // backend can verify the submission really comes from `wallet` and won't
@@ -7050,6 +6840,7 @@ export default function App() {
         txid = data.txid;
         onChainPending = !!data.pending;
         if (data.amount != null && Number.isFinite(Number(data.amount))) paidAmount = Number(data.amount);
+        if (data.recorded) { recordedOnly = data.reason || "no saving to reward this time"; paidAmount = 0; }
       } else {
         const clauses = buildRewardClauses(selUtil, reading, prevRead, earned, wallet, meterNo);
         ({ txid } = await requestTransaction(clauses));
@@ -7074,14 +6865,15 @@ export default function App() {
         prev: prevRead,
         date: dateStr,
         b3tr: paidAmount,
-        status: onChainPending ? "pending" : "confirmed",
+        status: recordedOnly ? "recorded" : onChainPending ? "pending" : "confirmed",
+        ...(recordedOnly ? { note: recordedOnly } : {}),
         flagged: !photoConfirmed,
         flagReason,
         txHash: txid || "",
         submittedAt: Date.now()
       }, ...prev]);
 
-      if (onChainPending) recheckPayout(wallet); else setB3tr(b => b + paidAmount);
+      if (onChainPending) recheckPayout(wallet); else if (!recordedOnly) setB3tr(b => b + paidAmount);
       if (registers) setRegTick(t => t + 1);
       setCooldown(selUtil);
       setAiOk(false);
@@ -7090,7 +6882,9 @@ export default function App() {
       setPrevRead("");
       prevReadEdited.current = false;
       setVerifyKey(k => k + 1);
-      showToast(onChainPending
+      showToast(recordedOnly
+        ? `📝 Reading recorded — ${recordedOnly}`
+        : onChainPending
         ? `⏳ +${paidAmount.toFixed(2)} B3TR sent on ${NETWORK_LABEL} — pending until it's in a block${txid ? ` • TX: ${txid.slice(0, 10)}...` : ""}`
         : `✅ +${paidAmount.toFixed(2)} B3TR on ${NETWORK_LABEL}${txid ? ` • TX: ${txid.slice(0, 10)}...` : ""}`);
       setBusy(false);
@@ -7185,7 +6979,6 @@ export default function App() {
           {!noAccess && <>
           {tab==="home"      && <HomeScreen b3tr={b3tr} walletB3tr={walletB3tr} streak={streak} subs={subs} setTab={setTab} wallet={wallet} onOpenReader={() => { setStartOnReader(true); setTab("submit"); }} T={T}/>}
           {tab==="submit"    && <SubmitScreen startOnReader={startOnReader} onStartedReader={() => setStartOnReader(false)} rewardFactor={rewardFactor} u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} dualTariff={dualTariff} fixBasis={fixBasis} fixBusy={fixBusy} runFixBasis={runFixBasis} dismissFixBasis={() => setFixBasis(null)} setDualTariff={setDualTariff} regLow={regLow} setRegLow={setRegLow} regNormal={regNormal} setRegNormal={setRegNormal} photoRegister={regHint[selUtil] || null} busy={busy} usage={usage} reward={reward} days={daysSinceLast()} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab} onEcoSubmit={handleEcoSubmit} ecoBusy={ecoBusy} ecoUsedThisWeek={ecoUsedThisWeek} ecoCooldownMs={ecoCooldownMs} onMeterAutoSubmit={handleMeterAutoSubmit} meterAutoBusy={meterAutoBusy} onRegisterMeter={(utils) => openRegistration(utils, true)}/>}
-          {tab==="eco"       && <EcoScreen T={T} wallet={wallet} setShowWallet={openConnectModal} onSubmit={handleEcoSubmit} busy={ecoBusy} usedThisWeek={ecoUsedThisWeek} cooldownMs={ecoCooldownMs} rewardFactor={rewardFactor} />}
           {tab==="progress"  && <ProgressScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}
           {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} walletDomain={accountDomain || null} pass={passInfo.pass} setTab={setTab} onOpenSettings={()=>setTab("settings")} onOpenHelp={()=>setShowHelp(true)} onOpenFeedback={()=>setShowFeedback(true)} onToast={showToast} T={T}/>}
@@ -7198,7 +6991,7 @@ export default function App() {
               a new tester's first impression was otherwise a tab holding an empty
               graph. It reappears the moment there's something to plot, and stays
               visible while you're standing on it so the nav never loses its place. */}
-          {[{id:"home",icon:"🏠",label:"Home"},{id:"submit",icon:"📸",label:"Meter"},{id:"eco",icon:"🌿",label:"Eco"},{id:"progress",icon:"📈",label:"Progress"},{id:"profile",icon:"👤",label:"Profile"}].filter(n=>n.show!==false).map(n=>{
+          {[{id:"home",icon:"🏠",label:"Home"},{id:"submit",icon:"📸",label:"Meter"},{id:"progress",icon:"📈",label:"Progress"},{id:"profile",icon:"👤",label:"Profile"}].filter(n=>n.show!==false).map(n=>{
             const active = tab===n.id || (n.id==="profile" && (tab==="settings" || tab==="history"));
             return (
             <button key={n.id} className={`nitem ${active ?"active":""}`} aria-current={active ? "page" : undefined} onClick={()=>setTab(n.id)}>

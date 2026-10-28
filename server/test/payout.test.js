@@ -22,15 +22,16 @@ describe("a normal photo submission", () => {
   after(async () => { await srv.stop(); });
 
   test("is paid, and the amount comes from the server", async () => {
-    const r = await submit(srv);
+    const r = await submit(srv, { reading: 1004 });
     assert.equal(r.status, 200, JSON.stringify(r.body));
     assert.match(r.body.txid, /^0x/);
-    // 8 kWh over one day is exactly the benchmark, so the base and nothing more.
-    assert.equal(r.body.amount, 0.2);
+    // 4 kWh in a day against the 8 kWh benchmark: 4 kWh saved × 0.61 — and only
+    // that, there is no fixed amount for submitting.
+    assert.equal(r.body.amount, 2.44);
   });
 
   test("advances the stored baseline to the reading just paid", async () => {
-    assert.equal(srv.readState().readings["electric:e1000"], 1008);
+    assert.equal(srv.readState().readings["electric:e1000"], 1004);
   });
 
   test("starts the cooldown, so an immediate second attempt is refused", async () => {
@@ -82,11 +83,11 @@ describe("the stored baseline wins over anything the client sends", () => {
   after(async () => { await srv.stop(); });
 
   test("a low prevRead cannot widen the delta", async () => {
-    // The server measures from its own baseline of 1000, so this is 8 kWh of
-    // usage and the base reward — not 1008 kWh of it.
-    const r = await submit(srv, { reading: 1008, prevRead: 0 });
+    // The server measures from its own baseline of 1000, so this is 4 kWh of
+    // usage and 4 kWh saved — not 1004 kWh of usage.
+    const r = await submit(srv, { reading: 1004, prevRead: 0 });
     assert.equal(r.status, 200, JSON.stringify(r.body));
-    assert.equal(r.body.amount, 0.2);
+    assert.equal(r.body.amount, 2.44);
   });
 });
 
@@ -200,7 +201,7 @@ describe("a payout records where its reading came from", () => {
   after(async () => { await srv.stop(); });
 
   test("a photographed reading is marked as one", async () => {
-    const r = await submit(srv, { reading: 1008 });
+    const r = await submit(srv, { reading: 1004 });
     assert.equal(r.status, 200, JSON.stringify(r.body));
     assert.match(srv.logs(), /"source":"photo"/);
   });
@@ -208,7 +209,7 @@ describe("a payout records where its reading came from", () => {
   test("a reader's reading is marked as automatic, so an admin can tell", async () => {
     // Nobody ever looked at this one, and there is no photo to look at — which is
     // exactly why the row has to say so.
-    await srv.post("/meter-ingest", { token, reading: 1016 });
+    await srv.post("/meter-ingest", { token, reading: 1010 });
     const r = await srv.post("/reward-from-meter", { address: WALLET, meterNo: METER });
     assert.equal(r.status, 200, JSON.stringify(r.body));
     assert.match(srv.logs(), /"source":"push"/);
@@ -216,15 +217,59 @@ describe("a payout records where its reading came from", () => {
   });
 });
 
-describe("the eco-mode bonus", () => {
+describe("a reading that saves nothing", () => {
   let srv;
   before(async () => { srv = await startServer({ state: stateWithBaseline() }); });
   after(async () => { await srv.stop(); });
 
-  test("pays 2 B3TR per approved photo", async () => {
-    const r = await srv.post("/eco-action", { address: WALLET, appliance: "washer", photo: photo("eco"), photoMime: "image/jpeg" });
+  test("is recorded without a payout: no transaction, nothing paid", async () => {
+    // 8 kWh in a day is exactly the benchmark: no kWh saved, so no B3TR.
+    const r = await submit(srv, { reading: 1008 });
     assert.equal(r.status, 200, JSON.stringify(r.body));
-    assert.equal(r.body.amount, 2);
+    assert.equal(r.body.txid, null);
+    assert.equal(r.body.amount, 0);
+    assert.equal(r.body.recorded, true);
+    assert.match(r.body.reason, /no saving to reward/);
+    assert.doesNotMatch(srv.logs(), /"amount"/, "nothing went to the chain");
+  });
+
+  test("but it is the starting point for the next one, and the cooldown runs", async () => {
+    assert.equal(srv.readState().readings["electric:e1000"], 1008);
+    const r = await submit(srv, { reading: 1010, photo: photo("next") });
+    assert.equal(r.status, 400);
+    assert.match(r.body.error, /cooldown/i);
+  });
+});
+
+describe("a reading that covers several days", () => {
+  let srv;
+  before(async () => {
+    const st = stateWithBaseline();
+    st.readingAts["electric:e1000"] = Date.now() - 3 * DAY;   // last reading three days ago
+    srv = await startServer({ state: st });
+  });
+  after(async () => { await srv.stop(); });
+
+  test("is judged against three days of target, and the chain records that saving", async () => {
+    // 15 kWh over three days against 3 × 8 = 24: 9 kWh saved — more than one day's
+    // target, which is what the on-chain record used to compare against.
+    const r = await submit(srv, { reading: 1015 });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.equal(r.body.amount, 4, "9 kWh × 0.61, capped at 4");
+    assert.match(srv.logs(), /"savedKwh":9\b/);
+    assert.match(srv.logs(), /"days":3\b/);
+  });
+});
+
+describe("the eco-mode bonus has ended", () => {
+  let srv;
+  before(async () => { srv = await startServer({ state: stateWithBaseline() }); });
+  after(async () => { await srv.stop(); });
+
+  test("a claim from an old app is told so, and nothing is paid", async () => {
+    const r = await srv.post("/eco-action", { address: WALLET, appliance: "washer", photo: photo("eco"), photoMime: "image/jpeg" });
+    assert.equal(r.status, 410);
+    assert.match(r.body.error, /eco bonus has ended/);
   });
 });
 
@@ -237,19 +282,19 @@ describe("a reader's reading is paid the moment it arrives", () => {
   after(async () => { await srv.stop(); });
 
   test("no tap in the app needed", async () => {
-    const r = await srv.post("/meter-ingest", { token, reading: 1008 });
+    const r = await srv.post("/meter-ingest", { token, reading: 1004 });
     assert.equal(r.status, 200);
-    const st = await srv.waitForState((s) => s.readings["electric:e1000"] === 1008);
-    assert.equal(st.readings["electric:e1000"], 1008, "paid, so the baseline moved");
+    const st = await srv.waitForState((s) => s.readings["electric:e1000"] === 1004);
+    assert.equal(st.readings["electric:e1000"], 1004, "paid, so the baseline moved");
     const latest = await srv.get(`/meter/latest?address=${WALLET}`);
-    assert.equal(latest.body.lastPayout.reading, 1008);
+    assert.equal(latest.body.lastPayout.reading, 1004);
     assert.ok(latest.body.lastPayout.amount > 0);
   });
 
   test("and the next push inside the cooldown is kept, not paid", async () => {
     await srv.post("/meter-ingest", { token, reading: 1012 });
     await new Promise((r) => setTimeout(r, 800));
-    assert.equal(srv.readState().readings["electric:e1000"], 1008);
+    assert.equal(srv.readState().readings["electric:e1000"], 1004);
     const latest = await srv.get(`/meter/latest?address=${WALLET}`, { "x-device-token": token });
     assert.equal(latest.body.reading.reading, 1012, "the newest reading is still there to be paid later");
   });
@@ -263,28 +308,32 @@ describe("almost no usage", () => {
   });
   after(async () => { await srv.stop(); });
 
-  test("the same reading again is no longer the maximum: base amount, flagged", async () => {
+  test("the same reading again is no longer the maximum: recorded, not paid, flagged", async () => {
     // 0 kWh in a day used to count as the best saving there is — 4 B3TR — which
     // made "type yesterday's number again" the best-paying thing to do.
     const r = await submit(srv, { reading: 1000 });
     assert.equal(r.status, 200, JSON.stringify(r.body));
-    assert.equal(r.body.amount, 0.2);
+    assert.equal(r.body.amount, 0);
+    assert.equal(r.body.recorded, true);
     assert.equal(r.body.flagged, true);
     const st = await srv.waitForState((s) => Object.values(s.flags || {}).some((f) => /almost no usage/.test(f.reason)));
     assert.ok(st);
   });
 
-  test("a tiny amount is not refused any more either, just held to the base", async () => {
+  test("a tiny amount is not refused, just recorded without a reward", async () => {
     const r = await submit(srv, { reading: 1000.05, photo: photo("tiny") });
     assert.equal(r.status, 200, JSON.stringify(r.body));
-    assert.equal(r.body.amount, 0.2);
+    assert.equal(r.body.amount, 0);
+    assert.equal(r.body.recorded, true);
   });
 
-  test("a reader sending the same value: base amount, flagged too", async () => {
+  test("a reader sending the same value: recorded, not paid, flagged too", async () => {
     await srv.post("/meter-ingest", { token, reading: 1000.08 });
     const r = await srv.post("/reward-from-meter", { address: WALLET, meterNo: METER });
     assert.equal(r.status, 200, JSON.stringify(r.body));
-    assert.equal(r.body.amount, 0.2);
+    assert.equal(r.body.amount, 0);
+    assert.equal(r.body.recorded, true);
+    assert.equal(r.body.txid, null);
   });
 
   test("real, low usage still earns the saving", async () => {
