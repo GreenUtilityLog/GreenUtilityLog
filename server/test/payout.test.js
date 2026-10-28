@@ -241,6 +241,26 @@ describe("a reading that saves nothing", () => {
   });
 });
 
+describe("a reading that covers several days", () => {
+  let srv;
+  before(async () => {
+    const st = stateWithBaseline();
+    st.readingAts["electric:e1000"] = Date.now() - 3 * DAY;   // last reading three days ago
+    srv = await startServer({ state: st });
+  });
+  after(async () => { await srv.stop(); });
+
+  test("is judged against three days of target, and the chain records that saving", async () => {
+    // 15 kWh over three days against 3 × 8 = 24: 9 kWh saved — more than one day's
+    // target, which is what the on-chain record used to compare against.
+    const r = await submit(srv, { reading: 1015 });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.equal(r.body.amount, 4, "9 kWh × 0.61, capped at 4");
+    assert.match(srv.logs(), /"savedKwh":9\b/);
+    assert.match(srv.logs(), /"days":3\b/);
+  });
+});
+
 describe("the eco-mode bonus has ended", () => {
   let srv;
   before(async () => { srv = await startServer({ state: stateWithBaseline() }); });

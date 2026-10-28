@@ -1163,6 +1163,7 @@ app.post("/reward", async (req, res) => {
       reading:  req.body.reading,
       prevRead: v.prev,    // server baseline, not the client-sent prevRead
       usage:    v.usage,   // server-validated usage
+      days:     v.days,    // the span it covers, for the on-chain saving
       amount:   pay.amount,
       receiver: req.body.address,
       source:   "photo",
@@ -1784,6 +1785,7 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
       reading:  Number(latest.reading),
       prevRead: v.prev,
       usage:    v.usage,
+      days:     v.days,
       amount:   pay.amount,
       receiver: addr,
       // "push" for a reader, "enode" for the API route; either way no photo exists.
