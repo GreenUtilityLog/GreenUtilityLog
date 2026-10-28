@@ -1,7 +1,8 @@
 // ── The wallet check: history on chain, who funded it, the passport ──────────
 // A fake VeChain node answers the log queries. Wallets topped up from one source
 // are recorded for the admin; in "base" mode a meter payout to such a wallet is
-// held to the base amount. A node that can't be read never blocks a payout.
+// held to the base amount, which is 0: the reading is recorded, not rewarded. A
+// node that can't be read never blocks a payout.
 
 import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
@@ -58,13 +59,14 @@ describe("wallet check, base mode", () => {
     assert.equal(srv.readState().walletChecks[W[1]].f, FUNDER);
   });
 
-  test("the third wallet from that source is held to the base amount and flagged for the admin", async () => {
+  test("the third wallet from that source gets its reading recorded, not rewarded, and is flagged for the admin", async () => {
     const r = await submit(srv, 2);
     assert.equal(r.status, 200, JSON.stringify(r.body));
-    assert.equal(r.body.amount, 0.2);
+    assert.equal(r.body.amount, 0);
+    assert.equal(r.body.recorded, true);
     await srv.waitForState((s) => Object.values(s.flags || {}).some((f) => f.addr === W[2]));
     assert.match(flagsOf(srv, W[2]), /funded by 0xffff…ffff, like 2 other wallets here/);
-    assert.match(flagsOf(srv, W[2]), /held to the base amount/);
+    assert.match(flagsOf(srv, W[2]), /recorded without a reward/);
   });
 
   test("is in /health", async () => {

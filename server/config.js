@@ -69,17 +69,21 @@ export const pickAnyUtility = (raw, fallback = "electric") => {
 export const UNITS = { electric: "kWh", gas: "m³", water: "L", solar: "kWh" };
 
 // ── Conservation-based reward ────────────────────────────────────────────────
-// We reward USING LESS, not using more. The reward is:
-//   base + max(0, benchmark - usage) * rate        (consumption meters)
-//   base + usage * rate                            (solar — produced energy)
-// where `usage` is this reading's consumption (current - previous).
+// We reward USING LESS, and only that: every B3TR paid is kWh saved × rate.
+//   saved_kWh = max(0, benchmark × days - usage)       (consumption meters)
+//   reward    = saved_kWh × rate                       (capped per submission)
+// where `usage` is the metered consumption since the last recorded reading
+// (current - previous) and `days` the span it covers. Solar would be rewarded for
+// production instead (usage × rate); it is not enabled.
 //
-// USAGE_BENCHMARK is a fixed "efficient usage" threshold per reading (NOT a
-// rolling average — intentionally simple and personal-history-free, so it works
-// from the very first submission). Stay below it to earn the bonus; above it you
-// still get the base for logging. Tune these to your expected reading cadence —
-// they assume roughly one reading per day. MUST match the frontend.
-export const REWARD_BASE     = { electric: 0.2, gas: 0.2, water: 0.1, solar: 0.2 };
+// There is no fixed amount for submitting a reading. A reading that saves nothing
+// (the first one, which only sets the starting point, or one above the benchmark)
+// is recorded — it becomes the starting point for the next — and pays nothing.
+//
+// USAGE_BENCHMARK is a fixed "efficient usage" threshold per day (NOT a rolling
+// personal average — intentionally the same for everyone and impossible to inflate:
+// a personal baseline rewards whoever used the most first). MUST match the frontend.
+export const REWARD_BASE     = { electric: 0, gas: 0, water: 0, solar: 0 };
 export const USAGE_BENCHMARK = { electric: 8,   gas: 6,   water: 300, solar: 0   };
 // Solar is rewarded for production (more is better); everything else for saving.
 export const SAVING_UTILS = new Set(["electric", "gas", "water"]);
@@ -88,31 +92,6 @@ export const SAVING_UTILS = new Set(["electric", "gas", "water"]);
 // so no single submission can ever sign an absurd amount. Covers the legitimate
 // max (solar ≈ 0.2 + 60*0.72 ≈ 43) with headroom. Override via env for mainnet.
 export const MAX_REWARD = Number(process.env.MAX_REWARD || 50);
-
-// ── Eco-mode bonus ────────────────────────────────────────────────────────────
-// Users photograph an appliance (washer / dryer / dishwasher) running in eco
-// mode and earn a small FIXED bonus. Rules: at most ECO_MAX_PER_WEEK claims per
-// CALENDAR week (Monday 00:00 – Sunday 23:59 in ECO_TZ) and at least
-// ECO_COOLDOWN_MS between claims. An eco photo has no meter reading to anchor
-// it, so these caps (plus photo-hash dedupe + the optional AI check) are the guard.
-export const ECO_REWARD       = Number(process.env.ECO_REWARD || 2);     // B3TR per approved eco photo
-export const ECO_MAX_PER_WEEK = Number(process.env.ECO_MAX_PER_WEEK || 4);
-export const ECO_COOLDOWN_MS  = Number(process.env.ECO_COOLDOWN_MS || 24 * 60 * 60 * 1000); // 24h between claims
-export const ECO_TZ           = process.env.ECO_TZ || "Europe/Amsterdam";
-export const ECO_APPLIANCES   = new Set(["washer", "dryer", "dishwasher"]);
-
-// Identifier of the Monday-to-Sunday calendar week a timestamp falls in, in the
-// configured timezone (returns that week's Monday as "YYYY-MM-DD"). Two claims
-// share a weekly budget iff their keys match; the budget resets Monday morning.
-export function ecoWeekKey(ts = Date.now()) {
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: ECO_TZ, year: "numeric", month: "2-digit", day: "2-digit", weekday: "short" })
-    .formatToParts(new Date(ts));
-  const get = (t) => parts.find((p) => p.type === t)?.value;
-  const daysSinceMonday = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 }[get("weekday")] ?? 0;
-  const monday = new Date(Date.UTC(+get("year"), +get("month") - 1, +get("day")));
-  monday.setUTCDate(monday.getUTCDate() - daysSinceMonday);
-  return monday.toISOString().slice(0, 10);
-}
 
 // Reward amount for a single reading, given the utility and its usage.
 // A reading covers the days since the previous one, so the benchmark it is judged

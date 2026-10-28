@@ -26,17 +26,22 @@ test("a perfect day is capped, not paid in full", () => {
   assert.equal(computeReward("electric", 0, 1), MAX_PAYOUT_PER_SUBMISSION);
 });
 
-test("using exactly the benchmark earns the base and nothing more", () => {
+test("using exactly the benchmark earns nothing: no kWh saved", () => {
   assert.equal(computeReward("electric", USAGE_BENCHMARK.electric, 1), REWARD_BASE.electric);
 });
 
-test("using more than the benchmark still earns the base, never less", () => {
-  assert.equal(computeReward("electric", 500, 1), REWARD_BASE.electric);
-  assert.ok(computeReward("electric", 1e9, 1) > 0);
+test("using more than the benchmark earns nothing, and never less than nothing", () => {
+  assert.equal(computeReward("electric", 500, 1), 0);
+  assert.equal(computeReward("electric", 1e9, 1), 0);
+});
+
+test("there is no fixed amount for submitting: every B3TR is saved kWh × rate", () => {
+  assert.equal(REWARD_BASE.electric, 0);
+  assert.equal(computeReward("electric", 6, 1), +(2 * RATES.electric).toFixed(2));
 });
 
 test("the target stretches with the span, so waiting is not punished", () => {
-  // Seven days of average use should land on the base, exactly as one day does.
+  // Seven days of benchmark use should land on nothing, exactly as one day does.
   const sevenDaysOfBenchmark = USAGE_BENCHMARK.electric * 7;
   assert.equal(computeReward("electric", sevenDaysOfBenchmark, 7), REWARD_BASE.electric);
 });

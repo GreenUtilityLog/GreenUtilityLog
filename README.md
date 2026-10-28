@@ -24,14 +24,15 @@ checks it and pays out on-chain.
   to tap in the app.
 - Automatic payouts need one photo of the meter every 30 days; a photo can't be
   lower than what was paid, so a reader that ran ahead of the real meter is caught.
-- You earn for using *less* than a daily benchmark (8 kWh); the base is 0.2 B3TR.
-  Almost no usage (under 0.1 kWh a day) pays the base only and is flagged: that is
-  a stale or repeated reading, not a saving.
-- A meter's **first** reading only sets the starting point (base amount); savings
-  are paid from the next one, measured from a number the server recorded.
+- You earn only for using *less* than a daily benchmark (8 kWh): every B3TR is
+  kWh saved × 0.61. There is no fixed amount for submitting; a reading that saves
+  nothing is recorded (it is the starting point for the next) but not paid.
+  Almost no usage (under 0.1 kWh a day) is recorded without a reward and flagged:
+  that is a stale or repeated reading, not a saving.
+- A meter's **first** reading only sets the starting point and pays nothing;
+  savings are paid from the next one, measured from a number the server recorded.
 - The server recomputes every amount. Photos must be real, fresh and unused;
   with an OCR provider configured the typed reading must be on the photo.
-- Eco-mode bonus: a photo of an appliance on its eco program, 2 B3TR, up to 4 a week.
 - All amounts follow the weekly VeBetterDAO allocation: when more is claimed than
   the week's B3TR covers, every payout is scaled down by the same percentage
   (shown in the app). The server claims each round's allocation by itself.
@@ -74,7 +75,7 @@ node --test bridge/test.js               # bridge tests
   `VITE_REWARD_API`), set per build in `.github/workflows/deploy.yml` and read in
   `src/network.js`. Constants at the top of `src/App.jsx`: `VEBETTER_APP_ID`,
   `ADMIN_WALLETS`, `FEEDBACK_EMAIL`, `TURNSTILE_SITE_KEY`. Reward rules (cooldown,
-  caps, eco bonus) come from the backend's `/health`, so they are set in one place.
+  caps) come from the backend's `/health`, so they are set in one place.
 - **Backend** — environment variables, every one listed with its default in
   [`server/env.example`](server/env.example). Details in [`server/README.md`](server/README.md),
   deploying in [`docs/DEPLOY_BACKEND.md`](docs/DEPLOY_BACKEND.md).

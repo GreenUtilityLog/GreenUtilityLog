@@ -8,7 +8,8 @@ import assert from "node:assert/strict";
 import { startServer, photo, stateWithBaseline, WALLET } from "./helpers.mjs";
 
 const DAY = 86400000;
-const submit = (srv, tag, reading = 1008) => srv.post("/reward", {
+// 4 kWh in a day: 4 kWh below the benchmark, 2.44 B3TR at full rates.
+const submit = (srv, tag, reading = 1004) => srv.post("/reward", {
   utility: "electric", meterNo: "E1000", address: WALLET,
   reading, prevRead: 1000, photo: photo(tag), photoMime: "image/jpeg",
 });
@@ -23,7 +24,7 @@ describe("a quiet week: the pot covers full rates", () => {
   test("pays the full amount", async () => {
     const r = await submit(srv, "quiet");
     assert.equal(r.status, 200, JSON.stringify(r.body));
-    assert.equal(r.body.amount, 0.2);
+    assert.equal(r.body.amount, 2.44);
     assert.equal(r.body.factor, 1);
   });
 });
@@ -43,15 +44,15 @@ describe("a busy week: everyone gets the same smaller share", () => {
     assert.ok(f > 0.45 && f < 0.55, `factor ${f}`);
     const r = await submit(srv, "busy");
     assert.equal(r.status, 200, JSON.stringify(r.body));
-    assert.equal(r.body.fullAmount, 0.2);
-    assert.equal(r.body.amount, Math.floor(0.2 * r.body.factor * 100) / 100);
+    assert.equal(r.body.fullAmount, 2.44);
+    assert.equal(r.body.amount, Math.floor(2.44 * r.body.factor * 100 + 1e-6) / 100);
   });
 
   test("and records the full-rate amount as demand, not the scaled one", async () => {
     // New payouts are summed per day (payDays) instead of one row each.
     const sum = (s) => Object.values(s.payDays || {}).reduce((a, n) => a + n, 0);
     const st = await srv.waitForState((s) => sum(s) > 0);
-    assert.equal(Math.round(sum(st) * 100) / 100, 0.2);
+    assert.equal(Math.round(sum(st) * 100) / 100, 2.44);
   });
 });
 
@@ -70,19 +71,18 @@ describe("an empty pot", () => {
   });
 });
 
-describe("the eco bonus follows the same budget", () => {
+describe("a reading that saves nothing needs no budget", () => {
   let srv;
-  before(async () => {
-    const state = { ...stateWithBaseline(), payLog: busyWeek() };
-    srv = await startServer({ state, env: { BUDGET_POOL_B3TR: "35", BUDGET_DAYS_LEFT: "6.5" } });
-  });
+  before(async () => { srv = await startServer({ state: stateWithBaseline(), env: { BUDGET_POOL_B3TR: "0", BUDGET_DAYS_LEFT: "3" } }); });
   after(async () => { await srv.stop(); });
 
-  test("scaled like everything else", async () => {
-    const r = await srv.post("/eco-action", { address: WALLET, appliance: "washer", photo: photo("eco-busy"), photoMime: "image/jpeg" });
+  test("it is recorded even when the pot is empty, and counts as no demand", async () => {
+    const r = await submit(srv, "nothing-saved", 1008);
     assert.equal(r.status, 200, JSON.stringify(r.body));
-    assert.equal(r.body.fullAmount, 2);
-    assert.ok(r.body.amount < 2 && r.body.amount > 0.8, `amount ${r.body.amount}`);
+    assert.equal(r.body.recorded, true);
+    const st = srv.readState();
+    assert.equal(st.readings["electric:e1000"], 1008);
+    assert.equal(Object.values(st.payDays || {}).reduce((a, n) => a + n, 0), 0);
   });
 });
 

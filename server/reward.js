@@ -367,7 +367,7 @@ const sendClause = (abi, args, comment) =>
 // proxy predates it — we automatically retry once via the legacy distributeReward
 // with a self-built proof JSON, so a payout succeeds on whichever path the
 // deployed contract supports. Only a mined, non-reverted tx counts as success.
-// Every reward — meter and eco alike — reaches the chain through this one function,
+// Every reward reaches the chain through this one function,
 // so this is the only place a test harness needs to stop. Without it the payout path
 // could never be exercised end to end: validation could be tested, the effects of a
 // successful payout (cooldown started, baseline advanced, pairing marked as paid)
@@ -518,23 +518,3 @@ export async function distributeReward({ utility, meterNo, reading, prevRead, us
   });
 }
 
-// Eco-mode bonus: a fixed reward for photographing an appliance running in eco
-// mode. The impact is a conservative fixed estimate (an eco cycle saves roughly
-// 0.5 kWh vs a normal cycle ≈ 200 g CO2e) — deliberately small and honest.
-const ECO_APPLIANCE_LABELS = { washer: "Washing machine", dryer: "Dryer", dishwasher: "Dishwasher" };
-
-export async function distributeEcoReward({ appliance, amount, receiver }) {
-  const label = ECO_APPLIANCE_LABELS[appliance] || "Appliance";
-  const metadata = JSON.stringify({
-    action: "eco_mode", utility: "eco", appliance,
-    b3tr: amount, timestamp: new Date().toISOString(), appVersion: APP_VERSION,
-  });
-  return sendProofReward({
-    amount, receiver,
-    proofText:   `${label} photographed running in eco mode`,
-    impacts:     { carbon: 200, energy: 500 }, // ≈0.5 kWh saved per eco cycle
-    description: `${label} run in eco mode, logged via Green Utility Log`,
-    metadata,
-    comment:     `Green Utility Log — eco-mode bonus (${amount} B3TR)`,
-  });
-}

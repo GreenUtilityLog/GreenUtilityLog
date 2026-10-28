@@ -72,7 +72,6 @@ blueprint (`server/render.yaml`) beschrijft de testnet-service en zou die naam e
 | `ALLOWED_ORIGIN` | `https://greenutilitylog.github.io` |
 | `ANTHROPIC_API_KEY` | **verplicht**: controleert of de foto echt is en of stand + meternummer erop staan — zonder start mainnet niet (anders is de stand gewoon wat iemand intypt). Een **nieuwe** sleutel `greenutilitylog-mainnet` op platform.claude.com. Standaard met het goedkope model `claude-haiku-5-5`: per foto ± 3 aanroepen (vooraf invullen + echtheid + stand), samen een fractie van een cent; hooguit 5 pogingen per wallet per dag en 300 keer vooraf invullen per dag (`OCR_DAILY_MAX`, 15 per IP). Zet bij **Limits** een maandlimiet en een **e-mailwaarschuwing** bij bijna op: is het tegoed op, dan weigert de server elke foto-uitbetaling tot je bijkoopt |
 | `MAX_PAYOUT_PER_SUBMISSION` | `1` voor de eerste week (veilige start), daarna weghalen (= 4) |
-| `ECO_REWARD` | `1` voor de eerste week, daarna weghalen (= 2) |
 | `REQUIRE_PASS` | niet invullen (staat standaard aan): alleen wallets met een pas worden uitbetaald |
 | `PASSPORT_GRANTS_ACCESS` | niet invullen: staat op mainnet standaard uit (een passport kan van wallet naar wallet worden doorgegeven) |
 | `ADMIN_WALLETS` | alleen **jouw** wallet-adres (meerdere: met komma's) |
@@ -176,7 +175,7 @@ De aanmelding staat klaar in `brand/app-hub/`. Fork van `vechain/app-hub`, dan d
 ## 🛑 Noodstop — als er op mainnet iets misgaat
 Van snel naar grondig:
 1. **`PAYOUTS_PAUSED=true`** in Render (mainnet-service → Environment → Save). Na de
-   herstart (± 1 minuut) gaat er **geen enkele** uitbetaling meer uit — foto, eco en
+   herstart (± 1 minuut) gaat er **geen enkele** uitbetaling meer uit — foto en
    automatisch — en meldt `/health` `payoutsPaused: true`. Weghalen = weer aan.
 2. **Pause payouts** in het adminpaneel van de mainnet-app: zet de uitbetalingen op
    VeBetterDAO zelf stil (on-chain; je admin-wallet heeft wat VTHO nodig).

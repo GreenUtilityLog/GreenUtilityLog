@@ -3,7 +3,7 @@
 // every payout is re-validated here. The reward AMOUNT is always recomputed on
 // the server — a client-sent amount is never trusted.
 
-import { RATES, UNITS, isEnabledUtility, COOLDOWN_MS, computeReward, usageBoundsFor, spanDays, MAX_REWARD, REWARD_BASE, SAVING_UTILS, MAX_SPAN_DAYS } from "./config.js";
+import { RATES, UNITS, isEnabledUtility, COOLDOWN_MS, computeReward, usageBoundsFor, spanDays, MAX_REWARD, USAGE_BENCHMARK, SAVING_UTILS, MAX_SPAN_DAYS } from "./config.js";
 import { store } from "./store.js";
 
 const isAddress = (a) => typeof a === "string" && /^0x[0-9a-fA-F]{40}$/.test(a);
@@ -60,7 +60,7 @@ export function validateSubmission(body) {
   // for electricity; a fridge alone uses about 1). A home that is lived in doesn't
   // do that, so it is a reader sending an old value, the same number typed again,
   // or an empty house. It used to count as the best saving there is and pay the
-  // maximum; now it is accepted, paid the base amount only, and flagged for review.
+  // maximum; now it is recorded without a reward and flagged for review.
   const span = Math.min(Math.max(Number(days) || 1, 1), MAX_SPAN_DAYS);
   const nearZero = SAVING_UTILS.has(utility) && usage < lo * span;
   if ((!SAVING_UTILS.has(utility) && usage > 0 && usage < lo) || usage > hi) {
@@ -75,23 +75,25 @@ export function validateSubmission(body) {
     return { ok: false, error: `cooldown active — try again in ~${mins} min` };
   }
 
-  // Server is the source of truth for the reward amount. Conservation-based:
-  // you earn for using LESS than the benchmark, not for using more.
+  // Server is the source of truth for the reward amount, and it is saved kWh × rate
+  // and nothing else: you earn for using LESS than the benchmark, not for logging.
   //
-  // Except on a meter's FIRST submission. Its "previous reading" is whatever the
+  // Nothing on a meter's FIRST submission. Its "previous reading" is whatever the
   // client typed — nothing on the server can vouch for it — so the usage, and with
-  // it the saving bonus, is the submitter's own choice: prevRead = reading means
-  // "zero usage", the maximum. The first reading sets the baseline and earns the
-  // base amount only; savings are paid from the second reading on, measured from a
-  // number the server recorded itself.
+  // it the saving, is the submitter's own choice: prevRead = reading means "zero
+  // usage", the maximum. The first reading only sets the starting point; savings
+  // are paid from the second reading on, measured from a number the server
+  // recorded itself.
+  //
+  // A reading that saves nothing is still a valid reading: it is recorded (it is
+  // the starting point for the next one) with amount 0, and the caller records it
+  // without a payout.
   const firstReading = last == null;
-  const amount = firstReading || nearZero
-    ? +Math.min(REWARD_BASE[utility] ?? 0, computeReward(utility, usage, days)).toFixed(2)
-    : computeReward(utility, usage, days);
-  if (amount <= 0) return { ok: false, error: "computed reward is zero" };
+  const amount = firstReading || nearZero ? 0 : computeReward(utility, usage, days);
   // Hard per-payout ceiling — a stateless sanity bound so a bug or a crafted
   // submission can never sign an absurd amount. Tune MAX_REWARD in config/env.
   if (amount > MAX_REWARD) return { ok: false, error: "computed reward exceeds the per-payout cap" };
+  const target = +((USAGE_BENCHMARK[utility] ?? 0) * span).toFixed(2);
 
   return {
     ok: true,
@@ -100,12 +102,18 @@ export function validateSubmission(body) {
     prev, // server-authoritative baseline, so the on-chain proof reflects what we validated
     amount,
     firstReading,
-    // For the flag: why this payout was held to the base amount.
+    // Why a valid reading pays nothing, for the person who sent it.
+    noReward: amount > 0 ? null
+      : firstReading ? "your first reading sets your starting point — rewards start from your next reading"
+      : nearZero ? "almost no usage since your last reading — recorded and held for review, no reward"
+      : `you used ${usage} ${UNITS[utility]} in ${+span.toFixed(1)} day(s), against a target of ${target} ${UNITS[utility]} — recorded, no saving to reward this time`,
+    // For the flag: why this reading was recorded without a reward.
     nearZero: nearZero
-      ? `almost no usage: ${usage} ${UNITS[utility]} over ${+span.toFixed(1)} day(s) — paid the base amount only`
+      ? `almost no usage: ${usage} ${UNITS[utility]} over ${+span.toFixed(1)} day(s) — recorded without a reward`
       : null,
-    // Called only after a successful payout: start the cooldown, bind the meter
-    // to this wallet, and record this reading as the new baseline for next time.
+    // Called only after a successful payout, or once a reading without a reward is
+    // recorded: start the cooldown, bind the meter to this wallet, and record this
+    // reading as the new baseline for next time.
     markPaid: () => {
       store.setCooldown(key, Date.now());
       store.bindMeter(utility, meterKey, addr);

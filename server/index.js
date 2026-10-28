@@ -7,12 +7,12 @@ import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import express from "express";
 import cors from "cors";
 import { COOLDOWN_MS } from "./config.js";
-import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, REQUIRE_PASS, PASSPORT_GRANTS_ACCESS, ECO_REWARD, ECO_MAX_PER_WEEK, ECO_COOLDOWN_MS, ECO_TZ, ECO_APPLIANCES, ecoWeekKey, RATES, UNITS, pickUtility, pickAnyUtility, isEnabledUtility, MAX_PAYOUT_PER_SUBMISSION, ENABLED_UTILITIES, REWARD_BASE } from "./config.js";
+import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, REQUIRE_PASS, PASSPORT_GRANTS_ACCESS, RATES, UNITS, pickUtility, pickAnyUtility, isEnabledUtility, MAX_PAYOUT_PER_SUBMISSION, ENABLED_UTILITIES, REWARD_BASE } from "./config.js";
 import { validateSubmission } from "./verify.js";
 import { verifyPhoto, checkReadingOnPhoto, readingCheckMode, meterNoOnPhoto, meterNoCheckMode, photoPrint, printDistance } from "./media.js";
 import { store } from "./store.js";
 import { putPhoto, getPhotoDataUrl, deletePhoto, photoStoreEnabled } from "./photostore.js";
-import { distributeReward, distributeEcoReward, distributorAddress, chainDiagnostics, moveToRewardsPool, DRY_RUN, hasDistributorKey, payoutPending } from "./reward.js";
+import { distributeReward, distributorAddress, chainDiagnostics, moveToRewardsPool, DRY_RUN, hasDistributorKey, payoutPending } from "./reward.js";
 import { signalStatus, passportFor, signalUser, passportVouches } from "./passport.js";
 import { budgetState, scaledAmount, recordPayout, autoClaimAllocation, autoMoveToRewardsPool } from "./budget.js";
 import { ocrImage, ocrEnabled, ocrProviders } from "./ocr.js";
@@ -103,7 +103,7 @@ let photoBodies = 0;
 const PHOTO_BODIES_MAX = Number(process.env.PHOTO_BODIES_MAX || 6);
 const PHOTO_BODIES_PER_IP = 2;
 const photoBodiesByIp = new Map();
-for (const path of ["/reward", "/eco-action", "/ocr", "/meter/fix-basis"]) {
+for (const path of ["/reward", "/ocr", "/meter/fix-basis"]) {
   app.use(path, (req, res, next) => {
     if (req.method !== "POST") return next();
     const ip = req.clientIp || "unknown";
@@ -125,7 +125,6 @@ for (const path of ["/reward", "/eco-action", "/ocr", "/meter/fix-basis"]) {
   });
 }
 app.use("/reward", photoJson);
-app.use("/eco-action", photoJson);
 app.use("/ocr", photoJson);
 // Also carries a photo: reconciling a meter's tariff registers demands the same
 // proof a payout does. Without this it would hit the 64 kB default and every
@@ -200,11 +199,6 @@ app.get("/health", async (req, res) => {
     rules: {
       cooldownMs: COOLDOWN_MS,
       maxPayout: MAX_PAYOUT_PER_SUBMISSION,
-      ecoReward: ECO_REWARD,
-      ecoMaxPerWeek: ECO_MAX_PER_WEEK,
-      ecoCooldownMs: ECO_COOLDOWN_MS,
-      // The eco week runs Monday to Sunday in this timezone, wherever the user is.
-      ecoTz: ECO_TZ,
       utilities: [...ENABLED_UTILITIES],
     },
     // Whether the typed reading must be on the photo (off without an OCR provider).
@@ -293,7 +287,7 @@ const AUTO_CLAIM_ON_PUSH = String(process.env.AUTO_CLAIM_ON_PUSH || "on").toLowe
 // own memory. Released again if the payout doesn't go through.
 const DAY_MS = 86400000;
 // Emergency stop: PAYOUTS_PAUSED=true in the server's settings stops every payout
-// (photo, eco, automatic) before anything is sent, until it is removed. The one
+// (photo, automatic) before anything is sent, until it is removed. The one
 // switch for "something is wrong, stop now" — see docs/MAINNET.md, Noodstop.
 const PAYOUTS_PAUSED = /^(1|true|yes|on)$/i.test(String(process.env.PAYOUTS_PAUSED || "").trim());
 async function guardPayout(keys) {
@@ -354,10 +348,11 @@ function photoCheckBudget(addr) {
 // ── Wallet check (walletcheck.js) ────────────────────────────────────────────
 // At a wallet's first payout: its history on chain, who funded it, and what the
 // VeBetterDAO passport says. "flag" records findings for the admin; "base"
-// (default) also holds meter payouts of a suspicious wallet to the base amount;
+// (default) also holds meter payouts of a suspicious wallet to the base amount,
+// which is 0 since only saved kWh pays: its readings are recorded, not rewarded;
 // "off" skips it. Remembered for WALLET_CHECK_DAYS, so it costs a few node calls
-// per wallet per week. An unreadable node never blocks a payout. On by default in
-// "base": what it catches is held to the base amount, everything is flagged.
+// per wallet per week. An unreadable node never blocks a reading. On by default in
+// "base": what it catches is held, everything is flagged.
 const WALLET_CHECK = (() => { const m = String(process.env.WALLET_CHECK || "base").trim().toLowerCase(); return ["off", "flag", "base"].includes(m) ? m : "base"; })();
 const WALLET_CHECK_DAYS = Number(process.env.WALLET_CHECK_DAYS || 7);
 const WALLET_FUNDER_FLAG = Number(process.env.WALLET_FUNDER_FLAG || 3);
@@ -371,11 +366,11 @@ async function walletVerdict(addr) {
   const { suspicious, reasons } = judgeWallet(check, store.walletsFundedBy(check.funder, a), WALLET_FUNDER_FLAG);
   store.setWalletCheck(a, { at: Date.now(), f: check.funder || null, s: suspicious ? 1 : 0 });
   if (reasons.length) {
-    try { store.addFlag(`wallet-${a.slice(2, 10)}-${Date.now()}`, a, `wallet check: ${reasons.join("; ")}${suspicious && WALLET_CHECK === "base" ? " — meter payouts held to the base amount" : ""}`); } catch {}
+    try { store.addFlag(`wallet-${a.slice(2, 10)}-${Date.now()}`, a, `wallet check: ${reasons.join("; ")}${suspicious && WALLET_CHECK === "base" ? " — meter readings recorded without a reward" : ""}`); } catch {}
   }
   return { suspicious, reasons };
 }
-// The amount a meter payout may be, after the wallet check: the base amount only
+// The amount a meter payout may be, after the wallet check: the base amount (0)
 // for a suspicious wallet in "base" mode.
 async function walletCappedAmount(addr, utility, amount) {
   const wv = await walletVerdict(addr);
@@ -1151,15 +1146,18 @@ app.post("/reward", async (req, res) => {
     }
 
     // 3) Scale to this week's budget (budget.js), pay out, then commit cooldown +
-    // baseline (only on success).
-    const pay = await scaledAmount(await walletCappedAmount(req.body.address, req.body.utility, v.amount));
+    // baseline (only on success). A reading that saves nothing (amount 0) goes the
+    // same way minus the payout: recorded, no transaction (see verify.js).
+    const full = await walletCappedAmount(req.body.address, req.body.utility, v.amount);
+    const recordOnly = !(full > 0);
+    const pay = recordOnly ? { amount: 0, factor: null } : await scaledAmount(full);
     if (pay.error) return res.status(503).json({ error: pay.error, budget: true });
     // The checks above can take a minute or two. A shutdown or a failed save that
     // began meanwhile must stop the payout here, before anything is sent.
     if (shuttingDown || !store.ready()) return res.status(503).json({ error: shuttingDown ? "the server is restarting — nothing was used up, please try again in a minute" : notReadyMessage() });
     guard = await guardPayout([...meterPayoutKeys(req.body.address, req.body.utility, req.body.meterNo, req.body.reading), photoPayoutKey(photo.hash)]);
     if (guard.error) { const g = guard; guard = null; return res.status(g.code).json({ error: g.error }); }
-    const txid = await trackPayout(distributeReward({
+    const txid = recordOnly ? null : await trackPayout(distributeReward({
       utility:  req.body.utility,
       meterNo:  req.body.meterNo,
       reading:  req.body.reading,
@@ -1170,6 +1168,9 @@ app.post("/reward", async (req, res) => {
       source:   "photo",
       noImpact: !!(v.firstReading || v.nearZero),
     }));
+    // Flags and the photo archive are keyed by the payout's txid; a reading without
+    // one gets its own id.
+    const recordId = txid || `rec-${String(req.body.address).toLowerCase().slice(2, 10)}-${Date.now()}`;
     // Paid from here on, whatever happens next: a throw in the bookkeeping below must
     // not release the photo and guard keys and tell the user "nothing was used up".
     committed = true;
@@ -1177,7 +1178,7 @@ app.post("/reward", async (req, res) => {
     v.markPaid();
     store.setPhotoAt(req.body.utility, String(req.body.meterNo).trim().toLowerCase());
     if (regSeen) store.setMeterRegs(req.body.utility, String(req.body.meterNo).trim().toLowerCase(), registers, regSeen);
-    recordPayout(v.amount);
+    if (!recordOnly) recordPayout(v.amount);
     store.addPrint(req.body.address, "meter", print);
     // Make the anti-farming state (cooldown, burnt hash, baseline) durable BEFORE
     // responding, so a hard crash in the debounce window can't replay this payout.
@@ -1185,7 +1186,7 @@ app.post("/reward", async (req, res) => {
     // Archive the photo for admin review (opt-in via R2 creds). Fire-and-forget —
     // must never delay or fail the payout. Keyed by txid so it lines up with the
     // on-chain history row shown in admin.
-    archivePhoto(txid, req.body.photo, req.body.photoMime, req.body.address);
+    archivePhoto(recordId, req.body.photo, req.body.photoMime, req.body.address);
     // The app's own checks (OCR match, meter number, plausibility) rode along in the
     // request and were being discarded — so the app could tell a user their
     // submission was "flagged for review" while nothing was recorded and no review
@@ -1210,10 +1211,13 @@ app.post("/reward", async (req, res) => {
         + (photo?.ocrMatched ? `, photo matched ${photo.ocrMatched}` : ""));
     }
     if (reasons.length) {
-      try { store.addFlag(txid, req.body.address, reasons.join(" · ")); }
+      try { store.addFlag(recordId, req.body.address, reasons.join(" · ")); }
       catch (e) { console.error("[/reward] could not record flag:", e?.message || e); }
     }
-    res.json({ txid, amount: pay.amount, fullAmount: v.amount, factor: pay.factor, flagged: reasons.length > 0, pending: payoutPending(txid) });
+    if (recordOnly) {
+      return res.json({ txid: null, amount: 0, fullAmount: 0, recorded: true, reason: v.noReward || "recorded, no reward this time", usage: v.usage, flagged: reasons.length > 0, pending: false });
+    }
+    res.json({ txid, amount: pay.amount, fullAmount: v.amount, factor: pay.factor, flagged: reasons.length > 0, usage: v.usage, pending: payoutPending(txid) });
   } catch (e) {
     console.error("[/reward]", scrub(e?.message || e));
     if (!res.headersSent) {
@@ -1231,107 +1235,12 @@ app.post("/reward", async (req, res) => {
   }
 });
 
-// ── Eco-mode bonus ────────────────────────────────────────────────────────────
-// POST /eco-action: photograph an appliance (washer/dryer/dishwasher) running in
-// eco mode → fixed ECO_REWARD. No meter reading to anchor, so the guards are:
-// photo-hash dedupe (one photo ever earns once), the optional AI authenticity
-// check, the wallet certificate, a hard cap of ECO_MAX_PER_WEEK claims per
-// calendar week (Mon–Sun) and a 24h cooldown between claims.
-app.post("/eco-action", async (req, res) => {
-  if (banned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
-  { const pb = await passBlock(req.body.address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
-  if (!store.ready()) return res.status(503).json({ error: notReadyMessage() });
-
-  if (captchaEnabled()) {
-    const cap = await verifyCaptcha(req.body.captchaToken, req.clientIp);
-    if (!cap.ok) return res.status(403).json({ error: cap.error });
-  }
-
-  const addr = String(req.body.address || "").toLowerCase();
-  if (!/^0x[0-9a-f]{40}$/.test(addr)) return res.status(400).json({ error: "invalid wallet address" });
-  const appliance = String(req.body.appliance || "").toLowerCase();
-  if (!ECO_APPLIANCES.has(appliance)) return res.status(400).json({ error: "unknown appliance" });
-
-  {
-    const c = await requireBoundCert(req, ["confirm eco-mode bonus", `Appliance: ${appliance}`]);
-    if (!c.ok) return res.status(c.code).json({ error: c.error });
-  }
-  const deviceFlags = [], deviceUndo = [];
-  { const refuse = deviceGate(addr, req.body.device, deviceFlags, deviceUndo); if (refuse) return res.status(403).json({ error: refuse, device: true }); }
-
-  // Two limits: max ECO_MAX_PER_WEEK per CALENDAR week (Mon–Sun, resets Monday
-  // morning) and at least ECO_COOLDOWN_MS (24h) between two claims.
-  const claims = store.ecoClaims(addr);
-  const thisWeek = claims.filter((t) => ecoWeekKey(t) === ecoWeekKey());
-  if (thisWeek.length >= ECO_MAX_PER_WEEK) {
-    for (const u of deviceUndo) u();
-    return res.status(429).json({ error: `eco-bonus limit reached (${ECO_MAX_PER_WEEK} per week) — resets Monday` });
-  }
-  const last = claims.reduce((a, t) => Math.max(a, t), 0);
-  const wait = ECO_COOLDOWN_MS - (Date.now() - last);
-  if (last && wait > 0) {
-    for (const u of deviceUndo) u();
-    return res.status(429).json({ error: `eco cooldown active — next claim in ~${Math.ceil(wait / 3600000)}h` });
-  }
-
-  // Claim the lock synchronously before any await (same TOCTOU fix as /reward).
-  const lockKey = `${addr}:eco`;
-  if (inFlight.has(lockKey)) { for (const u of deviceUndo) u(); return res.status(429).json({ error: "an eco submission is already processing" }); }
-  inFlight.add(lockKey);
-  let photo = null, committed = false, guard = null;
-  try {
-    { const busy = photoCheckBudget(addr); if (busy) return res.status(429).json({ error: busy }); }
-    // Real image + never paid for before (reserved here). No OCR — no reading to match.
-    photo = await verifyPhoto({ imageBase64: req.body.photo, ocr: false, mime: req.body.photoMime });
-    if (!photo.ok) return res.status(400).json({ error: photo.error });
-
-    if (aiPhotoCheckEnabled()) {
-      const auth = await checkPhotoAuthenticity(req.body.photo, photo.mime);
-      if (!auth.ok) return res.status(auth.unavailable ? 503 : 400).json({ error: auth.unavailable ? auth.reason : `photo rejected: ${auth.reason}` });
-    }
-
-    // The same appliance photographed for several wallets.
-    const print = await photoPrint(req.body.photo);
-    if (print === false) return res.status(400).json({ error: "this photo can't be read — please take it again in the app" });
-    const near = nearestPrintFromOtherWallet(print, req.body.address, "eco");
-    if (near && near.d <= PRINT_REFUSE) {
-      store.addFlag(`sybil-${addr.slice(2, 10)}-${Date.now()}`, req.body.address,
-        `refused eco: photo nearly identical (${near.d}/64) to one paid to ${shortAddr(near.a)}`);
-      return res.status(400).json({ error: "this photo looks like one another wallet already submitted" });
-    }
-
-    await walletVerdict(addr);   // findings go to the admin; the eco bonus is fixed
-    const pay = await scaledAmount(ECO_REWARD);
-    if (pay.error) return res.status(503).json({ error: pay.error, budget: true });
-    if (shuttingDown || !store.ready()) return res.status(503).json({ error: shuttingDown ? "the server is restarting — nothing was used up, please try again in a minute" : notReadyMessage() });
-    guard = await guardPayout([[`eco:${addr}`, ECO_COOLDOWN_MS, "eco cooldown active — one eco bonus per 24 hours"], photoPayoutKey(photo.hash)]);
-    if (guard.error) { const g = guard; guard = null; return res.status(g.code).json({ error: g.error }); }
-    const txid = await trackPayout(distributeEcoReward({ appliance, amount: pay.amount, receiver: req.body.address }));
-    committed = true; // paid: see /reward
-    confirmDevice(addr, req.body.device);
-    store.addEcoClaim(addr, Date.now());
-    recordPayout(ECO_REWARD);
-    store.addPrint(req.body.address, "eco", print);
-    const ecoFlags = [...(near && near.d <= PRINT_FLAG ? [`eco photo resembles one paid to ${shortAddr(near.a)} (${near.d}/64)`] : []), ...deviceFlags];
-    if (ecoFlags.length) {
-      try { store.addFlag(txid, req.body.address, ecoFlags.join("; ")); } catch {}
-    }
-    await store.flush(); // make the claim + burnt hash durable before responding
-    archivePhoto(txid, req.body.photo, req.body.photoMime, req.body.address);
-    res.json({ txid, amount: pay.amount, fullAmount: ECO_REWARD, factor: pay.factor, remaining: ECO_MAX_PER_WEEK - thisWeek.length - 1, pending: payoutPending(txid) });
-  } catch (e) {
-    console.error("[/eco-action]", scrub(e?.message || e));
-    if (!res.headersSent) {
-      res.status(502).json({ error: committed
-        ? "the reward was sent, but recording it hit a problem — check your wallet before trying again"
-        : e?.public ? e.message : "the payout couldn't be completed — nothing was used up, please try again later" });
-    }
-  } finally {
-    if (!committed && photo?.ok) photo.unreserve();
-    if (!committed && guard?.release) await guard.release();
-    if (!committed) for (const u of deviceUndo) u();
-    inFlight.delete(lockKey);
-  }
+// ── Eco-mode bonus (ended) ───────────────────────────────────────────────────
+// A photo of an appliance on its eco setting paid a fixed amount without a metered
+// kWh behind it. Every reward now comes from metered savings, so the route only
+// says so, for an app version that still offers it.
+app.post("/eco-action", (req, res) => {
+  res.status(410).json({ error: "the eco bonus has ended — rewards now come from the electricity you save, measured on your meter" });
 });
 
 // ── Smart-meter ingestion (beta) ─────────────────────────────────────────────
@@ -1862,12 +1771,15 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
   inFlight.add(lockKey);
   let guard = null, paid = false;
   try {
-    const pay = await scaledAmount(await walletCappedAmount(addr, utility, v.amount));
+    // As in /reward: a reading that saves nothing is recorded without a payout.
+    const full = await walletCappedAmount(addr, utility, v.amount);
+    const recordOnly = !(full > 0);
+    const pay = recordOnly ? { amount: 0, factor: null } : await scaledAmount(full);
     if (pay.error) return { ok: false, code: 503, error: pay.error };
     if (shuttingDown || !store.ready()) return { ok: false, code: 503, error: shuttingDown ? "the server is restarting — nothing was used up, please try again in a minute" : notReadyMessage() };
     guard = await guardPayout(meterPayoutKeys(addr, utility, meterNo, latest.reading));
     if (guard.error) { const g = guard; guard = null; return { ok: false, code: g.code, error: g.error }; }
-    const txid = await trackPayout(distributeReward({
+    const txid = recordOnly ? null : await trackPayout(distributeReward({
       utility, meterNo,
       reading:  Number(latest.reading),
       prevRead: v.prev,
@@ -1880,8 +1792,8 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
     }));
     paid = true;
     v.markPaid();
-    recordPayout(v.amount);
-    if (v.nearZero) { try { store.addFlag(txid, addr, `${v.nearZero} (reader)`); } catch {} }
+    if (!recordOnly) recordPayout(v.amount);
+    if (v.nearZero) { try { store.addFlag(txid || `rec-${addr.toLowerCase().slice(2, 10)}-${Date.now()}`, addr, `${v.nearZero} (reader)`); } catch {} }
     // This pairing has now produced a real payout, which means its readings and the
     // stored baseline are on the same scale. That closes /meter/rebaseline: the
     // escape hatch exists for a starting point that was never comparable, not for
@@ -1892,7 +1804,8 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
     const cur = link?.token ? store.getMeterLink(link.token) : null;
     if (cur) store.setMeterLink(link.token, { ...cur, autoPaidAt: Date.now(), lastPayout: { amount: pay.amount, txid, at: Date.now(), reading: Number(latest.reading) } });
     await store.flush(); // durable before returning, so a crash can't replay this reading
-    return { ok: true, txid, amount: pay.amount, fullAmount: v.amount, factor: pay.factor, usage: v.usage, reading: Number(latest.reading), source: latest.source || "meter", pending: payoutPending(txid) };
+    return { ok: true, txid, amount: pay.amount, fullAmount: recordOnly ? 0 : v.amount, factor: pay.factor, usage: v.usage, reading: Number(latest.reading), source: latest.source || "meter",
+      pending: txid ? payoutPending(txid) : false, ...(recordOnly ? { recorded: true, reason: v.noReward || "recorded, no reward this time" } : {}) };
   } finally {
     if (!paid && guard?.release) await guard.release();
     inFlight.delete(lockKey);
@@ -1916,7 +1829,7 @@ app.post("/reward-from-meter", async (req, res) => {
   try {
     const r = await settleMeterReading({ address, utility: String(req.body.utility || "electric"), meterNo: req.body.meterNo });
     if (!r.ok) return res.status(r.code || 400).json({ error: r.error, ...(r.needsPhoto ? { needsPhoto: true } : {}) });
-    res.json({ txid: r.txid, amount: r.amount, usage: r.usage, reading: r.reading, source: r.source, pending: !!r.pending });
+    res.json({ txid: r.txid, amount: r.amount, usage: r.usage, reading: r.reading, source: r.source, pending: !!r.pending, ...(r.recorded ? { recorded: true, reason: r.reason } : {}) });
   } catch (e) {
     console.error("[/reward-from-meter]", e?.message || e);
     res.status(502).json({ error: e?.public ? e.message : "the payout couldn't be completed — nothing was used up, please try again later" });
@@ -2135,7 +2048,7 @@ async function autoSettle(link, why = "timer") {
   if ((latest.at || 0) <= lastPaid) return null;
   try {
     const r = await settleMeterReading({ address: link.address, utility, meterNo });
-    if (r.ok) console.log(`[auto-pay:${why}] ${shortAddr(link.address)} +${r.amount} B3TR (${r.txid})`);
+    if (r.ok) console.log(`[auto-pay:${why}] ${shortAddr(link.address)} ${r.recorded ? `recorded, no reward (${r.reason})` : `+${r.amount} B3TR (${r.txid})`}`);
     // Non-ok results (cooldown / no baseline / budget) are normal skips, not errors.
     return r;
   } catch (e) {
@@ -2241,8 +2154,8 @@ if (PHOTO_RETENTION_MS > 0) {
 // word: COOLDOWN_MS="20h" is NaN, and every comparison with NaN is false, so the
 // cooldown never applies. Refuse to start instead.
 {
-  const NUMERIC_ENV = ["COOLDOWN_MS", "MAX_REWARD", "MAX_PAYOUT_PER_SUBMISSION", "ECO_REWARD", "ECO_MAX_PER_WEEK",
-    "ECO_COOLDOWN_MS", "AUTO_PHOTO_EVERY_DAYS", "METER_MAX_AGE_MS", "DEVICE_MAX_WALLETS", "DEVICE_FP_FLAG",
+  const NUMERIC_ENV = ["COOLDOWN_MS", "MAX_REWARD", "MAX_PAYOUT_PER_SUBMISSION",
+    "AUTO_PHOTO_EVERY_DAYS", "METER_MAX_AGE_MS", "DEVICE_MAX_WALLETS", "DEVICE_FP_FLAG",
     "PHOTO_MAX_AGE_DAYS", "AI_PHOTO_MIN_CONFIDENCE", "PHOTO_LIKENESS_REFUSE", "PHOTO_LIKENESS_FLAG",
     "CERT_MAX_AGE_MS", "OCR_DAILY_MAX", "OCR_DAILY_PER_IP", "BROADCAST_RETRY_MS", "REDIS_TIMEOUT_MS",
     "BUDGET_POOL_B3TR", "BUDGET_WAITING_B3TR", "PHOTO_BODIES_MAX", "PHOTO_CHECKS_PER_WALLET_DAY", "PHOTO_CHECKS_PER_DAY",

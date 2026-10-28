@@ -10,15 +10,14 @@ import { startServer, photo, stateWithBaseline, WALLET } from "./helpers.mjs";
 describe("rules and the next allowed submission", () => {
   let srv;
   before(async () => {
-    srv = await startServer({ state: stateWithBaseline(), env: { COOLDOWN_MS: "72000000", MAX_PAYOUT_PER_SUBMISSION: "1", ECO_REWARD: "1" } });
+    srv = await startServer({ state: stateWithBaseline(), env: { COOLDOWN_MS: "72000000", MAX_PAYOUT_PER_SUBMISSION: "1" } });
   });
   after(async () => { await srv.stop(); });
 
   test("/health carries this deployment's rules", async () => {
     const h = await srv.get("/health");
     assert.deepEqual(h.body.rules, {
-      cooldownMs: 72000000, maxPayout: 1, ecoReward: 1, ecoMaxPerWeek: 4,
-      ecoCooldownMs: 86400000, ecoTz: "Europe/Amsterdam", utilities: ["electric"],
+      cooldownMs: 72000000, maxPayout: 1, utilities: ["electric"],
     });
   });
 

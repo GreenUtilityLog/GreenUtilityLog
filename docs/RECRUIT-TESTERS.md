@@ -7,6 +7,10 @@ Telegram: https://t.me/+2xj7_lypLIQ0ZjJk
 Honest framing throughout: **testnet · test-B3TR · no real value**. That's what serious
 testers respect — and it keeps you out of trouble.
 
+> ⚠️ **Out of date:** the eco-mode bonus (🌿 lines below) has ended. Every reward now
+> comes from kWh saved below the daily target, and a meter's first reading only sets
+> the starting point. Leave the eco lines out when you reuse these posts.
+
 ---
 
 ## 🐦 X / Twitter

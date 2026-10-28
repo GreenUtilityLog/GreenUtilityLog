@@ -12,7 +12,7 @@ describe("a meter's first reading", () => {
   before(async () => { srv = await startServer({ state: stateWithBaseline() }); });
   after(async () => { await srv.stop(); });
 
-  test("earns the base amount only — its 'previous reading' is the submitter's own word", async () => {
+  test("earns nothing — its 'previous reading' is the submitter's own word", async () => {
     // prevRead = reading claims zero usage, which used to be the maximum payout on
     // any freshly invented meter number.
     const r = await srv.post("/reward", {
@@ -20,7 +20,9 @@ describe("a meter's first reading", () => {
       reading: 5000, prevRead: 5000, photo: photo("first"), photoMime: "image/jpeg",
     });
     assert.equal(r.status, 200, JSON.stringify(r.body));
-    assert.equal(r.body.amount, 0.2);
+    assert.equal(r.body.amount, 0);
+    assert.equal(r.body.txid, null);
+    assert.match(r.body.reason, /starting point/);
     assert.equal(srv.readState().readings["electric:new-1"], 5000, "and it sets the baseline");
   });
 });
