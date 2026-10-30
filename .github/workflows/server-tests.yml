@@ -41,6 +41,22 @@ jobs:
       - run: npm test
         working-directory: server
 
+  # The app: a name used but never defined builds fine and only breaks in the
+  # browser, on the screen that uses it (a removed handler once took the Meter
+  # screen down). The linter catches that before deploy; the build catches the rest.
+  app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci
+      # Lint-only tools, not app dependencies (eslint.config.mjs).
+      - run: npm install --no-save eslint@9.39.1 globals@15.15.0 eslint-plugin-react@7.37.5 eslint-plugin-react-hooks@5.2.0
+      - run: npx eslint src
+      - run: npm run build
+
   # The bridge is downloaded as one loose gul.js and run on whatever Node the user
   # has — Debian/Raspberry Pi OS ship 18. It once failed to even start there.
   bridge:
