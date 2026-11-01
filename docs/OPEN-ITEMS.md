@@ -19,6 +19,11 @@ Laatst bijgewerkt: 2026-11-01.
 - [x] Bijsnijdscherm boven de menubalk (portal naar `document.body`, ondoorzichtig) (#148)
 - [x] Eerste gebruik: "Log your first reading" op Home; registratietekst kort; "baseline" → startpunt (#148)
 
+## Media voor X ✅
+- [x] Acht bewegende banners (MP4 + GIF): meter, kiemplant, week, P1-landen, DACH, Noorden, VS/Canada, zondagsvraag (#149)
+- [x] Deellinks met elk een eigen voorbeeldkaart: `…/GreenUtilityLog/share/<naam>.html` (#149)
+- [x] Opnieuw maken of een nieuwe zondagsvraag: `node brand/animated/render.cjs sunday --q="…"` (#149)
+
 ## Ronde 3 — afwerking ontwerp
 - [ ] Emoji in menu, kop en badges vervangen door de bestaande `UI_ICONS` (SVG)
 - [ ] Knoppen minimaal 44 px (wallet-knop, help, dubbeltarief-vinkje, taalkeuze, Sluiten, Retake)
