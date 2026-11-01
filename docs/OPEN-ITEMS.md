@@ -41,7 +41,7 @@ Laatst bijgewerkt: 2026-11-01.
 - [ ] Hele app vertalen (NL, DE, FR, ES) — `src/i18n.js` + taalkeuze in Instellingen:
   - [x] Stap 1: intro, tutorial, verbinden, registratie, Home, menu, kopbalk, banners (#154)
   - [x] Stap 2: meterscherm (foto, stand, insturen, meldingen) (#155)
-  - [ ] Stap 3: Voortgang, Geschiedenis, Profiel, Instellingen, Feedback
+  - [x] Stap 3: Voortgang, Geschiedenis, Profiel, Instellingen, Feedback (#156)
   - [ ] Stap 4: automatisch uitlezen; Help-teksten naar de vertaalde knopnamen
   - Foutmeldingen van de server blijven Engels
 - [x] Toegankelijkheid: dialogen met `role="dialog"`, focus erin, Tab blijft binnen, Escape sluit (#153)

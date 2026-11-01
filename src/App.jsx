@@ -827,6 +827,8 @@ const ONBOARD_SLIDES = () => [
 // Pseudo-utility for the eco-mode bonus: it shows up in history/charts like a
 // submission but has no meter reading, unit or rate.
 const ECO_UTIL = { id: "eco", label: "Eco Mode", unit: "", rate: 0, ph: ["", ""], hint: "Appliance eco-mode bonus" };
+// A meter type's name in the current language (UTILS labels are English).
+function utilName(id){ return id === "electric" ? t("util.electric") : getUtil(id).label; }
 function getUtil(id){ return id === "eco" ? ECO_UTIL : (UTILS.find(u=>u.id===id)||UTILS[0]); }
 // Registered up-front (electric/gas/water); optional ones (solar) are added later.
 const REQUIRED_UTILS = UTILS.filter(u => !u.optional);
@@ -2348,11 +2350,11 @@ function StreakCalendar({ subs }) {
   return (
     <div className="calendar">
       <div className="cal-hdr">
-        <div className="cal-month">{today.toLocaleString('en', { month: 'long' })} {year}</div>
-        <div className="cal-streak">🔥 {currentStreak} day{currentStreak !== 1 ? 's' : ''}</div>
+        <div className="cal-month">{today.toLocaleString(getLang(), { month: 'long' })} {year}</div>
+        <div className="cal-streak">{t("cal.streak", { n: currentStreak })}</div>
       </div>
       <div className="cal-days-hdr">
-        {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(d => <div key={d} className="cal-day-name">{d}</div>)}
+        {weekdayInitials().map((d, i) => <div key={i} className="cal-day-name">{d}</div>)}
       </div>
       <div className="cal-grid">
         {dates.map((d, i) => {
@@ -2389,21 +2391,21 @@ function HistItem({ s, T }) {
   return (
     <div role="button" tabIndex={0} className="hitem" onClick={() => { if (txUrl) window.open(txUrl, "_blank", "noopener"); }}
       style={txUrl ? { cursor: "pointer" } : undefined}
-      title={txUrl ? "View this transaction on the VeChain explorer" : undefined}>
+      title={txUrl ? t("h.viewTx") : undefined}>
       <div className="hicon" style={{background: getColorBg(s.type, T), color: T[s.type] || T.electric}}>{UTIL_ICONS[s.type]}</div>
       <div className="hinfo">
         {/* What was used, then when — the meter number only as its last digits,
             so rows line up instead of wrapping on a 17-character number. */}
-        <div className="htitle">{util.label} · <span style={{textTransform:"none",letterSpacing:0,fontWeight:700,color:T.textMid}}>{delta}{util.unit && delta !== "—" ? ` ${util.unit}` : ""}</span></div>
-        <div className="hdate">{fmtDay(s.date)}{s.meterNo ? <span title={`Meter ${s.meterNo}`}> · meter …{String(s.meterNo).slice(-4)}</span> : null}{txUrl ? <span> · tx ↗</span> : null}</div>
+        <div className="htitle">{utilName(s.type)} · <span style={{textTransform:"none",letterSpacing:0,fontWeight:700,color:T.textMid}}>{delta}{util.unit && delta !== "—" ? ` ${util.unit}` : ""}</span></div>
+        <div className="hdate">{fmtDay(s.date)}{s.meterNo ? <span title={s.meterNo}> · {t("h.meter", { n: String(s.meterNo).slice(-4) })}</span> : null}{txUrl ? <span> · tx ↗</span> : null}</div>
       </div>
       {/* A reading recorded without a reward (no kWh saved, or a first reading) has
           no amount to show; a failed payout's amount was never received. */}
-      <div className="hright" title={s.status === "recorded" ? (s.note || "Recorded — no saving to reward") : undefined}>
+      <div className="hright" title={s.status === "recorded" ? (s.note || t("h.recordedNote")) : undefined}>
         {s.status === "recorded"
           ? <div className="hb3tr" style={{ color: T.textSoft }}>—</div>
           : <div className="hb3tr" style={s.status === "failed" ? { color: T.textSoft, textDecoration: "line-through" } : undefined}>+{parseFloat(s.b3tr).toFixed(2)} <span style={{ fontSize: 10, fontWeight: 700 }}>B3TR</span></div>}
-        <div className={`hstatus s-${s.status}`}>{s.status === "recorded" ? "no saving" : s.status}</div>
+        <div className={`hstatus s-${s.status}`}>{["confirmed", "pending", "failed", "recorded"].includes(s.status) ? t(`h.st.${s.status}`) : s.status}</div>
       </div>
     </div>
   );
@@ -3887,7 +3889,7 @@ function ChartsScreen({ subs, T, part }) {
 
   if (part === "impact") return (
     <div style={{display:"grid",gridTemplateColumns:"repeat(3, minmax(0, 1fr))",gap:8,margin:"0 14px 12px"}}>
-      {[{ icon: "🌍", v: co2Label, k: "CO₂ avoided" }, { icon: "⚡", v: `${kwhSaved.toFixed(kwhSaved >= 100 ? 0 : 1)} kWh`, k: "Saved" }, { icon: "🔥", v: `${streak} ${streak === 1 ? "day" : "days"}`, k: "Streak" }].map(x => (
+      {[{ icon: "🌍", v: co2Label, k: t("c.co2") }, { icon: "⚡", v: `${kwhSaved.toFixed(kwhSaved >= 100 ? 0 : 1)} kWh`, k: t("c.saved") }, { icon: "🔥", v: t("c.days", { n: streak }), k: t("c.streak") }].map(x => (
         <div key={x.k} className="pstat" style={{padding:"10px 6px"}}>
           <div style={{fontSize:17}}>{x.icon}</div>
           <div className="pstat-val" style={{fontSize:16,marginTop:3}}>{x.v}</div>
@@ -3907,8 +3909,8 @@ function ChartsScreen({ subs, T, part }) {
       )}
       <div className="chart-card" style={{textAlign:"center",padding:"28px 16px"}}>
         <div style={{fontSize:26,marginBottom:8}}>📊</div>
-        <div style={{fontSize:12,fontWeight:700,color:T.text,marginBottom:4}}>No data yet</div>
-        <div style={{fontSize:11,color:T.textSoft,lineHeight:1.5}}>Submit your first meter reading and your impact statistics will appear here.</div>
+        <div style={{fontSize:12,fontWeight:700,color:T.text,marginBottom:4}}>{t("c.noData")}</div>
+        <div style={{fontSize:11,color:T.textSoft,lineHeight:1.5}}>{t("c.noData.d")}</div>
       </div>
     </>
   );
@@ -3924,10 +3926,10 @@ function ChartsScreen({ subs, T, part }) {
 
       {/* Impact headline — the numbers that tell the sustainability story */}
       {!part && <div className="pstat-row">
-        <Tile icon="🌍" val={co2Label.split(" ")[0]} unit={co2Label.split(" ")[1] + " CO₂e"} label="Emissions avoided" />
-        <Tile icon="⚡" val={kwhSaved.toFixed(1)} unit="kWh" label="Energy saved" sub="vs efficiency target" />
-        <Tile icon="🪙" val={totalB3TR.toFixed(2)} unit="B3TR" label="Total earned" sub={ecoB3TR > 0 ? `${(totalB3TR - ecoB3TR).toFixed(2)} meters · ${ecoB3TR.toFixed(2)} eco` : undefined} />
-        <Tile icon="🔥" val={streak} unit={streak === 1 ? "day" : "days"} label="Streak" sub={`${subs.length} submission${subs.length === 1 ? "" : "s"}`} />
+        <Tile icon="🌍" val={co2Label.split(" ")[0]} unit={co2Label.split(" ")[1] + " CO₂e"} label={t("c.emissions")} />
+        <Tile icon="⚡" val={kwhSaved.toFixed(1)} unit="kWh" label={t("c.energy")} sub={t("c.vsTarget")} />
+        <Tile icon="🪙" val={totalB3TR.toFixed(2)} unit="B3TR" label={t("c.totalEarned")} sub={ecoB3TR > 0 ? `${(totalB3TR - ecoB3TR).toFixed(2)} meters · ${ecoB3TR.toFixed(2)} eco` : undefined} />
+        <Tile icon="🔥" val={streak} unit="" label={t("c.streak")} sub={t("c.submissions", { n: subs.length })} />
       </div>}
 
       {/* Usage vs the efficiency target — the core conservation view */}
@@ -3945,15 +3947,15 @@ function ChartsScreen({ subs, T, part }) {
         return (
           <div key={u.id} className="chart-card">
             <div className="chart-hdr">
-              <div className="chart-title">{u.label} — {saving ? "usage vs target" : "production"}</div>
-              <div style={{fontSize:10,color:T.textSoft}}>{series.length ? `avg ${avg.toFixed(1)} ${u.unit}` : ""}</div>
+              <div className="chart-title">{saving ? t("c.usageVsTarget", { label: utilName(u.id) }) : `${utilName(u.id)} — production`}</div>
+              <div style={{fontSize:10,color:T.textSoft}}>{series.length ? t("c.avg", { n: avg.toFixed(1), unit: u.unit }) : ""}</div>
             </div>
             {series.length ? (
               <>
                 <div style={{position:"relative",height:110,display:"flex",alignItems:"flex-end",gap:2,padding:"14px 2px 0"}}>
                   {bench > 0 && (
                     <div style={{position:"absolute",left:0,right:0,bottom:`${(bench / maxScale) * 100}%`,borderTop:`2px dashed ${T.textSoft}`,zIndex:1}}>
-                      <span style={{position:"absolute",right:2,top:-14,fontSize:10.5,fontWeight:700,color:T.textSoft,background:T.card,padding:"0 3px"}}>target {bench} {u.unit}</span>
+                      <span style={{position:"absolute",right:2,top:-14,fontSize:10.5,fontWeight:700,color:T.textSoft,background:T.card,padding:"0 3px"}}>{t("c.target", { n: bench, unit: u.unit })}</span>
                     </div>
                   )}
                   {series.map((d, i) => (
@@ -3966,13 +3968,13 @@ function ChartsScreen({ subs, T, part }) {
                 </div>
                 {saving && (
                 <div style={{display:"flex",gap:12,marginTop:8,fontSize:10.5,color:T.textMid}}>
-                  <span><span style={{display:"inline-block",width:8,height:8,borderRadius:6,background:T.green3,marginRight:4,verticalAlign:"middle"}}/>under target ({underCount})</span>
-                  <span><span style={{display:"inline-block",width:8,height:8,borderRadius:6,background:T.electric,marginRight:4,verticalAlign:"middle"}}/>above target ({series.length - underCount})</span>
+                  <span><span style={{display:"inline-block",width:8,height:8,borderRadius:6,background:T.green3,marginRight:4,verticalAlign:"middle"}}/>{t("c.under", { n: underCount })}</span>
+                  <span><span style={{display:"inline-block",width:8,height:8,borderRadius:6,background:T.electric,marginRight:4,verticalAlign:"middle"}}/>{t("c.above", { n: series.length - underCount })}</span>
                 </div>
                 )}
               </>
             ) : (
-              <div style={{padding:"18px 4px",fontSize:11,color:T.textSoft,textAlign:"center"}}>No readings yet — log this meter to see your usage.</div>
+              <div style={{padding:"18px 4px",fontSize:11,color:T.textSoft,textAlign:"center"}}>{t("c.noReadings")}</div>
             )}
           </div>
         );
@@ -3981,8 +3983,8 @@ function ChartsScreen({ subs, T, part }) {
       {/* Earnings per calendar week */}
       <div className="chart-card">
         <div className="chart-hdr">
-          <div className="chart-title">B3TR earned per week</div>
-          <div style={{fontSize:10,color:T.textSoft}}>last 6 weeks</div>
+          <div className="chart-title">{t("c.perWeek")}</div>
+          <div style={{fontSize:10,color:T.textSoft}}>{t("c.last6")}</div>
         </div>
         <div style={{position:"relative",height:90,display:"flex",alignItems:"flex-end",gap:4,padding:"12px 2px 0"}}>
           {weeks.map((w, i) => (
@@ -3994,22 +3996,22 @@ function ChartsScreen({ subs, T, part }) {
           ))}
         </div>
         <div style={{display:"flex",gap:4,padding:"2px 2px 0"}}>
-          {weeks.map((w, i) => <div key={i} style={{flex:1,textAlign:"center",fontSize:10,color: w.start === thisWeek ? T.green3 : T.textSoft,fontWeight: w.start === thisWeek ? 700 : 400}}>{w.start === thisWeek ? "now" : wkLabel(w.start)}</div>)}
+          {weeks.map((w, i) => <div key={i} style={{flex:1,textAlign:"center",fontSize:10,color: w.start === thisWeek ? T.green3 : T.textSoft,fontWeight: w.start === thisWeek ? 700 : 400}}>{w.start === thisWeek ? t("c.now") : wkLabel(w.start)}</div>)}
         </div>
       </div>
 
       {(bestDay || bestReward) && (
         <div className="chart-card">
-          <div className="chart-hdr"><div className="chart-title">🏅 Personal records</div></div>
+          <div className="chart-hdr"><div className="chart-title">{t("c.records")}</div></div>
           {bestDay && (
             <div style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${T.border}`,fontSize:11}}>
-              <span style={{color:T.textMid}}>Most efficient reading</span>
+              <span style={{color:T.textMid}}>{t("c.bestReading")}</span>
               <span style={{fontWeight:700,color:T.green3}}>{usageOf(bestDay).toFixed(2)} {getUtil(bestDay.type).unit} · {fmtDay(bestDay.date)}</span>
             </div>
           )}
           {bestReward && (
             <div style={{display:"flex",justifyContent:"space-between",padding:"7px 0",fontSize:11}}>
-              <span style={{color:T.textMid}}>Biggest single reward</span>
+              <span style={{color:T.textMid}}>{t("c.bestReward")}</span>
               <span style={{fontWeight:700,color:T.green3}}>+{(parseFloat(bestReward.b3tr) || 0).toFixed(2)} B3TR · {fmtDay(bestReward.date)}</span>
             </div>
           )}
@@ -4086,12 +4088,12 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
   const weekB3tr = weekSubs.reduce((a, s) => a + (Number(s.b3tr) || 0), 0).toFixed(2);
   
   const badges = [
-    { id: "early", name: "Early adopter", icon: "🚀", how: "first reading", unlocked: subs.length > 0 },
-    { id: "7day", name: "Week warrior", icon: "🔥", how: "7-day streak", unlocked: streak >= 7 },
-    { id: "100sub", name: "Century club", icon: "💯", how: "100 readings", unlocked: subs.length >= 100 },
-    { id: "20day", name: "Legend", icon: "👑", how: "20-day streak", unlocked: streak >= 20 },
-    { id: "250b3tr", name: "B3TR whale", icon: "🐋", how: "250 B3TR", unlocked: b3tr >= 250 },
-    { id: "rank1", name: "Champion", icon: "🏆", how: "rank #1", unlocked: isLive && board.length > 1 && myRank === 1 && myBoardB3tr > 0 },
+    { id: "early", name: t("b.early"), icon: "🚀", how: t("b.early.how"), unlocked: subs.length > 0 },
+    { id: "7day", name: t("b.week"), icon: "🔥", how: t("b.week.how"), unlocked: streak >= 7 },
+    { id: "100sub", name: t("b.century"), icon: "💯", how: t("b.century.how"), unlocked: subs.length >= 100 },
+    { id: "20day", name: t("b.legend"), icon: "👑", how: t("b.legend.how"), unlocked: streak >= 20 },
+    { id: "250b3tr", name: t("b.whale"), icon: "🐋", how: t("b.whale.how"), unlocked: b3tr >= 250 },
+    { id: "rank1", name: t("b.champ"), icon: "🏆", how: t("b.champ.how"), unlocked: isLive && board.length > 1 && myRank === 1 && myBoardB3tr > 0 },
   ];
   const [view, setView] = useState("usage");
   const label = { fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".8px", color: T.textSoft };
@@ -4099,17 +4101,17 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
   const meterReadings = subs.filter(s => s.type !== "eco").length;
   const goals = [
     streak < 7
-      ? { icon: "🔥", label: "7-day streak", left: `${7 - streak} ${7 - streak === 1 ? "day" : "days"} to go` }
-      : { icon: "👑", label: "20-day streak", left: streak >= 20 ? "Reached ✓" : `${20 - streak} days to go` },
-    { icon: "🏆", label: "Top 3", left: !isLive ? "—" : myRank <= 3 ? "You're in it ✓" : `${myRank - 3} ${myRank - 3 === 1 ? "place" : "places"} to go` },
-    { icon: "💯", label: "Century club", left: meterReadings >= 100 ? "Reached ✓" : `${100 - meterReadings} readings to go` },
+      ? { icon: "🔥", label: t("p.goal.7"), left: t("p.daysToGo", { n: 7 - streak }) }
+      : { icon: "👑", label: t("p.goal.20"), left: streak >= 20 ? t("p.reached") : t("p.daysToGo", { n: 20 - streak }) },
+    { icon: "🏆", label: t("p.goal.top3"), left: !isLive ? "—" : myRank <= 3 ? t("p.inIt") : t("p.placesToGo", { n: myRank - 3 }) },
+    { icon: "💯", label: t("p.goal.100"), left: meterReadings >= 100 ? t("p.reached") : t("p.readingsToGo", { n: 100 - meterReadings }) },
   ];
 
   return (
     <>
       <div className="sub-header">
-        <div className="sub-title">Progress</div>
-        <div className="sub-sub">Your impact, rank and goals</div>
+        <div className="sub-title">{t("p.title")}</div>
+        <div className="sub-sub">{t("p.sub")}</div>
       </div>
 
       <div style={{ ...card, margin: "0 14px 12px", padding: 16 }}>
@@ -4117,15 +4119,15 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
           <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
             <span aria-hidden="true" style={{ fontSize: 30, lineHeight: 1 }}>{TIER_ICONS[currentTier.name] || "🌙"}</span>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 18, fontWeight: 800, color: T.text }}>{currentTier.name} tier</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: T.text }}>{t("p.tier", { name: currentTier.name })}</div>
               <div style={{ fontSize: 12, color: T.textSoft, marginTop: 2 }}>
-                {chain.status === "loading" ? "Loading the leaderboard…" : isLive ? `Rank #${myRank} of ${board.length}` : "Rank appears once rewards are on chain"}
+                {chain.status === "loading" ? t("p.loading") : isLive ? t("p.rank", { rank: myRank, total: board.length }) : t("p.rankLater")}
               </div>
             </div>
           </div>
           {nextTier && (
             <div style={{ textAlign: "right", flexShrink: 0 }}>
-              <div style={label}>Next</div>
+              <div style={label}>{t("p.next")}</div>
               <div style={{ fontSize: 13, fontWeight: 800, color: T.text, marginTop: 2 }}>{TIER_ICONS[nextTier.name] || ""} {nextTier.name}</div>
             </div>
           )}
@@ -4135,7 +4137,7 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
           <div style={{ width: `${progressPercent}%`, height: "100%", background: T.green3, transition: "width .3s" }} />
         </div>
         <div style={{ fontSize: 12, color: T.textMid, marginTop: 8 }}>
-          {nextTier ? <><b>{b3trNeeded.toFixed(2)} B3TR</b> to go · {progressPercent}%</> : "Top tier reached 🎉"}
+          {nextTier ? t("p.toGo", { amount: b3trNeeded.toFixed(2), pct: progressPercent }) : t("p.top")}
         </div>
       </div>
 
@@ -4144,22 +4146,22 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
           first now; the full list stays in its tab. */}
       {isLive && board.length > 1 && (
         <div style={{ ...card, margin: "0 14px 12px", padding: 14 }}>
-          <div style={{ ...label, marginBottom: 10 }}>🏆 Leaderboard</div>
+          <div style={{ ...label, marginBottom: 10 }}>{t("p.board")}</div>
           {[...board.slice(0, 3), ...(myRank > 3 ? board.filter((b) => b.isMe) : [])].map((item) => (
             <div key={item.isMe ? "me" : (item.rawAddr || item.name)} style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 36, fontSize: 13 }}>
               <span aria-hidden="true" style={{ width: 24, textAlign: "center", fontSize: item.rank <= 3 ? 18 : 13, fontWeight: 800, color: T.textSoft }}>{["🥇", "🥈", "🥉"][item.rank - 1] || item.rank}</span>
-              <span style={{ flex: 1, minWidth: 0, fontWeight: item.isMe ? 800 : 600, color: T.text, fontFamily: item.isMe ? undefined : "'SF Mono',Menlo,monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.isMe ? `You (#${item.rank})` : item.name}</span>
+              <span style={{ flex: 1, minWidth: 0, fontWeight: item.isMe ? 800 : 600, color: T.text, fontFamily: item.isMe ? undefined : "'SF Mono',Menlo,monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.isMe ? t("p.youRank", { rank: item.rank }) : item.name}</span>
               <span style={{ fontWeight: 800, color: T.text }}>{Number(item.b3tr).toFixed(2)} <span style={{ fontSize: 10, color: T.textSoft }}>B3TR</span></span>
             </div>
           ))}
-          <button type="button" onClick={() => setView("board")} style={{ marginTop: 8, minHeight: 40, width: "100%", border: `1px solid ${T.border}`, borderRadius: 6, background: "transparent", color: T.textMid, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>Full leaderboard ↓</button>
+          <button type="button" onClick={() => setView("board")} style={{ marginTop: 8, minHeight: 40, width: "100%", border: `1px solid ${T.border}`, borderRadius: 6, background: "transparent", color: T.textMid, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>{t("p.fullBoard")}</button>
         </div>
       )}
 
       <ChartsScreen subs={subs} T={T} part="impact" />
 
       <div style={{ ...card, margin: "0 14px 12px", padding: 14 }}>
-        <div style={{ ...label, marginBottom: 10 }}>Next goals</div>
+        <div style={{ ...label, marginBottom: 10 }}>{t("p.goals")}</div>
         {goals.map((g, i) => (
           <div key={g.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, fontSize: 13, marginTop: i ? 10 : 0 }}>
             <span style={{ fontWeight: 700, color: T.text }}>{g.icon} {g.label}</span>
@@ -4168,8 +4170,8 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
         ))}
       </div>
 
-      <div role="tablist" aria-label="Details" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 3, padding: 3, margin: "0 14px 12px", background: T.bgAlt, borderRadius: 6 }}>
-        {[["usage", "Usage"], ["board", "Leaderboard"], ["badges", "Badges"]].map(([id, name]) => {
+      <div role="tablist" aria-label={t("p.tabs")} style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 3, padding: 3, margin: "0 14px 12px", background: T.bgAlt, borderRadius: 6 }}>
+        {[["usage", t("p.tab.usage")], ["board", t("p.tab.board")], ["badges", t("p.tab.badges")]].map(([id, name]) => {
           const on = view === id;
           return (
             <button key={id} type="button" role="tab" aria-selected={on} onClick={() => setView(id)}
@@ -4184,18 +4186,18 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
 
       {view === "board" && (<>
         <div style={{ margin: "0 14px 8px", fontSize: 11, color: chain.status === "live" ? T.green3 : T.textSoft, fontWeight: 700 }}>
-          {chain.status === "loading" ? "Loading on-chain rankings…"
-            : chain.status === "live" ? `Live · ${board.length} on-chain participants${chain.truncated ? " (top, more exist)" : ""}`
-            : (chain.reason === "unset_appid" ? "Rankings aren't available right now" : "Only you for now — live rankings load once rewards are on chain")}
+          {chain.status === "loading" ? t("p.loading")
+            : chain.status === "live" ? `${t("p.live", { n: board.length })}${chain.truncated ? t("p.more") : ""}`
+            : (chain.reason === "unset_appid" ? t("p.noRank") : t("p.onlyYou"))}
         </div>
         <div style={{ ...card, margin: "0 14px 12px", overflow: "hidden" }}>
           {board.slice(0, 25).map((item, i, arr) => (
             <div key={item.isMe ? "me" : (item.rawAddr || item.name)} style={{ display: "grid", gridTemplateColumns: "28px 1fr auto", gap: 10, alignItems: "center", minHeight: 52, padding: "0 14px", background: item.isMe ? (T.green5 || T.bgAlt) : "transparent", borderBottom: i < arr.length - 1 ? `1px solid ${T.border}` : "none" }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: T.textSoft }}>{item.rank}</div>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: item.isMe ? 13 : 12, fontWeight: 700, color: T.text, fontFamily: item.isMe ? undefined : "'SF Mono',Menlo,monospace" }}>{item.isMe ? "You" : item.name}</div>
+                <div style={{ fontSize: item.isMe ? 13 : 12, fontWeight: 700, color: T.text, fontFamily: item.isMe ? undefined : "'SF Mono',Menlo,monospace" }}>{item.isMe ? t("p.you") : item.name}</div>
                 <div style={{ fontSize: 11, color: T.textSoft }}>
-                  {item.count != null ? `${item.count} ${item.count === 1 ? "reward" : "rewards"}` : `${streak}-day streak`}{item.isMe ? ` · ${shortAddr(wallet)}` : ""}
+                  {item.count != null ? t("p.rewards", { n: item.count }) : t("p.streakN", { n: streak })}{item.isMe ? ` · ${shortAddr(wallet)}` : ""}
                 </div>
               </div>
               <div style={{ fontSize: 13, fontWeight: 800, color: T.text }}>{Number(item.b3tr).toFixed(2)}</div>
@@ -4213,7 +4215,7 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
                 {!b.unlocked && <span style={{ position: "absolute", right: -10, bottom: -4, fontSize: 13 }}>🔒</span>}
               </div>
               <div style={{ fontSize: 11, fontWeight: 700, color: b.unlocked ? T.text : T.textSoft, marginTop: 4 }}>{b.name}</div>
-              <div style={{ fontSize: 10, color: T.textSoft, marginTop: 2 }}>{b.unlocked ? "Earned ✓" : `Locked · ${b.how}`}</div>
+              <div style={{ fontSize: 10, color: T.textSoft, marginTop: 2 }}>{b.unlocked ? t("b.earned") : t("b.locked", { how: b.how })}</div>
             </div>
           ))}
         </div>
@@ -4228,11 +4230,11 @@ function HistoryScreen({ subs, T }) {
   return (
     <>
       <div style={{padding:"18px 20px 10px",display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
-        <div className="page-title" style={{padding:0}}>History</div>
-        <div style={{fontSize:11,color:T.textSoft,fontFamily:"'SF Mono',Menlo,'Courier New',monospace"}}>{subs.length} total</div>
+        <div className="page-title" style={{padding:0}}>{t("h.title")}</div>
+        <div style={{fontSize:11,color:T.textSoft,fontFamily:"'SF Mono',Menlo,'Courier New',monospace"}}>{t("h.total", { n: subs.length })}</div>
       </div>
       <div className="filter-row">
-        {[{id:"all",l:"All"},...UTILS.map(u=>({id:u.id,l:u.label}))].map(f=>(
+        {[{id:"all",l:t("h.all")},...UTILS.map(u=>({id:u.id,l:utilName(u.id)}))].map(f=>(
           <button key={f.id} className={`fchip ${filter===f.id?"active":""}`} onClick={()=>setFilter(f.id)}>
             {f.l}
           </button>
@@ -5393,7 +5395,7 @@ function ProfileHero({ wallet, domain, tier, summary, role, onToast, T }) {
   // Another wallet connected: show that wallet's own profile, not the last one's.
   useEffect(() => { const p = loadProfile(wallet); setProfile(p); setDraft(p); setEditing(false); }, [wallet]);
 
-  const title = profile.name || domain || "My Account";
+  const title = profile.name || domain || t("pr.myAccount");
   const avatar = profile.avatar || "🌱";
   const fileRef = useRef(null);
   const pickPhoto = async (e) => {
@@ -5419,16 +5421,16 @@ function ProfileHero({ wallet, domain, tier, summary, role, onToast, T }) {
           {shown.photo ? <img src={shown.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} /> : (editing ? (draft.avatar || "🌱") : avatar)}
         </div>
         <div style={{minWidth:0,flex:1}}>
-          <div className="pname" style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{editing ? (draft.name.trim() || domain || "My Account") : title}</div>
+          <div className="pname" style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{editing ? (draft.name.trim() || domain || t("pr.myAccount")) : title}</div>
           {summary && !editing && <div style={{fontSize:12,color:T.textMid,marginTop:3}}>{summary}</div>}
           <div style={{fontSize:10,color:T.textSoft,fontFamily:mono,marginTop:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-            {wallet ? (profile.name && domain ? `${domain} · ${shortAddr(wallet)}` : shortAddr(wallet)) : "Not connected"}
+            {wallet ? (profile.name && domain ? `${domain} · ${shortAddr(wallet)}` : shortAddr(wallet)) : t("pr.notConnected")}
           </div>
         </div>
         {wallet && !editing && (
           <button onClick={() => { setDraft(profile); setEditing(true); }}
             style={{flexShrink:0,background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"8px 10px",fontSize:11,fontWeight:700,color:T.textMid,cursor:"pointer"}}>
-            ✏️ Edit
+            ✏️ {t("m.edit")}
           </button>
         )}
       </div>
@@ -5473,7 +5475,7 @@ function ProfileHero({ wallet, domain, tier, summary, role, onToast, T }) {
         </div>
       ) : (
         <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:12}}>
-          <span style={{fontSize:10.5,fontWeight:800,background:T.bgAlt,color:tierColor(tier, T),border:`1px solid ${T.border}`,borderRadius:999,padding:"4px 10px",textTransform:"uppercase",letterSpacing:".6px"}}>{TIER_ICONS[tier.name] || ""} {tier.name} tier</span>
+          <span style={{fontSize:10.5,fontWeight:800,background:T.bgAlt,color:tierColor(tier, T),border:`1px solid ${T.border}`,borderRadius:999,padding:"4px 10px",textTransform:"uppercase",letterSpacing:".6px"}}>{TIER_ICONS[tier.name] || ""} {t("p.tier", { name: tier.name })}</span>
           {role && <span style={{fontSize:10.5,fontWeight:800,background:T.green5||T.bgAlt,color:T.green3,border:`1px solid ${T.green4||T.border}`,borderRadius:999,padding:"4px 10px",textTransform:"uppercase",letterSpacing:".6px"}}>🎟️ {role}</span>}
         </div>
       )}
@@ -5533,21 +5535,21 @@ function ProfileScreen({ b3tr, subs, wallet, walletDomain, pass, setTab, onOpenS
   const tier = getTier(b3tr);
   const readings = subs.filter(s => s.type !== "eco").length;
   const first = subs.reduce((m, s) => { const t = s.submittedAt || localDayTs(s.date) || 0; return t && (!m || t < m) ? t : m; }, 0);
-  const summary = `${b3tr.toFixed(2)} B3TR earned · ${readings} ${readings === 1 ? "reading" : "readings"}${first ? ` · since ${new Date(first).toLocaleDateString([], { month: "short", year: "numeric" })}` : ""}`;
+  const summary = `${t("pr.summary", { amount: b3tr.toFixed(2), n: readings })}${first ? t("pr.since", { date: new Date(first).toLocaleDateString(getLang(), { month: "short", year: "numeric" }) }) : ""}`;
   return (
     <>
       <div className="sub-header" style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between",gap:10}}>
         <div>
-          <div className="sub-title">Profile</div>
-          <div className="sub-sub">You on Green Utility Log</div>
+          <div className="sub-title">{t("pr.title")}</div>
+          <div className="sub-sub">{t("pr.sub")}</div>
         </div>
-        <button type="button" onClick={onOpenSettings} aria-label="Settings" className="dark-toggle" style={{width:44,height:44,fontSize:18,background:T.card}}>⚙️</button>
+        <button type="button" onClick={onOpenSettings} aria-label={t("pr.settings")} className="dark-toggle" style={{width:44,height:44,fontSize:18,background:T.card}}>⚙️</button>
       </div>
       <ProfileHero wallet={wallet} domain={walletDomain} tier={tier} summary={wallet ? summary : ""} role={pass?.tier || ""} onToast={onToast} T={T} />
       <div style={listCard(T)}>
-        <RowButton T={T} icon="🧾" label="History" sub={subs.length ? `All ${subs.length} readings and payouts` : "Your readings and payouts"} onClick={() => setTab("history")} />
-        <RowButton T={T} icon="❓" label="Help" sub="Guide, FAQ and the P1 setup" onClick={onOpenHelp} />
-        <RowButton T={T} icon="✉️" label="Send feedback" sub="A bug, or an idea" onClick={onOpenFeedback} last />
+        <RowButton T={T} icon="🧾" label={t("pr.history")} sub={subs.length ? t("pr.history.sub", { n: subs.length }) : t("pr.history.empty")} onClick={() => setTab("history")} />
+        <RowButton T={T} icon="❓" label={t("pr.help")} sub={t("pr.help.sub")} onClick={onOpenHelp} />
+        <RowButton T={T} icon="✉️" label={t("pr.feedback")} sub={t("pr.feedback.sub")} onClick={onOpenFeedback} last />
       </div>
     </>
   );
@@ -5559,13 +5561,13 @@ function SettingsScreen({ lang, onLang, b3tr, subs, wallet, setShowWallet, dark,
   return (
     <>
       <div style={{display:"flex",alignItems:"center",gap:10,padding:"14px 14px 2px"}}>
-        <button type="button" onClick={onBack} aria-label="Back to profile" className="dark-toggle" style={{width:44,height:44,fontSize:18,background:T.card}}>‹</button>
-        <div className="sub-title">Settings</div>
+        <button type="button" onClick={onBack} aria-label={t("set.back")} className="dark-toggle" style={{width:44,height:44,fontSize:18,background:T.card}}>‹</button>
+        <div className="sub-title">{t("pr.settings")}</div>
       </div>
 
-      {group("Appearance")}
+      {group(t("set.appearance"))}
       <div style={listCard(T)}>
-        <RowButton T={T} icon="🌙" label="Dark mode" sub={dark ? "On" : "Off"} onClick={() => setDark(d => !d)} last
+        <RowButton T={T} icon="🌙" label={t("set.dark")} sub={dark ? t("set.on") : t("set.off")} onClick={() => setDark(d => !d)} last
           right={<span aria-hidden="true" className={`toggle ${dark ? "on" : ""}`} style={{display:"inline-block"}}><span className="toggle-dot"/></span>} />
       </div>
 
@@ -5580,23 +5582,23 @@ function SettingsScreen({ lang, onLang, b3tr, subs, wallet, setShowWallet, dark,
         ))}
       </div>
 
-      {group("Meter")}
+      {group(t("set.meter"))}
       <div style={listCard(T)}>
-        <RowButton T={T} icon="🔢" label="Meter and starting point" sub={meterNo ? `${meterNo} · electricity` : "Register your meter"} onClick={onEditMeters} />
-        {SOLAR_UTILS.length > 0 && <RowButton T={T} icon="☀️" label="Solar panels" sub={(meters?.solar || "").trim() ? `Meter #${meters.solar}` : "Add solar panels (optional)"} onClick={onEditSolar} />}
-        <RowButton T={T} icon="⚡" label="Automatic reading" sub="P1 reader or Home Assistant" onClick={onOpenReader} last />
+        <RowButton T={T} icon="🔢" label={t("set.meterStart")} sub={meterNo ? t("set.meterStart.sub", { n: meterNo }) : t("set.register")} onClick={onEditMeters} />
+        {SOLAR_UTILS.length > 0 && <RowButton T={T} icon="☀️" label={t("set.solar")} sub={(meters?.solar || "").trim() ? `Meter #${meters.solar}` : t("set.solar.add")} onClick={onEditSolar} />}
+        <RowButton T={T} icon="⚡" label={t("set.auto")} sub={t("set.auto.sub")} onClick={onOpenReader} last />
       </div>
 
-      {group("Your data")}
+      {group(t("set.data"))}
       <div style={listCard(T)}>
-        <RowButton T={T} icon="📄" label="Monthly report" sub="Download as PDF" last
+        <RowButton T={T} icon="📄" label={t("set.report")} sub={t("set.report.sub")} last
           onClick={async () => { const ok = await generateMonthlyPDF(b3tr, subs); onToast?.(ok ? "📄 Report downloaded" : "❌ Couldn't generate the report"); }} />
       </div>
 
-      {group("Account")}
+      {group(t("set.account"))}
       <div style={listCard(T)}>
-        <RowButton T={T} icon="💼" label="Wallet" sub={wallet ? `${shortAddr(wallet)} · switch wallet` : "Connect a wallet"} onClick={() => setShowWallet(true)} />
-        <RowButton T={T} icon="🎓" label="Tutorial" sub="See the introduction again" onClick={() => setOnboarded(false)} last={!isAdmin} />
+        <RowButton T={T} icon="💼" label={t("set.wallet")} sub={wallet ? t("set.wallet.switch", { addr: shortAddr(wallet) }) : t("set.wallet.connect")} onClick={() => setShowWallet(true)} />
+        <RowButton T={T} icon="🎓" label={t("set.tutorial")} sub={t("set.tutorial.sub")} onClick={() => setOnboarded(false)} last={!isAdmin} />
         {isAdmin && <RowButton T={T} icon="🛡️" label="Admin panel" sub="Participants, roles and the pot" onClick={onOpenAdmin} />}
         {isAdmin && <RowButton T={T} icon="🗑️" label="Reset this app" sub="Clears this phone only — rewards stay on chain" danger last
           onClick={() => { if (window.confirm("Reset all app data on this phone and disconnect? Your rewards stay on the blockchain.")) onReset?.(); }} />}
@@ -5811,13 +5813,13 @@ function HelpScreen({ onClose, onFeedback, onLang, T }) {
 // FEEDBACK  — composes an email to FEEDBACK_EMAIL with diagnostics (no backend)
 // ════════════════════════════════════════════════════════════════════════════
 function FeedbackScreen({ onClose, onToast, wallet, tab, T }) {
-  const dlg = useDialog(onClose, "Send feedback");
+  const dlg = useDialog(onClose, t("pr.feedback"));
   const [kind, setKind] = useState("bug");
   const [msg, setMsg] = useState("");
   const kinds = [
-    { id:"bug",   label:"🐞 Bug" },
-    { id:"idea",  label:"💡 Idea" },
-    { id:"other", label:"💬 Other" },
+    { id:"bug",   label:t("f.bug") },
+    { id:"idea",  label:t("f.idea") },
+    { id:"other", label:t("f.other") },
   ];
   const diagnostics = () => {
     const scr = (typeof window !== "undefined") ? `${window.innerWidth}×${window.innerHeight}` : "?";
@@ -5833,26 +5835,26 @@ function FeedbackScreen({ onClose, onToast, wallet, tab, T }) {
   };
   const composeBody = () => `${msg.trim() || "(describe what happened or what you'd like)"}\n\n— — —\nDiagnostics (helps us reproduce):\n${diagnostics()}`;
   const sendEmail = () => {
-    if (!msg.trim()) { onToast?.("✍️ Write a short message first"); return; }
+    if (!msg.trim()) { onToast?.(t("f.writeFirst")); return; }
     const subject = `Green Utility Log — ${kind} feedback (v${APP_VERSION})`;
     const url = `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(composeBody())}`;
-    try { window.location.href = url; onToast?.("✉️ Opening your mail app…"); }
-    catch { onToast?.("❌ Couldn't open mail — use Copy instead"); }
+    try { window.location.href = url; onToast?.(t("f.opening")); }
+    catch { onToast?.(t("f.noMail")); }
   };
   const copyAll = async () => {
     const text = `Green Utility Log — ${kind} feedback\n\n${composeBody()}`;
-    try { await navigator.clipboard.writeText(text); onToast?.("📋 Copied — paste it anywhere"); }
-    catch { onToast?.("❌ Copy failed on this device"); }
+    try { await navigator.clipboard.writeText(text); onToast?.(t("f.copied")); }
+    catch { onToast?.(t("f.copyFail")); }
   };
   const inputStyle = { width:"100%", boxSizing:"border-box", background:T.card, border:`1px solid ${T.border}`, borderRadius:10, padding:"12px", fontSize:13, color:T.text, fontFamily:"inherit", lineHeight:1.5, resize:"vertical" };
   return (
     <div {...dlg} style={{position:"fixed",inset:OVERLAY_INSET,background:T.bg,zIndex:335,display:"flex",flexDirection:"column"}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 18px",borderBottom:`1px solid ${T.border}`}}>
         <div>
-          <div style={{fontSize:14,fontWeight:800,color:T.text}}>✉️ Send Feedback</div>
-          <div style={{fontSize:10.5,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginTop:2}}>{NETWORK === "mainnet" ? "Help us improve the app" : "Help us improve the test"}</div>
+          <div style={{fontSize:14,fontWeight:800,color:T.text}}>{t("f.title")}</div>
+          <div style={{fontSize:10.5,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginTop:2}}>{NETWORK === "mainnet" ? t("f.sub.main") : t("f.sub.test")}</div>
         </div>
-        <button onClick={onClose} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"6px 14px",minHeight:44,fontSize:12,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Close</button>
+        <button onClick={onClose} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"6px 14px",minHeight:44,fontSize:12,fontWeight:700,color:T.textMid,cursor:"pointer"}}>{t("f.close")}</button>
       </div>
 
       <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"16px 14px 28px"}}>
@@ -5865,14 +5867,14 @@ function FeedbackScreen({ onClose, onToast, wallet, tab, T }) {
           value={msg}
           onChange={(e)=>setMsg(e.target.value)}
           rows={6}
-          placeholder={kind==="bug" ? "What went wrong? What did you expect to happen?" : kind==="idea" ? "What would make this better?" : "Tell us anything…"}
+          placeholder={kind==="bug" ? t("f.ph.bug") : kind==="idea" ? t("f.ph.idea") : t("f.ph.other")}
           style={inputStyle}
         />
         <div style={{fontSize:10.5,color:T.textSoft,lineHeight:1.55,margin:"10px 2px 16px"}}>
-          We attach a little diagnostic info (app version, network, screen, device) so we can reproduce issues. No reading photos or private keys are ever included.
+          {t("f.privacy")}
         </div>
-        <button onClick={sendEmail} style={{width:"100%",background:T.green3,border:"none",borderRadius:6,padding:"13px",color:T === DARK ? T.bg : "#fff",fontSize:12,fontWeight:800,textTransform:"uppercase",letterSpacing:".8px",cursor:"pointer",marginBottom:8}}>✉️ Send via email</button>
-        <button onClick={copyAll} style={{width:"100%",background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"12px",color:T.textMid,fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",cursor:"pointer"}}>📋 Copy instead</button>
+        <button onClick={sendEmail} style={{width:"100%",background:T.green3,border:"none",borderRadius:6,padding:"13px",color:T === DARK ? T.bg : "#fff",fontSize:12,fontWeight:800,textTransform:"uppercase",letterSpacing:".8px",cursor:"pointer",marginBottom:8}}>{t("f.email")}</button>
+        <button onClick={copyAll} style={{width:"100%",background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"12px",color:T.textMid,fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",cursor:"pointer"}}>{t("f.copy")}</button>
       </div>
     </div>
   );
