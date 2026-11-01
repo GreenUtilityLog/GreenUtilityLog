@@ -38,7 +38,12 @@ Laatst bijgewerkt: 2026-11-01.
 - [x] Uitleg welke wallet-optie te kiezen; meldingen onderaan i.p.v. over de kopknoppen (#151)
 - [x] `apple-touch-icon` en manifest (#151)
 - [x] Handleiding met logo, terugknop en inhoudsopgave (#153)
-- [ ] Hele app vertalen (NL, DE, FR, ES), niet alleen Help; Help verwijst nu naar Engelse knopnamen
+- [ ] Hele app vertalen (NL, DE, FR, ES) — `src/i18n.js` + taalkeuze in Instellingen:
+  - [x] Stap 1: intro, tutorial, verbinden, registratie, Home, menu, kopbalk, banners (#154)
+  - [ ] Stap 2: meterscherm (foto, stand, insturen, meldingen)
+  - [ ] Stap 3: Voortgang, Geschiedenis, Profiel, Instellingen, Feedback
+  - [ ] Stap 4: automatisch uitlezen; Help-teksten naar de vertaalde knopnamen
+  - Foutmeldingen van de server blijven Engels
 - [x] Toegankelijkheid: dialogen met `role="dialog"`, focus erin, Tab blijft binnen, Escape sluit (#153)
 - [ ] Bijsnijden met het toetsenbord (pijltjestoetsen)
 

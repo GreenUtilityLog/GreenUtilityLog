@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, Fragment } from "react";
 import { createPortal } from "react-dom";
+import { t, getLang, setLang, LANGS, weekdayInitials } from "./i18n.js";
 import { NETWORK, REWARD_API, TESTNET_BANNER, MAIN_APP_URL, ownStorageKeys, IDB_NAME, INGEST_FLAG } from "./network.js";
 import { useWallet, useWalletModal } from "@vechain/dapp-kit-react";
 import { Clause, Address, ABIFunction } from "@vechain/sdk-core";
@@ -791,12 +792,14 @@ function dayKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart
 // A day as people read it, in their own language: "21 Oct" / "Oct 21". The app
 // showed "10/19", "21/9" and "2026-10-23" on one screen. Takes a "YYYY-MM-DD" day
 // key (read as local midnight) or a timestamp.
-const DAY_FMT = (() => { try { return new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short" }); } catch { return null; } })();
+const DAY_FMTS = {};
+const dayFmt = () => { const l = getLang(); try { return (DAY_FMTS[l] ??= new Intl.DateTimeFormat(l, { day: "numeric", month: "short" })); } catch { return null; } };
 function fmtDay(x) {
   const m = typeof x === "string" ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(x) : null;
   const d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(Number(x));
   if (!Number.isFinite(d.getTime())) return String(x ?? "");
-  return DAY_FMT ? DAY_FMT.format(d) : d.toDateString().slice(4, 10);
+  const f = dayFmt();
+  return f ? f.format(d) : d.toDateString().slice(4, 10);
 }
 function computeStreak(subs){
   if (!subs || !subs.length) return 0;
@@ -809,11 +812,12 @@ function computeStreak(subs){
 }
 
 
-const ONBOARD_SLIDES = [
-  { icon:"🌍", title:"Welcome to Green Utility Log", sub:"Log your electricity meter, use less, and earn B3TR rewards on VeChain." },
-  { icon:"📸", title:"How to Photograph", sub:"Meter must be clear, readable and unobstructed. Take a fresh photo each time." },
-  { icon:"⚡", title:"Electric Meter", sub:"The total in kWh on the meter's display. One reading a day — every kWh below the daily target earns B3TR." },
-  { icon:"🏆", title:"Earn & Compete", sub: NETWORK === "mainnet" ? "Daily submissions build your streak and move you up the leaderboard." : "Daily submissions build your streak and move you up the leaderboard. Testnet: B3TR here are test tokens." },
+// A function, so the texts follow the language picked at the time it is shown.
+const ONBOARD_SLIDES = () => [
+  { icon:"🌍", title:t("tut.1.t"), sub:t("tut.1.s") },
+  { icon:"📸", title:t("tut.2.t"), sub:t("tut.2.s") },
+  { icon:"⚡", title:t("tut.3.t"), sub:t("tut.3.s") },
+  { icon:"🏆", title:t("tut.4.t"), sub: NETWORK === "mainnet" ? t("tut.4.s.main") : t("tut.4.s.test") },
 ];
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -1612,20 +1616,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 // then sends the page to veworld.com, meant as a link that opens the VeWorld app;
 // inside those in-app browsers it doesn't, and people land on VeWorld's website
 // instead of back here. Say so before they tap, in their own language.
-const NO_WALLET_HINT = {
-  en: { t: "Opened this from X or another app?", d: "Connecting works inside the VeWorld app. Copy the link, then in VeWorld open Discover and paste it. Or tap ⋯ and choose \"Open in browser\" first.", copy: "Copy link", done: "Link copied ✓" },
-  nl: { t: "Via X of een andere app geopend?", d: "Verbinden werkt in de VeWorld-app. Kopieer de link en plak hem in VeWorld bij Discover. Of tik eerst op ⋯ en kies \"Openen in browser\".", copy: "Link kopiëren", done: "Link gekopieerd ✓" },
-  de: { t: "Über X oder eine andere App geöffnet?", d: "Verbinden klappt in der VeWorld-App. Kopiere den Link und füge ihn in VeWorld unter Discover ein. Oder tippe zuerst auf ⋯ und wähle \"Im Browser öffnen\".", copy: "Link kopieren", done: "Link kopiert ✓" },
-  fr: { t: "Ouvert depuis X ou une autre app ?", d: "La connexion fonctionne dans l'app VeWorld. Copiez le lien, puis collez-le dans VeWorld sous Discover. Ou touchez d'abord ⋯ et choisissez « Ouvrir dans le navigateur ».", copy: "Copier le lien", done: "Lien copié ✓" },
-  es: { t: "¿Lo abriste desde X u otra app?", d: "La conexión funciona dentro de la app VeWorld. Copia el enlace y pégalo en VeWorld en Discover. O toca primero ⋯ y elige «Abrir en el navegador».", copy: "Copiar enlace", done: "Enlace copiado ✓" },
-};
 
 function NoWalletHint() {
   const [copied, setCopied] = useState(false);
   if (!IS_MOBILE || typeof window === "undefined" || window.vechain) return null;
-  let lang = "en";
-  try { const s = localStorage.getItem("gul_help_lang"); const n = (navigator.language || "").slice(0,2).toLowerCase(); lang = NO_WALLET_HINT[s] ? s : NO_WALLET_HINT[n] ? n : "en"; } catch {}
-  const L = NO_WALLET_HINT[lang];
+  const L = { t: t("nowallet.t"), d: t("nowallet.d"), copy: t("nowallet.copy"), done: t("nowallet.done") };
   const link = window.location.origin + window.location.pathname;
   const copy = async () => {
     try { await navigator.clipboard.writeText(link); setCopied(true); } catch { window.prompt(L.copy, link); }
@@ -1642,16 +1637,16 @@ function NoWalletHint() {
 }
 
 function WalletGate({ onConnect, online }) {
-  const dlg = useDialog(null, "Connect your wallet");
+  const dlg = useDialog(null, t("gate.title"));
   return (
     /* One centred block — logo, headline, copy and the CTA travel together, so the
        button is never pushed below the fold on a short/mobile viewport. */
     <div {...dlg} className="intro-screen" style={{ zIndex: 410 }}>
       <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", width:"100%", maxWidth:340 }}>
         <div style={{ marginBottom:18, animation:"intro-bounce 1.2s ease-in-out infinite", display:"flex", justifyContent:"center" }}><LogoTile size={84} /></div>
-        <h1 style={{ fontSize:27, fontWeight:800, color:"#fff", lineHeight:1.2, letterSpacing:"-0.6px", margin:"0 0 10px" }}>Connect your wallet</h1>
+        <h1 style={{ fontSize:27, fontWeight:800, color:"#fff", lineHeight:1.2, letterSpacing:"-0.6px", margin:"0 0 10px" }}>{t("gate.title")}</h1>
         <p style={{ fontSize:13.5, color:"rgba(255,255,255,0.8)", lineHeight:1.55, margin:"0 0 22px" }}>
-          Sign in with VeWorld or WalletConnect to start logging meters and earning B3TR.
+          {t("gate.sub")}
         </p>
         <button
           className="intro-btn"
@@ -1659,16 +1654,14 @@ function WalletGate({ onConnect, online }) {
           disabled={!online}
           style={{ marginTop:0, ...(!online ? { opacity:0.5, cursor:"not-allowed" } : null) }}
         >
-          {online ? "Connect Wallet" : "You're offline"}
+          {online ? t("gate.button") : t("gate.offline")}
         </button>
         {/* The wallet dialog lists the options without saying which to pick. */}
         <div style={{ marginTop:14, fontSize:12.5, color:"rgba(255,255,255,0.8)", lineHeight:1.5 }}>
-          {IS_MOBILE
-            ? <>In the next step pick <b>VeWorld</b>.</>
-            : <>In the next step pick <b>VeWorld</b> if you have the browser extension, or <b>WalletConnect</b> and scan the code with the VeWorld app.</>}
+          {IS_MOBILE ? t("gate.pick.mobile") : t("gate.pick.desktop")}
         </div>
         <div style={{ marginTop:8, fontSize:11, color:"rgba(255,255,255,0.6)", lineHeight:1.5 }}>
-          Your wallet stays in your control — we never see your keys.
+          {t("gate.keys")}
         </div>
         <NoWalletHint />
       </div>
@@ -1704,10 +1697,10 @@ function LogoTile({ size = 30, shadow = true }) {
 
 function IntroScreen({ onStart }) {
   const slides = [
-    { icon: 'logo', title: 'Welcome to Green Utility Log', sub: `Track ${UTILS_PHRASE}. Earn B3TR rewards on VeChain.` },
-    { icon: '📸', title: 'Verify Your Meters', sub: 'Take a photo of your meter. AI-powered OCR verifies readings instantly.' },
-    { icon: '💰', title: 'Earn B3TR Rewards', sub: NETWORK === "mainnet" ? 'Every kWh you use below the daily target earns B3TR — real tokens, straight to your wallet.' : 'Every kWh you use below the daily target earns B3TR. Testnet beta — test tokens, no real-world value yet.' },
-    { icon: '🏆', title: 'Climb the Leaderboard', sub: 'Compete globally. Unlock achievement badges. Build your sustainability streak.' },
+    { icon: 'logo', title: t("intro.1.t"), sub: t("intro.1.s") },
+    { icon: '📸', title: t("intro.2.t"), sub: t("intro.2.s") },
+    { icon: '💰', title: t("intro.3.t"), sub: NETWORK === "mainnet" ? t("intro.3.s.main") : t("intro.3.s.test") },
+    { icon: '🏆', title: t("intro.4.t"), sub: t("intro.4.s") },
   ];
   
   const [slide, setSlide] = useState(0);
@@ -1731,7 +1724,7 @@ function IntroScreen({ onStart }) {
         {slides.map((_, i) => (
           <button
             key={i}
-            aria-label={`Slide ${i + 1} of ${slides.length}`}
+            aria-label={t("intro.slide", { n: i + 1, total: slides.length })}
             aria-current={i === slide ? "step" : undefined}
             style={{
               width: i === slide ? 24 : 8,
@@ -1754,7 +1747,7 @@ function IntroScreen({ onStart }) {
           onClick={() => isLast ? onStart() : setSlide(s => s + 1)}
           style={{ marginTop: 0, maxWidth: "none" }}
         >
-          {isLast ? '🚀 Get Started' : 'Continue →'}
+          {isLast ? t("intro.start") : t("intro.next")}
         </button>
         
         {!isLast && (
@@ -1774,7 +1767,7 @@ function IntroScreen({ onStart }) {
             onMouseEnter={e => e.target.style.color = "rgba(255,255,255,0.9)"}
             onMouseLeave={e => e.target.style.color = "rgba(255,255,255,0.6)"}
           >
-            Skip →
+            {t("intro.skip")}
           </button>
         )}
       </div>
@@ -1787,7 +1780,7 @@ function IntroScreen({ onStart }) {
 }
 
 function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, editMode, T }) {
-  const dlg = useDialog(null, "Register your meters");
+  const dlg = useDialog(null, t("reg.title.new"));
   // Which utilities this screen registers. Defaults to the required ones
   // (electric/gas/water); solar is added separately as an optional extra.
   const shown = (utils && utils.length) ? utils : UTILS.filter(u => !u.optional);
@@ -1836,12 +1829,12 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
     onDone(nextBaselines, nextMeters);
   };
 
-  const title = allLocked ? "Your Meters" : (isSolarOnly ? "Add Solar Panels" : (editMode ? "Edit Your Meters" : "Register Your Meters"));
+  const title = allLocked ? t("reg.title.locked") : (isSolarOnly ? t("reg.title.solar") : (editMode ? t("reg.title.edit") : t("reg.title.new")));
   const sub = allLocked
-    ? "Your registered meters are locked to keep your readings tamper-proof. A meter number and its starting reading can't be changed once set."
+    ? t("reg.sub.locked")
     : isSolarOnly
-      ? "Generating your own power? Add your solar meter number and its current export reading."
-      : "Find the number on the meter's sticker or on your energy bill, and type today's reading in kWh. That reading is your starting point.";
+      ? t("reg.sub.solar")
+      : t("reg.sub.new");
 
   return (
     <div {...dlg} className="onboard">
@@ -1858,11 +1851,11 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
           <div key={u.id} style={{display:"flex",alignItems:"flex-start",gap:12,background:T.card,borderRadius:6,padding:"10px 14px",border:`1px solid ${T.border}`}}>
             <span style={{width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center",color:T[u.id]||T.text,flexShrink:0,marginTop:2}}>{UTIL_ICONS[u.id]}</span>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginBottom:4}}>{u.label} <span style={{fontWeight:400}}>({u.unit})</span>{locked ? <span style={{fontWeight:400,textTransform:"none",letterSpacing:0,color:T.eco||T.text}}> · 🔒 locked</span> : (!needsMeter && <span style={{fontWeight:400,textTransform:"none",letterSpacing:0}}> · optional</span>)}</div>
+              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginBottom:4}}>{u.label} <span style={{fontWeight:400}}>({u.unit})</span>{locked ? <span style={{fontWeight:400,textTransform:"none",letterSpacing:0,color:T.eco||T.text}}> · {t("reg.locked")}</span> : (!needsMeter && <span style={{fontWeight:400,textTransform:"none",letterSpacing:0}}> · optional</span>)}</div>
               <input
                 type="text"
                 readOnly={locked}
-                placeholder={needsMeter ? "Meter number (on the meter or your bill)" : "Meter number (optional)"}
+                placeholder={needsMeter ? t("reg.meterNo") : t("reg.meterNo.optional")}
                 value={meters[u.id]}
                 onChange={locked ? undefined : (e => setMeters(m => ({...m,[u.id]:e.target.value})))}
                 onBlur={() => markTouched(`m:${u.id}`)}
@@ -1875,7 +1868,7 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
                 type="text"
                 inputMode="decimal"
                 autoComplete="off"
-                placeholder={`Current reading · e.g. ${u.ph[0]}`}
+                placeholder={t("reg.reading", { example: u.ph[0] })}
                 value={baselines[u.id]}
                 onChange={e => setBaselines(b => ({...b,[u.id]:normDecimal(e.target.value)}))}
                 onBlur={() => markTouched(`b:${u.id}`)}
@@ -1890,8 +1883,8 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
       {/* Only while solar is offered (it is commented out of UTILS for now). */}
       {SOLAR_UTILS.length > 0 && !isSolarOnly && !allLocked && <div style={{fontSize:11,color:T.textSoft,marginTop:16,textAlign:"center"}}>ℹ️ Got solar panels? Add them later in Settings.</div>}
       {allLocked && <div style={{fontSize:11,color:T.textSoft,marginTop:16,textAlign:"center"}}>🔒 Locked to prevent fraud. To replace a meter, contact support.</div>}
-      {!allMetersFilled && <div style={{fontSize:11,color:Object.keys(touched).length ? (T === DARK ? "#f08c78" : "#b3261e") : T.textSoft,marginTop:6,textAlign:"center"}}>Enter a meter number <b>and</b> its current reading for every meter to continue.</div>}
-      <button className="ob-btn" onClick={handleDone} disabled={!allMetersFilled} style={!allMetersFilled?{opacity:.5,cursor:"not-allowed"}:undefined}>{allLocked ? "Done" : (isSolarOnly ? "Save Solar Meter" : "Complete Setup")}</button>
+      {!allMetersFilled && <div style={{fontSize:11,color:Object.keys(touched).length ? (T === DARK ? "#f08c78" : "#b3261e") : T.textSoft,marginTop:6,textAlign:"center"}}>{t("reg.missing")}</div>}
+      <button className="ob-btn" onClick={handleDone} disabled={!allMetersFilled} style={!allMetersFilled?{opacity:.5,cursor:"not-allowed"}:undefined}>{allLocked ? t("reg.done.locked") : (isSolarOnly ? t("reg.done.solar") : t("reg.done"))}</button>
     </div>
   );
 }
@@ -1899,8 +1892,9 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
 function Onboarding({ onDone }) {
   const dlg = useDialog(onDone, "Tutorial");
   const [slide, setSlide] = useState(0);
-  const s = ONBOARD_SLIDES[slide];
-  const isLast = slide === ONBOARD_SLIDES.length - 1;
+  const slides = ONBOARD_SLIDES();
+  const s = slides[slide];
+  const isLast = slide === slides.length - 1;
 
   return (
     <div {...dlg} className="onboard">
@@ -1908,14 +1902,14 @@ function Onboarding({ onDone }) {
       <h2 className="ob-title">{s.title}</h2>
       <p className="ob-sub">{s.sub}</p>
       <div className="ob-dots">
-        {ONBOARD_SLIDES.map((_, i) => (
-          <div role="button" tabIndex={0} key={i} aria-label={`Slide ${i + 1} of ${ONBOARD_SLIDES.length}`} aria-current={i === slide ? "step" : undefined} className={`ob-dot ${i === slide ? 'active' : ''}`} onClick={() => setSlide(i)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSlide(i); } }} />
+        {slides.map((_, i) => (
+          <div role="button" tabIndex={0} key={i} aria-label={t("intro.slide", { n: i + 1, total: slides.length })} aria-current={i === slide ? "step" : undefined} className={`ob-dot ${i === slide ? 'active' : ''}`} onClick={() => setSlide(i)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSlide(i); } }} />
         ))}
       </div>
       <button className="ob-btn" onClick={() => isLast ? onDone() : setSlide(slide + 1)}>
-        {isLast ? 'Start Tracking' : 'Continue →'}
+        {isLast ? t("tut.done") : t("intro.next")}
       </button>
-      {!isLast && <button className="ob-skip" onClick={onDone}>Skip</button>}
+      {!isLast && <button className="ob-skip" onClick={onDone}>{t("tut.skip")}</button>}
     </div>
   );
 }
@@ -2419,11 +2413,11 @@ function HistItem({ s, T }) {
 function fmtWhen(ts) {
   const d = new Date(ts), now = new Date();
   const dayDiff = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000);
-  const t = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  if (dayDiff === 0) return `today ${t}`;
-  if (dayDiff === -1) return `yesterday ${t}`;
-  if (dayDiff === 1) return `tomorrow ${t}`;
-  return `${d.toLocaleDateString([], { day: "numeric", month: "short" })} ${t}`;
+  const time = d.toLocaleTimeString(getLang(), { hour: "2-digit", minute: "2-digit" });
+  if (dayDiff === 0) return t("when.today", { time });
+  if (dayDiff === -1) return t("when.yesterday", { time });
+  if (dayDiff === 1) return t("when.tomorrow", { time });
+  return `${fmtDay(ts)} ${time}`;
 }
 const subTs = (s) => s.submittedAt || localDayTs(s.date) || 0;
 
@@ -2455,10 +2449,11 @@ function TodayPanel({ subs, wallet, setTab, onOpenReader, T }) {
   const today = paid.filter(s => subTs(s) >= todayStart);
   const todayB3tr = today.reduce((a, s) => a + (Number(s.b3tr) || 0), 0);
   const lastToday = today.reduce((m, s) => (subTs(s) > subTs(m || {}) ? s : m), null);
+  const initials = weekdayInitials();
   const days = Array.from({ length: 7 }, (_, i) => {
     const start = weekStart + i * 86400000;
     const v = paid.filter(s => s.type !== "eco" && subTs(s) >= start && subTs(s) < start + 86400000).reduce((a, s) => a + (Number(s.b3tr) || 0), 0);
-    return { label: ["M", "T", "W", "T", "F", "S", "S"][i], name: new Date(start).toLocaleDateString([], { weekday: "long" }), v, past: start < todayStart, isToday: start === todayStart };
+    return { label: initials[i], name: new Date(start).toLocaleDateString(getLang(), { weekday: "long" }), v, past: start < todayStart, isToday: start === todayStart };
   });
   const weekB3tr = paid.filter(s => subTs(s) >= weekStart).reduce((a, s) => a + (Number(s.b3tr) || 0), 0);
   const weekDays = days.filter(d => d.v > 0).length;
@@ -2474,19 +2469,19 @@ function TodayPanel({ subs, wallet, setTab, onOpenReader, T }) {
   return (
     <div style={{ margin: "0 14px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ background: T.heroFrom, border: T === DARK ? `1px solid ${T.border}` : "none", borderRadius: 10, padding: "16px", color: "#fff" }}>
-        <div style={{ ...label, color: "rgba(255,255,255,.7)" }}>Today</div>
+        <div style={{ ...label, color: "rgba(255,255,255,.7)" }}>{t("today.title")}</div>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, marginTop: 6 }}>
           <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: "-.5px" }}>
             {todayB3tr > 0 ? `+${todayB3tr.toFixed(2)}` : "—"} <span style={{ fontSize: 13, fontWeight: 700 }}>B3TR</span>
           </div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,.75)", textAlign: "right", lineHeight: 1.4 }}>
-            {lastToday ? <>paid {new Date(subTs(lastToday)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}<br />{lastToday.type === "eco" ? "eco bonus" : "meter reading"}</> : "nothing paid yet today"}
+            {lastToday ? <>{t("today.paid", { time: new Date(subTs(lastToday)).toLocaleTimeString(getLang(), { hour: "2-digit", minute: "2-digit" }) })}<br />{lastToday.type === "eco" ? "eco bonus" : t("today.reading")}</> : t("today.nothing")}
           </div>
         </div>
         <div style={{ height: 1, background: "rgba(255,255,255,.18)", margin: "12px 0" }} />
         <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 12 }}>
-          <span style={{ color: "rgba(255,255,255,.75)" }}>Next reward possible</span>
-          <span style={{ fontWeight: 800 }}>{nextAt > Date.now() ? fmtWhen(nextAt) : "now"}</span>
+          <span style={{ color: "rgba(255,255,255,.75)" }}>{t("today.next")}</span>
+          <span style={{ fontWeight: 800 }}>{nextAt > Date.now() ? fmtWhen(nextAt) : t("today.now")}</span>
         </div>
       </div>
 
@@ -2494,25 +2489,25 @@ function TodayPanel({ subs, wallet, setTab, onOpenReader, T }) {
         <button type="button" onClick={onOpenReader} style={{ ...card, textAlign: "left", cursor: "pointer", font: "inherit", color: T.text }}>
           <div style={{ ...label, display: "flex", alignItems: "center", gap: 6 }}>
             <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "50%", background: !reader?.paired ? T.border : reader.fresh || reader.needsToken ? T.green3 : T.electric }} />
-            Reader
+            {t("today.reader")}
           </div>
           <div style={{ fontSize: 14, fontWeight: 800, marginTop: 6 }}>
-            {!reader ? "…" : !reader.paired ? "Not set up" : reader.needsToken ? "Connected" : reader.fresh ? "Connected" : "No new reading"}
+            {!reader ? "…" : !reader.paired ? t("today.reader.none") : reader.needsToken ? t("today.reader.ok") : reader.fresh ? t("today.reader.ok") : t("today.reader.stale")}
           </div>
           <div style={{ fontSize: 10.5, color: T.textSoft, marginTop: 2 }}>
-            {!reader?.paired ? "set one up — no photos needed" : reader.at ? `last ${fmtWhen(reader.at)}` : "connected on another device"}
+            {!reader?.paired ? t("today.reader.setup") : reader.at ? t("today.reader.last", { when: fmtWhen(reader.at) }) : t("today.reader.other")}
           </div>
         </button>
         <div style={card}>
-          <div style={label}>This week</div>
+          <div style={label}>{t("today.week")}</div>
           <div style={{ fontSize: 14, fontWeight: 800, marginTop: 6, color: T.text }}>{weekB3tr.toFixed(2)} B3TR</div>
-          <div style={{ fontSize: 10.5, color: T.textSoft, marginTop: 2 }}>{weekDays} of 7 days</div>
+          <div style={{ fontSize: 10.5, color: T.textSoft, marginTop: 2 }}>{t("today.weekDays", { n: weekDays })}</div>
         </div>
       </div>
 
       <div style={card}>
         <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <span style={label}>Daily rewards</span><span style={{ ...label, letterSpacing: ".4px" }}>Mon – Sun</span>
+          <span style={label}>{t("today.daily")}</span><span style={{ ...label, letterSpacing: ".4px" }}>{initials[0]} – {initials[6]}</span>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 6, alignItems: "end", height: 72, marginTop: 10 }}>
           {days.map((d, i) => (
@@ -2524,7 +2519,7 @@ function TodayPanel({ subs, wallet, setTab, onOpenReader, T }) {
         </div>
         {missed.length > 0 && (
           <div style={{ fontSize: 10.5, color: T.textSoft, marginTop: 8, lineHeight: 1.5 }}>
-            {missed.map(d => d.name).join(", ")}: no reward — no reading could be paid that day. With a reader, keep its computer on around the time shown above.
+            {t("today.missed", { days: missed.map(d => d.name).join(", ") })}
           </div>
         )}
       </div>
@@ -2537,8 +2532,8 @@ function HomeScreen({ b3tr, walletB3tr, streak, subs, setTab, wallet, onOpenRead
   return (
     <>
       <div className="sub-header">
-        <div className="sub-title">Dashboard</div>
-        <div className="sub-sub">Your sustainability stats</div>
+        <div className="sub-title">{t("home.title")}</div>
+        <div className="sub-sub">{t("home.sub")}</div>
       </div>
 
       {/* A new user landed here after registering to an empty dashboard — "— B3TR",
@@ -2546,24 +2541,24 @@ function HomeScreen({ b3tr, walletB3tr, streak, subs, setTab, wallet, onOpenRead
           to do next. Until the first reading, that is the first thing on Home. */}
       {!(subs || []).some(x => x.type !== "eco") && (
         <div style={{ margin: "0 14px 14px", padding: "18px 16px", borderRadius: 10, background: `linear-gradient(135deg,${T.heroFrom},${T.heroTo})`, color: "#fff" }}>
-          <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 4 }}>📸 Log your first reading</div>
+          <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 4 }}>{t("home.first.t")}</div>
           <div style={{ fontSize: 13.5, lineHeight: 1.5, color: "rgba(255,255,255,0.85)", marginBottom: 14 }}>
-            Photograph your electricity meter — about a minute. It sets your starting point; from your next reading, every kWh below the daily target earns B3TR.
+            {t("home.first.d")}
           </div>
-          <button className="intro-btn" style={{ marginTop: 0, maxWidth: "none" }} onClick={() => setTab("submit")}>Take the meter photo →</button>
+          <button className="intro-btn" style={{ marginTop: 0, maxWidth: "none" }} onClick={() => setTab("submit")}>{t("home.first.cta")}</button>
         </div>
       )}
 
       <TodayPanel subs={subs} wallet={wallet} setTab={setTab} onOpenReader={onOpenReader} T={T} />
       
       <div className="hero">
-        <div className="hero-label">Total B3TR Earned</div>
+        <div className="hero-label">{t("home.total")}</div>
         <div className="hero-amount">{b3tr.toFixed(2)}<span>B3TR</span></div>
-        <div className="hero-usd">{walletB3tr != null ? `In your wallet: ${walletB3tr.toFixed(2)} B3TR · ` : ""}{NETWORK === "mainnet" ? "Powered by VeBetterDAO" : "Testnet beta · test tokens"}</div>
+        <div className="hero-usd">{walletB3tr != null ? t("home.inWallet", { amount: walletB3tr.toFixed(2) }) : ""}{NETWORK === "mainnet" ? t("home.powered") : t("home.testBeta")}</div>
         <div className="hero-chips">
-          <div className="hchip"><div className="hchip-val">{streak}</div><div className="hchip-key">Day Streak</div></div>
-          <div className="hchip"><div className="hchip-val">{subs.length}</div><div className="hchip-key">Submissions</div></div>
-          <div className="hchip"><div className="hchip-val">{getTier(b3tr).name}</div><div className="hchip-key">Tier</div></div>
+          <div className="hchip"><div className="hchip-val">{streak}</div><div className="hchip-key">{t("home.streak")}</div></div>
+          <div className="hchip"><div className="hchip-val">{subs.length}</div><div className="hchip-key">{t("home.subs")}</div></div>
+          <div className="hchip"><div className="hchip-val">{getTier(b3tr).name}</div><div className="hchip-key">{t("home.tier")}</div></div>
         </div>
       </div>
 
@@ -2572,7 +2567,7 @@ function HomeScreen({ b3tr, walletB3tr, streak, subs, setTab, wallet, onOpenRead
           "Total B3TR: 0.00". A heading over one permanent item isn't navigation.
           It comes back on its own as soon as a second meter is enabled in UTILS. */}
       {UTILS.length > 1 && (<>
-      <div className="sec"><div className="sec-line"/><div className="sec-txt">Utilities</div><div className="sec-line"/></div>
+      <div className="sec"><div className="sec-line"/><div className="sec-txt">{t("home.utilities")}</div><div className="sec-line"/></div>
       <div className="util-grid">
         {UTILS.map(u => {
           const myS = subs.filter(s => s.type === u.id);
@@ -2581,7 +2576,7 @@ function HomeScreen({ b3tr, walletB3tr, streak, subs, setTab, wallet, onOpenRead
             <div role="button" tabIndex={0} key={u.id} className="ucard" onClick={() => setTab("progress")}>
               <div className="ucard-icon" style={{background:getColorBg(u.id, T),border:`1px solid ${T[u.id+"Border"]||T.green4}`,color:T[u.id]||T.green2}}>{UTIL_ICONS[u.id]}</div>
               <div className="ucard-name">{u.label}</div>
-              <div className="ucard-reads">{myS.length} readings logged</div>
+              <div className="ucard-reads">{t("home.readingsLogged", { n: myS.length })}</div>
               <div className="ucard-b3tr" style={{color:T[u.id]||T.electric}}>+{tot.toFixed(2)} B3TR</div>
             </div>
           );
@@ -2589,15 +2584,15 @@ function HomeScreen({ b3tr, walletB3tr, streak, subs, setTab, wallet, onOpenRead
       </div>
       </>)}
 
-      <div className="sec"><div className="sec-line"/><div className="sec-txt">Activity</div><div className="sec-line"/></div>
+      <div className="sec"><div className="sec-line"/><div className="sec-txt">{t("home.activity")}</div><div className="sec-line"/></div>
       <StreakCalendar subs={subs} />
 
-      <div className="sec"><div className="sec-line"/><div className="sec-txt">Recent</div><div className="sec-line"/></div>
+      <div className="sec"><div className="sec-line"/><div className="sec-txt">{t("home.recent")}</div><div className="sec-line"/></div>
       {subs.slice(0,3).map(s => <HistItem key={s.id} s={s} T={T} />)}
       {/* The full history had no way in: no nav item or link opened it. */}
       {subs.length > 3 && (
         <button onClick={() => setTab("history")} style={{display:"block",margin:"4px auto 12px",background:"transparent",border:"none",color:T.green3,fontSize:12,fontWeight:700,cursor:"pointer",padding:"10px 16px"}}>
-          See all {subs.length} →
+          {t("home.seeAll", { n: subs.length })}
         </button>
       )}
     </>
@@ -5574,7 +5569,7 @@ function ProfileScreen({ b3tr, subs, wallet, walletDomain, pass, setTab, onOpenS
   );
 }
 
-function SettingsScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, setOnboarded, onEditMeters, onEditSolar, meters, isAdmin, onOpenAdmin, onOpenReader, onToast, onReset, onBack, T }) {
+function SettingsScreen({ lang, onLang, b3tr, subs, wallet, setShowWallet, dark, setDark, setOnboarded, onEditMeters, onEditSolar, meters, isAdmin, onOpenAdmin, onOpenReader, onToast, onReset, onBack, T }) {
   const meterNo = (meters?.electric || "").trim();
   const group = (title) => <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,margin:"14px 18px 6px"}}>{title}</div>;
   return (
@@ -5588,6 +5583,17 @@ function SettingsScreen({ b3tr, subs, wallet, setShowWallet, dark, setDark, setO
       <div style={listCard(T)}>
         <RowButton T={T} icon="🌙" label="Dark mode" sub={dark ? "On" : "Off"} onClick={() => setDark(d => !d)} last
           right={<span aria-hidden="true" className={`toggle ${dark ? "on" : ""}`} style={{display:"inline-block"}}><span className="toggle-dot"/></span>} />
+      </div>
+
+      {group("🌐 " + t("set.language"))}
+      <div role="radiogroup" aria-label={t("set.language")} style={{ ...listCard(T), display: "flex", flexWrap: "wrap", gap: 8, padding: 12 }}>
+        {Object.entries(LANGS).map(([code, name]) => (
+          <button key={code} type="button" role="radio" aria-checked={lang === code} onClick={() => onLang(code)}
+            style={{ minHeight: 44, padding: "0 14px", borderRadius: 999, cursor: "pointer", fontSize: 13, fontWeight: 700,
+              border: `1px solid ${lang === code ? T.green3 : T.border}`, background: lang === code ? T.green5 : "transparent", color: lang === code ? T.green2 : T.textMid }}>
+            {name}
+          </button>
+        ))}
       </div>
 
       {group("Meter")}
@@ -5747,13 +5753,11 @@ if (NETWORK === "mainnet") {
   }
 }
 
-function HelpScreen({ onClose, onFeedback, T }) {
-  const dlg = useDialog(onClose, "Help and FAQ");
-  const [lang, setLang] = useState(() => {
-    try { const s = localStorage.getItem("gul_help_lang"); if (HELP_I18N[s]) return s; const n = (navigator.language || "").slice(0,2).toLowerCase(); if (HELP_I18N[n]) return n; } catch {}
-    return "en";
-  });
-  const pickLang = (l) => { setLang(l); try { localStorage.setItem("gul_help_lang", l); } catch {} };
+function HelpScreen({ onClose, onFeedback, onLang, T }) {
+  const dlg = useDialog(onClose, t("hdr.help"));
+  const [lang, setHelpLang] = useState(() => (HELP_I18N[getLang()] ? getLang() : "en"));
+  // Picking a language here sets it for the whole app (i18n.js).
+  const pickLang = (l) => { setHelpLang(l); onLang?.(l); };
   const L = HELP_I18N[lang] || HELP_I18N.en;
   const steps = L.steps.map((s, i) => ({ n: i + 1, t: s.t, d: s.d }));
   const faqs = L.faqs;
@@ -5931,8 +5935,8 @@ export function TestnetBanner() {
   return (
     // One line, exactly BANNER_H tall: the header and overlays are offset by that.
     <div style={{position:"fixed",top:0,left:0,right:0,zIndex:2147483000,height:BANNER_H,boxSizing:"border-box",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",background:"#7a4a00",color:"#fff",fontSize:11,fontWeight:700,textAlign:"center",padding:"5px 12px",letterSpacing:".3px",lineHeight:"16px",fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif"}}>
-      🧪 TESTNET — test tokens only
-      {MAIN_APP_URL && <> · <a href={MAIN_APP_URL} style={{color:"#fff",textDecoration:"underline"}}>Go to the real app →</a></>}
+      {t("testnet.banner")}
+      {MAIN_APP_URL && <> · <a href={MAIN_APP_URL} style={{color:"#fff",textDecoration:"underline"}}>{t("testnet.realApp")}</a></>}
     </div>
   );
 }
@@ -5958,6 +5962,9 @@ export default function App() {
   // case today — the gate is off unless REQUIRE_PASS is set.
   const [passInfo, setPassInfo]     = useState({ required: false, has: true, pass: null, isAdmin: false });
   const [dark, setDark]             = useState(getInitialDark);
+  // The language: setLang() updates what t() returns, this state re-renders the app.
+  const [lang, setLangState]        = useState(getLang);
+  const changeLang = (l) => { setLang(l); setLangState(l); };
   const T = dark ? DARK : LIGHT;
   const CSS = makeCSS(T);
 
@@ -7041,7 +7048,7 @@ export default function App() {
       {needsBaselines && <BaselineOnboarding onDone={(bl, mtrs) => { setBaselines(bl); setMeters(mtrs); closeRegistration(); }} utils={regUtils} editMode={regEdit} existingBaselines={baselines} existingMeters={meters} T={T} />}
       {!onboarded && <Onboarding onDone={() => setOnboarded(true)} />}
       {showAdmin && isAdmin && <AdminScreen onClose={() => setShowAdmin(false)} T={T} wallet={wallet} onFundPool={handleFundPool} onMoveToRewardsPool={handleMoveToRewardsPool} onDisableRewardsPool={handleDisableRewardsPool} onSetDistributionPaused={handleSetDistributionPaused} onAssignSignaler={handleAssignSignaler} onClaimB3TR={FAUCET_ENABLED ? handleClaimB3TR : null} onAdminApi={adminApi} onToast={showToast} />}
-      {showHelp && <HelpScreen onClose={() => setShowHelp(false)} onFeedback={() => { setShowHelp(false); setShowFeedback(true); }} T={T} />}
+      {showHelp && <HelpScreen onLang={changeLang} onClose={() => setShowHelp(false)} onFeedback={() => { setShowHelp(false); setShowFeedback(true); }} T={T} />}
       {showFeedback && <FeedbackScreen onClose={() => setShowFeedback(false)} onToast={showToast} wallet={wallet} tab={tab} T={T} />}
       {toast && (toast.sticky ? (
         <div className="toast" role="status" aria-live="polite" style={{whiteSpace:"pre-wrap",maxWidth:"88vw",textAlign:"left",lineHeight:1.5,background:T.gasBg,color:T.gas,border:`1px solid ${T.gasBorder}`,padding:"12px 14px"}}>
@@ -7078,10 +7085,10 @@ export default function App() {
               </div>
               {/* Light/dark, one tap from every screen again — it had moved into
                   Profile → Settings, where people stopped finding it. Still there too. */}
-              <button className="dark-toggle" onClick={toggleDark} aria-label={dark ? "Switch to light mode" : "Switch to dark mode"} title={dark ? "Light mode" : "Dark mode"}>
+              <button className="dark-toggle" onClick={toggleDark} aria-label={dark ? t("hdr.toLight") : t("hdr.toDark")} title={dark ? t("hdr.toLight") : t("hdr.toDark")}>
                 {dark ? "☀️" : "🌙"}
               </button>
-              <button className="dark-toggle" onClick={() => setShowHelp(true)} aria-label="Help and FAQ" title="Help & FAQ">
+              <button className="dark-toggle" onClick={() => setShowHelp(true)} aria-label={t("hdr.help")} title={t("hdr.help")}>
                 ❓
               </button>
               {/* Connect button — opens dapp-kit's wallet modal
@@ -7093,7 +7100,7 @@ export default function App() {
               >
                 <span className={`wdot ${wallet ? "" : "off"}`} />
                 <span className="waddr">
-                  {wallet ? `${wallet.slice(0, 6)}…${wallet.slice(-4)}` : "Connect"}
+                  {wallet ? `${wallet.slice(0, 6)}…${wallet.slice(-4)}` : t("hdr.connect")}
                 </span>
               </button>
             </div>
@@ -7103,15 +7110,7 @@ export default function App() {
               taken now isn't lost. */}
           {!online && (
             <div role="status" style={{margin:"10px 14px 0",padding:"10px 12px",fontSize:12.5,lineHeight:1.5,fontWeight:600,color:T.text,background:T.bgAlt,border:`1px solid ${T.border}`,borderRadius:6}}>
-              📴 You're offline. Readings you submit are saved on this phone and sent when you're back online.
-            </div>
-          )}
-
-          {/* Offline was only a red dot in the header: nothing said that a reading
-              taken now isn't lost. */}
-          {!online && (
-            <div role="status" style={{margin:"10px 14px 0",padding:"10px 12px",fontSize:12.5,lineHeight:1.5,fontWeight:600,color:T.text,background:T.bgAlt,border:`1px solid ${T.border}`,borderRadius:6}}>
-              📴 You're offline. Readings you submit are saved on this phone and sent when you're back online.
+              {t("offline.bar")}
             </div>
           )}
 
@@ -7132,7 +7131,7 @@ export default function App() {
           {tab==="progress"  && <ProgressScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}
           {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} walletDomain={accountDomain || null} pass={passInfo.pass} setTab={setTab} onOpenSettings={()=>setTab("settings")} onOpenHelp={()=>setShowHelp(true)} onOpenFeedback={()=>setShowFeedback(true)} onToast={showToast} T={T}/>}
-          {tab==="settings"  && <SettingsScreen b3tr={b3tr} subs={subs} wallet={wallet} setShowWallet={openConnectModal} dark={dark} setDark={toggleDark} setOnboarded={setOnboarded} onEditMeters={()=>openRegistration(REQUIRED_UTILS, true)} onEditSolar={()=>openRegistration(SOLAR_UTILS, true)} meters={meters} isAdmin={isAdmin} onOpenAdmin={()=>setShowAdmin(true)} onOpenReader={() => { setStartOnReader(true); setTab("submit"); }} onToast={showToast} onReset={resetApp} onBack={()=>setTab("profile")} T={T}/>}
+          {tab==="settings"  && <SettingsScreen lang={lang} onLang={changeLang} b3tr={b3tr} subs={subs} wallet={wallet} setShowWallet={openConnectModal} dark={dark} setDark={toggleDark} setOnboarded={setOnboarded} onEditMeters={()=>openRegistration(REQUIRED_UTILS, true)} onEditSolar={()=>openRegistration(SOLAR_UTILS, true)} meters={meters} isAdmin={isAdmin} onOpenAdmin={()=>setShowAdmin(true)} onOpenReader={() => { setStartOnReader(true); setTab("submit"); }} onToast={showToast} onReset={resetApp} onBack={()=>setTab("profile")} T={T}/>}
           </>}
         </div>
 
@@ -7141,7 +7140,7 @@ export default function App() {
               a new tester's first impression was otherwise a tab holding an empty
               graph. It reappears the moment there's something to plot, and stays
               visible while you're standing on it so the nav never loses its place. */}
-          {[{id:"home",icon:"🏠",label:"Home"},{id:"submit",icon:"📸",label:"Meter"},{id:"progress",icon:"📈",label:"Progress"},{id:"profile",icon:"👤",label:"Profile"}].filter(n=>n.show!==false).map(n=>{
+          {[{id:"home",icon:"🏠",label:t("nav.home")},{id:"submit",icon:"📸",label:t("nav.meter")},{id:"progress",icon:"📈",label:t("nav.progress")},{id:"profile",icon:"👤",label:t("nav.profile")}].filter(n=>n.show!==false).map(n=>{
             const active = tab===n.id || (n.id==="profile" && (tab==="settings" || tab==="history"));
             return (
             <button key={n.id} className={`nitem ${active ?"active":""}`} aria-current={active ? "page" : undefined} onClick={()=>setTab(n.id)}>
