@@ -30,7 +30,17 @@ function freePort() {
   });
 }
 
-export async function startServer({ state = {}, env = {} } = {}) {
+// A free port can still be taken between asking and binding: the test files run in
+// parallel processes that all ask the OS. The loser dies with EADDRINUSE; it is
+// started again on a new port rather than failing a test about something else.
+export async function startServer(opts = {}) {
+  for (let attempt = 1; ; attempt++) {
+    try { return await startServerOnce(opts); }
+    catch (e) { if (attempt >= 3 || !/EADDRINUSE/.test(String(e?.message))) throw e; }
+  }
+}
+
+async function startServerOnce({ state = {}, env = {} } = {}) {
   const dir = mkdtempSync(join(tmpdir(), "gul-test-"));
   const stateFile = join(dir, "state.json");
   writeFileSync(stateFile, JSON.stringify(state));
