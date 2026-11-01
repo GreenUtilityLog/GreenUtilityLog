@@ -11,7 +11,8 @@
 <meta property="og:image" content="https://greenutilitylog.github.io/GreenUtilityLog/og-image.png">
 <meta property="og:type" content="article">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔌</text></svg>">
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 </head>
 <body>
 <style>
@@ -172,6 +173,15 @@
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 <style>
+  .brand{display:flex;align-items:center;gap:8px;margin-right:auto;font-size:13.5px;font-weight:750;
+    color:var(--ink);text-decoration:none;padding:4px 0}
+  .brand img{border-radius:6px}
+  .brand:hover{color:var(--accent)}
+  nav.toc{margin:26px 0 0;padding:16px 18px;border:1px solid var(--rule);border-radius:6px;background:var(--raise);max-width:var(--measure)}
+  nav.toc b{display:block;font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-bottom:8px}
+  nav.toc ol{margin:0;padding-left:20px;columns:2 220px;column-gap:28px}
+  nav.toc li{font-size:14px;line-height:1.5;padding:3px 0;break-inside:avoid}
+  h2{scroll-margin-top:64px}
   h3.sub{margin:34px 0 16px;font-size:13.5px;font-weight:700;letter-spacing:.02em;color:var(--ink)}
   h3.sub::before{content:"";display:inline-block;width:14px;height:1px;background:var(--accent);
     vertical-align:middle;margin-right:10px}
@@ -179,7 +189,7 @@
   footer{margin-top:56px}
 </style>
 <div class="wrap">
-<nav class="langbar" aria-label="Language"><span class="lbl">Language</span>
+<nav class="langbar" aria-label="Language"><a class="brand" href="./"><img src="icon.png" alt="" width="24" height="24">Green Utility Log</a><span class="lbl">Language</span>
 <button class="langbtn" data-lang="en" aria-pressed="true">English</button>
 <button class="langbtn" data-lang="nl" aria-pressed="false">Nederlands</button>
 <button class="langbtn" data-lang="de" aria-pressed="false">Deutsch</button>
@@ -188,7 +198,8 @@
 </nav>
 <section class="lang active" id="lang-en">
   <header class="hero"><span class="kicker">Tester guide</span><h1>Earn without photographing your meter</h1><p class="lede">Normally you photograph your meter to earn B3TR. If something in your home can already read the meter, it can send the reading for you — and you never photograph again. Start by finding your setup below.</p></header>
-  <h2>Which setup do you have?</h2>
+  <nav class="toc" aria-label="On this page"><b>On this page</b><ol><li><a href="#en-1">Which setup do you have?</a></li><li><a href="#en-2">Does this work where you live?</a></li><li><a href="#en-3">All automatic routes: get your token</a></li><li><a href="#en-4">Route A — Home Assistant (any meter)</a></li><li><a href="#en-5">Route B — HomeWizard P1, without Home Assistant</a></li><li><a href="#en-6">Route C — Another reader (P1 reader, Tasmota reading head)</a></li><li><a href="#en-7">Route D — Powerfox (poweropti)</a></li><li><a href="#en-8">Route E — Tibber Pulse</a></li><li><a href="#en-9">Finally: it pays by itself</a></li><li><a href="#en-10">If something doesn't work</a></li></ol></nav>
+  <h2 id="en-1">Which setup do you have?</h2>
   <div class="routes">
     <div class="route pick"><div><h3>I use Home Assistant</h3><p>Works with almost any meter HA already reads. Install our integration, or paste a few lines of YAML.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Easiest</span></div></div>
     <div class="route"><div><h3>I have a HomeWizard P1</h3><p>No Home Assistant needed. Works in 🇳🇱 🇧🇪 🇱🇺 🇩🇰 🇸🇪 🇭🇺 — a small helper finds your meter on the network by itself.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Some tech</span></div></div>
@@ -198,7 +209,7 @@
     <div class="route"><div><h3>None of these</h3><p>Then keep photographing your meter. It works just as well and earns exactly the same. Nothing to set up.</p></div><div class="meter"><span>No setup</span></div></div>
   </div>
   <div class="note"><b>First, once: set your starting point</b>Whichever route you pick, do <strong>one normal photo submission</strong> in the app first. That tells the app where your meter started — without it, automatic readings can't be paid out.</div>
-  <h2>Does this work where you live?</h2>
+  <h2 id="en-2">Does this work where you live?</h2>
   <p class="lede" style="font-size:15.5px">The socket on your meter differs per country, so not every reader works everywhere. What always works: <strong>if Home Assistant already shows your meter's total, Route A works</strong> — whatever country you're in.</p>
   <div class="scroll"><table><tr><th>Country</th><th>Your meter has</th><th>What to use</th></tr>
     <tr><td>🇳🇱 Netherlands</td><td>P1 port (RJ12)</td><td>Any route. HomeWizard works out of the box.</td></tr>
@@ -219,12 +230,12 @@
     <tr><td>Anywhere else</td><td>Varies</td><td>If Home Assistant reads your meter, Route A works.</td></tr>
   </table></div>
   <div class="note">Not sure? Open Home Assistant and look for your meter under Developer tools → States. If a kWh value is there and counting up, you're set. HomeWizard P1? Check your meter on <a href="https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter">HomeWizard's list</a>.</div>
-  <h2>All automatic routes: get your token</h2>
+  <h2 id="en-3">All automatic routes: get your token</h2>
   <ol class="steps">
       <li><p class="steptitle">Copy your device token</p>
       <p>In the app: <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → “Get my device token”</span>. Copy it.</p><div class="see"><b>What it is</b>A long code that says “these readings belong to my wallet”. Keep it private — anyone holding it can send readings in your name.</div></li>
       </ol>
-  <h2>Route A — Home Assistant (any meter)</h2>
+  <h2 id="en-4">Route A — Home Assistant (any meter)</h2>
   <p class="lede" style="font-size:15.5px">Two ways. Our integration is the easiest and works with <em>any</em> meter Home Assistant already shows you; the YAML does the same by hand if you'd rather not install anything.</p>
   <h3 class="sub">With our integration (recommended)</h3>
   <ol class="steps">
@@ -265,7 +276,7 @@
   action: { service: rest_command.gul_push }</pre></div>
       </li>
       </ol>
-  <h2>Route B — HomeWizard P1, without Home Assistant</h2>
+  <h2 id="en-5">Route B — HomeWizard P1, without Home Assistant</h2>
   <ol class="steps">
       <li><p class="steptitle">Turn on the Local API</p>
       <p>In the <strong>HomeWizard Energy</strong> app: <span class="k">Settings → Meters → your P1 → Local API → ON</span>. This lets your own network read the meter.</p>
@@ -291,7 +302,7 @@
       <div class="see"><b>What you should see, in order</b><span class="k">Paste your device token…</span> → <span class="k">Scheduled…</span> → <span class="k">found HomeWizard at 192.168.…</span> → <span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
-  <h2>Route C — Another reader (P1 reader, Tasmota reading head)</h2>
+  <h2 id="en-6">Route C — Another reader (P1 reader, Tasmota reading head)</h2>
   <p class="lede" style="font-size:15.5px">The same helper reads any device on your network that serves the meter’s kWh total as JSON over HTTP, without a login — you just tell it where. Not every reader does: dsmr-reader’s API needs a key, and a Shelly counts its own energy, not the meter’s register. Do steps 2–4 of Route B first (terminal and Node); only the command below is different.</p>
   <ol class="steps">
       <li><p class="steptitle">Find your reader's data URL</p>
@@ -312,7 +323,7 @@
       <div class="see"><b>Expected output</b><span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
-  <h2>Route D — Powerfox (poweropti)</h2>
+  <h2 id="en-7">Route D — Powerfox (poweropti)</h2>
   <p class="lede" style="font-size:15.5px">A poweropti reads your meter and sends the total to the Powerfox cloud. Below are three ways to get it to us — <strong>you need only one</strong>. Not sure? Take option 1.</p>
   <div class="note"><b>First, in the Powerfox app</b>Switch on <strong>data transfer</strong> (Datenfreigabe). Without it Powerfox shares your readings with no one — not with us, and not with Home Assistant either.</div>
   <h3 class="sub">Option 1 — We fetch it for you (easiest)</h3>
@@ -355,7 +366,7 @@
       <p>As the sensor, choose the Powerfox sensor <strong>Energy usage</strong> (kWh). A meter with two tariffs where that one stays empty? Make a helper that adds the high- and low-tariff sensors (<span class="k">Settings → Devices &amp; services → Helpers → Create helper → Group → Sensor group</span>, type <strong>Sum</strong>; not “Combine the state of several sensors”, which our integration won’t take as a meter total) and pick that one.</p>
       </li>
       </ol>
-  <h2>Route E — Tibber Pulse</h2>
+  <h2 id="en-8">Route E — Tibber Pulse</h2>
   <p class="lede" style="font-size:15.5px">A Tibber Pulse reads your meter's HAN or P1 port and sends the total to Tibber. Two ways to get it to us — <strong>you need only one</strong>.</p>
   <h3 class="sub">Option 1 — We fetch it for you (easiest)</h3>
   <ol class="steps">
@@ -377,7 +388,7 @@
       </li>
       </ol>
   <div class="note"><b>No machine that stays on?</b>You don’t need one. Missed a scheduled time because the computer was off? It sends as soon as the computer is on again — so a laptop you open now and then is enough. It is paid as soon as it arrives, at most once a day.</div>
-  <h2>Finally: it pays by itself</h2>
+  <h2 id="en-9">Finally: it pays by itself</h2>
   <ol class="steps">
       <li><p class="steptitle">Your reading appears by itself</p>
       <p>In the app open <strong>Meter</strong>. The <strong>⚡ Automatic reading</strong> panel says <span class="k">Connected — … kWh received</span>, with your meter total and when it arrived.</p>
@@ -387,7 +398,7 @@
       </li>
       </ol>
   <div class="note flag"><b>🇧🇪 Belgium (Fluvius meters)</b>The P1 port on Belgian meters is off by default. With Fluvius you switch it on for free in their online portal; with another grid operator, ask them. After that everything works the same.</div>
-  <h2>If something doesn't work</h2>
+  <h2 id="en-10">If something doesn't work</h2>
   <div class="scroll"><table class="stack"><tr><th>You see</th><th>What to do</th></tr>
     <tr><td>&#x27;node&#x27; is not recognized</td><td>Node.js isn’t installed, or that window was already open when you installed it. On Windows: <span class="k">winget install OpenJS.NodeJS.LTS</span>. Elsewhere: nodejs.org. Then open a <strong>new</strong> terminal and paste the line again. You do not need git.</td></tr>
     <tr><td>Nothing at all — no output, straight back to the prompt</td><td>An old copy of the helper, from before 19 September. It had a bug that made it exit on Windows without printing anything. Download it again with the line above; the new one asks for your token.</td></tr>
@@ -418,7 +429,8 @@
 </section>
 <section class="lang" id="lang-nl">
   <header class="hero"><span class="kicker">Testershandleiding</span><h1>Verdien zonder je meter te fotograferen</h1><p class="lede">Normaal fotografeer je je meter om B3TR te verdienen. Kan er thuis al iets je meter uitlezen, dan stuurt dát de stand door — en hoef jij nooit meer te fotograferen. Zoek hieronder je situatie op.</p></header>
-  <h2>Welke situatie heb jij?</h2>
+  <nav class="toc" aria-label="Op deze pagina"><b>Op deze pagina</b><ol><li><a href="#nl-1">Welke situatie heb jij?</a></li><li><a href="#nl-2">Werkt dit ook in jouw land?</a></li><li><a href="#nl-3">Alle automatische routes: haal je token op</a></li><li><a href="#nl-4">Route A — Home Assistant (elke meter)</a></li><li><a href="#nl-5">Route B — HomeWizard P1, zonder Home Assistant</a></li><li><a href="#nl-6">Route C — Een andere reader (P1-reader, Tasmota-leeskop)</a></li><li><a href="#nl-7">Route D — Powerfox (poweropti)</a></li><li><a href="#nl-8">Route E — Tibber Pulse</a></li><li><a href="#nl-9">Tot slot: het betaalt vanzelf uit</a></li><li><a href="#nl-10">Als er iets niet werkt</a></li></ol></nav>
+  <h2 id="nl-1">Welke situatie heb jij?</h2>
   <div class="routes">
     <div class="route pick"><div><h3>Ik gebruik Home Assistant</h3><p>Werkt met vrijwel elke meter die HA al uitleest. Installeer onze integratie, of plak een paar regels YAML.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Makkelijkst</span></div></div>
     <div class="route"><div><h3>Ik heb een HomeWizard P1</h3><p>Geen Home Assistant nodig. Werkt in 🇳🇱 🇧🇪 🇱🇺 🇩🇰 🇸🇪 🇭🇺 — een klein hulpprogramma vindt je meter zelf op het netwerk.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Beetje techniek</span></div></div>
@@ -428,7 +440,7 @@
     <div class="route"><div><h3>Geen van deze</h3><p>Blijf dan je meter fotograferen. Dat werkt net zo goed en levert precies hetzelfde op. Niets in te stellen.</p></div><div class="meter"><span>Niets instellen</span></div></div>
   </div>
   <div class="note"><b>Eerst, eenmalig: zet je startpunt</b>Welke route je ook kiest, doe eerst <strong>één gewone foto-inzending</strong> in de app. Daarmee weet de app waar je meter begon — zonder dat kunnen automatische standen niet uitbetalen.</div>
-  <h2>Werkt dit ook in jouw land?</h2>
+  <h2 id="nl-2">Werkt dit ook in jouw land?</h2>
   <p class="lede" style="font-size:15.5px">De aansluiting op je meter verschilt per land, dus niet elke reader werkt overal. Wat altijd werkt: <strong>toont Home Assistant je meterstand al, dan werkt Route A</strong> — in welk land je ook zit.</p>
   <div class="scroll"><table><tr><th>Land</th><th>Jouw meter heeft</th><th>Wat je gebruikt</th></tr>
     <tr><td>🇳🇱 Nederland</td><td>P1-poort (RJ12)</td><td>Elke route. HomeWizard werkt direct.</td></tr>
@@ -449,12 +461,12 @@
     <tr><td>Elders</td><td>Verschilt</td><td>Leest Home Assistant je meter, dan werkt Route A.</td></tr>
   </table></div>
   <div class="note">Niet zeker? Open Home Assistant en zoek je meter onder Ontwikkelhulpmiddelen → Statussen. Staat er een kWh-waarde die oploopt, dan zit je goed. HomeWizard P1? Check je meter op <a href="https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter">de lijst van HomeWizard</a>.</div>
-  <h2>Alle automatische routes: haal je token op</h2>
+  <h2 id="nl-3">Alle automatische routes: haal je token op</h2>
   <ol class="steps">
       <li><p class="steptitle">Kopieer je device-token</p>
       <p>In de app: <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → “Get my device token”</span>. Kopieer ’m.</p><div class="see"><b>Wat het is</b>Een lange code die zegt: “deze standen horen bij mijn wallet”. Houd ’m privé — wie ’m heeft kan standen op jouw naam insturen.</div></li>
       </ol>
-  <h2>Route A — Home Assistant (elke meter)</h2>
+  <h2 id="nl-4">Route A — Home Assistant (elke meter)</h2>
   <p class="lede" style="font-size:15.5px">Twee manieren. Onze integratie is de makkelijkste en werkt met <em>elke</em> meter die Home Assistant al toont; de YAML doet hetzelfde handmatig als je liever niets installeert.</p>
   <h3 class="sub">Met onze integratie (aanbevolen)</h3>
   <ol class="steps">
@@ -495,7 +507,7 @@
   action: { service: rest_command.gul_push }</pre></div>
       </li>
       </ol>
-  <h2>Route B — HomeWizard P1, zonder Home Assistant</h2>
+  <h2 id="nl-5">Route B — HomeWizard P1, zonder Home Assistant</h2>
   <ol class="steps">
       <li><p class="steptitle">Zet de Local API aan</p>
       <p>In de <strong>HomeWizard Energy</strong>-app: <span class="k">Instellingen → Meters → je P1 → Local API → AAN</span>. Hiermee mag je eigen netwerk de meter uitlezen.</p>
@@ -521,7 +533,7 @@
       <div class="see"><b>Dit hoor je te zien, in deze volgorde</b><span class="k">Paste your device token…</span> → <span class="k">Scheduled…</span> → <span class="k">found HomeWizard at 192.168.…</span> → <span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
-  <h2>Route C — Een andere reader (P1-reader, Tasmota-leeskop)</h2>
+  <h2 id="nl-6">Route C — Een andere reader (P1-reader, Tasmota-leeskop)</h2>
   <p class="lede" style="font-size:15.5px">Hetzelfde hulpprogramma leest elk apparaat op je netwerk dat de kWh-stand van je meter als JSON via HTTP aanbiedt, zonder inlog — je zegt alleen waar. Niet elke reader doet dat: de API van dsmr-reader wil een sleutel, en een Shelly telt z’n eigen verbruik, niet het telwerk van de meter. Doe eerst stap 2 t/m 4 van route B (terminal en Node); alleen het commando hieronder is anders.</p>
   <ol class="steps">
       <li><p class="steptitle">Zoek de data-URL van je reader</p>
@@ -542,7 +554,7 @@
       <div class="see"><b>Dit hoor je te zien</b><span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
-  <h2>Route D — Powerfox (poweropti)</h2>
+  <h2 id="nl-7">Route D — Powerfox (poweropti)</h2>
   <p class="lede" style="font-size:15.5px">Een poweropti leest je meter uit en stuurt de stand naar de Powerfox-cloud. Hieronder drie manieren om die bij ons te krijgen — <strong>je hebt er maar één nodig</strong>. Twijfel je? Neem optie 1.</p>
   <div class="note"><b>Eerst, in de Powerfox-app</b>Zet <strong>gegevensoverdracht</strong> (Datenfreigabe) aan. Zonder dat deelt Powerfox je standen met niemand — niet met ons, en ook niet met Home Assistant.</div>
   <h3 class="sub">Optie 1 — Wij halen het voor je op (makkelijkst)</h3>
@@ -585,7 +597,7 @@
       <p>Kies als sensor de Powerfox-sensor <strong>Energy usage</strong> (Energieverbruik, kWh). Meter met twee tarieven en blijft die leeg? Maak een helper die de sensoren voor hoog en laag tarief optelt (<span class="k">Instellingen → Apparaten &amp; diensten → Helpers → Helper aanmaken → Groep → Sensorgroep</span>, type <strong>Som</strong>; niet “Combineer de status van meerdere sensoren”, die neemt onze integratie niet aan als meterstand) en kies die.</p>
       </li>
       </ol>
-  <h2>Route E — Tibber Pulse</h2>
+  <h2 id="nl-8">Route E — Tibber Pulse</h2>
   <p class="lede" style="font-size:15.5px">Een Tibber Pulse leest de HAN- of P1-poort van je meter en stuurt de stand naar Tibber. Twee manieren om die bij ons te krijgen — <strong>je hebt er maar één nodig</strong>.</p>
   <h3 class="sub">Optie 1 — Wij halen het voor je op (makkelijkst)</h3>
   <ol class="steps">
@@ -607,7 +619,7 @@
       </li>
       </ol>
   <div class="note"><b>Geen apparaat dat aan blijft?</b>Hoeft ook niet. Stond de computer uit op een geplande tijd? Dan stuurt hij de stand zodra de computer weer aan staat — een laptop die je af en toe openklapt is dus genoeg. Hij wordt uitbetaald zodra hij binnenkomt, hooguit één keer per dag.</div>
-  <h2>Tot slot: het betaalt vanzelf uit</h2>
+  <h2 id="nl-9">Tot slot: het betaalt vanzelf uit</h2>
   <ol class="steps">
       <li><p class="steptitle">Je stand verschijnt vanzelf</p>
       <p>Ga in de app naar <strong>Meter</strong>. Het paneel <strong>⚡ Automatic reading</strong> meldt <span class="k">Connected — … kWh received</span>, met je meterstand en hoe laat die binnenkwam.</p>
@@ -617,7 +629,7 @@
       </li>
       </ol>
   <div class="note flag"><b>🇧🇪 België (Fluvius-meters)</b>De P1-poort op Belgische meters staat standaard uit. Bij Fluvius zet je hem gratis aan in hun online portaal; bij een andere netbeheerder vraag je het hen. Daarna werkt alles hetzelfde.</div>
-  <h2>Als er iets niet werkt</h2>
+  <h2 id="nl-10">Als er iets niet werkt</h2>
   <div class="scroll"><table class="stack"><tr><th>Je ziet</th><th>Wat te doen</th></tr>
     <tr><td>&#x27;node&#x27; is not recognized</td><td>Node.js staat er niet op, of het venster stond al open toen je het installeerde. Op Windows: <span class="k">winget install OpenJS.NodeJS.LTS</span>. Elders: nodejs.org. Open daarna een <strong>nieuw</strong> venster en plak de regel opnieuw. Git heb je niet nodig.</td></tr>
     <tr><td>Helemaal niets — geen uitvoer, meteen terug naar de prompt</td><td>Een oude kopie van de helper, van vóór 19 september. Die had een fout waardoor hij op Windows afsloot zonder iets te tonen. Haal hem opnieuw op met de regel hierboven; de nieuwe vraagt om je token.</td></tr>
@@ -648,7 +660,8 @@
 </section>
 <section class="lang" id="lang-de">
   <header class="hero"><span class="kicker">Tester-Anleitung</span><h1>Verdienen, ohne den Zähler zu fotografieren</h1><p class="lede">Normalerweise fotografierst du deinen Zähler, um B3TR zu verdienen. Kann bei dir zu Hause schon etwas den Zähler auslesen, sendet das den Stand für dich — und du fotografierst nie wieder. Such unten deine Situation.</p></header>
-  <h2>Welche Situation hast du?</h2>
+  <nav class="toc" aria-label="Auf dieser Seite"><b>Auf dieser Seite</b><ol><li><a href="#de-1">Welche Situation hast du?</a></li><li><a href="#de-2">Funktioniert das in deinem Land?</a></li><li><a href="#de-3">Alle automatischen Routen: Token holen</a></li><li><a href="#de-4">Route A — Home Assistant (jeder Zähler)</a></li><li><a href="#de-5">Route B — HomeWizard P1, ohne Home Assistant</a></li><li><a href="#de-6">Route C — Ein anderer Reader (P1-Reader, Tasmota-Lesekopf)</a></li><li><a href="#de-7">Route D — Powerfox (poweropti)</a></li><li><a href="#de-8">Route E — Tibber Pulse</a></li><li><a href="#de-9">Zum Schluss: es zahlt sich von selbst aus</a></li><li><a href="#de-10">Wenn etwas nicht klappt</a></li></ol></nav>
+  <h2 id="de-1">Welche Situation hast du?</h2>
   <div class="routes">
     <div class="route pick"><div><h3>Ich nutze Home Assistant</h3><p>Funktioniert mit fast jedem Zähler, den HA schon ausliest. Installiere unsere Integration oder füge ein paar Zeilen YAML ein.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Am einfachsten</span></div></div>
     <div class="route"><div><h3>Ich habe einen HomeWizard P1</h3><p>Kein Home Assistant nötig. Funktioniert in 🇳🇱 🇧🇪 🇱🇺 🇩🇰 🇸🇪 🇭🇺 — ein kleines Hilfsprogramm findet deinen Zähler selbst im Netzwerk.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Etwas Technik</span></div></div>
@@ -658,7 +671,7 @@
     <div class="route"><div><h3>Nichts davon</h3><p>Dann fotografiere deinen Zähler weiter. Das funktioniert genauso gut und bringt exakt dasselbe. Nichts einzurichten.</p></div><div class="meter"><span>Nichts einrichten</span></div></div>
   </div>
   <div class="note"><b>Zuerst, einmalig: Startpunkt setzen</b>Egal welche Route: mach zuerst <strong>eine normale Foto-Einreichung</strong> in der App. Damit weiß die App, wo dein Zähler startete — sonst können automatische Stände nicht ausgezahlt werden.</div>
-  <h2>Funktioniert das in deinem Land?</h2>
+  <h2 id="de-2">Funktioniert das in deinem Land?</h2>
   <p class="lede" style="font-size:15.5px">Der Anschluss am Zähler unterscheidet sich je Land, nicht jeder Reader passt überall. Was immer geht: <strong>zeigt Home Assistant deinen Zählerstand bereits, funktioniert Route A</strong> — egal in welchem Land.</p>
   <div class="scroll"><table><tr><th>Land</th><th>Dein Zähler hat</th><th>Was du nutzt</th></tr>
     <tr><td>🇳🇱 Niederlande</td><td>P1-Port (RJ12)</td><td>Jede Route. HomeWizard läuft direkt.</td></tr>
@@ -679,12 +692,12 @@
     <tr><td>Anderswo</td><td>Unterschiedlich</td><td>Liest Home Assistant deinen Zähler, funktioniert Route A.</td></tr>
   </table></div>
   <div class="note">Unsicher? Öffne Home Assistant und such deinen Zähler unter Entwicklerwerkzeuge → Zustände. Steht dort ein kWh-Wert, der hochzählt, passt es. HomeWizard P1? Prüf deinen Zähler auf <a href="https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter">der Liste von HomeWizard</a>.</div>
-  <h2>Alle automatischen Routen: Token holen</h2>
+  <h2 id="de-3">Alle automatischen Routen: Token holen</h2>
   <ol class="steps">
       <li><p class="steptitle">Geräte-Token kopieren</p>
       <p>In der App: <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → „Get my device token“</span>. Kopieren.</p><div class="see"><b>Was das ist</b>Ein langer Code, der sagt: „diese Stände gehören zu meinem Wallet“. Halte ihn privat — wer ihn hat, kann Stände in deinem Namen senden.</div></li>
       </ol>
-  <h2>Route A — Home Assistant (jeder Zähler)</h2>
+  <h2 id="de-4">Route A — Home Assistant (jeder Zähler)</h2>
   <p class="lede" style="font-size:15.5px">Zwei Wege. Unsere Integration ist am einfachsten und funktioniert mit <em>jedem</em> Zähler, den Home Assistant schon anzeigt; das YAML macht dasselbe von Hand, falls du nichts installieren willst.</p>
   <h3 class="sub">Mit unserer Integration (empfohlen)</h3>
   <ol class="steps">
@@ -725,7 +738,7 @@
   action: { service: rest_command.gul_push }</pre></div>
       </li>
       </ol>
-  <h2>Route B — HomeWizard P1, ohne Home Assistant</h2>
+  <h2 id="de-5">Route B — HomeWizard P1, ohne Home Assistant</h2>
   <ol class="steps">
       <li><p class="steptitle">Local API aktivieren</p>
       <p>In der <strong>HomeWizard Energy</strong>-App: <span class="k">Einstellungen → Zähler → dein P1 → Local API → EIN</span>. Damit darf dein Netzwerk den Zähler auslesen.</p>
@@ -751,7 +764,7 @@
       <div class="see"><b>Das solltest du sehen, in dieser Reihenfolge</b><span class="k">Paste your device token…</span> → <span class="k">Scheduled…</span> → <span class="k">found HomeWizard at 192.168.…</span> → <span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
-  <h2>Route C — Ein anderer Reader (P1-Reader, Tasmota-Lesekopf)</h2>
+  <h2 id="de-6">Route C — Ein anderer Reader (P1-Reader, Tasmota-Lesekopf)</h2>
   <p class="lede" style="font-size:15.5px">Dasselbe Hilfsprogramm liest jedes Gerät in deinem Netzwerk, das den kWh-Zählerstand als JSON über HTTP anbietet, ohne Anmeldung — du sagst ihm nur wo. Nicht jeder Reader tut das: die API von dsmr-reader verlangt einen Schlüssel, und ein Shelly zählt seine eigene Energie, nicht das Zählwerk des Zählers. Mach zuerst Schritt 2–4 aus Route B (Terminal und Node); nur der Befehl unten ist anders.</p>
   <ol class="steps">
       <li><p class="steptitle">Die Daten-URL deines Readers finden</p>
@@ -772,7 +785,7 @@
       <div class="see"><b>Erwartete Ausgabe</b><span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
-  <h2>Route D — Powerfox (poweropti)</h2>
+  <h2 id="de-7">Route D — Powerfox (poweropti)</h2>
   <p class="lede" style="font-size:15.5px">Ein poweropti liest deinen Zähler aus und schickt den Stand in die Powerfox-Cloud. Hier sind drei Wege, wie er zu uns kommt — <strong>du brauchst nur einen</strong>. Unsicher? Nimm Option 1.</p>
   <div class="note"><b>Zuerst in der Powerfox-App</b>Schalte die <strong>Datenfreigabe</strong> ein. Ohne sie teilt Powerfox deine Zählerstände mit niemandem — weder mit uns noch mit Home Assistant.</div>
   <h3 class="sub">Option 1 — Wir holen ihn für dich (am einfachsten)</h3>
@@ -815,7 +828,7 @@
       <p>Wähle als Sensor den Powerfox-Sensor <strong>Energy usage</strong> (Energieverbrauch, kWh). Zweitarifzähler und der bleibt leer? Leg einen Helfer an, der die Sensoren für Hoch- und Niedertarif addiert (<span class="k">Einstellungen → Geräte &amp; Dienste → Helfer → Helfer erstellen → Gruppe → Sensorgruppe</span>, Typ <strong>Summe</strong>; nicht „Kombiniere den Zustand mehrerer Sensoren“, den nimmt unsere Integration nicht als Zählerstand an), und wähle den.</p>
       </li>
       </ol>
-  <h2>Route E — Tibber Pulse</h2>
+  <h2 id="de-8">Route E — Tibber Pulse</h2>
   <p class="lede" style="font-size:15.5px">Ein Tibber Pulse liest die HAN- oder P1-Schnittstelle deines Zählers und schickt den Stand an Tibber. Zwei Wege, wie er zu uns kommt — <strong>du brauchst nur einen</strong>.</p>
   <h3 class="sub">Option 1 — Wir holen ihn für dich (am einfachsten)</h3>
   <ol class="steps">
@@ -837,7 +850,7 @@
       </li>
       </ol>
   <div class="note"><b>Kein Gerät, das durchläuft?</b>Brauchst du nicht. War der Computer zu einem geplanten Zeitpunkt aus? Dann sendet er, sobald der Computer wieder an ist — ein Laptop, den du ab und zu aufklappst, reicht also. Er wird ausgezahlt, sobald er ankommt, höchstens einmal am Tag.</div>
-  <h2>Zum Schluss: es zahlt sich von selbst aus</h2>
+  <h2 id="de-9">Zum Schluss: es zahlt sich von selbst aus</h2>
   <ol class="steps">
       <li><p class="steptitle">Dein Stand erscheint von selbst</p>
       <p>Geh in der App auf <strong>Meter</strong>. Das Feld <strong>⚡ Automatic reading</strong> meldet <span class="k">Connected — … kWh received</span>, mit deinem Zählerstand und wann er ankam.</p>
@@ -847,7 +860,7 @@
       </li>
       </ol>
   <div class="note flag"><b>🇧🇪 Belgien (Fluvius-Zähler)</b>Der P1-Port belgischer Zähler ist standardmäßig aus. Bei Fluvius schaltest du ihn kostenlos im Online-Portal ein; bei einem anderen Netzbetreiber frag dort. Danach läuft alles gleich.</div>
-  <h2>Wenn etwas nicht klappt</h2>
+  <h2 id="de-10">Wenn etwas nicht klappt</h2>
   <div class="scroll"><table class="stack"><tr><th>Du siehst</th><th>Was tun</th></tr>
     <tr><td>&#x27;node&#x27; is not recognized</td><td>Node.js fehlt, oder das Fenster war schon offen, als du es installiert hast. Unter Windows: <span class="k">winget install OpenJS.NodeJS.LTS</span>. Sonst: nodejs.org. Öffne dann ein <strong>neues</strong> Fenster und füg die Zeile erneut ein. Git brauchst du nicht.</td></tr>
     <tr><td>Gar nichts — keine Ausgabe, sofort zurück zur Eingabe</td><td>Eine alte Kopie des Hilfsprogramms, von vor dem 19. September. Sie hatte einen Fehler, durch den sie unter Windows ohne jede Ausgabe beendete. Lad sie mit der Zeile oben erneut; die neue fragt nach deinem Token.</td></tr>
@@ -878,7 +891,8 @@
 </section>
 <section class="lang" id="lang-fr">
   <header class="hero"><span class="kicker">Guide testeur</span><h1>Gagnez sans photographier votre compteur</h1><p class="lede">Normalement vous photographiez votre compteur pour gagner des B3TR. Si quelque chose chez vous sait déjà lire le compteur, il peut envoyer le relevé à votre place — et vous ne photographiez plus jamais. Trouvez votre cas ci-dessous.</p></header>
-  <h2>Quelle est votre situation ?</h2>
+  <nav class="toc" aria-label="Sur cette page"><b>Sur cette page</b><ol><li><a href="#fr-1">Quelle est votre situation ?</a></li><li><a href="#fr-2">Est-ce que ça marche chez vous ?</a></li><li><a href="#fr-3">Toutes les routes automatiques : récupérez votre jeton</a></li><li><a href="#fr-4">Route A — Home Assistant (tout compteur)</a></li><li><a href="#fr-5">Route B — HomeWizard P1, sans Home Assistant</a></li><li><a href="#fr-6">Route C — Un autre lecteur (lecteur P1, tête de lecture Tasmota)</a></li><li><a href="#fr-7">Route D — Powerfox (poweropti)</a></li><li><a href="#fr-8">Route E — Tibber Pulse</a></li><li><a href="#fr-9">Enfin : le paiement se fait tout seul</a></li><li><a href="#fr-10">Si ça ne marche pas</a></li></ol></nav>
+  <h2 id="fr-1">Quelle est votre situation ?</h2>
   <div class="routes">
     <div class="route pick"><div><h3>J'utilise Home Assistant</h3><p>Fonctionne avec presque tout compteur que HA lit déjà. Installez notre intégration, ou collez quelques lignes de YAML.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Le plus simple</span></div></div>
     <div class="route"><div><h3>J'ai un HomeWizard P1</h3><p>Pas besoin de Home Assistant. Marche en 🇳🇱 🇧🇪 🇱🇺 🇩🇰 🇸🇪 🇭🇺 — un petit utilitaire trouve votre compteur tout seul sur le réseau.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Un peu technique</span></div></div>
@@ -888,7 +902,7 @@
     <div class="route"><div><h3>Aucun des deux</h3><p>Continuez à photographier votre compteur. Ça marche aussi bien et rapporte exactement pareil. Rien à configurer.</p></div><div class="meter"><span>Rien à faire</span></div></div>
   </div>
   <div class="note"><b>D'abord, une fois : fixez votre point de départ</b>Quelle que soit la route, faites d'abord <strong>une soumission photo normale</strong> dans l'app. L'app sait ainsi où votre compteur a démarré — sinon les relevés automatiques ne peuvent pas être payés.</div>
-  <h2>Est-ce que ça marche chez vous ?</h2>
+  <h2 id="fr-2">Est-ce que ça marche chez vous ?</h2>
   <p class="lede" style="font-size:15.5px">La prise de votre compteur diffère selon le pays, donc tous les lecteurs ne fonctionnent pas partout. Ce qui marche toujours : <strong>si Home Assistant affiche déjà votre relevé, la Route A fonctionne</strong> — quel que soit le pays.</p>
   <div class="scroll"><table><tr><th>Pays</th><th>Votre compteur a</th><th>Quoi utiliser</th></tr>
     <tr><td>🇳🇱 Pays-Bas</td><td>Port P1 (RJ12)</td><td>Toutes les routes. HomeWizard marche directement.</td></tr>
@@ -909,12 +923,12 @@
     <tr><td>Ailleurs</td><td>Variable</td><td>Si Home Assistant lit votre compteur, la Route A marche.</td></tr>
   </table></div>
   <div class="note">Pas sûr ? Ouvrez Home Assistant et cherchez votre compteur dans Outils de développement → États. Si une valeur en kWh monte, c'est bon. HomeWizard P1 ? Vérifiez votre compteur sur <a href="https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter">la liste de HomeWizard</a>.</div>
-  <h2>Toutes les routes automatiques : récupérez votre jeton</h2>
+  <h2 id="fr-3">Toutes les routes automatiques : récupérez votre jeton</h2>
   <ol class="steps">
       <li><p class="steptitle">Copiez votre jeton</p>
       <p>Dans l'app : <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → « Get my device token »</span>. Copiez-le.</p><div class="see"><b>Ce que c'est</b>Un long code qui dit « ces relevés appartiennent à mon wallet ». Gardez-le privé — celui qui l'a peut envoyer des relevés en votre nom.</div></li>
       </ol>
-  <h2>Route A — Home Assistant (tout compteur)</h2>
+  <h2 id="fr-4">Route A — Home Assistant (tout compteur)</h2>
   <p class="lede" style="font-size:15.5px">Deux façons. Notre intégration est la plus simple et fonctionne avec <em>n'importe quel</em> compteur que Home Assistant affiche déjà ; le YAML fait la même chose à la main si vous préférez ne rien installer.</p>
   <h3 class="sub">Avec notre intégration (recommandé)</h3>
   <ol class="steps">
@@ -955,7 +969,7 @@
   action: { service: rest_command.gul_push }</pre></div>
       </li>
       </ol>
-  <h2>Route B — HomeWizard P1, sans Home Assistant</h2>
+  <h2 id="fr-5">Route B — HomeWizard P1, sans Home Assistant</h2>
   <ol class="steps">
       <li><p class="steptitle">Activez l'API locale</p>
       <p>Dans l'app <strong>HomeWizard Energy</strong> : <span class="k">Réglages → Compteurs → votre P1 → Local API → ON</span>. Votre réseau peut alors lire le compteur.</p>
@@ -981,7 +995,7 @@
       <div class="see"><b>Ce que vous devez voir, dans cet ordre</b><span class="k">Paste your device token…</span> → <span class="k">Scheduled…</span> → <span class="k">found HomeWizard at 192.168.…</span> → <span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
-  <h2>Route C — Un autre lecteur (lecteur P1, tête de lecture Tasmota)</h2>
+  <h2 id="fr-6">Route C — Un autre lecteur (lecteur P1, tête de lecture Tasmota)</h2>
   <p class="lede" style="font-size:15.5px">Le même utilitaire lit tout appareil de votre réseau qui expose le total kWh du compteur en JSON via HTTP, sans identifiant — vous lui dites simplement où. Tous les lecteurs ne le font pas : l’API de dsmr-reader exige une clé, et un Shelly compte sa propre énergie, pas le registre du compteur. Faites d’abord les étapes 2 à 4 de la route B (terminal et Node) ; seule la commande ci-dessous change.</p>
   <ol class="steps">
       <li><p class="steptitle">Trouvez l'URL de données de votre lecteur</p>
@@ -1002,7 +1016,7 @@
       <div class="see"><b>Sortie attendue</b><span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
-  <h2>Route D — Powerfox (poweropti)</h2>
+  <h2 id="fr-7">Route D — Powerfox (poweropti)</h2>
   <p class="lede" style="font-size:15.5px">Un poweropti lit votre compteur et envoie le relevé au cloud Powerfox. Voici trois façons de nous le faire parvenir — <strong>une seule suffit</strong>. Vous hésitez ? Prenez l'option 1.</p>
   <div class="note"><b>D'abord, dans l'app Powerfox</b>Activez le <strong>partage des données</strong> (Datenfreigabe). Sans cela, Powerfox ne partage vos relevés avec personne — ni avec nous, ni avec Home Assistant.</div>
   <h3 class="sub">Option 1 — Nous le récupérons pour vous (le plus simple)</h3>
@@ -1045,7 +1059,7 @@
       <p>Comme capteur, choisissez le capteur Powerfox <strong>Energy usage</strong> (consommation d'énergie, kWh). Compteur double tarif et celui-ci reste vide ? Créez une entrée qui additionne les capteurs heures pleines et heures creuses (<span class="k">Paramètres → Appareils et services → Entrées → Créer une entrée → Groupe → Groupe de capteurs</span>, type <strong>Somme</strong> ; pas « Combiner l'état de plusieurs capteurs », que notre intégration n’accepte pas comme total de compteur) et choisissez-la.</p>
       </li>
       </ol>
-  <h2>Route E — Tibber Pulse</h2>
+  <h2 id="fr-8">Route E — Tibber Pulse</h2>
   <p class="lede" style="font-size:15.5px">Un Tibber Pulse lit le port HAN ou P1 de votre compteur et envoie le relevé à Tibber. Deux façons de nous le faire parvenir — <strong>une seule suffit</strong>.</p>
   <h3 class="sub">Option 1 — Nous le récupérons pour vous (le plus simple)</h3>
   <ol class="steps">
@@ -1067,7 +1081,7 @@
       </li>
       </ol>
   <div class="note"><b>Pas d’appareil qui reste allumé ?</b>Ce n’est pas nécessaire. L’ordinateur était éteint à l’heure prévue ? Il envoie dès qu’il est rallumé — un ordinateur portable que vous ouvrez de temps en temps suffit donc. Il est payé dès son arrivée, au plus une fois par jour.</div>
-  <h2>Enfin : le paiement se fait tout seul</h2>
+  <h2 id="fr-9">Enfin : le paiement se fait tout seul</h2>
   <ol class="steps">
       <li><p class="steptitle">Votre relevé apparaît tout seul</p>
       <p>Dans l'app, allez sur <strong>Meter</strong>. Le panneau <strong>⚡ Automatic reading</strong> affiche <span class="k">Connected — … kWh received</span>, avec votre relevé et l'heure d'arrivée.</p>
@@ -1077,7 +1091,7 @@
       </li>
       </ol>
   <div class="note flag"><b>🇧🇪 Belgique (compteurs Fluvius)</b>Le port P1 des compteurs belges est désactivé par défaut. Avec Fluvius, vous l'activez gratuitement dans leur portail en ligne ; avec un autre gestionnaire de réseau, demandez-lui. Ensuite tout fonctionne pareil.</div>
-  <h2>Si ça ne marche pas</h2>
+  <h2 id="fr-10">Si ça ne marche pas</h2>
   <div class="scroll"><table class="stack"><tr><th>Vous voyez</th><th>Que faire</th></tr>
     <tr><td>&#x27;node&#x27; is not recognized</td><td>Node.js n’est pas installé, ou la fenêtre était déjà ouverte quand vous l’avez installé. Sous Windows : <span class="k">winget install OpenJS.NodeJS.LTS</span>. Ailleurs : nodejs.org. Puis ouvrez une <strong>nouvelle</strong> fenêtre et recollez la ligne. Git n’est pas nécessaire.</td></tr>
     <tr><td>Rien du tout — aucune sortie, retour immédiat à l’invite</td><td>Une ancienne copie de l’utilitaire, antérieure au 19 septembre. Elle avait un bug qui la faisait quitter sous Windows sans rien afficher. Retéléchargez-la avec la ligne ci-dessus ; la nouvelle demande votre jeton.</td></tr>
@@ -1108,7 +1122,8 @@
 </section>
 <section class="lang" id="lang-es">
   <header class="hero"><span class="kicker">Guía para testers</span><h1>Gana sin fotografiar tu contador</h1><p class="lede">Normalmente fotografías tu contador para ganar B3TR. Si algo en tu casa ya sabe leer el contador, puede enviar la lectura por ti — y no vuelves a fotografiar. Busca tu caso abajo.</p></header>
-  <h2>¿Cuál es tu caso?</h2>
+  <nav class="toc" aria-label="En esta página"><b>En esta página</b><ol><li><a href="#es-1">¿Cuál es tu caso?</a></li><li><a href="#es-2">¿Funciona en tu país?</a></li><li><a href="#es-3">Todas las rutas automáticas: consigue tu token</a></li><li><a href="#es-4">Ruta A — Home Assistant (cualquier contador)</a></li><li><a href="#es-5">Ruta B — HomeWizard P1, sin Home Assistant</a></li><li><a href="#es-6">Ruta C — Otro lector (lector P1, cabezal Tasmota)</a></li><li><a href="#es-7">Ruta D — Powerfox (poweropti)</a></li><li><a href="#es-8">Ruta E — Tibber Pulse</a></li><li><a href="#es-9">Por último: se paga solo</a></li><li><a href="#es-10">Si algo no funciona</a></li></ol></nav>
+  <h2 id="es-1">¿Cuál es tu caso?</h2>
   <div class="routes">
     <div class="route pick"><div><h3>Uso Home Assistant</h3><p>Funciona con casi cualquier contador que HA ya lee. Instala nuestra integración, o pega unas líneas de YAML.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Lo más fácil</span></div></div>
     <div class="route"><div><h3>Tengo un HomeWizard P1</h3><p>Sin Home Assistant. Funciona en 🇳🇱 🇧🇪 🇱🇺 🇩🇰 🇸🇪 🇭🇺 — un pequeño programa encuentra tu contador solo en la red.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Algo técnico</span></div></div>
@@ -1118,7 +1133,7 @@
     <div class="route"><div><h3>Ninguno</h3><p>Sigue fotografiando tu contador. Funciona igual de bien y da exactamente lo mismo. Nada que configurar.</p></div><div class="meter"><span>Sin configurar</span></div></div>
   </div>
   <div class="note"><b>Primero, una vez: fija tu punto de partida</b>Elijas la ruta que elijas, haz primero <strong>un envío con foto normal</strong> en la app. Así la app sabe dónde empezó tu contador — sin eso las lecturas automáticas no pueden pagarse.</div>
-  <h2>¿Funciona en tu país?</h2>
+  <h2 id="es-2">¿Funciona en tu país?</h2>
   <p class="lede" style="font-size:15.5px">La toma de tu contador varía según el país, así que no todos los lectores sirven en todas partes. Lo que siempre funciona: <strong>si Home Assistant ya muestra tu lectura, la Ruta A funciona</strong> — estés donde estés.</p>
   <div class="scroll"><table><tr><th>País</th><th>Tu contador tiene</th><th>Qué usar</th></tr>
     <tr><td>🇳🇱 Países Bajos</td><td>Puerto P1 (RJ12)</td><td>Cualquier ruta. HomeWizard funciona directamente.</td></tr>
@@ -1139,12 +1154,12 @@
     <tr><td>En otro lugar</td><td>Varía</td><td>Si Home Assistant lee tu contador, la Ruta A funciona.</td></tr>
   </table></div>
   <div class="note">¿No estás seguro? Abre Home Assistant y busca tu contador en Herramientas para desarrolladores → Estados. Si hay un valor en kWh que sube, listo. ¿HomeWizard P1? Comprueba tu contador en <a href="https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter">la lista de HomeWizard</a>.</div>
-  <h2>Todas las rutas automáticas: consigue tu token</h2>
+  <h2 id="es-3">Todas las rutas automáticas: consigue tu token</h2>
   <ol class="steps">
       <li><p class="steptitle">Copia tu token</p>
       <p>En la app: <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → «Get my device token»</span>. Cópialo.</p><div class="see"><b>Qué es</b>Un código largo que dice «estas lecturas son de mi wallet». Mantenlo privado — quien lo tenga puede enviar lecturas en tu nombre.</div></li>
       </ol>
-  <h2>Ruta A — Home Assistant (cualquier contador)</h2>
+  <h2 id="es-4">Ruta A — Home Assistant (cualquier contador)</h2>
   <p class="lede" style="font-size:15.5px">Dos formas. Nuestra integración es la más fácil y funciona con <em>cualquier</em> contador que Home Assistant ya muestre; el YAML hace lo mismo a mano si prefieres no instalar nada.</p>
   <h3 class="sub">Con nuestra integración (recomendado)</h3>
   <ol class="steps">
@@ -1185,7 +1200,7 @@
   action: { service: rest_command.gul_push }</pre></div>
       </li>
       </ol>
-  <h2>Ruta B — HomeWizard P1, sin Home Assistant</h2>
+  <h2 id="es-5">Ruta B — HomeWizard P1, sin Home Assistant</h2>
   <ol class="steps">
       <li><p class="steptitle">Activa la API local</p>
       <p>En la app <strong>HomeWizard Energy</strong>: <span class="k">Ajustes → Contadores → tu P1 → Local API → ON</span>. Así tu red puede leer el contador.</p>
@@ -1211,7 +1226,7 @@
       <div class="see"><b>Lo que deberías ver, en este orden</b><span class="k">Paste your device token…</span> → <span class="k">Scheduled…</span> → <span class="k">found HomeWizard at 192.168.…</span> → <span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
-  <h2>Ruta C — Otro lector (lector P1, cabezal Tasmota)</h2>
+  <h2 id="es-6">Ruta C — Otro lector (lector P1, cabezal Tasmota)</h2>
   <p class="lede" style="font-size:15.5px">El mismo programa lee cualquier dispositivo de tu red que sirva el total de kWh del contador en JSON por HTTP, sin inicio de sesión — solo le dices dónde. No todos los lectores lo hacen: la API de dsmr-reader pide una clave, y un Shelly cuenta su propia energía, no el registro del contador. Haz primero los pasos 2 a 4 de la ruta B (terminal y Node); solo cambia el comando de abajo.</p>
   <ol class="steps">
       <li><p class="steptitle">Encuentra la URL de datos de tu lector</p>
@@ -1232,7 +1247,7 @@
       <div class="see"><b>Salida esperada</b><span class="k">pushed 8421.3 kWh ✓</span></div>
       </li>
       </ol>
-  <h2>Ruta D — Powerfox (poweropti)</h2>
+  <h2 id="es-7">Ruta D — Powerfox (poweropti)</h2>
   <p class="lede" style="font-size:15.5px">Un poweropti lee tu contador y envía la lectura a la nube de Powerfox. Aquí tienes tres formas de que nos llegue — <strong>solo necesitas una</strong>. ¿Dudas? Elige la opción 1.</p>
   <div class="note"><b>Primero, en la app de Powerfox</b>Activa la <strong>transferencia de datos</strong> (Datenfreigabe). Sin ella Powerfox no comparte tus lecturas con nadie — ni con nosotros ni con Home Assistant.</div>
   <h3 class="sub">Opción 1 — La recogemos por ti (lo más fácil)</h3>
@@ -1275,7 +1290,7 @@
       <p>Como sensor, elige el sensor de Powerfox <strong>Energy usage</strong> (consumo de energía, kWh). ¿Contador de dos tarifas y ese se queda vacío? Crea un ayudante que sume los sensores de tarifa alta y baja (<span class="k">Ajustes → Dispositivos y servicios → Ayudantes → Crear ayudante → Grupo → Grupo de sensores</span>, tipo <strong>Suma</strong>; no «Combinar el estado de varios sensores», que nuestra integración no acepta como total del contador) y elige ese.</p>
       </li>
       </ol>
-  <h2>Ruta E — Tibber Pulse</h2>
+  <h2 id="es-8">Ruta E — Tibber Pulse</h2>
   <p class="lede" style="font-size:15.5px">Un Tibber Pulse lee el puerto HAN o P1 de tu contador y envía la lectura a Tibber. Dos formas de que nos llegue — <strong>solo necesitas una</strong>.</p>
   <h3 class="sub">Opción 1 — La recogemos por ti (lo más fácil)</h3>
   <ol class="steps">
@@ -1297,7 +1312,7 @@
       </li>
       </ol>
   <div class="note"><b>¿No tienes un equipo que quede encendido?</b>No hace falta. ¿El ordenador estaba apagado a la hora prevista? Envía en cuanto vuelve a encenderse — así que basta con un portátil que abres de vez en cuando. Se paga en cuanto llega, como mucho una vez al día.</div>
-  <h2>Por último: se paga solo</h2>
+  <h2 id="es-9">Por último: se paga solo</h2>
   <ol class="steps">
       <li><p class="steptitle">Tu lectura aparece sola</p>
       <p>En la app abre <strong>Meter</strong>. El panel <strong>⚡ Automatic reading</strong> muestra <span class="k">Connected — … kWh received</span>, con tu lectura y cuándo llegó.</p>
@@ -1307,7 +1322,7 @@
       </li>
       </ol>
   <div class="note flag"><b>🇧🇪 Bélgica (contadores Fluvius)</b>El puerto P1 de los contadores belgas está desactivado por defecto. Con Fluvius lo activas gratis en su portal en línea; con otra distribuidora, pregúntale. Después todo funciona igual.</div>
-  <h2>Si algo no funciona</h2>
+  <h2 id="es-10">Si algo no funciona</h2>
   <div class="scroll"><table class="stack"><tr><th>Ves</th><th>Qué hacer</th></tr>
     <tr><td>&#x27;node&#x27; is not recognized</td><td>Node.js no está instalado, o la ventana ya estaba abierta cuando lo instalaste. En Windows: <span class="k">winget install OpenJS.NodeJS.LTS</span>. En otros sistemas: nodejs.org. Abre después una ventana <strong>nueva</strong> y vuelve a pegar la línea. No necesitas git.</td></tr>
     <tr><td>Nada en absoluto — sin salida, vuelve al indicador</td><td>Una copia antigua del programa, anterior al 19 de septiembre. Tenía un fallo por el que salía en Windows sin mostrar nada. Descárgalo otra vez con la línea de arriba; el nuevo te pide el token.</td></tr>

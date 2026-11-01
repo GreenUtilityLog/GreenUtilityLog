@@ -1446,10 +1446,10 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .hitem:hover{border-color:${T.green3};}
 .hicon{width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
 .hinfo{flex:1;min-width:0;}
-.htitle{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${T.text};}
-.hdate{font-size:10px;color:${T.textSoft};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;margin-top:2px;}
+.htitle{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${T.text};}
+.hdate{font-size:11.5px;color:${T.textSoft};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;margin-top:2px;}
 .hright{text-align:right;flex-shrink:0;}
-.hb3tr{font-size:14px;font-weight:800;color:${T.green1};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-variant-numeric:tabular-nums;}
+.hb3tr{font-size:16px;font-weight:800;color:${T.green1};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-variant-numeric:tabular-nums;}
 .hstatus{font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:1px 5px;border-radius:999px;margin-top:4px;display:inline-block;}
 .s-confirmed{background:${T.green5};color:${T.green2};border:1px solid ${T.green4};}
 .s-pending{background:rgba(230,160,40,.12);color:${T === DARK ? "#e7b45a" : "#8a5a00"};border:1px solid rgba(230,160,40,.45);}
@@ -1495,7 +1495,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .irow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
 .igroup{display:flex;flex-direction:column;gap:4px;}
 .ilabel{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${T.textSoft};display:flex;align-items:center;gap:6px;}
-.utag{border-radius:4px;padding:1px 4px;font-size:9px;font-weight:700;background:var(--ubg);color:var(--uc);border:1px solid var(--uborder);text-transform:uppercase;letter-spacing:.6px;}
+.utag{border-radius:4px;padding:1px 4px;font-size:10.5px;font-weight:700;background:var(--ubg);color:var(--uc);border:1px solid var(--uborder);text-transform:uppercase;letter-spacing:.6px;}
 .ifield{width:100%;min-height:44px;box-sizing:border-box;background:${T.bg};border:1px solid ${T === DARK ? T.border : "#8f8a80"};border-radius:6px;padding:10px;color:${T.text};font-family:'SF Mono',Menlo,'Courier New',monospace;font-size:16px;transition:border-color .15s;}
 .ifield:focus{border-color:var(--uc,${T.green3});}
 .ifield::placeholder{color:${T.textSoft};opacity:1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;}
@@ -1642,10 +1642,11 @@ function NoWalletHint() {
 }
 
 function WalletGate({ onConnect, online }) {
+  const dlg = useDialog(null, "Connect your wallet");
   return (
     /* One centred block — logo, headline, copy and the CTA travel together, so the
        button is never pushed below the fold on a short/mobile viewport. */
-    <div className="intro-screen" style={{ zIndex: 410 }}>
+    <div {...dlg} className="intro-screen" style={{ zIndex: 410 }}>
       <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", width:"100%", maxWidth:340 }}>
         <div style={{ marginBottom:18, animation:"intro-bounce 1.2s ease-in-out infinite", display:"flex", justifyContent:"center" }}><LogoTile size={84} /></div>
         <h1 style={{ fontSize:27, fontWeight:800, color:"#fff", lineHeight:1.2, letterSpacing:"-0.6px", margin:"0 0 10px" }}>Connect your wallet</h1>
@@ -1786,6 +1787,7 @@ function IntroScreen({ onStart }) {
 }
 
 function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, editMode, T }) {
+  const dlg = useDialog(null, "Register your meters");
   // Which utilities this screen registers. Defaults to the required ones
   // (electric/gas/water); solar is added separately as an optional extra.
   const shown = (utils && utils.length) ? utils : UTILS.filter(u => !u.optional);
@@ -1842,7 +1844,7 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
       : "Find the number on the meter's sticker or on your energy bill, and type today's reading in kWh. That reading is your starting point.";
 
   return (
-    <div className="onboard">
+    <div {...dlg} className="onboard">
       <div className="ob-icon">{isSolarOnly ? "☀️" : "⚙️"}</div>
       <div className="ob-title" style={{color:T.text}}>{title}</div>
       <div className="ob-sub" style={{color:T.textMid}}>{sub}</div>
@@ -1895,12 +1897,13 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
 }
 
 function Onboarding({ onDone }) {
+  const dlg = useDialog(onDone, "Tutorial");
   const [slide, setSlide] = useState(0);
   const s = ONBOARD_SLIDES[slide];
   const isLast = slide === ONBOARD_SLIDES.length - 1;
 
   return (
-    <div className="onboard">
+    <div {...dlg} className="onboard">
       <div className="ob-icon">{s.icon}</div>
       <h2 className="ob-title">{s.title}</h2>
       <p className="ob-sub">{s.sub}</p>
@@ -1928,6 +1931,40 @@ function clampBox(b, dd) {
   return nb;
 }
 
+// Full-screen overlays behave as dialogs: focus moves in when one opens, Tab stays
+// inside it, Escape closes it (when it can be closed) and focus goes back to where
+// it was. Keyboard and screen-reader users used to tab out into the screen behind.
+function useDialog(onClose, label) {
+  const ref = useRef(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    const before = document.activeElement;
+    // Read the element at each key press: a dialog that swaps its own view (admin's
+    // wallet detail) renders a new root element under the same ref.
+    const focusables = (el) => [...el.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')]
+      .filter((n) => !n.disabled && n.getClientRects().length > 0);
+    if (ref.current) (focusables(ref.current)[0] || ref.current).focus({ preventScroll: true });
+    const onKey = (e) => {
+      const el = ref.current;
+      if (!el) return;
+      // Only for the topmost dialog: one opened on top of this one holds the focus.
+      const active = document.activeElement;
+      if (!(el.contains(active) || active === document.body || !active)) return;
+      if (e.key === "Escape" && closeRef.current) { e.preventDefault(); closeRef.current(); return; }
+      if (e.key !== "Tab") return;
+      const f = focusables(el);
+      if (!f.length) { e.preventDefault(); return; }
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && (active === first || !el.contains(active))) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && (active === last || !el.contains(active))) { e.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("keydown", onKey); try { if (before && document.contains(before)) before.focus({ preventScroll: true }); } catch { /* gone */ } };
+  }, []);
+  return { ref, role: "dialog", "aria-modal": "true", "aria-label": label, tabIndex: -1 };
+}
+
 // A QR code of this page, for moving from a computer to a phone. The encoder is
 // only loaded on a computer.
 function PhoneQr({ T }) {
@@ -1950,6 +1987,7 @@ function PhoneQr({ T }) {
 // meter apps avoid reading barcodes/serials/nameplate text. Returns a cropped Blob
 // (or null = use the whole photo) to the caller.
 function MeterCropper({ imgUrl, onCancel, onConfirm }) {
+  const dlg = useDialog(onCancel, "Align the reading");
   const imgRef = useRef(null);
   const dRef = useRef(null);            // displayed + natural dimensions
   const drag = useRef(null);
@@ -2002,7 +2040,7 @@ function MeterCropper({ imgUrl, onCancel, onConfirm }) {
   // bottom nav was drawn over it, covering "Retake" on short phones. Solid, so the
   // form behind doesn't show through.
   return createPortal(
-    <div role="dialog" aria-modal="true" aria-label="Align the reading" style={{position:"fixed",inset:OVERLAY_INSET,background:"#0a120e",zIndex:360,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:16}}>
+    <div {...dlg} style={{position:"fixed",inset:OVERLAY_INSET,background:"#0a120e",zIndex:360,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:16}}>
       <div style={{color:"#fff",fontSize:14,fontWeight:800,marginBottom:4,textAlign:"center"}}>Align the reading</div>
       <div style={{color:"rgba(255,255,255,0.7)",fontSize:11,marginBottom:14,textAlign:"center"}}>Box ONLY the digits row (e.g. 003755) — leave out any text above or below it</div>
       <div style={{position:"relative",maxWidth:"100%",maxHeight:"60vh",touchAction:"none"}}>
@@ -2360,9 +2398,10 @@ function HistItem({ s, T }) {
       title={txUrl ? "View this transaction on the VeChain explorer" : undefined}>
       <div className="hicon" style={{background: getColorBg(s.type, T), color: T[s.type] || T.electric}}>{UTIL_ICONS[s.type]}</div>
       <div className="hinfo">
-        <div className="htitle">{util.label}{s.meterNo ? <span style={{fontWeight:400,color:T.textSoft,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",fontSize:10}}> · #{s.meterNo}</span> : null}</div>
-        <div className="hdate">{fmtDay(s.date)}{txUrl ? <span style={{color:T.textSoft}}> · tx ↗</span> : null}</div>
-        <div style={{color: T[s.type] || T.electric, fontSize: isEco ? 12 : undefined}}>{delta}{util.unit && delta !== "—" ? ` ${util.unit}` : ""}</div>
+        {/* What was used, then when — the meter number only as its last digits,
+            so rows line up instead of wrapping on a 17-character number. */}
+        <div className="htitle">{util.label} · <span style={{textTransform:"none",letterSpacing:0,fontWeight:700,color:T.textMid}}>{delta}{util.unit && delta !== "—" ? ` ${util.unit}` : ""}</span></div>
+        <div className="hdate">{fmtDay(s.date)}{s.meterNo ? <span title={`Meter ${s.meterNo}`}> · meter …{String(s.meterNo).slice(-4)}</span> : null}{txUrl ? <span> · tx ↗</span> : null}</div>
       </div>
       {/* A reading recorded without a reward (no kWh saved, or a first reading) has
           no amount to show; a failed payout's amount was never received. */}
@@ -3935,7 +3974,7 @@ function ChartsScreen({ subs, T, part }) {
                 <div style={{position:"relative",height:110,display:"flex",alignItems:"flex-end",gap:2,padding:"14px 2px 0"}}>
                   {bench > 0 && (
                     <div style={{position:"absolute",left:0,right:0,bottom:`${(bench / maxScale) * 100}%`,borderTop:`2px dashed ${T.textSoft}`,zIndex:1}}>
-                      <span style={{position:"absolute",right:2,top:-14,fontSize:9,fontWeight:700,color:T.textSoft,background:T.card,padding:"0 3px"}}>target {bench} {u.unit}</span>
+                      <span style={{position:"absolute",right:2,top:-14,fontSize:10.5,fontWeight:700,color:T.textSoft,background:T.card,padding:"0 3px"}}>target {bench} {u.unit}</span>
                     </div>
                   )}
                   {series.map((d, i) => (
@@ -3947,7 +3986,7 @@ function ChartsScreen({ subs, T, part }) {
                   {series.map((d, i) => <div key={i} style={{flex:1,textAlign:"center",fontSize:10,color:T.textSoft}}>{d.label}</div>)}
                 </div>
                 {saving && (
-                <div style={{display:"flex",gap:12,marginTop:8,fontSize:9.5,color:T.textMid}}>
+                <div style={{display:"flex",gap:12,marginTop:8,fontSize:10.5,color:T.textMid}}>
                   <span><span style={{display:"inline-block",width:8,height:8,borderRadius:6,background:T.green3,marginRight:4,verticalAlign:"middle"}}/>under target ({underCount})</span>
                   <span><span style={{display:"inline-block",width:8,height:8,borderRadius:6,background:T.electric,marginRight:4,verticalAlign:"middle"}}/>above target ({series.length - underCount})</span>
                 </div>
@@ -3970,7 +4009,7 @@ function ChartsScreen({ subs, T, part }) {
           {weeks.map((w, i) => (
             <div key={i} title={`week of ${wkLabel(w.start)}: ${w.b3tr.toFixed(2)} B3TR (${w.n} submission${w.n === 1 ? "" : "s"})`}
               style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end",height:"100%"}}>
-              {w.b3tr > 0 && w.b3tr === weekMax && <div style={{fontSize:9,fontWeight:700,color:T.textMid,fontFamily:mono,marginBottom:2}}>{w.b3tr.toFixed(1)}</div>}
+              {w.b3tr > 0 && w.b3tr === weekMax && <div style={{fontSize:10.5,fontWeight:700,color:T.textMid,fontFamily:mono,marginBottom:2}}>{w.b3tr.toFixed(1)}</div>}
               <div style={{width:"100%",height: weekMax > 0 ? `${Math.max(4, (w.b3tr / weekMax) * 72)}%` : "4px",background: w.b3tr > 0 ? T.green3 : T.bgAlt,borderRadius:"4px 4px 0 0"}} />
             </div>
           ))}
@@ -4360,12 +4399,12 @@ function FlaggedPanel({ T, address, onAdminApi }) {
       ) : flags.map((f) => (
         <div key={f.txid} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, padding: "9px 11px", marginBottom: 6 }}>
           <div style={{ fontSize:10.5, color: T.text, lineHeight: 1.5 }}>{f.reason}</div>
-          <div style={{ fontSize:9, color: T.textSoft, marginTop: 3, fontFamily: mono, wordBreak: "break-all" }}>
+          <div style={{ fontSize:10.5, color: T.textSoft, marginTop: 3, fontFamily: mono, wordBreak: "break-all" }}>
             {f.at ? new Date(f.at).toISOString().slice(0, 16).replace("T", " ") : "—"} · {String(f.txid).slice(0, 14)}…
           </div>
         </div>
       ))}
-      <div style={{ fontSize:9.5, color: T.textSoft, marginTop: 8, lineHeight: 1.6 }}>
+      <div style={{ fontSize:10.5, color: T.textSoft, marginTop: 8, lineHeight: 1.6 }}>
         These were paid. A single one usually means a blurry photo; many from one wallet is worth a look.
       </div>
     </div>
@@ -4534,7 +4573,7 @@ function AccessPassPanel({ T, address, onAdminApi, onToast }) {
       </div>
 
       {!state.requirePass && (
-        <div style={{ fontSize:9.5, color: T.textSoft, marginTop: 8, lineHeight: 1.6 }}>
+        <div style={{ fontSize:10.5, color: T.textSoft, marginTop: 8, lineHeight: 1.6 }}>
           This version is open to everyone right now. Switch to "Only with a role" at the top of the admin screen to make roles count.
         </div>
       )}
@@ -4633,9 +4672,9 @@ function PassportPanel({ T, address, onAdminApi, onAssignSignaler, onToast }) {
       ) : null}
 
       <div style={{ display: "flex", gap: 16, marginBottom: 10 }}>
-        <div><span style={{ fontSize: 15, fontWeight: 600, color: T.text, fontFamily: mono }}>{p?.signals ?? "–"}</span> <span style={{ fontSize:9, color: T.textSoft }}>signals total</span></div>
-        <div><span style={{ fontSize: 15, fontWeight: 600, color: T.text, fontFamily: mono }}>{p?.appSignals ?? "–"}</span> <span style={{ fontSize:9, color: T.textSoft }}>from this app</span></div>
-        {st.threshold != null && <div><span style={{ fontSize: 15, fontWeight: 600, color: T.textSoft, fontFamily: mono }}>{st.threshold}</span> <span style={{ fontSize:9, color: T.textSoft }}>threshold</span></div>}
+        <div><span style={{ fontSize: 15, fontWeight: 600, color: T.text, fontFamily: mono }}>{p?.signals ?? "–"}</span> <span style={{ fontSize:10.5, color: T.textSoft }}>signals total</span></div>
+        <div><span style={{ fontSize: 15, fontWeight: 600, color: T.text, fontFamily: mono }}>{p?.appSignals ?? "–"}</span> <span style={{ fontSize:10.5, color: T.textSoft }}>from this app</span></div>
+        {st.threshold != null && <div><span style={{ fontSize: 15, fontWeight: 600, color: T.textSoft, fontFamily: mono }}>{st.threshold}</span> <span style={{ fontSize:10.5, color: T.textSoft }}>threshold</span></div>}
       </div>
 
       {authorized ? (
@@ -4650,7 +4689,7 @@ function PassportPanel({ T, address, onAdminApi, onAssignSignaler, onToast }) {
             />
             <button disabled={busy} onClick={doSignal} style={btn("#c0392b", "#fff", busy)}>{busy ? "…" : "🚩 Signal as bot"}</button>
           </div>
-          <div style={{ fontSize:9.5, color: T.textSoft, marginTop: 8, lineHeight: 1.6 }}>
+          <div style={{ fontSize:10.5, color: T.textSoft, marginTop: 8, lineHeight: 1.6 }}>
             Ecosystem-wide and permanent from our side — only VeBetterDAO can reset a wallet's signals. To just stop someone claiming here, use <b>Block wallet</b> above.
           </div>
         </>
@@ -4811,7 +4850,7 @@ function SubmissionRow({ r, T, onAdminApi, onToast, archiveOn }) {
                 seen by a human and has no photo to check, so it is the row an admin
                 most needs to recognise at a glance. */}
             {fromReader && (
-              <span style={{marginLeft:6,fontSize:9,fontWeight:800,letterSpacing:".6px",textTransform:"uppercase",color:T.eco||T.electric,border:`1px solid ${T.ecoBorder||T.border}`,background:T.ecoBg||T.bgAlt,borderRadius:6,padding:"1px 5px"}}>
+              <span style={{marginLeft:6,fontSize:10.5,fontWeight:800,letterSpacing:".6px",textTransform:"uppercase",color:T.eco||T.electric,border:`1px solid ${T.ecoBorder||T.border}`,background:T.ecoBg||T.bgAlt,borderRadius:6,padding:"1px 5px"}}>
                 ⚡ Automatic · no photo
               </span>
             )}
@@ -4822,7 +4861,7 @@ function SubmissionRow({ r, T, onAdminApi, onToast, archiveOn }) {
               ? (r.appliance ? `${r.appliance} on eco mode` : "appliance on eco mode")
               : (usage != null ? `${r.prev} → ${r.cur} · ${usage} ${unit} used` : (r.cur !== "" ? `reading ${r.cur}` : "reading"))}
           </div>
-          <div style={{fontSize:9,color:T.textSoft,marginTop:2}}>{fmtDay(r.date)}{txUrl ? " · tx ↗" : ""}</div>
+          <div style={{fontSize:10.5,color:T.textSoft,marginTop:2}}>{fmtDay(r.date)}{txUrl ? " · tx ↗" : ""}</div>
         </div>
         {canPhoto && photo.status !== "deleted" && (
           <span onClick={(e) => e.stopPropagation()} style={{display:"flex",gap:4}}>
@@ -4845,6 +4884,7 @@ function SubmissionRow({ r, T, onAdminApi, onToast, archiveOn }) {
 }
 
 function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDisableRewardsPool, onSetDistributionPaused, onAssignSignaler, onClaimB3TR, onAdminApi, onToast }) {
+  const dlg = useDialog(onClose, "Admin");
   const [chain, setChain] = useState({ status: "loading", rows: [], reason: null });
   const [knownWallets, setKnownWallets] = useState(null); // backend-known wallets (not yet on-chain)
   const [loadingWallets, setLoadingWallets] = useState(false);
@@ -4941,7 +4981,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
         {onBack && <button onClick={onBack} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"6px 10px",fontSize:12,fontWeight:700,color:T.textMid,cursor:"pointer"}}>←</button>}
         <div>
           <div style={{fontSize:14,fontWeight:800,color:T.text}}>{title}</div>
-          <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginTop:2}}>{sub}</div>
+          <div style={{fontSize:10.5,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginTop:2}}>{sub}</div>
         </div>
       </div>
       <button onClick={onClose} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"6px 14px",minHeight:44,fontSize:12,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Close</button>
@@ -4962,7 +5002,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
       return [...m.values()];
     })();
     return (
-      <div style={{position:"fixed",inset:OVERLAY_INSET,background:T.bg,zIndex:320,display:"flex",flexDirection:"column"}}>
+      <div {...dlg} style={{position:"fixed",inset:OVERLAY_INSET,background:T.bg,zIndex:320,display:"flex",flexDirection:"column"}}>
         {headerBar("🛡️ Wallet detail", `On-chain · ${NETWORK_LABEL}`, () => setSelected(null))}
         <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"14px"}}>
           <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"12px 14px",marginBottom:14}}>
@@ -4970,11 +5010,11 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
               <div style={{fontSize:13,fontWeight:700,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:T.text}}>{shortAddr(selected)}</div>
               <button onClick={() => { navigator.clipboard?.writeText(selected).catch(() => {}); }} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"4px 8px",fontSize:10,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Copy</button>
             </div>
-            <div style={{fontSize:9,color:T.textSoft,wordBreak:"break-all",marginTop:4,fontFamily:"'SF Mono',Menlo,'Courier New',monospace"}}>{selected}</div>
+            <div style={{fontSize:10.5,color:T.textSoft,wordBreak:"break-all",marginTop:4,fontFamily:"'SF Mono',Menlo,'Courier New',monospace"}}>{selected}</div>
             <div style={{display:"flex",gap:16,marginTop:10}}>
-              <div><span style={{fontSize:15,fontWeight:600,color:T.green3}}>{row ? row.b3tr.toFixed(2) : (detail.rows.reduce((a,r)=>a+(parseFloat(r.b3tr)||0),0)).toFixed(2)}</span> <span style={{fontSize:9,color:T.textSoft}}>B3TR</span></div>
-              <div><span style={{fontSize:15,fontWeight:600,color:T.text}}>{detail.rows.length}</span> <span style={{fontSize:9,color:T.textSoft}}>submissions</span></div>
-              <div><span style={{fontSize:15,fontWeight:600,color:T.text}}>{meters.length}</span> <span style={{fontSize:9,color:T.textSoft}}>meters</span></div>
+              <div><span style={{fontSize:15,fontWeight:600,color:T.green3}}>{row ? row.b3tr.toFixed(2) : (detail.rows.reduce((a,r)=>a+(parseFloat(r.b3tr)||0),0)).toFixed(2)}</span> <span style={{fontSize:10.5,color:T.textSoft}}>B3TR</span></div>
+              <div><span style={{fontSize:15,fontWeight:600,color:T.text}}>{detail.rows.length}</span> <span style={{fontSize:10.5,color:T.textSoft}}>submissions</span></div>
+              <div><span style={{fontSize:15,fontWeight:600,color:T.text}}>{meters.length}</span> <span style={{fontSize:10.5,color:T.textSoft}}>meters</span></div>
             </div>
           </div>
 
@@ -5003,7 +5043,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
               <span style={{fontSize:15}}>{UTIL_ICONS[m.utility]}</span>
               <div style={{flex:1}}>
                 <div style={{fontSize:12,fontWeight:700,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:T.text}}>{m.meterNo}</div>
-                <div style={{fontSize:9,color:T.textSoft,textTransform:"capitalize"}}>{m.utility} · {m.count} reading{m.count!==1?"s":""} · last {m.last}</div>
+                <div style={{fontSize:10.5,color:T.textSoft,textTransform:"capitalize"}}>{m.utility} · {m.count} reading{m.count!==1?"s":""} · last {m.last}</div>
               </div>
             </div>
           ))}
@@ -5021,7 +5061,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontSize:12,fontWeight:700,color:T.textMid}}>{title}</div>
                   <div style={{fontSize:10,color:T.textSoft,fontFamily:MONO}}>{sub}</div>
-                  <div style={{fontSize:9,color:T.textSoft,marginTop:2}}>2026-08-02 · tx ↗</div>
+                  <div style={{fontSize:10.5,color:T.textSoft,marginTop:2}}>2026-08-02 · tx ↗</div>
                 </div>
                 <div style={{fontSize:13,fontWeight:800,color:T.green3,fontFamily:MONO,whiteSpace:"nowrap"}}>{amt}</div>
               </div>
@@ -5038,7 +5078,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
             <SubmissionRow key={r.id} r={r} T={T} onAdminApi={onAdminApi} onToast={onToast} archiveOn={!!(onAdminApi && diag.health?.photoArchive)} />
           ))}
           {onAdminApi && diag.health && !diag.health.photoArchive && detail.rows.length > 0 && (
-            <div style={{marginTop:2,fontSize:9.5,color:T.textSoft,padding:"0 2px"}}>
+            <div style={{marginTop:2,fontSize:10.5,color:T.textSoft,padding:"0 2px"}}>
               📷 Photo review is off. Set the R2 keys in the backend to keep a thumbnail of each submission here.
             </div>
           )}
@@ -5062,7 +5102,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
 
   // ── Participant list + search ──────────────────────────────────────────────
   return (
-    <div style={{position:"fixed",inset:OVERLAY_INSET,background:T.bg,zIndex:320,display:"flex",flexDirection:"column"}}>
+    <div {...dlg} style={{position:"fixed",inset:OVERLAY_INSET,background:T.bg,zIndex:320,display:"flex",flexDirection:"column"}}>
       {headerBar("🛡️ Admin · Participants", `Read-only on-chain monitor · ${NETWORK_LABEL}`, null)}
       <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"14px"}}>
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:12}}>
@@ -5190,7 +5230,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
                   <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".6px",color:T.textSoft}}>Pool balance</span>
                   <span style={{display:"inline-flex",alignItems:"center",fontSize:14,fontWeight:700,color:c,fontFamily:"'SF Mono',Menlo,'Courier New',monospace"}}>
                     {pool.status === "loading" ? "…" : pool.status === "error" ? "—" : `${pool.b3tr.toFixed(2)} B3TR`}
-                    {empty && <span style={{fontSize:9,fontWeight:700,marginLeft:6,color:T.gas,background:T.gasBg,border:`1px solid ${T.gasBorder}`,borderRadius:6,padding:"1px 5px"}}>EMPTY</span>}
+                    {empty && <span style={{fontSize:10.5,fontWeight:700,marginLeft:6,color:T.gas,background:T.gasBg,border:`1px solid ${T.gasBorder}`,borderRadius:6,padding:"1px 5px"}}>EMPTY</span>}
                   </span>
                 </div>
               );
@@ -5293,7 +5333,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
                 {shortAddr(r.addr)}
                 {r.banned && <span style={{marginLeft:6,fontSize:8,fontWeight:800,color:"#c0392b"}}>BLOCKED</span>}
               </div>
-              <div style={{fontSize:9,color:T.textSoft}}>
+              <div style={{fontSize:10.5,color:T.textSoft}}>
                 {r.isNew
                   ? `🆕 No rewards yet${r.meters?.length ? ` · ${r.meters.length} meter${r.meters.length !== 1 ? "s" : ""} registered` : ""} · tap to view`
                   : `📸 ${r.count} submission${r.count !== 1 ? "s" : ""} · tap to view`}
@@ -5301,7 +5341,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
             </div>
             <div style={{textAlign:"right"}}>
               <div className="lb-b3tr" style={r.isNew ? {color:T.textSoft} : undefined}>+{r.b3tr.toFixed(2)}</div>
-              <div style={{fontSize:9,color:T.textSoft}}>B3TR</div>
+              <div style={{fontSize:10.5,color:T.textSoft}}>B3TR</div>
             </div>
           </div>
         ))}
@@ -5708,6 +5748,7 @@ if (NETWORK === "mainnet") {
 }
 
 function HelpScreen({ onClose, onFeedback, T }) {
+  const dlg = useDialog(onClose, "Help and FAQ");
   const [lang, setLang] = useState(() => {
     try { const s = localStorage.getItem("gul_help_lang"); if (HELP_I18N[s]) return s; const n = (navigator.language || "").slice(0,2).toLowerCase(); if (HELP_I18N[n]) return n; } catch {}
     return "en";
@@ -5719,11 +5760,11 @@ function HelpScreen({ onClose, onFeedback, T }) {
   const [openFaq, setOpenFaq] = useState(0); // accordion — first item open by default
   const row = { background:T.card, border:`1px solid ${T.border}`, borderRadius:10, padding:"12px 14px", marginBottom:8 };
   return (
-    <div style={{position:"fixed",inset:OVERLAY_INSET,background:T.bg,zIndex:330,display:"flex",flexDirection:"column"}}>
+    <div {...dlg} style={{position:"fixed",inset:OVERLAY_INSET,background:T.bg,zIndex:330,display:"flex",flexDirection:"column"}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 18px",borderBottom:`1px solid ${T.border}`}}>
         <div>
           <div style={{fontSize:14,fontWeight:800,color:T.text}}>❓ Help &amp; FAQ</div>
-          <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginTop:2}}>{L.subtitle} · {NETWORK_LABEL}</div>
+          <div style={{fontSize:10.5,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginTop:2}}>{L.subtitle} · {NETWORK_LABEL}</div>
         </div>
         <button onClick={onClose} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"6px 14px",minHeight:44,fontSize:12,fontWeight:700,color:T.textMid,cursor:"pointer"}}>{L.close}</button>
       </div>
@@ -5782,6 +5823,7 @@ function HelpScreen({ onClose, onFeedback, T }) {
 // FEEDBACK  — composes an email to FEEDBACK_EMAIL with diagnostics (no backend)
 // ════════════════════════════════════════════════════════════════════════════
 function FeedbackScreen({ onClose, onToast, wallet, tab, T }) {
+  const dlg = useDialog(onClose, "Send feedback");
   const [kind, setKind] = useState("bug");
   const [msg, setMsg] = useState("");
   const kinds = [
@@ -5816,11 +5858,11 @@ function FeedbackScreen({ onClose, onToast, wallet, tab, T }) {
   };
   const inputStyle = { width:"100%", boxSizing:"border-box", background:T.card, border:`1px solid ${T.border}`, borderRadius:10, padding:"12px", fontSize:13, color:T.text, fontFamily:"inherit", lineHeight:1.5, resize:"vertical" };
   return (
-    <div style={{position:"fixed",inset:OVERLAY_INSET,background:T.bg,zIndex:335,display:"flex",flexDirection:"column"}}>
+    <div {...dlg} style={{position:"fixed",inset:OVERLAY_INSET,background:T.bg,zIndex:335,display:"flex",flexDirection:"column"}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 18px",borderBottom:`1px solid ${T.border}`}}>
         <div>
           <div style={{fontSize:14,fontWeight:800,color:T.text}}>✉️ Send Feedback</div>
-          <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginTop:2}}>{NETWORK === "mainnet" ? "Help us improve the app" : "Help us improve the test"}</div>
+          <div style={{fontSize:10.5,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginTop:2}}>{NETWORK === "mainnet" ? "Help us improve the app" : "Help us improve the test"}</div>
         </div>
         <button onClick={onClose} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"6px 14px",minHeight:44,fontSize:12,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Close</button>
       </div>

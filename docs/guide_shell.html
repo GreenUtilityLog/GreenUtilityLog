@@ -11,7 +11,8 @@
 <meta property="og:image" content="https://greenutilitylog.github.io/GreenUtilityLog/og-image.png">
 <meta property="og:type" content="article">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔌</text></svg>">
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 </head>
 <body>
 <style>
@@ -172,6 +173,15 @@
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 <style>
+  .brand{display:flex;align-items:center;gap:8px;margin-right:auto;font-size:13.5px;font-weight:750;
+    color:var(--ink);text-decoration:none;padding:4px 0}
+  .brand img{border-radius:6px}
+  .brand:hover{color:var(--accent)}
+  nav.toc{margin:26px 0 0;padding:16px 18px;border:1px solid var(--rule);border-radius:6px;background:var(--raise);max-width:var(--measure)}
+  nav.toc b{display:block;font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-bottom:8px}
+  nav.toc ol{margin:0;padding-left:20px;columns:2 220px;column-gap:28px}
+  nav.toc li{font-size:14px;line-height:1.5;padding:3px 0;break-inside:avoid}
+  h2{scroll-margin-top:64px}
   h3.sub{margin:34px 0 16px;font-size:13.5px;font-weight:700;letter-spacing:.02em;color:var(--ink)}
   h3.sub::before{content:"";display:inline-block;width:14px;height:1px;background:var(--accent);
     vertical-align:middle;margin-right:10px}
