@@ -788,6 +788,16 @@ const TIER_ICONS = { Moon: "🌙", Sun: "☀️", Star: "⭐", Gold: "🥇", Pla
 // is allowed to end today OR yesterday, so it isn't reported as broken just
 // because today's reading hasn't been logged yet.
 function dayKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+// A day as people read it, in their own language: "21 Oct" / "Oct 21". The app
+// showed "10/19", "21/9" and "2026-10-23" on one screen. Takes a "YYYY-MM-DD" day
+// key (read as local midnight) or a timestamp.
+const DAY_FMT = (() => { try { return new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short" }); } catch { return null; } })();
+function fmtDay(x) {
+  const m = typeof x === "string" ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(x) : null;
+  const d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(Number(x));
+  if (!Number.isFinite(d.getTime())) return String(x ?? "");
+  return DAY_FMT ? DAY_FMT.format(d) : d.toDateString().slice(4, 10);
+}
 function computeStreak(subs){
   if (!subs || !subs.length) return 0;
   const days = new Set(subs.map(s => s.date));
@@ -1383,9 +1393,9 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .logo-mark{width:30px;height:30px;border-radius:6px;background:linear-gradient(135deg,#142c1e,#214834 55%,#3c6a50);display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;box-shadow:0 2px 8px ${T.shadow};font-weight:700;font-size:11px;}
 .logo-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;font-weight:800;color:${T.text};letter-spacing:-0.5px;line-height:1;}
 .hdr-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;}
-.dark-toggle{width:40px;height:40px;border-radius:6px;background:transparent;border:1px solid ${T.border};display:flex;align-items:center;justify-content:center;cursor:pointer;color:${T.textMid};transition:all .15s;flex-shrink:0;font-size:14px;}
+.dark-toggle{width:44px;height:44px;border-radius:6px;background:transparent;border:1px solid ${T.border};display:flex;align-items:center;justify-content:center;cursor:pointer;color:${T.textMid};transition:all .15s;flex-shrink:0;font-size:14px;}
 .dark-toggle:hover{border-color:${T.green3};color:${T.green3};}
-.wallet-pill{display:flex;align-items:center;gap:6px;background:transparent;border:1px solid ${T.border};border-radius:6px;padding:5px 9px;cursor:pointer;transition:all .15s;flex-shrink:0;font-size:11px;font-weight:600;}
+.wallet-pill{display:flex;align-items:center;gap:6px;background:transparent;border:1px solid ${T.border};border-radius:6px;padding:5px 10px;min-height:44px;box-sizing:border-box;cursor:pointer;transition:all .15s;flex-shrink:0;font-size:11px;font-weight:600;}
 .wallet-pill:hover,.wallet-pill.connected{border-color:${T.green3};color:${T.green3};}
 .wdot{width:5px;height:5px;border-radius:50%;background:${T.green3};animation:wpulse 2.5s infinite;flex-shrink:0;}
 .wdot.off{background:${T.textSoft};animation:none;}
@@ -1394,7 +1404,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 /* Phones: the name may take two lines rather than be cut to "Green Utility L",
    the buttons shrink a little, and the online dot only shows when OFFLINE.
    AFTER the rules it overrides — placed before them, it lost and did nothing. */
-@media (max-width:430px){.hdr{padding:10px 12px;gap:8px;}.logo{gap:8px;}.logo-name{white-space:normal;font-size:14px;letter-spacing:-0.4px;line-height:1.1;}.hdr-actions{gap:6px;}.dark-toggle{width:36px;height:36px;}.hdr-online.is-online{display:none!important;}.wallet-pill{padding:5px 7px;}}
+@media (max-width:430px){.hdr{padding:10px 12px;gap:8px;}.logo{gap:8px;}.logo-name{white-space:normal;font-size:14px;letter-spacing:-0.4px;line-height:1.1;}.hdr-actions{gap:6px;}.dark-toggle{width:44px;height:44px;}.hdr-online.is-online{display:none!important;}.wallet-pill{padding:5px 8px;}}
 
 .hero{margin:16px 14px 0;border-radius:10px;border:1px solid ${T.border};background:${T.card};padding:22px;position:relative;overflow:hidden;}
 .hero-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${T.textSoft};margin-bottom:12px;}
@@ -1442,7 +1452,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .hb3tr{font-size:14px;font-weight:800;color:${T.green1};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-variant-numeric:tabular-nums;}
 .hstatus{font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:1px 5px;border-radius:999px;margin-top:4px;display:inline-block;}
 .s-confirmed{background:${T.green5};color:${T.green2};border:1px solid ${T.green4};}
-.s-pending{background:rgba(230,160,40,.12);color:#b7791f;border:1px solid rgba(230,160,40,.45);}
+.s-pending{background:rgba(230,160,40,.12);color:${T === DARK ? "#e7b45a" : "#8a5a00"};border:1px solid rgba(230,160,40,.45);}
 .s-failed{background:rgba(220,80,60,.10);color:#c0392b;border:1px solid rgba(220,80,60,.45);}
 .s-recorded{background:${T.bgAlt};color:${T.textMid};border:1px solid ${T.border};}
 
@@ -1486,9 +1496,9 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .igroup{display:flex;flex-direction:column;gap:4px;}
 .ilabel{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${T.textSoft};display:flex;align-items:center;gap:6px;}
 .utag{border-radius:4px;padding:1px 4px;font-size:9px;font-weight:700;background:var(--ubg);color:var(--uc);border:1px solid var(--uborder);text-transform:uppercase;letter-spacing:.6px;}
-.ifield{width:100%;background:${T.bg};border:1px solid ${T.border};border-radius:6px;padding:9px 10px;color:${T.text};font-family:'SF Mono',Menlo,'Courier New',monospace;font-size:15px;outline:none;transition:border-color .15s;}
+.ifield{width:100%;min-height:44px;box-sizing:border-box;background:${T.bg};border:1px solid ${T === DARK ? T.border : "#8f8a80"};border-radius:6px;padding:10px;color:${T.text};font-family:'SF Mono',Menlo,'Courier New',monospace;font-size:16px;transition:border-color .15s;}
 .ifield:focus{border-color:var(--uc,${T.green3});}
-.ifield::placeholder{color:${T.textSoft};opacity:.5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;}
+.ifield::placeholder{color:${T.textSoft};opacity:1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;}
 .reward-preview{background:${T.bgAlt};border:1px solid ${T.border};border-left:1px solid ${T.border};border-radius:6px;padding:12px 13px;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
 .rp-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${T.textSoft};}
 .rp-rate{font-size:10px;color:${T.textSoft};margin-top:3px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
@@ -1576,6 +1586,17 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .filter-row{display:flex;gap:5px;padding:0 14px 13px;overflow-x:auto;}
 .fchip{flex-shrink:0;padding:4px 11px;border-radius:2px;font-size:10px;font-weight:700;cursor:pointer;border:1px solid ${T.border};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;transition:all .12s;text-transform:uppercase;letter-spacing:.8px;background:${T.card};color:${T.textSoft};}
 .fchip.active{background:${T.green1};color:${T === DARK ? T.bg : "#fff"};border-color:${T.green1};}
+
+/* A visible focus ring for keyboard and switch users. !important because a dozen
+   inputs set outline:none inline. Mouse and touch don't trigger :focus-visible. */
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,[role="button"]:focus-visible,[tabindex]:focus-visible{outline:2px solid ${T.green3}!important;outline-offset:2px;}
+/* Bouncing logos and pulsing dots loop for ever; people who asked their system for
+   less motion get none. */
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important;}}
+/* Text links and small controls that were 20-26 px tall: the tap area grows, the
+   look doesn't. */
+.tap44{position:relative;}
+.tap44::after{content:"";position:absolute;inset:-10px -6px;}
 `;
 }
 
@@ -1861,7 +1882,7 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
       {/* Only while solar is offered (it is commented out of UTILS for now). */}
       {SOLAR_UTILS.length > 0 && !isSolarOnly && !allLocked && <div style={{fontSize:11,color:T.textSoft,marginTop:16,textAlign:"center"}}>ℹ️ Got solar panels? Add them later in Settings.</div>}
       {allLocked && <div style={{fontSize:11,color:T.textSoft,marginTop:16,textAlign:"center"}}>🔒 Locked to prevent fraud. To replace a meter, contact support.</div>}
-      {!allMetersFilled && <div style={{fontSize:11,color:Object.keys(touched).length ? "#e0553d" : T.textSoft,marginTop:6,textAlign:"center"}}>Enter a meter number <b>and</b> its current reading for every meter to continue.</div>}
+      {!allMetersFilled && <div style={{fontSize:11,color:Object.keys(touched).length ? (T === DARK ? "#f08c78" : "#b3261e") : T.textSoft,marginTop:6,textAlign:"center"}}>Enter a meter number <b>and</b> its current reading for every meter to continue.</div>}
       <button className="ob-btn" onClick={handleDone} disabled={!allMetersFilled} style={!allMetersFilled?{opacity:.5,cursor:"not-allowed"}:undefined}>{allLocked ? "Done" : (isSolarOnly ? "Save Solar Meter" : "Complete Setup")}</button>
     </div>
   );
@@ -1976,7 +1997,7 @@ function MeterCropper({ imgUrl, onCancel, onConfirm }) {
         <button onClick={()=>onConfirm(null)} style={{...btn,border:"1px solid rgba(255,255,255,0.3)",background:"transparent",color:"#fff"}}>Whole photo</button>
         <button onClick={scan} style={{...btn,flex:2,border:"none",background:"#2E7D32",color:"#fff"}}>Scan this area</button>
       </div>
-      <button onClick={onCancel} style={{marginTop:12,background:"transparent",border:"none",color:"rgba(255,255,255,0.7)",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",cursor:"pointer"}}>Retake</button>
+      <button onClick={onCancel} style={{marginTop:12,minHeight:44,padding:"0 16px",background:"transparent",border:"none",color:"rgba(255,255,255,0.7)",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",cursor:"pointer"}}>Retake</button>
     </div>,
     document.body,
   );
@@ -2239,7 +2260,7 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
             <div style={{fontSize:10,color:T?.electric||"#E65100",marginTop:4,fontWeight:600}}>Allow anyway? Tap Submit to continue.</div>
           </div>
         )}
-        <div role="button" tabIndex={0} className="vr-retry" onClick={reset}>Retake photo</div>
+        <div role="button" tabIndex={0} className="vr-retry tap44" onClick={reset} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); reset(); } }}>Retake photo</div>
       </div>
     </div>
   );
@@ -2315,7 +2336,7 @@ function HistItem({ s, T }) {
       <div className="hicon" style={{background: getColorBg(s.type, T), color: T[s.type] || T.electric}}>{UTIL_ICONS[s.type]}</div>
       <div className="hinfo">
         <div className="htitle">{util.label}{s.meterNo ? <span style={{fontWeight:400,color:T.textSoft,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",fontSize:10}}> · #{s.meterNo}</span> : null}</div>
-        <div className="hdate">{s.date}{txUrl ? <span style={{color:T.textSoft}}> · tx ↗</span> : null}</div>
+        <div className="hdate">{fmtDay(s.date)}{txUrl ? <span style={{color:T.textSoft}}> · tx ↗</span> : null}</div>
         <div style={{color: T[s.type] || T.electric, fontSize: isEco ? 12 : undefined}}>{delta}{util.unit && delta !== "—" ? ` ${util.unit}` : ""}</div>
       </div>
       {/* A reading recorded without a reward (no kWh saved, or a first reading) has
@@ -3101,7 +3122,7 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
                 <div role="status" style={{ marginTop: 8, fontSize: 11, fontWeight: 700, lineHeight: 1.5, color: Date.now() > Number(latest.photoDueAt) ? T.gas : T.textMid }}>
                   {Date.now() > Number(latest.photoDueAt)
                     ? "📸 Automatic payouts are paused — take one photo of your meter (Meter tab) and they start again."
-                    : `📸 Take one photo of your meter before ${new Date(Number(latest.photoDueAt)).toLocaleDateString()} to keep automatic payouts going.`}
+                    : `📸 Take one photo of your meter before ${fmtDay(Number(latest.photoDueAt))} to keep automatic payouts going.`}
                 </div>
               )}
               <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 8 }}>
@@ -3549,8 +3570,8 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
             and the app adds them up; the photo only has to show one of the two. */}
         {u.id === "electric" && (
           <div style={{ margin: "2px 0 12px" }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 11.5, fontWeight: 700, color: T.text }}>
-              <input type="checkbox" checked={!!dualTariff} onChange={e => { setDualTariff(e.target.checked); if (!e.target.checked) { setRegLow(""); setRegNormal(""); setReading(""); } }} />
+            <label style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 44, cursor: "pointer", fontSize: 13, fontWeight: 700, color: T.text }}>
+              <input type="checkbox" style={{ width: 22, height: 22, flexShrink: 0, accentColor: T.green2 }} checked={!!dualTariff} onChange={e => { setDualTariff(e.target.checked); if (!e.target.checked) { setRegLow(""); setRegNormal(""); setReading(""); } }} />
               My meter shows two readings (low and normal tariff)
             </label>
             {dualTariff ? (
@@ -3806,7 +3827,7 @@ function ChartsScreen({ subs, T, part }) {
     if (w) { w.b3tr += parseFloat(s.b3tr) || 0; w.n += 1; }
   }
   const weekMax = Math.max(...weeks.map(w => w.b3tr), 0);
-  const wkLabel = (t) => { const d = new Date(t); return `${d.getDate()}/${d.getMonth() + 1}`; };
+  const wkLabel = (t) => fmtDay(t);
 
   // ── Personal records ────────────────────────────────────────────────────────
   const bestDay = meterSubs.length ? meterSubs.reduce((a, s) => usageOf(s) < usageOf(a) ? s : a) : null;
@@ -3869,7 +3890,7 @@ function ChartsScreen({ subs, T, part }) {
       {/* Usage vs the efficiency target — the core conservation view */}
       {UTILS.map(u => {
         const myS = subs.filter(s => s.type === u.id).slice(0, 7).reverse();
-        const series = myS.map(s => ({ v: usageOf(s), label: (s.date || "").slice(5).replace("-", "/") }));
+        const series = myS.map(s => ({ v: usageOf(s), label: fmtDay(s.date || "") }));
         // Production meters (solar) have no "stay under" target — more is better,
         // so they get plain green bars and no target framing.
         const saving = SAVING_UTILS.has(u.id);
@@ -3940,13 +3961,13 @@ function ChartsScreen({ subs, T, part }) {
           {bestDay && (
             <div style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${T.border}`,fontSize:11}}>
               <span style={{color:T.textMid}}>Most efficient reading</span>
-              <span style={{fontWeight:700,color:T.green3}}>{usageOf(bestDay).toFixed(2)} {getUtil(bestDay.type).unit} · {bestDay.date}</span>
+              <span style={{fontWeight:700,color:T.green3}}>{usageOf(bestDay).toFixed(2)} {getUtil(bestDay.type).unit} · {fmtDay(bestDay.date)}</span>
             </div>
           )}
           {bestReward && (
             <div style={{display:"flex",justifyContent:"space-between",padding:"7px 0",fontSize:11}}>
               <span style={{color:T.textMid}}>Biggest single reward</span>
-              <span style={{fontWeight:700,color:T.green3}}>+{(parseFloat(bestReward.b3tr) || 0).toFixed(2)} B3TR · {bestReward.date}</span>
+              <span style={{fontWeight:700,color:T.green3}}>+{(parseFloat(bestReward.b3tr) || 0).toFixed(2)} B3TR · {fmtDay(bestReward.date)}</span>
             </div>
           )}
         </div>
@@ -4756,7 +4777,7 @@ function SubmissionRow({ r, T, onAdminApi, onToast, archiveOn }) {
               ? (r.appliance ? `${r.appliance} on eco mode` : "appliance on eco mode")
               : (usage != null ? `${r.prev} → ${r.cur} · ${usage} ${unit} used` : (r.cur !== "" ? `reading ${r.cur}` : "reading"))}
           </div>
-          <div style={{fontSize:9,color:T.textSoft,marginTop:2}}>{r.date}{txUrl ? " · tx ↗" : ""}</div>
+          <div style={{fontSize:9,color:T.textSoft,marginTop:2}}>{fmtDay(r.date)}{txUrl ? " · tx ↗" : ""}</div>
         </div>
         {canPhoto && photo.status !== "deleted" && (
           <span onClick={(e) => e.stopPropagation()} style={{display:"flex",gap:4}}>
@@ -4878,7 +4899,7 @@ function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRewardsPool, onDi
           <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginTop:2}}>{sub}</div>
         </div>
       </div>
-      <button onClick={onClose} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"6px 12px",fontSize:11,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Close</button>
+      <button onClick={onClose} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"6px 14px",minHeight:44,fontSize:12,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Close</button>
     </div>
   );
 
@@ -5659,14 +5680,14 @@ function HelpScreen({ onClose, onFeedback, T }) {
           <div style={{fontSize:14,fontWeight:800,color:T.text}}>❓ Help &amp; FAQ</div>
           <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginTop:2}}>{L.subtitle} · {NETWORK_LABEL}</div>
         </div>
-        <button onClick={onClose} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"6px 12px",fontSize:11,fontWeight:700,color:T.textMid,cursor:"pointer"}}>{L.close}</button>
+        <button onClick={onClose} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"6px 14px",minHeight:44,fontSize:12,fontWeight:700,color:T.textMid,cursor:"pointer"}}>{L.close}</button>
       </div>
 
       {/* Language picker */}
       <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",padding:"9px 14px",borderBottom:`1px solid ${T.border}`}}>
         <span style={{fontSize:14}}>🌐</span>
         {Object.keys(HELP_I18N).map(code => (
-          <button key={code} onClick={() => pickLang(code)} style={{font:"inherit",fontSize:11.5,fontWeight:700,cursor:"pointer",padding:"4px 10px",borderRadius:999,border:`1px solid ${lang===code?(T.green3||T.electric):T.border}`,background:lang===code?(T.green3||T.electric):"transparent",color:lang===code?"#fff":T.textMid}}>{HELP_I18N[code].name}</button>
+          <button key={code} onClick={() => pickLang(code)} style={{font:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",padding:"4px 12px",minHeight:36,borderRadius:999,border:`1px solid ${lang===code?(T.green3||T.electric):T.border}`,background:lang===code?(T.green3||T.electric):"transparent",color:lang===code?"#fff":T.textMid}}>{HELP_I18N[code].name}</button>
         ))}
       </div>
 
@@ -5756,7 +5777,7 @@ function FeedbackScreen({ onClose, onToast, wallet, tab, T }) {
           <div style={{fontSize:14,fontWeight:800,color:T.text}}>✉️ Send Feedback</div>
           <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginTop:2}}>{NETWORK === "mainnet" ? "Help us improve the app" : "Help us improve the test"}</div>
         </div>
-        <button onClick={onClose} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"6px 12px",fontSize:11,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Close</button>
+        <button onClick={onClose} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"6px 14px",minHeight:44,fontSize:12,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Close</button>
       </div>
 
       <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"16px 14px 28px"}}>
@@ -6985,6 +7006,22 @@ export default function App() {
               </button>
             </div>
           </div>
+
+          {/* Offline was only a red dot in the header: nothing said that a reading
+              taken now isn't lost. */}
+          {!online && (
+            <div role="status" style={{margin:"10px 14px 0",padding:"10px 12px",fontSize:12.5,lineHeight:1.5,fontWeight:600,color:T.text,background:T.bgAlt,border:`1px solid ${T.border}`,borderRadius:6}}>
+              📴 You're offline. Readings you submit are saved on this phone and sent when you're back online.
+            </div>
+          )}
+
+          {/* Offline was only a red dot in the header: nothing said that a reading
+              taken now isn't lost. */}
+          {!online && (
+            <div role="status" style={{margin:"10px 14px 0",padding:"10px 12px",fontSize:12.5,lineHeight:1.5,fontWeight:600,color:T.text,background:T.bgAlt,border:`1px solid ${T.border}`,borderRadius:6}}>
+              📴 You're offline. Readings you submit are saved on this phone and sent when you're back online.
+            </div>
+          )}
 
           {networkMismatch && (
             <div role="alert" style={{margin:"10px 14px 0",padding:"10px 12px",fontSize:11.5,lineHeight:1.5,fontWeight:600,color:"#7a1c1c",background:"#fdecec",border:"1px solid #e3a3a3",borderRadius:6}}>
