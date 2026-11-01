@@ -1606,6 +1606,13 @@ app.post("/wallet/seen", async (req, res) => {
     requirePass: rolesRequired(),
     hasPass: await accessOk(address),
     pass: pass ? { no: pass.no, tier: pass.tier, issuedAt: pass.issuedAt } : null,
+    // The last reading recorded for each of this wallet's meters: what the next
+    // reading is measured from. A reading recorded without a reward never reaches
+    // the chain, so another device could only guess it. (Readings and meter
+    // numbers of paid readings are public on chain already.)
+    lastReadings: store.metersForWallet(address)
+      .filter((m) => ENABLED_UTILITIES.has(m.utility) && m.last != null)
+      .map((m) => ({ utility: m.utility, meterNo: m.meterNo, reading: m.last, at: store.lastReadingAt(m.utility, m.meterNo) || null })),
   });
 });
 
