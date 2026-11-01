@@ -2646,9 +2646,9 @@ function TibberSetup({ T, API, wallet, meterNo, token, latest, health, onLinked,
   };
   const connect = async () => {
     setMsg(null);
-    if (!meterNo) { setMsg({ ok: false, text: "Register your meter number first (Profile → ⚙️ → Meter)." }); return; }
-    if (tibberToken.trim().length < 20) { setMsg({ ok: false, text: "Paste your personal access token from developer.tibber.com." }); return; }
-    if (!consent) { setMsg({ ok: false, text: "Tick the box to allow us to keep your Tibber token." }); return; }
+    if (!meterNo) { setMsg({ ok: false, text: t("r.registerFirst") }); return; }
+    if (tibberToken.trim().length < 20) { setMsg({ ok: false, text: t("tb.needToken") }); return; }
+    if (!consent) { setMsg({ ok: false, text: t("tb.needConsent") }); return; }
     setBusy(true);
     try {
       const certificate = await sign(`Green Utility Log — link Tibber\nWallet: ${wallet}\nNetwork: ${NETWORK}\nTime: ${new Date().toISOString()}`);
@@ -2656,34 +2656,34 @@ function TibberSetup({ T, API, wallet, meterNo, token, latest, health, onLinked,
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || `connecting failed (${r.status})`);
       setTibberToken("");
-      setMsg({ ok: true, text: `Connected — Tibber reports ${d.reading} kWh. Check that this matches your meter's total.` });
+      setMsg({ ok: true, text: t("r.checkTotal", { who: "Tibber", n: d.reading }) });
       onLinked?.(d.token);
     } catch (e) {
-      setMsg({ ok: false, text: e?.message || "connecting failed" });
+      setMsg({ ok: false, text: e?.message || t("r.connectFailed") });
     } finally { setBusy(false); }
   };
   const disconnect = async () => {
-    if (!window.confirm("Disconnect Tibber? Your Tibber token is deleted from our server.")) return;
+    if (!window.confirm(t("tb.confirmOff"))) return;
     setBusy(true);
     try {
       const certificate = await sign(`Green Utility Log — unlink Tibber\nWallet: ${wallet}\nNetwork: ${NETWORK}\nTime: ${new Date().toISOString()}`);
       const r = await fetchT(`${API}/meter/tibber/unlink`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: wallet, certificate }) });
       if (!r.ok) throw new Error("couldn't disconnect — try again");
-      setMsg({ ok: true, text: "Disconnected — your Tibber token is deleted." });
+      setMsg({ ok: true, text: t("tb.off") });
       onLinked?.();
-    } catch (e) { setMsg({ ok: false, text: e?.message || "couldn't disconnect" }); }
+    } catch (e) { setMsg({ ok: false, text: e?.message || t("r.disconnectFailed") }); }
     finally { setBusy(false); }
   };
   const routes = [
-    ...(serverOn ? [{ id: "server", title: "We fetch it for you", sub: "Easiest — nothing to install or keep switched on" }] : []),
-    { id: "ha", title: "With Home Assistant", sub: "If you already use Home Assistant" },
+    ...(serverOn ? [{ id: "server", title: t("r.route.server"), sub: t("r.route.server.sub") }] : []),
+    { id: "ha", title: t("r.route.ha"), sub: t("r.route.ha.sub") },
   ];
   return (
     <div style={{ marginBottom: 10 }}>
       <div style={{ fontSize: 11, color: T.textMid, lineHeight: 1.6, marginBottom: 8 }}>
-        You need a <b>Tibber Pulse</b> on your meter, set up in the Tibber app.
+        {t("tb.need")}
       </div>
-      <div role="radiogroup" aria-label="How to connect Tibber" style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+      <div role="radiogroup" aria-label={t("tb.how")} style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
         {routes.map((r) => (
           <button key={r.id} type="button" role="radio" aria-checked={route === r.id} onClick={() => setRoute(r.id)}
             style={{ textAlign: "left", padding: "10px 12px", borderRadius: 10, cursor: "pointer", background: route === r.id ? (T.green5 || T.bgAlt) : T.card, border: `${route === r.id ? 2 : 1}px solid ${route === r.id ? T.green3 : T.border}` }}>
@@ -2696,27 +2696,27 @@ function TibberSetup({ T, API, wallet, meterNo, token, latest, health, onLinked,
       {route === "server" && (
         <div style={card}>
           {tb?.linked ? (<>
-            <div style={{ fontSize: 12.5, fontWeight: 800, color: T.text }}>✅ Tibber is connected</div>
+            <div style={{ fontSize: 12.5, fontWeight: 800, color: T.text }}>{t("tb.connected")}</div>
             <div style={{ fontSize: 11, color: T.textSoft, marginTop: 4, lineHeight: 1.5 }}>
-              We fetch your reading every hour{tb.lastPullAt ? ` — last time ${fmtWhen(tb.lastPullAt)}` : ""}. Payouts follow automatically — after your first photo submission, which sets the starting point (until then, automatic readings are not paid).
+              {t("r.everyHour", { last: tb.lastPullAt ? t("r.lastTime", { when: fmtWhen(tb.lastPullAt) }) : "" })}
             </div>
             {tb.lastError && <div style={{ fontSize: 11, color: T.gas, marginTop: 6, lineHeight: 1.5 }}>⚠️ {tb.lastError}</div>}
             <button type="button" disabled={busy} onClick={disconnect} style={{ marginTop: 10, minHeight: 40, padding: "0 12px", borderRadius: 6, border: `1px solid ${T.border}`, background: "transparent", color: T.textMid, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
-              {busy ? "…" : "Disconnect Tibber"}
+              {busy ? "…" : t("tb.disconnect")}
             </button>
           </>) : (<>
             <ol style={{ margin: 0, paddingLeft: 18, fontSize: 11.5, color: T.textMid, lineHeight: 1.7 }}>
-              <li>Open <b>developer.tibber.com</b> and sign in with your Tibber account.</li>
-              <li>Open <b>Access token</b> and copy your personal token.</li>
-              <li>Paste it below. Our server then fetches your meter total from Tibber every hour and pays it like any reading.</li>
+              <li>{t("tb.s1")}</li>
+              <li>{t("tb.s2")}</li>
+              <li>{t("tb.s3")}</li>
             </ol>
-            <label style={label} htmlFor="tb-token">Tibber access token</label>
+            <label style={label} htmlFor="tb-token">{t("tb.label")}</label>
             <input id="tb-token" type="password" autoComplete="off" spellCheck={false} value={tibberToken} onChange={(e) => setTibberToken(e.target.value)} style={input} />
             <label style={{ display: "flex", gap: 8, alignItems: "flex-start", marginTop: 10, fontSize: 11, color: T.textMid, lineHeight: 1.5, cursor: "pointer" }}>
               <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} style={{ marginTop: 2 }} />
-              <span>I allow Green Utility Log to keep my Tibber token <b>encrypted</b>, only to read my meter. I can disconnect at any time, and the token is deleted then. You can also withdraw it at developer.tibber.com.</span>
+              <span>{t("tb.consent")}</span>
             </label>
-            <button type="button" disabled={busy} onClick={connect} style={{ ...primary, opacity: busy ? .6 : 1 }}>{busy ? "Connecting… (up to 30 s)" : "Connect Tibber"}</button>
+            <button type="button" disabled={busy} onClick={connect} style={{ ...primary, opacity: busy ? .6 : 1 }}>{busy ? t("r.connecting30") : t("tb.connect")}</button>
           </>)}
           {msg && <div role="status" style={{ marginTop: 8, fontSize: 11, fontWeight: 700, lineHeight: 1.5, color: msg.ok ? T.green3 : T.gas }}>{msg.text}</div>}
         </div>
@@ -2732,11 +2732,11 @@ function TibberSetup({ T, API, wallet, meterNo, token, latest, health, onLinked,
             <li>Pick the Tibber sensor <b>Last meter consumption</b> (kWh) — the meter's own total.</li>
           </ol>
           <button type="button" onClick={() => copy(token, "tbtok")} style={{ marginTop: 8, padding: "6px 10px", fontSize: 11, fontWeight: 700, borderRadius: 6, border: "none", background: copied === "tbtok" ? T.green3 : T.textSoft, color: "#fff", cursor: "pointer" }}>
-            {copied === "tbtok" ? "✓ Token copied" : "Copy token"}
+            {copied === "tbtok" ? t("r.tokenCopied") : t("r.copyTokenShort")}
           </button>
           {INGEST_FLAG && (
             <button type="button" onClick={() => copy(`${API}/meter-ingest`, "tburl")} style={{ marginTop: 8, marginLeft: 6, padding: "6px 10px", fontSize: 11, fontWeight: 700, borderRadius: 6, border: "none", background: copied === "tburl" ? T.green3 : T.textSoft, color: "#fff", cursor: "pointer" }}>
-              {copied === "tburl" ? "✓ Address copied" : "Copy server address"}
+              {copied === "tburl" ? t("r.addrCopied") : t("r.copyAddr")}
             </button>
           )}
         </div>
@@ -2768,9 +2768,9 @@ function PowerfoxSetup({ T, API, wallet, meterNo, token, latest, health, onLinke
   };
   const connect = async () => {
     setMsg(null);
-    if (!meterNo) { setMsg({ ok: false, text: "Register your meter number first (Profile → ⚙️ → Meter)." }); return; }
-    if (!email.trim() || !password) { setMsg({ ok: false, text: "Fill in the e-mail and password of your Powerfox account." }); return; }
-    if (!consent) { setMsg({ ok: false, text: "Tick the box to allow us to keep your Powerfox login." }); return; }
+    if (!meterNo) { setMsg({ ok: false, text: t("r.registerFirst") }); return; }
+    if (!email.trim() || !password) { setMsg({ ok: false, text: t("pf.needLogin") }); return; }
+    if (!consent) { setMsg({ ok: false, text: t("pf.needConsent") }); return; }
     setBusy(true);
     try {
       const certificate = await sign(`Green Utility Log — link Powerfox\nWallet: ${wallet}\nNetwork: ${NETWORK}\nTime: ${new Date().toISOString()}`);
@@ -2779,29 +2779,29 @@ function PowerfoxSetup({ T, API, wallet, meterNo, token, latest, health, onLinke
       if (!r.ok) throw new Error(d.error || `connecting failed (${r.status})`);
       setPassword("");
       setMsg({ ok: true, text: d.outdated
-        ? "Connected. Powerfox only has an old reading right now — check that your poweropti is online."
-        : `Connected — Powerfox reports ${d.reading} kWh. Check that this matches your meter's total.` });
+        ? t("pf.old")
+        : t("r.checkTotal", { who: "Powerfox", n: d.reading }) });
       onLinked?.(d.token);
     } catch (e) {
-      setMsg({ ok: false, text: e?.message || "connecting failed" });
+      setMsg({ ok: false, text: e?.message || t("r.connectFailed") });
     } finally { setBusy(false); }
   };
   const disconnect = async () => {
-    if (!window.confirm("Disconnect Powerfox? Your Powerfox login is deleted from our server.")) return;
+    if (!window.confirm(t("pf.confirmOff"))) return;
     setBusy(true);
     try {
       const certificate = await sign(`Green Utility Log — unlink Powerfox\nWallet: ${wallet}\nNetwork: ${NETWORK}\nTime: ${new Date().toISOString()}`);
       const r = await fetchT(`${API}/meter/powerfox/unlink`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: wallet, certificate }) });
       if (!r.ok) throw new Error("couldn't disconnect — try again");
-      setMsg({ ok: true, text: "Disconnected — your Powerfox login is deleted." });
+      setMsg({ ok: true, text: t("pf.off") });
       onLinked?.();
-    } catch (e) { setMsg({ ok: false, text: e?.message || "couldn't disconnect" }); }
+    } catch (e) { setMsg({ ok: false, text: e?.message || t("r.disconnectFailed") }); }
     finally { setBusy(false); }
   };
   const routes = [
-    ...(serverOn ? [{ id: "server", title: "We fetch it for you", sub: "Easiest — nothing to install or keep switched on" }] : []),
-    { id: "computer", title: "On your own computer", sub: "A small script on a PC, Mac or Pi that is on daily" },
-    { id: "ha", title: "With Home Assistant", sub: "If you already use Home Assistant" },
+    ...(serverOn ? [{ id: "server", title: t("r.route.server"), sub: t("r.route.server.sub") }] : []),
+    { id: "computer", title: t("r.route.pc"), sub: t("r.route.pc.sub") },
+    { id: "ha", title: t("r.route.ha"), sub: t("r.route.ha.sub") },
   ];
   const cmd = `${needNode}
 
@@ -2814,9 +2814,9 @@ ${fetchCmd(`--ask-token --powerfox=YOUR_POWERFOX_EMAIL --install${INGEST_FLAG}`)
   return (
     <div style={{ marginBottom: 10 }}>
       <div style={{ fontSize: 11, color: T.textMid, lineHeight: 1.6, marginBottom: 8 }}>
-        <b>First, in the Powerfox app:</b> switch on <b>data transfer</b> (Datenfreigabe) — otherwise Powerfox shares no readings with anyone.
+        {t("pf.first")}
       </div>
-      <div role="radiogroup" aria-label="How to connect Powerfox" style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+      <div role="radiogroup" aria-label={t("pf.how")} style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
         {routes.map((r) => (
           <button key={r.id} type="button" role="radio" aria-checked={route === r.id} onClick={() => setRoute(r.id)}
             style={{ textAlign: "left", padding: "10px 12px", borderRadius: 10, cursor: "pointer", background: route === r.id ? (T.green5 || T.bgAlt) : T.card, border: `${route === r.id ? 2 : 1}px solid ${route === r.id ? T.green3 : T.border}` }}>
@@ -2829,27 +2829,27 @@ ${fetchCmd(`--ask-token --powerfox=YOUR_POWERFOX_EMAIL --install${INGEST_FLAG}`)
       {route === "server" && (
         <div style={card}>
           {pf?.linked ? (<>
-            <div style={{ fontSize: 12.5, fontWeight: 800, color: T.text }}>✅ Powerfox is connected</div>
+            <div style={{ fontSize: 12.5, fontWeight: 800, color: T.text }}>{t("pf.connected")}</div>
             <div style={{ fontSize: 11, color: T.textSoft, marginTop: 4, lineHeight: 1.5 }}>
               We fetch your reading every hour{pf.lastPullAt ? ` — last time ${fmtWhen(pf.lastPullAt)}` : ""}. Payouts follow automatically — after your first photo submission, which sets the starting point (until then, automatic readings are not paid).
             </div>
             {pf.lastError && <div style={{ fontSize: 11, color: T.gas, marginTop: 6, lineHeight: 1.5 }}>⚠️ {pf.lastError}</div>}
             <button type="button" disabled={busy} onClick={disconnect} style={{ marginTop: 10, minHeight: 40, padding: "0 12px", borderRadius: 6, border: `1px solid ${T.border}`, background: "transparent", color: T.textMid, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
-              {busy ? "…" : "Disconnect Powerfox"}
+              {busy ? "…" : t("pf.disconnect")}
             </button>
           </>) : (<>
             <div style={{ fontSize: 11, color: T.textMid, lineHeight: 1.6 }}>
-              Log in with your <b>Powerfox account</b>. Our server then fetches your meter total from Powerfox every hour and pays it like any reading — your computer can stay off.
+              {t("pf.login")}
             </div>
-            <label style={label} htmlFor="pf-email">Powerfox e-mail</label>
+            <label style={label} htmlFor="pf-email">{t("pf.email")}</label>
             <input id="pf-email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} style={input} />
-            <label style={label} htmlFor="pf-pass">Powerfox password</label>
+            <label style={label} htmlFor="pf-pass">{t("pf.pass")}</label>
             <input id="pf-pass" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} style={input} />
             <label style={{ display: "flex", gap: 8, alignItems: "flex-start", marginTop: 10, fontSize: 11, color: T.textMid, lineHeight: 1.5, cursor: "pointer" }}>
               <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} style={{ marginTop: 2 }} />
-              <span>I allow Green Utility Log to keep my Powerfox login <b>encrypted</b>, only to read my meter. I can disconnect at any time, and the login is deleted then. Tip: use a password you use nowhere else.</span>
+              <span>{t("pf.consent")}</span>
             </label>
-            <button type="button" disabled={busy} onClick={connect} style={{ ...primary, opacity: busy ? .6 : 1 }}>{busy ? "Connecting…" : "Connect Powerfox"}</button>
+            <button type="button" disabled={busy} onClick={connect} style={{ ...primary, opacity: busy ? .6 : 1 }}>{busy ? t("r.connecting") : t("pf.connect")}</button>
           </>)}
           {msg && <div role="status" style={{ marginTop: 8, fontSize: 11, fontWeight: 700, lineHeight: 1.5, color: msg.ok ? T.green3 : T.gas }}>{msg.text}</div>}
         </div>
@@ -2858,10 +2858,10 @@ ${fetchCmd(`--ask-token --powerfox=YOUR_POWERFOX_EMAIL --install${INGEST_FLAG}`)
       {route === "computer" && (
         <div style={card}>
           <div style={{ fontSize: 11, color: T.textMid, lineHeight: 1.6, marginBottom: 8 }}>
-            Paste this in a terminal on a computer that is on at least once a day (Windows: PowerShell · Mac: Terminal · Pi: SSH). Replace <b>YOUR_POWERFOX_EMAIL</b> first. Needs Node.js 22+.
+            {t("pf.pc")}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 10, color: T.textSoft, fontWeight: 700 }}>Running it on</span>
+            <span style={{ fontSize: 10, color: T.textSoft, fontWeight: 700 }}>{t("r.runningOn")}</span>
             {[{ id: "win", label: "Windows" }, { id: "unix", label: "Mac · Linux · Pi" }].map((o) => (
               <button key={o.id} type="button" onClick={() => setOs(o.id)}
                 style={{ padding: "5px 9px", fontSize: 10, fontWeight: 700, borderRadius: 6, cursor: "pointer", border: `1px solid ${os === o.id ? T.green3 : T.border}`, background: os === o.id ? T.green3 : "transparent", color: os === o.id ? "#fff" : T.textMid }}>
@@ -2876,7 +2876,7 @@ ${fetchCmd(`--ask-token --powerfox=YOUR_POWERFOX_EMAIL --install${INGEST_FLAG}`)
             <pre style={{ fontFamily: "'SF Mono',Menlo,monospace", fontSize: 10, lineHeight: 1.5, color: T.text, background: T.card, border: `1px dashed ${T.border}`, padding: 10, borderRadius: 6, overflowX: "auto", margin: 0, whiteSpace: "pre" }}>{cmd}</pre>
           </div>
           <button type="button" onClick={() => copy(token, "pfcomptok")} style={{ marginTop: 8, padding: "6px 10px", fontSize: 11, fontWeight: 700, borderRadius: 6, border: "none", background: copied === "pfcomptok" ? T.green3 : T.textSoft, color: "#fff", cursor: "pointer" }}>
-            {copied === "pfcomptok" ? "✓ Token copied" : "Copy token"}
+            {copied === "pfcomptok" ? t("r.tokenCopied") : t("r.copyTokenShort")}
           </button>
         </div>
       )}
@@ -2894,11 +2894,11 @@ ${fetchCmd(`--ask-token --powerfox=YOUR_POWERFOX_EMAIL --install${INGEST_FLAG}`)
             <li>Pick the Powerfox sensor <b>Energy usage</b> (kWh). Meter with two tariffs and that one stays empty? Add the high- and low-tariff sensors together with <b>Settings → Devices &amp; services → Helpers → Create helper → Group → Sensor group</b>, type <b>Sum</b>, and pick that group.</li>
           </ol>
           <button type="button" onClick={() => copy(token, "pftok")} style={{ marginTop: 8, padding: "6px 10px", fontSize: 11, fontWeight: 700, borderRadius: 6, border: "none", background: copied === "pftok" ? T.green3 : T.textSoft, color: "#fff", cursor: "pointer" }}>
-            {copied === "pftok" ? "✓ Token copied" : "Copy token"}
+            {copied === "pftok" ? t("r.tokenCopied") : t("r.copyTokenShort")}
           </button>
           {INGEST_FLAG && (
             <button type="button" onClick={() => copy(`${API}/meter-ingest`, "pfurl")} style={{ marginTop: 8, marginLeft: 6, padding: "6px 10px", fontSize: 11, fontWeight: 700, borderRadius: 6, border: "none", background: copied === "pfurl" ? T.green3 : T.textSoft, color: "#fff", cursor: "pointer" }}>
-              {copied === "pfurl" ? "✓ Address copied" : "Copy server address"}
+              {copied === "pfurl" ? t("r.addrCopied") : t("r.copyAddr")}
             </button>
           )}
         </div>
@@ -3014,7 +3014,7 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
   // The one-tap path: send the typed reading to the backend, then pay it out.
   const sendAndEarn = async () => {
     const rv = parseFloat(manual);
-    if (!Number.isFinite(rv) || rv < 0) { setErr("Enter a valid meter reading (kWh)."); return; }
+    if (!Number.isFinite(rv) || rv < 0) { setErr(t("r.validReading")); return; }
     setErr(""); setSending(true);
     try {
       const tk = await ensureToken();
@@ -3096,7 +3096,7 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
       await navigator.clipboard.writeText(text);
       setCopied(tag); setTimeout(() => setCopied(""), 1500);
     } catch {
-      setErr("Couldn't copy here — select the text and copy it by hand.");
+      setErr(t("r.copyByHand"));
     }
   };
 
@@ -3127,12 +3127,12 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
     : (lastPayout?.at ? lastPayout.at + RULES.cooldownMs : 0);
   const timeline = (() => {
     const steps = [];
-    if (rd?.at) steps.push({ at: rd.at, ...dayTime(rd.at), title: "Reading received", sub: `${rd.reading} kWh from your reader`, done: true });
+    if (rd?.at) steps.push({ at: rd.at, ...dayTime(rd.at), title: t("r.received"), sub: t("r.received.sub", { n: rd.reading }), done: true });
     if (lastPayout?.at) steps.push({ at: lastPayout.at, ...dayTime(lastPayout.at), title: `Paid +${Number(lastPayout.amount).toFixed(2)} B3TR`, sub: "automatically, on VeChain", done: true });
     steps.sort((a, b) => a.at - b.at);
     steps.push(nextAt > Date.now()
-      ? { ...dayTime(nextAt), title: "Next reward possible", sub: "your reader sends at the first hour after", done: false }
-      : { day: "", time: "now", title: "Next reward possible", sub: paidThis || !rd ? "paid as soon as the next reading arrives" : "this reading can be paid — it goes automatically", done: false });
+      ? { ...dayTime(nextAt), title: t("r.nextReward"), sub: t("r.sendsAfter"), done: false }
+      : { day: "", time: t("today.now"), title: t("r.nextReward"), sub: paidThis || !rd ? t("r.paidNext") : t("r.canPay"), done: false });
     return steps;
   })();
   const box = { margin: "0 14px 12px", padding: 12, background: T.ecoBg || T.waterBg, border: `1px solid ${T.ecoBorder || T.waterBorder}`, borderRadius: 10 };
@@ -3145,7 +3145,7 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
   return (
     <div style={box}>
       <button onClick={embedded ? undefined : () => setOpen(o => !o)} style={{ display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between", gap: 10, background: "none", border: "none", cursor: embedded ? "default" : "pointer", padding: 0 }}>
-        <span style={{ fontSize: 12, fontWeight: 800, color: T.eco || T.water }}>⚡ Automatic reading <span style={{ fontWeight: 600, color: T.textSoft }}>· P1 reader, Powerfox or Tibber (beta)</span></span>
+        <span style={{ fontSize: 12, fontWeight: 800, color: T.eco || T.water }}>{t("r.title")} <span style={{ fontWeight: 600, color: T.textSoft }}>{t("r.title.sub")}</span></span>
         {!embedded && <span style={{ color: T.textSoft, fontSize: 13 }}>{open ? "▲" : "▼"}</span>}
       </button>
 
@@ -3153,12 +3153,12 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
         <div style={{ marginTop: 10 }}>
           {rd == null && (
             <div style={{ fontSize: 11, color: T.textSoft, lineHeight: 1.6, marginBottom: 10 }}>
-              Connect a P1 reader (e.g. HomeWizard) and your meter total is sent in automatically — no photos, no typing — and paid as it arrives, at most once a day.
+              {t("r.intro")}
             </div>
           )}
 
           {!wallet ? (
-            <div style={{ fontSize: 11, color: T.textSoft }}>Connect your wallet to submit a reading.</div>
+            <div style={{ fontSize: 11, color: T.textSoft }}>{t("r.connectWallet")}</div>
           ) : rd != null ? (
             /* A real reader (P1 / Enode) pushed a reading — claim it with one tap, no
                photo needed (the device token binds it to your wallet). */
@@ -3170,10 +3170,10 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, fontWeight: 800, color: T.text }}>
                   <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: "50%", background: readerFresh ? T.green3 : T.electric, flexShrink: 0 }} />
-                  {rd.source === "enode" ? "Enode" : rd.source === "powerfox" ? "Powerfox" : rd.source === "tibber" ? "Tibber" : "P1 reader"}
+                  {rd.source === "enode" ? "Enode" : rd.source === "powerfox" ? "Powerfox" : rd.source === "tibber" ? "Tibber" : t("r.p1")}
                 </div>
                 <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".6px", padding: "3px 8px", borderRadius: 999, color: readerFresh ? T.green3 : T.electric, background: readerFresh ? (T.green5 || T.bgAlt) : (T.electricBg || T.bgAlt) }}>
-                  {readerFresh ? "Connected" : "No new reading"}
+                  {readerFresh ? t("today.reader.ok") : t("today.reader.stale")}
                 </span>
               </div>
               {/* Automatic payouts need a photo now and then (the server pauses them
@@ -3182,8 +3182,8 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
               {Number(latest?.photoDueAt) > 0 && Date.now() > Number(latest.photoDueAt) - 7 * 86400000 && (
                 <div role="status" style={{ marginTop: 8, fontSize: 11, fontWeight: 700, lineHeight: 1.5, color: Date.now() > Number(latest.photoDueAt) ? T.gas : T.textMid }}>
                   {Date.now() > Number(latest.photoDueAt)
-                    ? "📸 Automatic payouts are paused — take one photo of your meter (Meter tab) and they start again."
-                    : `📸 Take one photo of your meter before ${fmtDay(Number(latest.photoDueAt))} to keep automatic payouts going.`}
+                    ? t("r.paused")
+                    : t("r.photoDue", { date: fmtDay(Number(latest.photoDueAt)) })}
                 </div>
               )}
               <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 8 }}>
@@ -3196,7 +3196,7 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
             </div>
 
             <div style={{ marginTop: 8, padding: "12px", background: T.bg, border: `1px solid ${T.border || T.waterBorder}`, borderRadius: 10 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft, marginBottom: 8 }}>Timeline</div>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft, marginBottom: 8 }}>{t("r.timeline")}</div>
               {timeline.map((s, i) => (
                 <div key={i} style={{ display: "grid", gridTemplateColumns: "72px 14px 1fr", gap: 8, alignItems: "stretch", minHeight: i === timeline.length - 1 ? 0 : 40 }}>
                   <div style={{ paddingTop: 1 }}>
@@ -3215,7 +3215,7 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
               ))}
               {!paidThis && (
                 <button disabled={busyAny} onClick={() => onAutoSubmit?.()} style={{ ...btn(T.eco || T.electric), width: "100%", marginTop: 10, opacity: busyAny ? .6 : 1 }}>
-                  {busyAny ? "Submitting…" : latest?.autoClaimOnPush ? "Claim now" : "Submit — no photo"}
+                  {busyAny ? t("r.submitting") : latest?.autoClaimOnPush ? t("r.claim") : t("r.submitNoPhoto")}
                 </button>
               )}
             </div>
@@ -3233,17 +3233,14 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
             {scaleMismatch && (
               <div style={{ marginTop: 10, padding: "10px 12px", background: T.bg, border: `1px dashed ${T.border || T.waterBorder}`, borderRadius: 10 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: T.text, marginBottom: 4 }}>
-                  Your starting point doesn’t match your reader
+                  {t("r.mismatch.t")}
                 </div>
                 <div style={{ fontSize: 10.5, color: T.textSoft, lineHeight: 1.6 }}>
-                  Stored start <b style={mono}>{latest.baseline}</b> vs reader <b style={mono}>{rd.reading}</b> kWh — a gap of{" "}
-                  <b style={mono}>{gapKwh}</b> kWh, far more than anyone uses between readings. That happens when your
-                  meter keeps <b>two tariff registers</b> (low and normal) and your photo captured one of them, while
-                  your reader reports the total of both. Claiming will keep being refused until the two agree.
+                  {t("r.mismatch.d", { start: latest.baseline, reading: rd.reading, gap: gapKwh })}
                 </div>
                 <button disabled={!!busy} onClick={doRebaseline}
                   style={{ ...btn(T.electric), marginTop: 9, opacity: busy ? .6 : 1 }}>
-                  {busy === "rebase" ? "Updating…" : "Use this reading as my starting point"}
+                  {busy === "rebase" ? t("r.updating") : t("r.useAsStart")}
                 </button>
                 <div style={{ fontSize: 10, color: T.textSoft, marginTop: 6, lineHeight: 1.5 }}>
                   Pays nothing — it only sets where counting begins. You can do this until your first automatic payout.
@@ -3255,14 +3252,14 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
             /* Paired, but from another browser or device: this one has no token yet,
                and readings are only shown to whoever holds it. */
             <div style={{ fontSize: 11, color: T.textSoft, lineHeight: 1.6 }}>
-              Your reader is connected{latest?.lastPayout ? ` — last paid +${Number(latest.lastPayout.amount).toFixed(2)} B3TR automatically` : ""}. To see its readings on this device, sign once:
+              {t("r.connectedOther", { paid: latest?.lastPayout ? t("r.lastPaid", { amount: Number(latest.lastPayout.amount).toFixed(2) }) : "" })}
               <div style={{ marginTop: 8 }}>
-                <button onClick={showToken} style={btn(T.eco || T.electric)}>Show my readings here</button>
+                <button onClick={showToken} style={btn(T.eco || T.electric)}>{t("r.showHere")}</button>
               </div>
             </div>
           ) : (
             <div style={{ fontSize: 11, color: T.textSoft, lineHeight: 1.6 }}>
-              No automatic reading yet. Have a reader (P1, Home Assistant, Powerfox, Tibber)? Set it up below — your meter total then shows up here to submit with one tap. No reader, or no P1 port in your country? <b>Use the 📸 Photo tab</b> — photos work everywhere.
+              {t("r.none")}
             </div>
           )}
 
@@ -3272,7 +3269,7 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
           {wallet && (
             <div style={{ marginTop: 12, borderTop: `1px solid ${T.ecoBorder || T.waterBorder}`, paddingTop: 10 }}>
               <button onClick={() => setAdvOpen(o => !o)} style={{ display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between", background: "none", border: "none", cursor: "pointer", padding: 0, color: T.textSoft, fontSize: 11, fontWeight: 700 }}>
-                <span>⚙️ Automatic setup (P1 reader / Powerfox / Tibber / Home Assistant{enodeOn ? " / Enode" : ""})</span>
+                <span>{t("r.setup", { enode: enodeOn ? " / Enode" : "" })}</span>
                 <span>{advOpen ? "▲" : "▼"}</span>
               </button>
 
@@ -3281,14 +3278,14 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
                   {/* Setup is long-form and read on a laptop, so it lives in the guide.
                       Here: just what you need to act — the snippet and where it goes. */}
                   <div style={{ fontSize:10.5, color: T.textSoft, lineHeight: 1.6, marginBottom: 8 }}>
-                    Pick your device and copy the ready-made setup — your token is already filled in.{" "}
+                    {t("r.pick")}{" "}
                     <a href={GUIDE_URL} target="_blank" rel="noopener noreferrer" style={{ color: T.eco || T.electric, fontWeight: 700 }}>
-                      Full step-by-step guide ↗
+                      {t("r.guide")}
                     </a>
                   </div>
 
                   {!token ? (
-                    <button onClick={showToken} style={btn(T.electric)}>Get my device token</button>
+                    <button onClick={showToken} style={btn(T.electric)}>{t("r.getToken")}</button>
                   ) : (() => {
                     // Live connection status — the card already polls /meter/latest.
                     const connected = rd != null;
@@ -3300,7 +3297,7 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
                       { id: "tibber",     label: "Tibber" },
                       { id: "tasmota",    label: "Tasmota / Hichi" },
                       { id: "ha",         label: "Home Assistant" },
-                      { id: "curl",       label: "Any other reader" },
+                      { id: "curl",       label: t("r.other") },
                     ];
                     // One file, no git, no cd, no install: the helper has no dependencies, so
                     // downloading and running it IS the setup. Written for one shell at a
@@ -3373,12 +3370,12 @@ ${fetchCmd(`--ask-token --install --url=http://<reader-ip>/api/v1/data${INGEST_F
 # It first asks for your device token: tap “Copy token only” and paste it.`;
                     const snip = device === "ha" ? haYaml : device === "curl" ? curlSnippet : device === "tasmota" ? tasmotaCmd : bridgeCmd;
                     const hint = device === "homewizard"
-                      ? 'Turn on "Local API" in the HomeWizard app first (Settings → Meters → your P1). The bridge finds your P1 itself — if your network blocks mDNS, add --ip=<your P1 IP>. Needs Node 22+ or Docker — nothing to clone, no git.'
+                      ? t("r.hint.hw")
                       : device === "tasmota"
-                      ? "For an IR reading head with Tasmota (e.g. Hichi) on the meter's optical port — common in Germany, Austria and Switzerland. Find its IP in your router or the Tasmota web page. Needs Node 22+ on a computer in the same network."
+                      ? t("r.hint.tasmota")
                       : device === "ha"
-                      ? "The easiest route: install our integration via HACS (no YAML at all) — the first lines below show how. Or wire it yourself with the YAML; entity IDs differ per install, so find yours under Developer tools → States (filter “import”, pick the kWh one that counts up)."
-                      : "For any other setup. POST your cumulative kWh total from any device, or let the bridge read any HTTP/JSON reader for you with --url=.";
+                      ? t("r.hint.ha")
+                      : t("r.hint.curl");
                     return (
                       <div>
                         {/* Live connection status */}
@@ -3413,7 +3410,7 @@ ${fetchCmd(`--ask-token --install --url=http://<reader-ip>/api/v1/data${INGEST_F
 
                         {device !== "ha" && device !== "powerfox" && device !== "tibber" && (
                           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
-                            <span style={{ fontSize:10, color: T.textSoft, fontWeight: 700 }}>Running it on</span>
+                            <span style={{ fontSize:10, color: T.textSoft, fontWeight: 700 }}>{t("r.runningOn")}</span>
                             {[{ id: "win", label: "Windows" }, { id: "unix", label: "Mac · Linux · Pi" }].map((o) => (
                               <button key={o.id} onClick={() => setOs(o.id)}
                                 style={{ padding: "5px 9px", fontSize:10, fontWeight: 700, borderRadius: 6, cursor: "pointer", border: `1px solid ${os === o.id ? (T.eco || T.electric) : (T.border || T.waterBorder)}`, background: os === o.id ? (T.eco || T.electric) : "transparent", color: os === o.id ? "#fff" : T.textMid }}>
@@ -3427,7 +3424,7 @@ ${fetchCmd(`--ask-token --install --url=http://<reader-ip>/api/v1/data${INGEST_F
                         {device !== "powerfox" && device !== "tibber" && <>
                         <div style={{ position: "relative" }}>
                           <button onClick={() => copy(snip, "snip")} style={{ position: "absolute", top: 6, right: 6, padding: "4px 8px", fontSize:10, fontWeight: 700, border: "none", borderRadius: 6, cursor: "pointer", background: copied === "snip" ? (T.eco || T.green3 || T.electric) : T.textSoft, color: "#fff" }}>
-                            {copied === "snip" ? "✓ Copied" : "Copy setup"}
+                            {copied === "snip" ? t("r.copied") : t("r.copySetup")}
                           </button>
                           <pre style={{ ...mono, fontSize:10, lineHeight: 1.5, color: T.text, background: T.bg, border: `1px dashed ${T.border || T.waterBorder}`, padding: "10px 10px 10px", borderRadius: 6, overflowX: "auto", margin: 0, whiteSpace: "pre" }}>{snip}</pre>
                         </div>
@@ -3439,13 +3436,11 @@ ${fetchCmd(`--ask-token --install --url=http://<reader-ip>/api/v1/data${INGEST_F
                             reader just keeps saying "unknown device token". */}
                         <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${T.border || T.waterBorder}` }}>
                           <div style={{ fontSize: 10.5, color: T.textSoft, lineHeight: 1.6, marginBottom: 7 }}>
-                            Does your reader say <span style={{ fontFamily: "'SF Mono',Menlo,monospace" }}>unknown device token</span>?
-                            This token is remembered by your browser, and the server can have started fresh since.
-                            Re-linking fixes that — and gives back the same token when nothing is wrong.
+                            {t("r.unknownToken")}
                           </div>
                           <button disabled={!!busy} onClick={relinkDevice}
                             style={{ padding: "8px 11px", fontSize: 11, fontWeight: 700, borderRadius: 6, cursor: "pointer", border: `1px solid ${T.border || T.waterBorder}`, background: "transparent", color: T.textMid, opacity: busy ? .6 : 1 }}>
-                            {busy === "relink" ? "Re-linking…" : "↻ Re-link this device"}
+                            {busy === "relink" ? t("r.relinking") : t("r.relink")}
                           </button>
                           {relinked && (
                             <div style={{ marginTop: 7, fontSize: 10.5, fontWeight: 700, color: relinked === "new" ? (T.eco || T.electric) : T.textSoft }}>
@@ -3459,15 +3454,15 @@ ${fetchCmd(`--ask-token --install --url=http://<reader-ip>/api/v1/data${INGEST_F
                         {/* One line, not a manual: the detail lives in the guide. */}
                         {device !== "ha" && device !== "powerfox" && device !== "tibber" && (
                           <div style={{ fontSize:10, color: T.textSoft, lineHeight: 1.6, marginTop: 8 }}>
-                            📍 Paste this in a <b>terminal</b> on the device that stays on (Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH). Needs Node.js 22+.{" "}
-                            <a href={GUIDE_URL} target="_blank" rel="noopener noreferrer" style={{ color: T.eco || T.electric, fontWeight: 700 }}>Show me ↗</a>
+                            {t("r.terminal")}{" "}
+                            <a href={GUIDE_URL} target="_blank" rel="noopener noreferrer" style={{ color: T.eco || T.electric, fontWeight: 700 }}>{t("r.showMe")}</a>
                           </div>
                         )}
 
                         {/* Raw token / URL for reference */}
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-                          <button onClick={() => copy(token, "tok")} style={{ ...btn(T.textSoft), padding: "5px 9px", fontSize:10 }}>{copied === "tok" ? "✓ Token copied" : "Copy token only"}</button>
-                          <button onClick={() => copy(ingestUrl, "url")} style={{ ...btn(T.textSoft), padding: "5px 9px", fontSize:10 }}>{copied === "url" ? "✓ URL copied" : "Copy URL only"}</button>
+                          <button onClick={() => copy(token, "tok")} style={{ ...btn(T.textSoft), padding: "5px 9px", fontSize:10 }}>{copied === "tok" ? t("r.tokenCopied") : t("r.copyToken")}</button>
+                          <button onClick={() => copy(ingestUrl, "url")} style={{ ...btn(T.textSoft), padding: "5px 9px", fontSize:10 }}>{copied === "url" ? t("r.urlCopied") : t("r.copyUrl")}</button>
                         </div>
                       </div>
                     );
@@ -5631,7 +5626,7 @@ const HELP_I18N = {
       { t:"Earn B3TR", d:"Every kWh you use below the target (8 kWh a day) earns B3TR on testnet. Your first reading sets your starting point; a reading without savings is recorded, not rewarded. Track your total on Home and your position on the Leaderboard." },
     ], faqs:[
       { q:"Where do I find my meter number?", a:"Two spots on the meter:\n1) On the little screen — press the meter's buttons until the number appears.\n2) Under the barcode, on a sticker on the front or side.\nEnter the whole number including the letter — electricity usually starts with E, gas with G. It's also on your energy bill or your supplier's online account." },
-      { q:"Automatic reading (P1 reader / HomeWizard / Powerfox / Tibber)", a:"With a P1 reader, Home Assistant, or another reader, your meter can send its own reading — then you never photograph again.\nHave a Powerfox (poweropti) or a Tibber Pulse? Pick it in the setup: we can fetch your reading from their cloud, nothing to install.\nDo one photo submission first (it sets your baseline), then open Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup for your token and the ready-made setup.\nFull step-by-step guide for every setup: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
+      { q:"Automatic reading (P1 reader / HomeWizard / Powerfox / Tibber)", a:"With a P1 reader, Home Assistant, or another reader, your meter can send its own reading — then you never photograph again.\nHave a Powerfox (poweropti) or a Tibber Pulse? Pick it in the setup: we can fetch your reading from their cloud, nothing to install.\nDo one photo submission first (it sets your starting point), then open Meter → the ⚡ link at the bottom → ⚙️ Automatic setup for your token and the ready-made setup.\nFull step-by-step guide for every setup: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"Where do I paste the setup code?", a:"In a terminal on the device that stays on — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. That device needs Node.js 22+.\nUsing Home Assistant? No terminal at all — install our integration via HACS. (The separate GreenUtilityLog Meter Bridge add-on runs the bridge on Home Assistant OS instead.)\nStep-by-step with screenshots of every route: https://greenutilitylog.github.io/GreenUtilityLog/guide.html\nToo technical? Just take a photo — that works just as well." },
       { q:"Which meters work?", a:"Netherlands, Belgium, Luxembourg: almost any smart meter with a P1 port, with a HomeWizard P1 (Belgium: switch the port on for free in the Fluvius portal · Luxembourg: ask your grid operator for the P1 key).\nDenmark, Sweden, Hungary: a HomeWizard P1 too, once your grid operator switches the port on (Hungary: some meters only). Does it fit your meter? https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter\nGermany: a Powerfox poweropti, or a Tasmota reading head (Hichi).\nSweden, Norway, Denmark, Finland: a Tibber Pulse.\nFrance, UK, Spain, Italy: no P1 port — for now only through Home Assistant.\nUSA and Canada: no P1 port — photos work if your meter's display shows the kWh total; Home Assistant with a Rainforest EAGLE where your utility allows it.\nEverywhere: if Home Assistant shows your meter's kWh total, it works. And photos always work.\nAll the details per country: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"Do I always need a photo?", a:"A photo is required for a hand-entered reading. A connected P1 reader can submit without a photo, because its device token binds the reading to your wallet. One photo every 30 days keeps automatic payouts going; the app tells you a week ahead." },
@@ -5650,7 +5645,7 @@ const HELP_I18N = {
       { t:"Verdien B3TR", d:"Elke kWh die je onder de norm (8 kWh per dag) blijft, levert B3TR op testnet op. Je eerste stand is je beginpunt; een stand zonder besparing wordt vastgelegd, niet beloond. Zie je totaal op Home en je positie in het klassement." },
     ], faqs:[
       { q:"Waar vind ik mijn meternummer?", a:"Twee plekken op de meter:\n1) Op het schermpje — druk op de knopjes tot het nummer verschijnt.\n2) Onder de streepjescode, op een sticker aan de voor- of zijkant.\nNeem het hele nummer over, mét de letter — stroom begint meestal met E, gas met G. Het staat ook op je energierekening of in je online account bij je leverancier." },
-      { q:"Automatisch uitlezen (P1-reader / HomeWizard / Powerfox / Tibber)", a:"Met een P1-reader, Home Assistant of een andere reader kan je meter z’n eigen stand doorsturen — dan fotografeer je nooit meer.\nHeb je een Powerfox (poweropti) of een Tibber Pulse? Kies die in de instellingen: wij kunnen je stand uit hun cloud halen, niets te installeren.\nDoe eerst één foto-inzending (dat zet je baseline), ga dan naar Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup voor je token en de kant-en-klare instellingen.\nVolledige stap-voor-stap gids voor elke situatie: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
+      { q:"Automatisch uitlezen (P1-reader / HomeWizard / Powerfox / Tibber)", a:"Met een P1-reader, Home Assistant of een andere reader kan je meter z’n eigen stand doorsturen — dan fotografeer je nooit meer.\nHeb je een Powerfox (poweropti) of een Tibber Pulse? Kies die in de instellingen: wij kunnen je stand uit hun cloud halen, niets te installeren.\nDoe eerst één foto-inzending (dat is je startpunt), ga dan naar Meter → de ⚡-link onderaan → ⚙️ Automatisch instellen voor je token en de kant-en-klare instellingen.\nVolledige stap-voor-stap gids voor elke situatie: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"Waar plak ik de setup-code?", a:"In een terminal op het apparaat dat altijd aan staat — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. Daar moet Node.js 22+ op staan.\nGebruik je Home Assistant? Dan helemaal geen terminal — installeer onze integratie via HACS. (De aparte add-on GreenUtilityLog Meter Bridge draait in plaats daarvan de bridge op Home Assistant OS.)\nStap voor stap voor elke route: https://greenutilitylog.github.io/GreenUtilityLog/guide.html\nTe technisch? Maak gewoon een foto — dat werkt net zo goed." },
       { q:"Welke meters werken?", a:"Nederland, België, Luxemburg: bijna elke slimme meter met een P1-poort, met een HomeWizard P1 (België: zet de poort gratis aan in het Fluvius-portaal · Luxemburg: vraag de P1-sleutel aan je netbeheerder).\nDenemarken, Zweden, Hongarije: ook een HomeWizard P1, zodra je netbeheerder de poort aanzet (Hongarije: alleen sommige meters). Past hij op jouw meter? https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter\nDuitsland: een Powerfox poweropti, of een Tasmota-leeskop (Hichi).\nZweden, Noorwegen, Denemarken, Finland: een Tibber Pulse.\nFrankrijk, VK, Spanje, Italië: geen P1-poort — voorlopig alleen via Home Assistant.\nVS en Canada: geen P1-poort — foto’s werken als de display van je meter de kWh-stand toont; Home Assistant met een Rainforest EAGLE waar je netbeheerder dat toestaat.\nOveral: toont Home Assistant de kWh-stand van je meter, dan werkt het. En foto’s werken altijd.\nAlles per land: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"Heb ik altijd een foto nodig?", a:"Voor een handmatig ingevoerde stand is een foto verplicht. Een gekoppelde P1-reader mag zonder foto insturen, omdat zijn device-token de stand aan jouw wallet koppelt. Eén foto per 30 dagen houdt de automatische uitbetalingen gaande; de app waarschuwt een week van tevoren." },
@@ -5665,11 +5660,11 @@ const HELP_I18N = {
     steps:[
       { t:"Wallet verbinden", d:"Tippe auf Connect und öffne VeWorld (auf Testnet) oder WalletConnect. Dies ist eine Test-App — es wird kein echtes Geld verwendet." },
       { t:"Zähler registrieren", d:"Gib die Nummer deines Stromzählers und den aktuellen Stand (den Startwert) ein." },
-      { t:"Stand einreichen", d:"Geh zu Meter, fotografiere deinen Zähler (die App liest die Zahl), prüfe sie und sende." },
+      { t:"Stand einreichen", d:"Geh zu Zähler, fotografiere deinen Zähler (die App liest die Zahl), prüfe sie und sende." },
       { t:"B3TR verdienen", d:"Jede kWh unter dem Zielwert (8 kWh pro Tag) bringt dir B3TR im Testnet. Dein erster Stand ist dein Startpunkt; ein Stand ohne Einsparung wird erfasst, aber nicht belohnt. Sieh dein Gesamt auf Home und deine Position in der Rangliste." },
     ], faqs:[
       { q:"Wo finde ich meine Zählernummer?", a:"Zwei Stellen am Zähler:\n1) Auf dem kleinen Display — drücke die Tasten, bis die Nummer erscheint.\n2) Unter dem Barcode, auf einem Aufkleber vorne oder seitlich.\nGib die ganze Nummer inklusive Buchstabe ein — Strom beginnt meist mit E, Gas mit G. Sie steht auch auf deiner Energierechnung oder im Online-Konto deines Anbieters." },
-      { q:"Automatisches Auslesen (P1-Reader / HomeWizard / Powerfox / Tibber)", a:"Mit einem P1-Reader, Home Assistant oder einem anderen Reader kann dein Zähler seinen Stand selbst senden — dann fotografierst du nie wieder.\nDu hast einen Powerfox (poweropti) oder einen Tibber Pulse? Wähl ihn in der Einrichtung: Wir holen deinen Stand aus deren Cloud, nichts zu installieren.\nMach zuerst eine Foto-Einreichung (setzt den Basiswert), dann Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup für Token und fertige Einrichtung.\nVollständige Schritt-für-Schritt-Anleitung: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
+      { q:"Automatisches Auslesen (P1-Reader / HomeWizard / Powerfox / Tibber)", a:"Mit einem P1-Reader, Home Assistant oder einem anderen Reader kann dein Zähler seinen Stand selbst senden — dann fotografierst du nie wieder.\nDu hast einen Powerfox (poweropti) oder einen Tibber Pulse? Wähl ihn in der Einrichtung: Wir holen deinen Stand aus deren Cloud, nichts zu installieren.\nMach zuerst eine Foto-Einreichung (das ist dein Startpunkt), dann Zähler → der ⚡-Link unten → ⚙️ Automatische Einrichtung für Token und fertige Einrichtung.\nVollständige Schritt-für-Schritt-Anleitung: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"Wo füge ich den Setup-Code ein?", a:"In einem Terminal auf dem Dauergerät — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. Dort muss Node.js 22+ installiert sein.\nDu nutzt Home Assistant? Gar kein Terminal — installiere unsere Integration über HACS. (Das separate Add-on GreenUtilityLog Meter Bridge betreibt stattdessen die Bridge auf Home Assistant OS.)\nSchritt für Schritt für jede Route: https://greenutilitylog.github.io/GreenUtilityLog/guide.html\nZu technisch? Mach einfach ein Foto — das funktioniert genauso gut." },
       { q:"Welche Zähler funktionieren?", a:"Niederlande, Belgien, Luxemburg: fast jeder Smart-Zähler mit P1-Anschluss, mit einem HomeWizard P1 (Belgien: den Port kostenlos im Fluvius-Portal einschalten · Luxemburg: den P1-Schlüssel beim Netzbetreiber anfragen).\nDänemark, Schweden, Ungarn: auch ein HomeWizard P1, sobald der Netzbetreiber den Port einschaltet (Ungarn: nur manche Zähler). Passt er zu deinem Zähler? https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter\nDeutschland: ein Powerfox poweropti oder ein Tasmota-Lesekopf (Hichi).\nSchweden, Norwegen, Dänemark, Finnland: ein Tibber Pulse.\nFrankreich, UK, Spanien, Italien: kein P1-Port — vorerst nur über Home Assistant.\nUSA und Kanada: kein P1-Port — Fotos gehen, wenn das Display deines Zählers den kWh-Stand zeigt; Home Assistant mit einem Rainforest EAGLE, wo dein Versorger das erlaubt.\nÜberall: Zeigt Home Assistant den kWh-Stand deines Zählers, funktioniert es. Und Fotos gehen immer.\nAlles pro Land: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"Brauche ich immer ein Foto?", a:"Für einen manuell eingegebenen Stand ist ein Foto nötig. Ein verbundener P1-Reader darf ohne Foto senden, weil sein Geräte-Token den Stand an dein Wallet bindet. Ein Foto alle 30 Tage hält die automatischen Auszahlungen am Laufen; die App erinnert eine Woche vorher." },
@@ -5684,11 +5679,11 @@ const HELP_I18N = {
     steps:[
       { t:"Connectez votre wallet", d:"Touchez Connect et ouvrez VeWorld (sur Testnet) ou WalletConnect. C'est une app de test — aucun fonds réel n'est utilisé." },
       { t:"Enregistrez vos compteurs", d:"Saisissez le numéro de votre compteur d'électricité et son relevé actuel (le point de départ)." },
-      { t:"Envoyez un relevé", d:"Allez dans Meter, photographiez votre compteur (l'app lit le relevé), vérifiez-le et envoyez." },
+      { t:"Envoyez un relevé", d:"Allez dans Compteur, photographiez votre compteur (l'app lit le relevé), vérifiez-le et envoyez." },
       { t:"Gagnez des B3TR", d:"Chaque kWh sous l'objectif (8 kWh par jour) vous rapporte des B3TR sur testnet. Votre premier relevé est votre point de départ ; un relevé sans économie est enregistré, pas récompensé. Suivez votre total sur Home et votre place au classement." },
     ], faqs:[
       { q:"Où trouver le numéro de mon compteur ?", a:"Deux endroits sur le compteur :\n1) Sur le petit écran — appuyez sur les boutons jusqu'à voir le numéro.\n2) Sous le code-barres, sur une étiquette à l'avant ou sur le côté.\nSaisissez tout le numéro avec la lettre — l'électricité commence souvent par E, le gaz par G. Il figure aussi sur votre facture ou votre compte en ligne fournisseur." },
-      { q:"Lecture automatique (lecteur P1 / HomeWizard / Powerfox / Tibber)", a:"Avec un lecteur P1, Home Assistant ou un autre lecteur, votre compteur envoie son relevé lui-même — vous ne photographiez plus.\nVous avez un Powerfox (poweropti) ou un Tibber Pulse ? Choisissez-le dans la configuration : nous récupérons votre relevé dans leur cloud, rien à installer.\nFaites d'abord une soumission photo (fixe votre base), puis Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup pour le jeton et la configuration prête.\nGuide complet pas à pas : https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
+      { q:"Lecture automatique (lecteur P1 / HomeWizard / Powerfox / Tibber)", a:"Avec un lecteur P1, Home Assistant ou un autre lecteur, votre compteur envoie son relevé lui-même — vous ne photographiez plus.\nVous avez un Powerfox (poweropti) ou un Tibber Pulse ? Choisissez-le dans la configuration : nous récupérons votre relevé dans leur cloud, rien à installer.\nFaites d'abord un envoi photo (c'est votre point de départ), puis Compteur → le lien ⚡ en bas → ⚙️ Configuration automatique pour le jeton et la configuration prête.\nGuide complet pas à pas : https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"Où coller le code de configuration ?", a:"Dans un terminal sur l\u2019appareil qui reste allumé — Windows : PowerShell · Mac : Terminal · Pi/NAS : SSH. Il faut Node.js 22+.\nVous utilisez Home Assistant ? Aucun terminal — installez notre intégration via HACS. (L’add-on séparé GreenUtilityLog Meter Bridge fait plutôt tourner le bridge sur Home Assistant OS.)\nPas à pas pour chaque route : https://greenutilitylog.github.io/GreenUtilityLog/guide.html\nTrop technique ? Prenez simplement une photo." },
       { q:"Quels compteurs fonctionnent ?", a:"Pays-Bas, Belgique, Luxembourg : presque tout compteur intelligent avec un port P1, avec un HomeWizard P1 (Belgique : activez le port gratuitement dans le portail Fluvius · Luxembourg : demandez la clé P1 à votre gestionnaire de réseau).\nDanemark, Suède, Hongrie : un HomeWizard P1 aussi, dès que le gestionnaire de réseau active le port (Hongrie : certains compteurs seulement). Compatible avec votre compteur ? https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter\nAllemagne : un Powerfox poweropti, ou une tête de lecture Tasmota (Hichi).\nSuède, Norvège, Danemark, Finlande : un Tibber Pulse.\nFrance, Royaume-Uni, Espagne, Italie : pas de port P1 — pour l'instant seulement via Home Assistant.\nÉtats-Unis et Canada : pas de port P1 — les photos marchent si l'afficheur de votre compteur montre le total kWh ; Home Assistant avec un Rainforest EAGLE là où votre distributeur l'autorise.\nPartout : si Home Assistant affiche le total kWh de votre compteur, ça marche. Et les photos marchent toujours.\nTout par pays : https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"Faut-il toujours une photo ?", a:"Une photo est requise pour un relevé saisi à la main. Un lecteur P1 connecté peut envoyer sans photo, car son jeton d'appareil lie le relevé à votre wallet. Une photo tous les 30 jours garde les paiements automatiques actifs ; l'app prévient une semaine avant." },
@@ -5703,11 +5698,11 @@ const HELP_I18N = {
     steps:[
       { t:"Conecta tu wallet", d:"Toca Connect y abre VeWorld (en Testnet) o WalletConnect. Es una app de prueba — no se usa dinero real." },
       { t:"Registra tus contadores", d:"Introduce el número de tu contador de luz y su lectura actual (el punto de partida)." },
-      { t:"Envía una lectura", d:"Ve a Meter, fotografía tu contador (la app lee la lectura), revísala y envía." },
+      { t:"Envía una lectura", d:"Ve a Contador, fotografía tu contador (la app lee la lectura), revísala y envía." },
       { t:"Gana B3TR", d:"Cada kWh por debajo del objetivo (8 kWh al día) te da B3TR en testnet. Tu primera lectura es tu punto de partida; una lectura sin ahorro se registra, pero no se premia. Mira tu total en Home y tu puesto en la clasificación." },
     ], faqs:[
       { q:"¿Dónde encuentro el número de mi contador?", a:"Dos sitios en el contador:\n1) En la pantallita — pulsa los botones hasta que aparezca el número.\n2) Bajo el código de barras, en una pegatina delante o al lado.\nIntroduce el número completo con la letra — la luz suele empezar por E, el gas por G. También está en tu factura o en la cuenta online de tu comercializadora." },
-      { q:"Lectura automática (lector P1 / HomeWizard / Powerfox / Tibber)", a:"Con un lector P1, Home Assistant u otro lector, tu contador envía su lectura solo — ya no fotografías más.\n¿Tienes un Powerfox (poweropti) o un Tibber Pulse? Elígelo en la configuración: recogemos tu lectura de su nube, nada que instalar.\nHaz primero un envío con foto (fija tu base), luego Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup para el token y la configuración lista.\nGuía completa paso a paso: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
+      { q:"Lectura automática (lector P1 / HomeWizard / Powerfox / Tibber)", a:"Con un lector P1, Home Assistant u otro lector, tu contador envía su lectura solo — ya no fotografías más.\n¿Tienes un Powerfox (poweropti) o un Tibber Pulse? Elígelo en la configuración: recogemos tu lectura de su nube, nada que instalar.\nHaz primero un envío con foto (es tu punto de partida), luego Contador → el enlace ⚡ de abajo → ⚙️ Configuración automática para el token y la configuración lista.\nGuía completa paso a paso: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"¿Dónde pego el código de configuración?", a:"En una terminal en el dispositivo que queda encendido — Windows: PowerShell · Mac: Terminal · Pi/NAS: SSH. Necesita Node.js 22+.\n¿Usas Home Assistant? Ninguna terminal — instala nuestra integración vía HACS. (El add-on aparte GreenUtilityLog Meter Bridge ejecuta en cambio el bridge en Home Assistant OS.)\nPaso a paso para cada ruta: https://greenutilitylog.github.io/GreenUtilityLog/guide.html\n¿Demasiado técnico? Solo haz una foto." },
       { q:"¿Qué contadores funcionan?", a:"Países Bajos, Bélgica, Luxemburgo: casi cualquier contador inteligente con puerto P1, con un HomeWizard P1 (Bélgica: activa el puerto gratis en el portal de Fluvius · Luxemburgo: pide la clave P1 a tu distribuidora).\nDinamarca, Suecia, Hungría: también un HomeWizard P1, cuando la distribuidora active el puerto (Hungría: solo algunos contadores). ¿Sirve para tu contador? https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter\nAlemania: un Powerfox poweropti, o un cabezal Tasmota (Hichi).\nSuecia, Noruega, Dinamarca, Finlandia: un Tibber Pulse.\nFrancia, Reino Unido, España, Italia: sin puerto P1 — por ahora solo con Home Assistant.\nEE. UU. y Canadá: sin puerto P1 — las fotos funcionan si la pantalla del contador muestra el total de kWh; Home Assistant con un Rainforest EAGLE donde tu compañía lo permita.\nEn todas partes: si Home Assistant muestra el total kWh de tu contador, funciona. Y las fotos siempre funcionan.\nTodo por país: https://greenutilitylog.github.io/GreenUtilityLog/guide.html" },
       { q:"¿Siempre necesito una foto?", a:"Se requiere foto para una lectura escrita a mano. Un lector P1 conectado puede enviar sin foto, porque su token de dispositivo vincula la lectura a tu wallet. Una foto cada 30 días mantiene los pagos automáticos; la app avisa una semana antes." },
