@@ -28,6 +28,7 @@ describe("a normal photo submission", () => {
     // 4 kWh in a day against the 8 kWh benchmark: 4 kWh saved × 0.61 — and only
     // that, there is no fixed amount for submitting.
     assert.equal(r.body.amount, 2.44);
+    assert.match(srv.logs(), /\[payout:photo\] 0x\w{4}…\w{4} \+2\.44 B3TR \(0x/, "and the log shows it");
   });
 
   test("advances the stored baseline to the reading just paid", async () => {
