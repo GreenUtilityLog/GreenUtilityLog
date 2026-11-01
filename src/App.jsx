@@ -750,6 +750,19 @@ function computeReward(utilId, usage, days = 1) {
   return parseFloat(Math.min(amount, RULES.maxPayout).toFixed(2));
 }
 
+// A typed number as the app stores it: "3852,4" and "3.852,4" become "3852.4".
+// Number fields (type="number") silently dropped a decimal comma on a phone set to
+// English — "3852,4" became 38524 — so reading fields are text fields that take
+// either separator, and show the number they will actually use.
+function normDecimal(v) {
+  let s = String(v ?? "").replace(/\s/g, "");
+  if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "").replace(",", ".");
+  else s = s.replace(/,/g, ".");
+  s = s.replace(/[^0-9.]/g, "");
+  const i = s.indexOf(".");
+  return i < 0 ? s : s.slice(0, i + 1) + s.slice(i + 1).replace(/\./g, "");
+}
+
 // Shorten a wallet address for display: 0x1234…abcd
 function shortAddr(a){ return a ? `${a.slice(0,6)}…${a.slice(-4)}` : "—"; }
 
@@ -1847,12 +1860,12 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
                 <input type="text" readOnly value={`${baselines[u.id] || ""} ${u.unit}`} style={lockedInput} />
               ) : (
               <input
-                type="number"
-                step="0.01"
+                type="text"
                 inputMode="decimal"
+                autoComplete="off"
                 placeholder={`Current reading · e.g. ${u.ph[0]}`}
                 value={baselines[u.id]}
-                onChange={e => setBaselines(b => ({...b,[u.id]:e.target.value}))}
+                onChange={e => setBaselines(b => ({...b,[u.id]:normDecimal(e.target.value)}))}
                 onBlur={() => markTouched(`b:${u.id}`)}
                 style={editInput(hasBaseline(u), `b:${u.id}`)}
               />
@@ -3545,13 +3558,13 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
                 <div className="irow" style={{ marginTop: 8 }}>
                   <div className="igroup">
                     <div className="ilabel">Reading <span className="utag">1.8.1</span></div>
-                    <input className="ifield" type="number" step="0.001" inputMode="decimal" placeholder="3852.104"
-                      value={regLow} onChange={e => setRegLow(e.target.value)} />
+                    <input className="ifield" type="text" inputMode="decimal" autoComplete="off" placeholder="3852.104"
+                      value={regLow} onChange={e => setRegLow(normDecimal(e.target.value))} />
                   </div>
                   <div className="igroup">
                     <div className="ilabel">Reading <span className="utag">1.8.2</span></div>
-                    <input className="ifield" type="number" step="0.001" inputMode="decimal" placeholder="3853.410"
-                      value={regNormal} onChange={e => setRegNormal(e.target.value)} />
+                    <input className="ifield" type="text" inputMode="decimal" autoComplete="off" placeholder="3853.410"
+                      value={regNormal} onChange={e => setRegNormal(normDecimal(e.target.value))} />
                   </div>
                 </div>
                 <div style={{ marginTop: 6, fontSize: 11, color: T.textSoft }}>
@@ -3614,18 +3627,18 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
             </div>
             <div className="igroup">
               <div className="ilabel">Current reading <span className="utag">{u.unit}</span></div>
-              <input className="ifield" type="number" step="0.01" inputMode="decimal" placeholder={Number.isFinite(parseFloat(prevRead)) ? `above ${prevRead}` : u.ph[1]} value={reading} onChange={e=>setReading(e.target.value)} disabled={!!dualTariff} style={{width:"100%",boxSizing:"border-box"}}/>
+              <input className="ifield" type="text" inputMode="decimal" autoComplete="off" placeholder={Number.isFinite(parseFloat(prevRead)) ? `above ${prevRead}` : u.ph[1]} value={reading} onChange={e=>setReading(normDecimal(e.target.value))} disabled={!!dualTariff} style={{width:"100%",boxSizing:"border-box"}}/>
             </div>
           </>
         ) : (
           <div className="irow">
             <div className="igroup">
               <div className="ilabel">Previous <span className="utag">{u.unit}</span></div>
-              <input className="ifield" type="number" step="0.01" inputMode="decimal" placeholder={u.ph[0]} value={prevRead} onChange={e=>setPrevRead(e.target.value)}/>
+              <input className="ifield" type="text" inputMode="decimal" autoComplete="off" placeholder={u.ph[0]} value={prevRead} onChange={e=>setPrevRead(normDecimal(e.target.value))}/>
             </div>
             <div className="igroup">
               <div className="ilabel">Current <span className="utag">{u.unit}</span></div>
-              <input className="ifield" type="number" step="0.01" inputMode="decimal" placeholder={Number.isFinite(parseFloat(prevRead)) ? `above ${prevRead}` : u.ph[1]} value={reading} onChange={e=>setReading(e.target.value)} disabled={!!dualTariff}/>
+              <input className="ifield" type="text" inputMode="decimal" autoComplete="off" placeholder={Number.isFinite(parseFloat(prevRead)) ? `above ${prevRead}` : u.ph[1]} value={reading} onChange={e=>setReading(normDecimal(e.target.value))} disabled={!!dualTariff}/>
             </div>
           </div>
         )}
@@ -4193,7 +4206,7 @@ function AdminAccountTools({ T, onAdminApi, onToast }) {
       <div style={card}>
         <div style={lbl}>Fix a meter's baseline (wrong reading)</div>
         <input value={meterNo} onChange={e => setMeterNo(e.target.value)} placeholder="Meter number" spellCheck={false} style={{ ...inp, marginBottom: 8 }} />
-        <input value={reading} onChange={e => setReading(e.target.value)} type="number" step="0.01" inputMode="decimal" placeholder="Correct current reading" style={{ ...inp, marginBottom: 8 }} />
+        <input value={reading} onChange={e => setReading(normDecimal(e.target.value))} type="text" inputMode="decimal" autoComplete="off" placeholder="Correct current reading" style={{ ...inp, marginBottom: 8 }} />
         <input value={owner} onChange={e => setOwner(e.target.value)} placeholder="Bind to wallet (optional 0x…)" spellCheck={false} style={inp} />
         <button disabled={busy === "base" || !meterNo.trim() || !(Number(reading) >= 0)} onClick={() => run("base", () => onAdminApi("/admin/set-baseline", { meterNo: meterNo.trim(), reading: Number(reading), ...(isAddr(owner) ? { targetWallet: owner.trim() } : {}) }), (d) => `✅ Baseline set: ${d.meterNo} → ${d.baseline}`)} style={{ ...btn(T.green3 || "#2e7d5b", "#fff", busy === "base" || !meterNo.trim() || !(Number(reading) >= 0)), marginTop: 8 }}>{busy === "base" ? "Saving…" : "Set baseline"}</button>
         <div style={{ fontSize:10, color: T.textSoft, marginTop: 6, lineHeight: 1.5 }}>Sets the value future usage is measured from. Use it to correct a mis-entered reading. To let the user resubmit now, also reset their cooldown below.</div>
@@ -4636,7 +4649,7 @@ function WalletAdminActions({ T, address, meters, onAdminApi, onToast }) {
         <div key={i} style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${T.border}` }}>
           <div style={{ fontSize:10, color: T.textSoft, marginBottom: 5 }}><span style={{ fontFamily: mono, color: T.text }}>{m.meterNo}</span> · {m.utility}{m.last != null ? ` · last ${m.last}` : ""}</div>
           <div style={{ display: "flex", gap: 8 }}>
-            <input value={vals[m.meterNo] ?? ""} onChange={e => setVals(v => ({ ...v, [m.meterNo]: e.target.value }))} type="number" step="0.01" inputMode="decimal" placeholder={`Fix reading${m.last != null ? ` (e.g. ${m.last})` : ""}`} style={inp} />
+            <input value={vals[m.meterNo] ?? ""} onChange={e => setVals(v => ({ ...v, [m.meterNo]: normDecimal(e.target.value) }))} type="text" inputMode="decimal" autoComplete="off" placeholder={`Fix reading${m.last != null ? ` (e.g. ${m.last})` : ""}`} style={inp} />
             <button disabled={busy === "base" + i || !(Number(vals[m.meterNo]) >= 0)} onClick={() => run("base" + i, () => onAdminApi("/admin/set-baseline", { meterNo: m.meterNo, utility: m.utility, reading: Number(vals[m.meterNo]), targetWallet: address }), (d) => `✅ Baseline set: ${d.meterNo} → ${d.baseline}`)} style={btn(T.green3 || "#2e7d5b", "#fff", busy === "base" + i || !(Number(vals[m.meterNo]) >= 0))}>{busy === "base" + i ? "…" : "Set"}</button>
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
@@ -4655,7 +4668,7 @@ function WalletAdminActions({ T, address, meters, onAdminApi, onToast }) {
           <select value={add.utility} onChange={e => setAdd(a => ({ ...a, utility: e.target.value }))} style={{ ...inp, flex: "1 1 90px", fontFamily: "inherit", cursor: "pointer" }}>
             {UTILS.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
           </select>
-          <input value={add.reading} onChange={e => setAdd(a => ({ ...a, reading: e.target.value }))} type="number" step="0.01" inputMode="decimal" placeholder="Current reading" style={{ ...inp, flex: "1 1 100px" }} />
+          <input value={add.reading} onChange={e => setAdd(a => ({ ...a, reading: normDecimal(e.target.value) }))} type="text" inputMode="decimal" autoComplete="off" placeholder="Current reading" style={{ ...inp, flex: "1 1 100px" }} />
           <button disabled={busy === "add" || !add.meterNo.trim() || !(Number(add.reading) >= 0)} onClick={() => run("add", () => onAdminApi("/admin/set-baseline", { meterNo: add.meterNo.trim(), utility: add.utility, reading: Number(add.reading), targetWallet: address }), (d) => { const nm = { utility: add.utility, meterNo: add.meterNo.trim().toLowerCase(), last: Number(add.reading) }; setBackendMeters(prev => { const cur = prev || []; return cur.some(x => norm(x) === norm(nm)) ? cur : [...cur, nm]; }); setAdd({ meterNo: "", utility: "electric", reading: "" }); return `✅ Meter added: ${d.meterNo} (${d.utility})`; })} style={btn(T.green3 || "#2e7d5b", "#fff", busy === "add" || !add.meterNo.trim() || !(Number(add.reading) >= 0))}>{busy === "add" ? "…" : "Add"}</button>
         </div>
       </div>
@@ -6271,7 +6284,7 @@ export default function App() {
             res = await fetchT(`${REWARD_API.replace(/\/$/, "")}/reward`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ utility: item.type, reading: item.cur, prevRead: item.prev, meterNo: item.meterNo, address: wallet, photo: item.photo, photoMime: item.photoMime || "", certificate, clientFlagged: !!item.flagged, flagReason: item.flagReason || "", ocrNums: item.ocrNums || [], meterNoConfirmed: item.meterNoConfirmed ?? null, avgUsage: item.avgUsage ?? null, captchaToken: "", device }),
+              body: JSON.stringify({ utility: item.type, reading: item.cur, prevRead: item.prev, ...(Array.isArray(item.registers) && item.registers.length ? { registers: item.registers } : {}), meterNo: item.meterNo, address: wallet, photo: item.photo, photoMime: item.photoMime || "", certificate, clientFlagged: !!item.flagged, flagReason: item.flagReason || "", ocrNums: item.ocrNums || [], meterNoConfirmed: item.meterNoConfirmed ?? null, avgUsage: item.avgUsage ?? null, captchaToken: "", device }),
             }, PAYOUT_MS);
             data = await res.json().catch(() => ({}));
           } catch {
@@ -6738,7 +6751,11 @@ export default function App() {
     // Not auto-blocked, but recorded for review when the photo can't back it up:
     // either the reading isn't visible on the photo, or the registered meter number
     // couldn't be confirmed on it (lenient — a miss flags, it never blocks).
-    const readingConfirmed = !photo?.ocrFailed && readingMatchesPhoto(reading, photo?.ocrNums);
+    // A double-tariff meter shows one register at a time, never their sum: the
+    // photo confirms the reading when one of the registers is on it.
+    const readingConfirmed = !photo?.ocrFailed && (registers
+      ? registers.some((r) => readingMatchesPhoto(r, photo?.ocrNums))
+      : readingMatchesPhoto(reading, photo?.ocrNums));
     const meterUnconfirmed = photo?.meterNoConfirmed === false;
     const photoConfirmed = readingConfirmed && !meterUnconfirmed;
     const flagReason = [
@@ -6759,6 +6776,10 @@ export default function App() {
           // whichever one happens to be connected when the connection returns.
           wallet: wallet ? wallet.toLowerCase() : "",
           type:selUtil, meterNo, cur:reading, prev:prevRead, b3tr:earned,
+          // The server checks a double-tariff meter register by register and
+          // refuses the sum on its own: without these the reading was refused
+          // and removed from the queue on reconnect.
+          ...(registers ? { registers } : {}),
           flagged: !photoConfirmed || anom.anomaly, flagReason,
           photo: photo?.base64 || "", photoMime: photo?.mime || "",
           ocrNums: photo?.ocrNums || [], meterNoConfirmed: photo?.meterNoConfirmed ?? null,
