@@ -4,6 +4,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { DAppKitProvider } from '@vechain/dapp-kit-react'
 import App, { ACTIVE_NODE, TestnetBanner } from './App.jsx'
+import { getLang } from './i18n.js'
 
 // ════════════════════════════════════════════════════════════════════════════
 // WALLETCONNECT PROJECT ID  (free, from https://cloud.reown.com)
@@ -106,7 +107,8 @@ try {
             icons: ['https://greenutilitylog.github.io/GreenUtilityLog/icon.png'],
           },
         }}
-        language="en"
+        // The wallet dialog in the app's language where dapp-kit has it (no Dutch).
+        language={['de', 'fr', 'es'].includes(getLang()) ? getLang() : 'en'}
       >
         <App />
         <TestnetBanner />
