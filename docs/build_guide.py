@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Generate the multilingual tester guide from one content source, so all five
 # languages keep identical structure and only the prose differs.
-import io, os, html
+import io, os, html, re
 
 REPO = "https://github.com/GreenUtilityLog/GreenUtilityLog"
 
@@ -1052,9 +1052,24 @@ def render(code, d):
     r.append(f'  <div class="note">{d["close"]}</div>')
     r.append(f'  <footer>{d["foot"]}</footer>')
     r.append("</section>")
-    return "\n".join(r).replace("{COPY}", COPY[code])
+    out = "\n".join(r).replace("{COPY}", COPY[code])
+    # A table of contents under the masthead: the guide is long on a phone, and
+    # people come for one route. Every section heading gets an anchor.
+    toc = []
+    def anchor(m):
+        title = m.group(1)
+        sid = f"{code}-{len(toc) + 1}"
+        toc.append((sid, re.sub(r"<[^>]+>", "", title)))
+        return f'<h2 id="{sid}">{title}</h2>'
+    out = re.sub(r"<h2>(.*?)</h2>", anchor, out)
+    links = "".join(f'<li><a href="#{sid}">{t}</a></li>' for sid, t in toc)
+    return out.replace("</header>", f'</header>\n  <nav class="toc" aria-label="{TOC_LABEL[code]}"><b>{TOC_LABEL[code]}</b><ol>{links}</ol></nav>', 1)
 
-nav = ['<nav class="langbar" aria-label="Language"><span class="lbl">Language</span>']
+TOC_LABEL = {"en": "On this page", "nl": "Op deze pagina", "de": "Auf dieser Seite", "fr": "Sur cette page", "es": "En esta página"}
+
+# The bar carries the brand and a way back to the app: the guide used to have
+# neither, so a tester who opened it from the app had no road back but the browser.
+nav = ['<nav class="langbar" aria-label="Language"><a class="brand" href="./"><img src="icon.png" alt="" width="24" height="24">Green Utility Log</a><span class="lbl">Language</span>']
 for code in L:
     nav.append(f'<button class="langbtn" data-lang="{code}" aria-pressed="{"true" if code=="en" else "false"}">{L[code]["name"]}</button>')
 nav.append("</nav>")

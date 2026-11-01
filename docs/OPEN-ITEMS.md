@@ -28,18 +28,19 @@ Laatst bijgewerkt: 2026-11-01.
 - [x] Knoppen minimaal 44 px (wallet-knop, help, dubbeltarief-vinkje, Sluiten, Retake); taalkeuze 36 px (#150)
 - [x] Invoervelden 16 px (iPhone zoomt nu in) en zichtbare focusrand (`:focus-visible`) (#148, #150)
 - [x] Formuliercontrast: randen, placeholders, foutkleur, "pending"-label (#150)
-- [ ] Vaste lettergroottes (12/14/16/20/28/40) en kleuren als tokens
+- [ ] Vaste lettergroottes (12/14/16/20/28/40) en kleuren als tokens — kleinste tekst (9–9,5 px) al naar 10,5 px (#153)
 - [x] Datums overal hetzelfde (`Intl.DateTimeFormat`, `fmtDay`) (#150)
-- [ ] Geschiedenis: beloning als hoofdgetal, meternummer uit de rij
+- [x] Geschiedenis: beloning als hoofdgetal, verbruik in de titel, meternummer kort (#153)
 - [x] Offline-melding als balk met uitleg in plaats van een rood stipje (#150)
 - [x] Computer: QR-code naar de app i.p.v. een actieve fotoknop die niets kan (#151)
 - [x] Klassement (top 3 + jouw plek) bovenaan Voortgang; vergrendelde badges met slotje (#151)
 - [x] Intro: één voortgangsindicator (stippen, nu knoppen); `prefers-reduced-motion` (#150, #151)
 - [x] Uitleg welke wallet-optie te kiezen; meldingen onderaan i.p.v. over de kopknoppen (#151)
 - [x] `apple-touch-icon` en manifest (#151)
-- [ ] Handleiding met logo, terugknop en inhoudsopgave
+- [x] Handleiding met logo, terugknop en inhoudsopgave (#153)
 - [ ] Hele app vertalen (NL, DE, FR, ES), niet alleen Help; Help verwijst nu naar Engelse knopnamen
-- [ ] Toegankelijkheid: dialogen met `role="dialog"`, focus erin, sluiten met Escape; bijsnijden met toetsenbord
+- [x] Toegankelijkheid: dialogen met `role="dialog"`, focus erin, Tab blijft binnen, Escape sluit (#153)
+- [ ] Bijsnijden met het toetsenbord (pijltjestoetsen)
 
 ## App — code
 - [ ] Voortgang en PDF tellen mislukte uitbetalingen mee; "bespaard" rekent met één dag i.p.v. de periode
