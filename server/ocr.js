@@ -47,7 +47,9 @@ export function ocrEnabled() {
 // service is down, try again" is not "your photo is unreadable".
 async function roboflowOcr(content) {
   {
-    const res = await fetch(`https://serverless.roboflow.com/${ROBOFLOW_MODEL}?api_key=${ROBOFLOW_API_KEY}`, {
+    // Roboflow's hosted detection API only takes its key as a query parameter, so
+    // this URL is never logged: a failure reports the status code alone.
+    const res = await fetch(`https://serverless.roboflow.com/${ROBOFLOW_MODEL}?api_key=${encodeURIComponent(ROBOFLOW_API_KEY)}`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: content,

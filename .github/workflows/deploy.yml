@@ -89,6 +89,8 @@ jobs:
             || (echo "docs/gul.js or docs/guide.html is out of date — run docs/build_guide.py and commit" && exit 1)
           cmp bridge/index.js ha-addon/gul-bridge/gul.js \
             || (echo "ha-addon/gul-bridge/gul.js differs from bridge/index.js — copy it and bump the add-on version" && exit 1)
+          grep -q "const BRIDGE_VERSION = \"$(sed -n 's/^version: "\(.*\)"/\1/p' ha-addon/gul-bridge/config.yaml)\";" bridge/index.js \
+            || (echo "BRIDGE_VERSION in bridge/index.js differs from the add-on version in ha-addon/gul-bridge/config.yaml" && exit 1)
           cp docs/gul.js dist/gul.js
       - uses: actions/upload-pages-artifact@v3
         with:

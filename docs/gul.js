@@ -44,6 +44,24 @@
 "use strict";
 const http = require("node:http");
 const https = require("node:https");
+// Sent with every request as the User-Agent, so the server can tell which bridge
+// versions are still out there. The Home Assistant add-on carries the same number
+// (ha-addon/gul-bridge/config.yaml); CI checks they match.
+const BRIDGE_VERSION = "1.5.3";
+const USER_AGENT = `GreenUtilityLog-bridge/${BRIDGE_VERSION} (node ${process.versions.node}; ${process.platform})`;
+// No meter, reader or server answer is anywhere near this. A device or proxy that
+// streams without end used to fill the bridge's memory.
+const MAX_BODY_BYTES = 1024 * 1024;
+// Collects a response body, giving up on one larger than MAX_BODY_BYTES.
+function collect(res, req, done) {
+  let body = "", size = 0;
+  res.on("data", (c) => {
+    size += c.length;
+    if (size > MAX_BODY_BYTES) { req.destroy(new Error(`answer larger than ${MAX_BODY_BYTES / 1024} KB — not a meter reading`)); return; }
+    body += c;
+  });
+  res.on("end", () => done(body));
+}
 const dgram = require("node:dgram");
 const { readFileSync, writeFileSync, appendFileSync, statSync, renameSync, chmodSync, realpathSync } = require("node:fs");
 const { createInterface } = require("node:readline");
@@ -129,7 +147,16 @@ const SAVED = readSaved();
 // live in the private settings file next to this script, like the token. A flag on
 // the command line still wins.
 const READ_FLAGS = ["ip", "url", "tasmota", "field", "interval"];
-const SAVED_READ = SAVED.read && typeof SAVED.read === "object" ? SAVED.read : {};
+// A source given now (a flag or its environment variable) replaces the saved
+// source as a whole: an --ip typed today used to lose to a --tasmota saved by an
+// earlier setup, and the old reader kept being read.
+const SOURCE_SETTINGS = { ip: "HW_IP", url: "READ_URL", tasmota: "TASMOTA_IP" };
+const sourceGivenNow = Object.entries(SOURCE_SETTINGS).some(([f, env]) => (FLAGS[f] && FLAGS[f] !== "1") || process.env[env]);
+const SAVED_READ = (() => {
+  const r = SAVED.read && typeof SAVED.read === "object" ? { ...SAVED.read } : {};
+  if (sourceGivenNow) for (const k of [...Object.keys(SOURCE_SETTINGS), "field"]) delete r[k];
+  return r;
+})();
 const pickRead = (flag, env, fallback = "") => pick(flag, env, SAVED_READ[flag] ?? fallback);
 
 let TOKEN = pick("token", "GUL_TOKEN", SAVED.token || "");
@@ -348,10 +375,8 @@ async function discover() {
 function getJson(url, timeoutMs = 8000, headers = {}) {
   return new Promise((resolve, reject) => {
     const mod = String(url).toLowerCase().startsWith("https:") ? https : http; // honour https READ_URLs
-    const req = mod.get(url, { timeout: timeoutMs, headers }, (res) => {
-      let body = "";
-      res.on("data", (c) => (body += c));
-      res.on("end", () => {
+    const req = mod.get(url, { timeout: timeoutMs, headers: { "User-Agent": USER_AGENT, ...headers } }, (res) => {
+      collect(res, req, (body) => {
         // A HomeWizard with its Local API switched off answers 403. Say that, rather
         // than trying to parse the refusal and blaming the JSON field.
         if (res.statusCode === 403 && !headers.Authorization) return reject(new Error(`${url} said 403 — switch on "Local API" for this meter in the HomeWizard Energy app`));
@@ -454,9 +479,8 @@ function pushOnce(reading) {
     const mod = u.protocol === "https:" ? https : http;
     // 90 s: a free-tier backend asleep since the last push takes ~30-60 s to wake,
     // and with two pushes a day nearly every push is the one that wakes it.
-    const req = mod.request(u, { method: "POST", headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(payload) }, timeout: PUSH_TIMEOUT_MS }, (res) => {
-      let body = ""; res.on("data", (c) => (body += c));
-      res.on("end", () => {
+    const req = mod.request(u, { method: "POST", headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(payload), "User-Agent": USER_AGENT }, timeout: PUSH_TIMEOUT_MS }, (res) => {
+      collect(res, req, (body) => {
         if (res.statusCode >= 200 && res.statusCode < 300) return resolve(body);
         const err = new Error(`server said ${res.statusCode}: ${short(body)}`);
         err.retry = res.statusCode === 502 || res.statusCode === 503 || res.statusCode === 504 || res.statusCode === 429;

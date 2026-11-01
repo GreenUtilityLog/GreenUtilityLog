@@ -18,10 +18,11 @@ export async function visionText(imageBase64, { strict = false } = {}) {
   if (!content) return "";
   try {
     const res = await fetch(
-      `https://vision.googleapis.com/v1/images:annotate?key=${GOOGLE_VISION_API_KEY}`,
+      // The key in a header, not the URL: URLs end up in proxy and error logs.
+      "https://vision.googleapis.com/v1/images:annotate",
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Goog-Api-Key": GOOGLE_VISION_API_KEY },
         body: JSON.stringify({
           requests: [{ image: { content }, features: [{ type: "TEXT_DETECTION" }] }],
         }),

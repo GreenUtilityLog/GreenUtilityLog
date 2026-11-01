@@ -32,6 +32,8 @@ export function enodeInfo() {
   return { enabled: enodeEnabled(), env: ENV };
 }
 
+const ENODE_TIMEOUT_MS = Number(process.env.ENODE_TIMEOUT_MS) || 15000;
+
 // Cache the client-credentials access token until shortly before it expires.
 let _tok = null; // { access_token, exp }
 async function accessToken() {
@@ -45,6 +47,7 @@ async function accessToken() {
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body: "grant_type=client_credentials",
+    signal: AbortSignal.timeout(ENODE_TIMEOUT_MS),
   });
   if (!res.ok) {
     const t = await res.text().catch(() => "");
@@ -64,6 +67,8 @@ async function api(path, opts = {}) {
       "Content-Type": "application/json",
       ...(opts.headers || {}),
     },
+    // A hung Enode call held the request (and the auto-pay timer) open forever.
+    signal: opts.signal || AbortSignal.timeout(ENODE_TIMEOUT_MS),
   });
   const text = await res.text().catch(() => "");
   let json = null;
