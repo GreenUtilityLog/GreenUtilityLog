@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, Fragment } from "react";
+import { createPortal } from "react-dom";
 import { NETWORK, REWARD_API, TESTNET_BANNER, MAIN_APP_URL, ownStorageKeys, IDB_NAME, INGEST_FLAG } from "./network.js";
 import { useWallet, useWalletModal } from "@vechain/dapp-kit-react";
 import { Clause, Address, ABIFunction } from "@vechain/sdk-core";
@@ -631,7 +632,9 @@ const LIGHT = {
   heroFrom:"#1a3326", heroTo:"#264d3a",
 };
 const DARK = {
-  bg:"#0e1714", bgAlt:"#17241e", white:"#1b2a23",
+  // bgAlt is a step lighter than card: empty calendar cells, chips and inputs on
+  // a card used to be the card's own colour and disappeared.
+  bg:"#0e1714", bgAlt:"#22332b", white:"#1b2a23",
   green1:"#83cb9f", green2:"#69af86", green3:"#97dcad", green4:"#2c463a", green5:"#16241c",
   text:"#e9e6df", textMid:"#a8c4b4", textSoft:"#7e988a",
   border:"#2a4034", shadow:"rgba(0,0,0,0.38)", shadowMd:"rgba(0,0,0,0.52)",
@@ -797,10 +800,10 @@ function computeStreak(subs){
 
 
 const ONBOARD_SLIDES = [
-  { icon:"🌍", title:"Welcome to Green Utility Log", sub:"Track your home utilities, reduce your footprint, and earn B3TR rewards on VeChain.", color:"#1a3326" },
-  { icon:"📸", title:"How to Photograph", sub:"Meter must be clear, readable and unobstructed. Take a fresh photo each time.", color:"#10386a" },
-  { icon:"⚡", title:"Electric Meter", sub:"The total in kWh on the meter's display. One reading a day — the less you use, the more B3TR you earn.", color:"#8a4200" },
-  { icon:"🏆", title:"Earn & Compete", sub: NETWORK === "mainnet" ? "Daily submissions build your streak and move you up the leaderboard." : "Daily submissions build your streak and move you up the leaderboard. Testnet: B3TR here are test tokens.", color:"#3a1a6e" },
+  { icon:"🌍", title:"Welcome to Green Utility Log", sub:"Log your electricity meter, use less, and earn B3TR rewards on VeChain." },
+  { icon:"📸", title:"How to Photograph", sub:"Meter must be clear, readable and unobstructed. Take a fresh photo each time." },
+  { icon:"⚡", title:"Electric Meter", sub:"The total in kWh on the meter's display. One reading a day — every kWh below the daily target earns B3TR." },
+  { icon:"🏆", title:"Earn & Compete", sub: NETWORK === "mainnet" ? "Daily submissions build your streak and move you up the leaderboard." : "Daily submissions build your streak and move you up the leaderboard. Testnet: B3TR here are test tokens." },
 ];
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -1365,8 +1368,11 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .intro-dots{display:flex;gap:6px;margin-top:32px;}
 .intro-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.3);transition:all .3s;cursor:pointer;}
 .intro-dot.active{width:24px;background:#4CAF50;border-radius:3px;}
-.intro-btn{margin-top:40px;width:100%;max-width:280px;background:#264d3a;border:none;border-radius:6px;padding:16px;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;font-weight:800;cursor:pointer;transition:all .2s;text-transform:none;letter-spacing:0;}
-.intro-btn:hover{background:#45a049;box-shadow:0 12px 32px rgba(76,175,80,0.4);transform:translateY(-2px);}
+.intro-btn{margin-top:40px;width:100%;max-width:280px;min-height:52px;background:#e6f2ea;border:none;border-radius:8px;padding:15px;color:#14301f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:16px;font-weight:800;cursor:pointer;transition:all .2s;text-transform:none;letter-spacing:0;box-shadow:0 8px 24px rgba(0,0,0,0.25);}
+/* The one primary button on the dark green screens (intro, connect): light on
+   dark, 12:1. It used to be the background's own green and read as disabled. */
+.intro-btn:hover{background:#ffffff;box-shadow:0 12px 32px rgba(0,0,0,0.3);transform:translateY(-2px);}
+.intro-btn:focus-visible{outline:3px solid #a8e0bd;outline-offset:3px;}
 .intro-skip{margin-top:14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.6);cursor:pointer;background:none;border:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
 .intro-skip:hover{color:rgba(255,255,255,0.9);}
 @keyframes intro-slideup{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
@@ -1374,7 +1380,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 
 .hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:${T.white};border-bottom:1px solid ${T.border};position:sticky;top:${BANNER_H}px;z-index:20;transition:background .25s;gap:16px;}
 .logo{display:flex;align-items:center;gap:10px;flex:1;min-width:0;}
-.logo-mark{width:30px;height:30px;border-radius:6px;background:linear-gradient(135deg,${T.green1},${T.green2});display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;box-shadow:0 2px 8px ${T.shadow};font-weight:700;font-size:11px;}
+.logo-mark{width:30px;height:30px;border-radius:6px;background:linear-gradient(135deg,#142c1e,#214834 55%,#3c6a50);display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;box-shadow:0 2px 8px ${T.shadow};font-weight:700;font-size:11px;}
 .logo-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;font-weight:800;color:${T.text};letter-spacing:-0.5px;line-height:1;}
 .hdr-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;}
 .dark-toggle{width:40px;height:40px;border-radius:6px;background:transparent;border:1px solid ${T.border};display:flex;align-items:center;justify-content:center;cursor:pointer;color:${T.textMid};transition:all .15s;flex-shrink:0;font-size:14px;}
@@ -1422,7 +1428,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .cal-day-name{text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${T.textSoft};}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
 .cal-cell{aspect-ratio:1;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:${T.textSoft};background:${T.bgAlt};}
-.cal-cell.has-sub{background:${T.green1};color:#fff;font-weight:600;}
+.cal-cell.has-sub{background:${T.green1};color:${T === DARK ? T.bg : "#fff"};font-weight:600;}
 .cal-cell.today{outline:1.5px solid ${T.green3};outline-offset:-1px;}
 .cal-cell.empty{opacity:0;}
 
@@ -1556,7 +1562,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .onboard{position:fixed;inset:${OVERLAY_INSET || 0};background:${T.bg};z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 28px;}
 .onboard::before,.onboard::after{content:"";display:block;flex:1 0 32px;}
 .ob-icon{font-size:56px;margin-bottom:20px;animation:obpop .3s ease;}
-.ob-title{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:28px;font-weight:800;text-align:center;line-height:1.2;margin-bottom:12px;letter-spacing:-0.6px;}
+.ob-title{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:28px;font-weight:800;color:${T.text};text-align:center;line-height:1.2;margin-bottom:12px;letter-spacing:-0.6px;}
 .ob-sub{font-size:14px;color:${T.textMid};text-align:center;line-height:1.7;max-width:320px;}
 @keyframes obpop{from{transform:scale(.82);opacity:0}to{transform:scale(1);opacity:1}}
 .ob-dots{display:flex;gap:5px;margin-top:28px;}
@@ -1569,7 +1575,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .spin-sm{width:13px;height:13px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block;}
 .filter-row{display:flex;gap:5px;padding:0 14px 13px;overflow-x:auto;}
 .fchip{flex-shrink:0;padding:4px 11px;border-radius:2px;font-size:10px;font-weight:700;cursor:pointer;border:1px solid ${T.border};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;transition:all .12s;text-transform:uppercase;letter-spacing:.8px;background:${T.card};color:${T.textSoft};}
-.fchip.active{background:${T.green1};color:#fff;border-color:${T.green1};}
+.fchip.active{background:${T.green1};color:${T === DARK ? T.bg : "#fff"};border-color:${T.green1};}
 `;
 }
 
@@ -1715,33 +1721,10 @@ function IntroScreen({ onStart }) {
       </div>
 
       <div style={{display:"flex",flexDirection:"column",gap:10,width:"100%",maxWidth:280}}>
-        <button 
+        <button
+          className="intro-btn"
           onClick={() => isLast ? onStart() : setSlide(s => s + 1)}
-          style={{
-            width: "100%",
-            background: "#2E7D32", // white on #4CAF50 was 2.8:1 contrast; this is 5.1:1
-            border: "none",
-            borderRadius: 6,
-            padding: 14,
-            color: "#fff",
-            fontSize: 13,
-            fontWeight: 800,
-            cursor: "pointer",
-            transition: "all 0.2s",
-            textTransform: "uppercase",
-            letterSpacing: ".8px",
-            boxShadow: "0 8px 24px rgba(76,175,80,0.3)"
-          }}
-          onMouseEnter={e => {
-            e.target.style.background = "#1B5E20";
-            e.target.style.boxShadow = "0 12px 32px rgba(76,175,80,0.4)";
-            e.target.style.transform = "translateY(-2px)";
-          }}
-          onMouseLeave={e => {
-            e.target.style.background = "#2E7D32";
-            e.target.style.boxShadow = "0 8px 24px rgba(76,175,80,0.3)";
-            e.target.style.transform = "translateY(0)";
-          }}
+          style={{ marginTop: 0, maxWidth: "none" }}
         >
           {isLast ? '🚀 Get Started' : 'Continue →'}
         </button>
@@ -1826,10 +1809,10 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
 
   const title = allLocked ? "Your Meters" : (isSolarOnly ? "Add Solar Panels" : (editMode ? "Edit Your Meters" : "Register Your Meters"));
   const sub = allLocked
-    ? "Your registered meters are locked to keep your readings tamper-proof. A meter number and baseline can't be changed once set."
+    ? "Your registered meters are locked to keep your readings tamper-proof. A meter number and its starting reading can't be changed once set."
     : isSolarOnly
       ? "Generating your own power? Add your solar meter number and its current export reading."
-      : "Enter each meter number and its current reading. The number is on the meter itself (a sticker or plate) or on your energy bill — any format works. That first reading becomes your baseline (starting point) — future submissions measure usage from it, so enter the real number on your meter now.";
+      : "Find the number on the meter's sticker or on your energy bill, and type today's reading in kWh. That reading is your starting point.";
 
   return (
     <div className="onboard">
@@ -1841,7 +1824,7 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
           const needsMeter = required.includes(u);
           const locked = isLocked(u);
           const lockedInput = {width:"100%",boxSizing:"border-box",background:T.bgAlt,border:`1px solid ${T.border}`,borderRadius:6,padding:"7px 10px",fontSize:13,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:T.textMid,outline:"none",marginBottom:6,cursor:"not-allowed"};
-          const editInput = (ok, key) => ({width:"100%",boxSizing:"border-box",background:T.bg,border:`1px solid ${(ok || !touched[key]) ? T.border : "rgba(220,80,60,0.7)"}`,borderRadius:6,padding:"7px 10px",fontSize:14,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:T.text,outline:"none",marginBottom:6});
+          const editInput = (ok, key) => ({width:"100%",boxSizing:"border-box",background:T.bg,border:`1px solid ${(ok || !touched[key]) ? T.border : "rgba(220,80,60,0.7)"}`,borderRadius:6,padding:"9px 10px",fontSize:16,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:T.text,marginBottom:6});
           return (
           <div key={u.id} style={{display:"flex",alignItems:"flex-start",gap:12,background:T.card,borderRadius:6,padding:"10px 14px",border:`1px solid ${T.border}`}}>
             <span style={{width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center",color:T[u.id]||T.text,flexShrink:0,marginTop:2}}>{UTIL_ICONS[u.id]}</span>
@@ -1892,7 +1875,7 @@ function Onboarding({ onDone }) {
   return (
     <div className="onboard">
       <div className="ob-icon">{s.icon}</div>
-      <h2 className="ob-title" style={{color:s.color}}>{s.title}</h2>
+      <h2 className="ob-title">{s.title}</h2>
       <p className="ob-sub">{s.sub}</p>
       <div className="ob-dots">
         {ONBOARD_SLIDES.map((_, i) => (
@@ -1971,8 +1954,11 @@ function MeterCropper({ imgUrl, onCancel, onConfirm }) {
   };
 
   const btn = { flex: 1, padding: "13px", borderRadius: 6, fontSize: 12, fontWeight: 800, cursor: "pointer" };
-  return (
-    <div style={{position:"fixed",inset:OVERLAY_INSET,background:"rgba(10,18,14,0.96)",zIndex:360,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:16}}>
+  // Rendered on document.body: inside the screen's own stacking context (.z1) the
+  // bottom nav was drawn over it, covering "Retake" on short phones. Solid, so the
+  // form behind doesn't show through.
+  return createPortal(
+    <div role="dialog" aria-modal="true" aria-label="Align the reading" style={{position:"fixed",inset:OVERLAY_INSET,background:"#0a120e",zIndex:360,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:16}}>
       <div style={{color:"#fff",fontSize:14,fontWeight:800,marginBottom:4,textAlign:"center"}}>Align the reading</div>
       <div style={{color:"rgba(255,255,255,0.7)",fontSize:11,marginBottom:14,textAlign:"center"}}>Box ONLY the digits row (e.g. 003755) — leave out any text above or below it</div>
       <div style={{position:"relative",maxWidth:"100%",maxHeight:"60vh",touchAction:"none"}}>
@@ -1991,7 +1977,8 @@ function MeterCropper({ imgUrl, onCancel, onConfirm }) {
         <button onClick={scan} style={{...btn,flex:2,border:"none",background:"#2E7D32",color:"#fff"}}>Scan this area</button>
       </div>
       <button onClick={onCancel} style={{marginTop:12,background:"transparent",border:"none",color:"rgba(255,255,255,0.7)",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",cursor:"pointer"}}>Retake</button>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -2468,6 +2455,19 @@ function HomeScreen({ b3tr, walletB3tr, streak, subs, setTab, wallet, onOpenRead
         <div className="sub-title">Dashboard</div>
         <div className="sub-sub">Your sustainability stats</div>
       </div>
+
+      {/* A new user landed here after registering to an empty dashboard — "— B3TR",
+          an empty chart, a blank calendar — with nothing pointing at the one thing
+          to do next. Until the first reading, that is the first thing on Home. */}
+      {!(subs || []).some(x => x.type !== "eco") && (
+        <div style={{ margin: "0 14px 14px", padding: "18px 16px", borderRadius: 10, background: `linear-gradient(135deg,${T.heroFrom},${T.heroTo})`, color: "#fff" }}>
+          <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 4 }}>📸 Log your first reading</div>
+          <div style={{ fontSize: 13.5, lineHeight: 1.5, color: "rgba(255,255,255,0.85)", marginBottom: 14 }}>
+            Photograph your electricity meter — about a minute. It sets your starting point; from your next reading, every kWh below the daily target earns B3TR.
+          </div>
+          <button className="intro-btn" style={{ marginTop: 0, maxWidth: "none" }} onClick={() => setTab("submit")}>Take the meter photo →</button>
+        </div>
+      )}
 
       <TodayPanel subs={subs} wallet={wallet} setTab={setTab} onOpenReader={onOpenReader} T={T} />
       
@@ -5417,7 +5417,7 @@ function NoAccessScreen({ wallet, T, onSwitch, onToast }) {
       </p>
       <div style={{fontFamily:"'SF Mono',Menlo,monospace",fontSize:11.5,color:T.text,background:T.bgAlt,border:`1px solid ${T.border}`,borderRadius:6,padding:"9px 10px",wordBreak:"break-all",userSelect:"all"}}>{wallet}</div>
       <div style={{display:"flex",gap:8,marginTop:12}}>
-        <button type="button" onClick={copy} style={{flex:1,padding:"11px",fontSize:12,fontWeight:800,color:"#fff",background:T.green2,border:"none",borderRadius:6,cursor:"pointer"}}>Copy address</button>
+        <button type="button" onClick={copy} style={{flex:1,padding:"11px",fontSize:12,fontWeight:800,color:T === DARK ? T.bg : "#fff",background:T.green2,border:"none",borderRadius:6,cursor:"pointer"}}>Copy address</button>
         <button type="button" onClick={onSwitch} style={{flex:1,padding:"11px",fontSize:12,fontWeight:700,color:T.textMid,background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,cursor:"pointer"}}>Use another wallet</button>
       </div>
       {MAIN_APP_URL && NETWORK !== "mainnet" && (
@@ -5706,7 +5706,7 @@ function HelpScreen({ onClose, onFeedback, T }) {
           <span style={{color:T.green3,fontWeight:800}}>↗</span>
         </a>
 
-        <button onClick={onFeedback} style={{width:"100%",marginTop:10,background:T.green3,border:"none",borderRadius:6,padding:"13px",color:"#fff",fontSize:12,fontWeight:800,textTransform:"uppercase",letterSpacing:".8px",cursor:"pointer"}}>{L.feedback}</button>
+        <button onClick={onFeedback} style={{width:"100%",marginTop:10,background:T.green3,border:"none",borderRadius:6,padding:"13px",color:T === DARK ? T.bg : "#fff",fontSize:12,fontWeight:800,textTransform:"uppercase",letterSpacing:".8px",cursor:"pointer"}}>{L.feedback}</button>
       </div>
     </div>
   );
@@ -5775,7 +5775,7 @@ function FeedbackScreen({ onClose, onToast, wallet, tab, T }) {
         <div style={{fontSize:10.5,color:T.textSoft,lineHeight:1.55,margin:"10px 2px 16px"}}>
           We attach a little diagnostic info (app version, network, screen, device) so we can reproduce issues. No reading photos or private keys are ever included.
         </div>
-        <button onClick={sendEmail} style={{width:"100%",background:T.green3,border:"none",borderRadius:6,padding:"13px",color:"#fff",fontSize:12,fontWeight:800,textTransform:"uppercase",letterSpacing:".8px",cursor:"pointer",marginBottom:8}}>✉️ Send via email</button>
+        <button onClick={sendEmail} style={{width:"100%",background:T.green3,border:"none",borderRadius:6,padding:"13px",color:T === DARK ? T.bg : "#fff",fontSize:12,fontWeight:800,textTransform:"uppercase",letterSpacing:".8px",cursor:"pointer",marginBottom:8}}>✉️ Send via email</button>
         <button onClick={copyAll} style={{width:"100%",background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"12px",color:T.textMid,fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",cursor:"pointer"}}>📋 Copy instead</button>
       </div>
     </div>
