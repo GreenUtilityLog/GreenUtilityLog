@@ -60,3 +60,47 @@ test("the rate limit is per client address, from CF-Connecting-IP", async () => 
     assert.equal(other.status, 200, "another client is not affected");
   } finally { await srv.stop(); }
 });
+
+describe("input that would grow the stored state", () => {
+  let srv, token;
+  before(async () => {
+    srv = await startServer({ state: stateWithBaseline(), env: { INGEST_MIN_INTERVAL_MS: "15000" } });
+    token = (await srv.post("/meter/pair", { address: WALLET, meterNo: "E1000" })).body.token;
+  });
+  after(async () => { await srv.stop(); });
+
+  test("a meter number of kilobytes is refused on every route", async () => {
+    const huge = "9".repeat(5000);
+    for (const [path, body] of [
+      ["/reward", { utility: "electric", meterNo: huge, address: WALLET, reading: 1004, prevRead: 1000, photo: photo("huge"), photoMime: "image/jpeg" }],
+      ["/meter/pair", { address: WALLET, meterNo: huge }],
+      ["/reward-from-meter", { address: WALLET, meterNo: huge }],
+    ]) {
+      const r = await srv.post(path, body);
+      assert.equal(r.status, 400, `${path}: ${JSON.stringify(r.body)}`);
+      assert.match(r.body.error, /invalid meter number/);
+    }
+  });
+
+  test("a normal meter number still works", async () => {
+    const r = await srv.post("/meter/pair", { address: WALLET, meterNo: "E0031400012345678" });
+    assert.notEqual(r.status, 400, JSON.stringify(r.body));
+  });
+
+  test("the open seen-roster keeps a few short meter labels, not what was sent", async () => {
+    const r = await srv.post("/wallet/seen", { address: WALLET, meters: Array.from({ length: 50 }, () => "x".repeat(500)) });
+    assert.equal(r.status, 200);
+    const st = await srv.waitForState((s) => s.seen?.[WALLET.toLowerCase()]);
+    const m = st.seen[WALLET.toLowerCase()].meters;
+    assert.equal(m.length, 4);
+    assert.ok(m.every((x) => x.length === 40));
+  });
+
+  test("a device pushing faster than every 15 seconds is told to wait", async () => {
+    const first = await srv.post("/meter-ingest", { token, reading: 1001 });
+    assert.equal(first.status, 200, JSON.stringify(first.body));
+    const second = await srv.post("/meter-ingest", { token, reading: 1002 });
+    assert.equal(second.status, 429);
+    assert.match(second.body.error, /too fast/);
+  });
+});
