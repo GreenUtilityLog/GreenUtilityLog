@@ -76,7 +76,7 @@ blueprint (`server/render.yaml`) beschrijft de testnet-service en zou die naam e
 | `PASSPORT_GRANTS_ACCESS` | niet invullen: staat op mainnet standaard uit (een passport kan van wallet naar wallet worden doorgegeven) |
 | `ADMIN_WALLETS` | alleen **jouw** wallet-adres (meerdere: met komma's) |
 | `DISTRIBUTOR_ADDRESS` | alleen bij `DISTRIBUTOR_MNEMONIC`: welk adres uit die woorden de distributor is |
-| `CERT_DOMAINS` | de site-naam waarmee handtekeningen binnenkomen — waarschijnlijk `greenutilitylog.github.io`. **Controleer hem vooraf op testnet**: open `https://greenutilitylog-rewards.onrender.com/health` en kijk onder `certDomains.seen` (beide app-versies staan op dezelfde site, dus het is dezelfde naam). Een verkeerde waarde sluit iedereen buiten, jou als admin ook |
+| `CERT_DOMAINS` | **verplicht** (zonder start mainnet niet): de site-naam waarmee handtekeningen binnenkomen — waarschijnlijk `greenutilitylog.github.io`. **Controleer hem vooraf op testnet**: open `https://greenutilitylog-rewards.onrender.com/health` en kijk onder `certDomains.seen` (beide app-versies staan op dezelfde site, dus het is dezelfde naam). Een verkeerde waarde sluit iedereen buiten, jou als admin ook |
 | `PAYOUTS_PAUSED` | **niet** invullen. Dit is de noodstop (zie onderaan): `true` stopt alle uitbetalingen |
 | `WALLET_CHECK` | niet invullen (= `base`): wallets die uit dezelfde bron gevuld zijn of door VeBetterDAO gesignaleerd, krijgen alleen het basisbedrag en komen bij de meldingen. `flag` = alleen melden |
 | `POWERFOX_SECRET` | een lange willekeurige sleutel (anders dan op testnet) — zet de Powerfox- én Tibber-koppeling aan |
@@ -119,6 +119,7 @@ Test: open `<adres>/health` en controleer:
 | `network` | `mainnet` |
 | `appId` | `0x489c6c12…f71e` (of de nieuwe ID uit stap 2) |
 | `dryRun` · `payoutsPaused` | `false` · `false` |
+| `chainConfirmed` | `true` (de server heeft gezien dat zijn node op mainnet zit; tot dan gaat er niets uit) |
 | `storeReady` · `storeSaving` | `true` · `true` |
 | `readingCheck` · `aiPhotoCheck` | `strict` · `true` |
 | `distributorAuthorized` · `distributionPaused` | `true` · `false` |

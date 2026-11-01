@@ -242,6 +242,8 @@ app.get("/health", async (req, res) => {
     walletCheck: WALLET_CHECK,
     // The emergency stop (PAYOUTS_PAUSED): true = no payout goes out at all.
     payoutsPaused: PAYOUTS_PAUSED,
+    // false = mainnet hasn't yet confirmed its node is on mainnet: no payout goes out.
+    chainConfirmed,
     // The largest single stored value: what has to fit in one storage request.
     stateBytes: store.stateBytes(),
     // Each stored value's size (Redis only): which part is growing.
@@ -301,8 +303,11 @@ const DAY_MS = 86400000;
 // (photo, automatic) before anything is sent, until it is removed. The one
 // switch for "something is wrong, stop now" — see docs/MAINNET.md, Noodstop.
 const PAYOUTS_PAUSED = /^(1|true|yes|on)$/i.test(String(process.env.PAYOUTS_PAUSED || "").trim());
+// Mainnet sets this false at boot until the node's genesis block confirms the chain.
+let chainConfirmed = true;
 async function guardPayout(keys) {
   if (PAYOUTS_PAUSED) return { code: 503, error: "payouts are paused for maintenance — nothing was used up, please try again later" };
+  if (!chainConfirmed) return { code: 503, error: "the server is still confirming which blockchain it is connected to — nothing was used up, please try again in a minute" };
   const taken = [];
   for (const [key, ttl, msg] of keys) {
     const ok = await store.takeOnce(key, ttl);
@@ -2241,26 +2246,40 @@ if (NETWORK === "mainnet") {
   if (DRY_RUN) {
     console.warn("[boot] WARNING: mainnet with DISTRIBUTOR_DRY_RUN on — nothing is sent, but readings and cooldowns are recorded as paid. Not an emergency stop: use PAYOUTS_PAUSED=true for that.");
   }
+  // Both were warnings; docs/MAINNET.md has always called them required. Real
+  // B3TR for a doctored or screen photo, or for a signature made on another site,
+  // is not a risk to start with.
   if (!aiPhotoCheckEnabled()) {
-    console.warn("[boot] WARNING: mainnet without the AI photo check — doctored or screen photos are not refused. Set ANTHROPIC_API_KEY.");
+    console.error("[boot] FATAL: NETWORK=mainnet needs the AI photo check — set ANTHROPIC_API_KEY. Without it doctored and screen photos are not refused. Refusing to start.");
+    process.exit(1);
   }
   if (!String(process.env.CERT_DOMAINS || "").trim()) {
-    console.warn("[boot] WARNING: mainnet without CERT_DOMAINS — signatures made on any website are accepted. Set it to the app's domain (see certDomains in /health).");
+    console.error("[boot] FATAL: NETWORK=mainnet needs CERT_DOMAINS set to the app's domain (e.g. greenutilitylog.github.io) — otherwise a signature made on any website is accepted. Refusing to start.");
+    process.exit(1);
   }
   // NODE_URL pointing at another network than NETWORK: calls to contract addresses
   // with no code there "succeed" and nothing is transferred, while every payout is
-  // recorded as paid. The node's genesis block says which chain it is.
+  // recorded as paid. The node's genesis block says which chain it is. Until it has
+  // answered, no payout goes out (guardPayout); an unreachable node is asked again
+  // every 30 s instead of being taken on trust.
   if (!DRY_RUN) {
     const MAINNET_GENESIS = "0x00000000851caf3cfdb6e899cf5958bfb1ac3413d346d43539627e6be7ec1b4a";
-    fetch(`${NODE_URL.replace(/\/$/, "")}/blocks/0`, { signal: AbortSignal.timeout(15000) })
+    chainConfirmed = false;
+    const confirmChain = () => fetch(`${NODE_URL.replace(/\/$/, "")}/blocks/0`, { signal: AbortSignal.timeout(15000) })
       .then((r) => r.json())
       .then((b) => {
         if (String(b?.id || "").toLowerCase() !== MAINNET_GENESIS) {
           console.error(`[boot] FATAL: NETWORK=mainnet but the node at NODE_URL is on another chain (genesis ${b?.id}). Stopping.`);
           process.exit(1);
         }
+        chainConfirmed = true;
+        console.log("[boot] node confirmed on VeChain mainnet — payouts enabled.");
       })
-      .catch((e) => console.warn("[boot] could not read the node's genesis block to confirm it is mainnet:", e?.message || e));
+      .catch((e) => {
+        console.warn("[boot] could not read the node's genesis block to confirm it is mainnet — payouts wait, trying again in 30 s:", e?.message || e);
+        setTimeout(confirmChain, 30000).unref?.();
+      });
+    confirmChain();
   }
   if (ALLOWED_ORIGINS.includes("*")) {
     console.warn("[boot] WARNING: mainnet with ALLOWED_ORIGIN='*' — lock it to your exact frontend origin.");
