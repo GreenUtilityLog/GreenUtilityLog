@@ -254,6 +254,24 @@ describe("boot refuses", () => {
     assert.match(r.out, /needs the distributor key/);
   });
 
+  test("mainnet without the AI photo check, or without CERT_DOMAINS", async () => {
+    const ready = { ...MAINNET, CUSTOM_OCR_URL: "http://127.0.0.1:9/ocr", OCR_PROVIDER_ORDER: "custom", ADMIN_WALLETS: "0x1111111111111111111111111111111111111111" };
+    let r = await boot({ redis: true, vars: ready });
+    assert.equal(r.code, 1, r.out);
+    assert.match(r.out, /needs the AI photo check/);
+    r = await boot({ redis: true, vars: { ...ready, ANTHROPIC_API_KEY: "test-key" } });
+    assert.equal(r.code, 1, r.out);
+    assert.match(r.out, /needs CERT_DOMAINS/);
+  });
+
+  test("mainnet whose node can't be reached yet waits before paying anything", async () => {
+    const r = await boot({ redis: true, vars: { ...MAINNET, CUSTOM_OCR_URL: "http://127.0.0.1:9/ocr", OCR_PROVIDER_ORDER: "custom",
+      ADMIN_WALLETS: "0x1111111111111111111111111111111111111111", ANTHROPIC_API_KEY: "test-key", CERT_DOMAINS: "example.org",
+      DISTRIBUTOR_DRY_RUN: "", DISTRIBUTOR_PRIVATE_KEY: "0x" + "11".repeat(32), NODE_URL: "http://127.0.0.1:9" } });
+    assert.match(r.out, /payouts wait, trying again in 30 s/, r.out);
+    assert.doesNotMatch(r.out, /FATAL/, r.out);
+  });
+
   test("a network name that would fall back to testnet and skip every guard", async () => {
     const r = await boot({ vars: { NETWORK: "Mainnet" } });
     assert.equal(r.code, 1, r.out);
