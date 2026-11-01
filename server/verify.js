@@ -7,6 +7,12 @@ import { RATES, UNITS, isEnabledUtility, COOLDOWN_MS, computeReward, usageBounds
 import { store } from "./store.js";
 
 const isAddress = (a) => typeof a === "string" && /^0x[0-9a-fA-F]{40}$/.test(a);
+// A meter number as printed on a meter or a bill: at most 40 characters, no
+// control characters. Long enough for an 18-digit EAN with a prefix; short enough
+// that it can't be used to grow the stored state. Which characters is left open:
+// meters already registered must keep working.
+export const validMeterNo = (m) => (typeof m === "string" || typeof m === "number")
+  && /^[^\p{C}]{1,40}$/u.test(String(m).trim());
 
 export function validateSubmission(body) {
   const { utility, reading, prevRead, meterNo, address } = body || {};

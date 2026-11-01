@@ -100,7 +100,10 @@ describe("what one process stores, the other doesn't overwrite", () => {
     // B still holds 7717.912 in memory. Make it write: a wallet seen is enough.
     await b.post("/wallet/seen", { address: "0x2222222222222222222222222222222222222222" });
     await new Promise((r) => setTimeout(r, 2500)); // past the store's write debounce
-    assert.ok(stored().seen["0x2222222222222222222222222222222222222222"], "B's own change was stored");
+    // The seen-roster has its own key (store.js, parts).
+    const seen = JSON.parse(redis.kv.get("greenutilitylog:state:part:seen")).seen;
+    assert.ok(seen["0x2222222222222222222222222222222222222222"], "B's own change was stored");
+    assert.equal(stored().seen, undefined, "in its own key, not in the main state");
     assert.equal(stored().readings["electric:e1000"], 7721.72, "and A's baseline was not put back");
   });
 });

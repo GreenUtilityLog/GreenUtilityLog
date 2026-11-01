@@ -71,14 +71,87 @@ async function redisCmd(cmd) {
 // SET would overwrite the real (unread) key and wipe all cooldowns/hashes/baselines.
 let loadError = false;
 
+// ── Parts: the fields that grow with use each have their own key ─────────────
+// The state used to be ONE value, read and written in full on every save. Photo
+// hashes, photo prints, flags, the seen-roster and device keys grow with every
+// payout, and past the storage's per-request limit (about 1 MB on Upstash's free
+// plan) every save fails and all payouts stop — reachable by normal growth, and by
+// anyone filling the open roster. So with Redis each of those fields lives under a
+// key of its own, `${STATE_KEY}:part:<field>` holding `{ <field>: value }`, with
+// its own version for compare-and-set; the rest (cooldowns, baselines, owners, …)
+// stays in STATE_KEY. A save writes only the parts it changed. The file backend
+// keeps one file: there is no request limit there.
+//
+// Moving over: a field still in the old single value is read from there until its
+// part has been written once (the first save that touches it), and only then is it
+// dropped from STATE_KEY. During a deploy an older process may still write such a
+// field into STATE_KEY; those entries are taken over into the part (takeStrays).
+const PART_FIELDS = ["hashes", "prints", "photos", "flags", "seen", "devices", "walletChecks", "usedCerts", "payLog"];
+const CORE = "core";
+const isPart = (f) => PART_FIELDS.includes(f);
+const partOf = (f) => (isPart(f) ? f : CORE);
+const keyOf = (part) => (part === CORE ? REDIS_KEY : `${REDIS_KEY}:part:${part}`);
+const verKeyOf = (part) => `${keyOf(part)}:version`;
+// Parts whose own key exists: only those are dropped from STATE_KEY.
+const partStored = new Set();
+// Bytes of each stored value as last read or written: the largest is what has to
+// stay under the storage's request limit (/health stateBytes).
+const blobBytes = new Map();
+// The version of each part this process last wrote or took over (see newer()).
+const lastVer = new Map();
+const emptyOf = (f) => JSON.parse(JSON.stringify(EMPTY[f] ?? {}));
+
+// Add what `src` holds for field f and `dst` lacks (map entries, list items).
+// Returns the keys added ("*" for a list), or null when nothing was.
+function unionInto(dst, f, src) {
+  if (Array.isArray(src)) {
+    const cur = Array.isArray(dst[f]) ? dst[f] : [];
+    const ids = new Set(cur.map((e) => JSON.stringify(e)));
+    const add = src.filter((e) => !ids.has(JSON.stringify(e)));
+    if (!add.length) return null;
+    dst[f] = [...cur, ...add].sort((a, b) => (a?.t || 0) - (b?.t || 0));
+    return "*";
+  }
+  if (!isMap(src)) return null;
+  if (!isMap(dst[f])) dst[f] = {};
+  const keys = Object.keys(src).filter((k) => !Object.prototype.hasOwnProperty.call(dst[f], k));
+  for (const k of keys) dst[f][k] = src[k];
+  return keys.length ? new Set(keys) : null;
+}
+const hasContent = (v) => (Array.isArray(v) ? v.length > 0 : isMap(v) && Object.keys(v).length > 0);
+
+// Fields to write to their own part at the next save (still only in STATE_KEY).
+let toMigrate = [];
+
 async function loadState() {
   if (USE_REDIS) {
     try {
-      const blob = await redisCmd(["GET", REDIS_KEY]);
+      const parts = [CORE, ...PART_FIELDS];
+      const got = await redisCmd(["MGET", ...parts.map(keyOf), ...parts.map(verKeyOf)]);
+      const blobs = got.slice(0, parts.length), vers = got.slice(parts.length);
       loadError = false;
-      if (blob) return fresh(JSON.parse(blob));
-      console.log("[store] Redis backend ready (empty — fresh state).");
-      return fresh();
+      partStored.clear(); toMigrate = [];
+      const core = blobs[0] ? JSON.parse(blobs[0]) : {};
+      const out = fresh(core);
+      parts.forEach((part, i) => {
+        blobBytes.set(part, blobs[i] ? blobs[i].length : 0);
+        lastVer.set(part, vers[i] == null ? "0" : String(vers[i]));
+      });
+      PART_FIELDS.forEach((f, i) => {
+        const b = blobs[i + 1];
+        if (b) {
+          const own = JSON.parse(b)?.[f] ?? emptyOf(f);
+          // Anything an older process left in STATE_KEY is added, not lost.
+          const tmp = { [f]: own };
+          if (hasContent(core[f]) && unionInto(tmp, f, core[f])) toMigrate.push(f);
+          out[f] = tmp[f];
+          partStored.add(f);
+        } else if (hasContent(core[f])) {
+          toMigrate.push(f);   // still only in STATE_KEY: moved at the first save
+        }
+      });
+      if (!blobs.some(Boolean)) console.log("[store] Redis backend ready (empty — fresh state).");
+      return out;
     } catch (e) {
       // Fail CLOSED: mark not-ready. Do not disable anti-farming with an empty slate,
       // and do not let a later write clobber the unread key.
@@ -131,6 +204,7 @@ function track(raw) {
 
 // Load once at boot (top-level await — importers wait for this to resolve).
 let state = track(await loadState());
+for (const f of toMigrate) note(f, "*");
 console.log(`[store] backend: ${USE_REDIS ? "Upstash Redis (durable)" : `file ${FILE} (ephemeral on free hosts)`}`);
 
 // If the durable store couldn't be read at boot, keep retrying so the service
@@ -144,7 +218,7 @@ if (USE_REDIS && loadError) {
     busy = true;
     try {
       const fresh = await loadState();
-      if (!loadError) { state = track(fresh); dirty.clear(); clearInterval(retry); console.log("[store] Redis recovered — state loaded, payouts enabled."); }
+      if (!loadError) { state = track(fresh); dirty.clear(); for (const f of toMigrate) note(f, "*"); clearInterval(retry); console.log("[store] Redis recovered — state loaded, payouts enabled."); }
     } finally { busy = false; }
   }, 10000);
 }
@@ -197,10 +271,10 @@ const VERSION_KEY = `${REDIS_KEY}:version`;
 // Set only if the version is still the one read; bumps it. One round trip, atomic.
 const CAS_SCRIPT = "if (redis.call('GET', KEYS[2]) or '0') == ARGV[1] then redis.call('SET', KEYS[1], ARGV[2]); return redis.call('INCR', KEYS[2]) else return 0 end";
 let casSupported = true;
-// The version this process last wrote or took over. A pull that comes back with an
-// older one (it was sent before our own write landed) is ignored, or it would put
-// back the values we just replaced, in memory, until the next pull.
-let lastVer = null;
+// lastVer (per part, above) is the version this process last wrote or took over.
+// A pull that comes back with an older one (it was sent before our own write
+// landed) is ignored, or it would put back the values we just replaced, in memory,
+// until the next pull.
 const APPEND_LOGS = new Set(["payLog", "prints"]);   // merged as a union, not replaced
 const COUNTERS = new Set(["passSeq", "passesInit"]); // merged as the larger
 
@@ -258,42 +332,117 @@ function adopt(remote) {
   }
 }
 
-async function readStored() {
-  const [blob, ver] = await redisCmd(["MGET", REDIS_KEY, VERSION_KEY]);
-  return { remote: blob ? fresh(JSON.parse(blob)) : fresh(), ver: ver == null ? "0" : String(ver) };
+// Read one part: { remote, ver }. For the core part, `strays` holds what an older
+// process wrote into STATE_KEY for fields that have their own part now; `remote`
+// never carries those fields (adopt() would otherwise replace the part's data).
+async function readPart(part) {
+  const [blob, ver] = await redisCmd(["MGET", keyOf(part), verKeyOf(part)]);
+  blobBytes.set(part, blob ? blob.length : 0);
+  const v = ver == null ? "0" : String(ver);
+  if (part !== CORE) {
+    const parsed = blob ? JSON.parse(blob) : {};
+    return { remote: { [part]: parsed?.[part] ?? emptyOf(part) }, ver: v };
+  }
+  const parsed = blob ? JSON.parse(blob) : {};
+  const strays = {};
+  for (const f of PART_FIELDS) if (hasContent(parsed[f])) strays[f] = parsed[f];
+  const remote = fresh(parsed);
+  for (const f of PART_FIELDS) delete remote[f];
+  return { remote, ver: v, strays };
 }
-const newer = (ver) => lastVer == null || Number(ver) >= Number(lastVer);
+const newer = (part, ver) => !lastVer.has(part) || Number(ver) >= Number(lastVer.get(part));
+
+// Take over entries an older process left in STATE_KEY for a field that has its
+// own part: added to memory (never replacing what is here) and returned as changes,
+// so they are written to the part.
+function takeStrays(strays) {
+  const out = [];
+  const root = rawOf.get(state);
+  for (const [f, v] of Object.entries(strays || {})) {
+    const d = protectedKeys(f);
+    if (d === "*") continue;
+    const cur = root[f];
+    const plain = { [f]: Array.isArray(cur) ? cur : (rawOf.get(cur) || cur || {}) };
+    let src = v;
+    if (isMap(v) && d) src = Object.fromEntries(Object.entries(v).filter(([k]) => !d.has(k)));
+    const added = unionInto(plain, f, src);
+    if (!added) continue;
+    if (Array.isArray(plain[f])) root[f] = plain[f];   // lists are replaced whole
+    else if (!isMap(cur)) root[f] = mapProxy(f, plain[f]);
+    out.push([f, added]);
+  }
+  return out;
+}
+function addChange(changes, f, keys) {
+  const cur = changes.get(f);
+  if (keys === "*" || cur === "*") changes.set(f, "*");
+  else changes.set(f, new Set([...(cur || []), ...keys]));
+  if (inflight) inflight.set(f, changes.get(f));
+}
+
+// Compare-and-set one value: true written, false someone else wrote in between.
+async function casSet(part, ver, blob) {
+  if (casSupported) {
+    let r;
+    try { r = await redisCmd(["EVAL", CAS_SCRIPT, "2", keyOf(part), verKeyOf(part), ver, blob]); }
+    catch (e) {
+      // Only a Redis without scripting falls back. A refused write for another
+      // reason (too large, over quota) is a failed save, not a reason to drop
+      // compare-and-set for the rest of this process's life.
+      if (!/upstash 4\d\d/.test(String(e?.message)) || !/unknown command|script|eval|not allowed|disabled|NOPERM/i.test(String(e?.message))) throw e;
+      casSupported = false; // no scripting on this Redis: a plain merged SET still
+      console.warn("[store] EVAL not available — merged writes without compare-and-set");
+    }
+    if (casSupported) {
+      if (!r) return false;
+      lastVer.set(part, String(r));
+      blobBytes.set(part, blob.length);
+      return true;
+    }
+  }
+  await redisCmd(["SET", keyOf(part), blob]);
+  lastVer.delete(part);
+  blobBytes.set(part, blob.length);
+  return true;
+}
+
+// Write one field's part: read it, apply this process's changes, compare-and-set.
+async function writePart(f, keys) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { remote, ver } = await readPart(f);
+    applyMine(remote, [[f, keys]]);
+    if (await casSet(f, ver, JSON.stringify(remote))) { partStored.add(f); adopt(remote); return; }
+  }
+  throw new Error(`state part "${f}" kept changing under us — will retry`);
+}
 
 async function mergedWrite() {
   // What changed here up to now; anything changed during the round trips stays
   // noted for the next write.
-  const changes = [...dirty.entries()].map(([f, k]) => [f, k === "*" ? "*" : new Set(k)]);
+  const changes = new Map([...dirty.entries()].map(([f, k]) => [f, k === "*" ? "*" : new Set(k)]));
   dirty.clear();
   inflight = new Map(changes);
   try {
     for (let attempt = 0; attempt < 5; attempt++) {
-      const { remote, ver } = await readStored();
-      applyMine(remote, changes);
-      const blob = JSON.stringify(remote);
-      lastBlobBytes = blob.length;
-      if (casSupported) {
-        let r;
-        try { r = await redisCmd(["EVAL", CAS_SCRIPT, "2", REDIS_KEY, VERSION_KEY, ver, blob]); }
-        catch (e) {
-          // Only a Redis without scripting falls back. A refused write for another
-          // reason (too large, over quota) is a failed save, not a reason to drop
-          // compare-and-set for the rest of this process's life.
-          if (!/upstash 4\d\d/.test(String(e?.message)) || !/unknown command|script|eval|not allowed|disabled|NOPERM/i.test(String(e?.message))) throw e;
-          casSupported = false; // no scripting on this Redis: a plain merged SET still
-          console.warn("[store] EVAL not available — merged writes without compare-and-set");
-        }
-        if (casSupported && !r) continue;       // someone wrote in between: read again
-        if (casSupported) { lastVer = String(r); adopt(remote); return; }
+      // The core first, read only: what an older process put in it for a part's
+      // field is taken over before the parts are written.
+      const core = await readPart(CORE);
+      for (const [f, k] of takeStrays(core.strays)) addChange(changes, f, k);
+      for (const [f, k] of changes) if (isPart(f)) await writePart(f, k);
+      // The core: its own changes, without the fields whose part is stored. It is
+      // written when it changed, or when it still carries such a field.
+      const coreChanges = [...changes].filter(([f]) => !isPart(f));
+      const stale = Object.keys(core.strays).some((f) => partStored.has(f));
+      if (!coreChanges.length && !stale) { adopt(core.remote); if (newer(CORE, core.ver)) lastVer.set(CORE, core.ver); return; }
+      const out = { ...core.remote };
+      for (const [f, v] of Object.entries(core.strays)) if (!partStored.has(f)) out[f] = v;   // not moved yet: kept
+      applyMine(out, coreChanges);
+      if (await casSet(CORE, core.ver, JSON.stringify(out))) {
+        const view = { ...out };
+        for (const f of PART_FIELDS) delete view[f];
+        adopt(view);
+        return;
       }
-      await redisCmd(["SET", REDIS_KEY, blob]);
-      lastVer = null;
-      adopt(remote);
-      return;
     }
     throw new Error("state kept changing under us — will retry");
   } catch (e) {
@@ -307,14 +456,22 @@ async function mergedWrite() {
 
 // Pick up other processes' writes between our own (a deploy's overlap, mostly).
 if (USE_REDIS) {
+  const parts = [CORE, ...PART_FIELDS];
   const pull = setInterval(async () => {
     if (loadError || writing) return; // a write is about to adopt the newest anyway
     try {
-      // The version first: the whole blob only when someone else wrote.
-      const ver = await redisCmd(["GET", VERSION_KEY]);
-      if (lastVer != null && String(ver ?? "0") === lastVer) return;
-      const got = await readStored();
-      if (!writing && newer(got.ver)) { adopt(got.remote); lastVer = got.ver; }
+      // The versions first: a value only when someone else wrote it.
+      const vers = await redisCmd(["MGET", ...parts.map(verKeyOf)]);
+      let strayFound = false;
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        if (lastVer.has(part) && String(vers[i] ?? "0") === lastVer.get(part)) continue;
+        const got = await readPart(part);
+        if (writing || !newer(part, got.ver)) continue;
+        if (part === CORE) for (const [f, k] of takeStrays(got.strays)) { strayFound = true; if (k === "*") note(f, "*"); else for (const x of k) note(f, x); }
+        adopt(got.remote); lastVer.set(part, got.ver);
+      }
+      if (strayFound) persist();
     } catch { /* next time */ }
   }, 30000);
   pull.unref?.();
@@ -568,7 +725,10 @@ export const store = {
     state.seen[a] = {
       firstSeen: prev?.firstSeen || now,
       lastSeen: now,
-      meters: Array.isArray(meters) ? meters.slice(0, 8).map((m) => String(m).slice(0, 64)) : (prev?.meters || []),
+      // From an open endpoint, so kept small: a few short labels, nothing else.
+      meters: Array.isArray(meters)
+        ? meters.slice(0, 4).map((m) => String(m ?? "").replace(/\p{C}/gu, "").trim().slice(0, 40)).filter(Boolean)
+        : (prev?.meters || []),
     };
     // Bound the roster: drop the least-recently-seen beyond SEEN_MAX.
     const keys = Object.keys(state.seen);
@@ -948,7 +1108,13 @@ export const store = {
   loaded: () => !loadError,
   saveOk: () => !saveError,
   // Measured once from what was loaded until the first save measures it again.
-  stateBytes: () => lastBlobBytes || (lastBlobBytes = JSON.stringify(state).length),
+  // With Redis: the largest single stored value (core or one part), since that is
+  // what has to fit in one request. The file backend writes one value.
+  stateBytes: () => USE_REDIS && blobBytes.size
+    ? Math.max(...blobBytes.values())
+    : (lastBlobBytes || (lastBlobBytes = JSON.stringify(state).length)),
+  // Every stored value's size, for /health: which part is growing.
+  stateParts: () => (USE_REDIS ? Object.fromEntries(blobBytes) : null),
   // A save stuck for half a minute counts as failing: a payout made now might
   // never be recorded.
   ready: () => !loadError && !saveError && !(writing && Date.now() - writingSince > 30000),

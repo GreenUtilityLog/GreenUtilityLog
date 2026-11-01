@@ -8,7 +8,7 @@ import express from "express";
 import cors from "cors";
 import { COOLDOWN_MS } from "./config.js";
 import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, REQUIRE_PASS, PASSPORT_GRANTS_ACCESS, RATES, UNITS, pickUtility, pickAnyUtility, isEnabledUtility, MAX_PAYOUT_PER_SUBMISSION, ENABLED_UTILITIES, REWARD_BASE } from "./config.js";
-import { validateSubmission } from "./verify.js";
+import { validateSubmission, validMeterNo } from "./verify.js";
 import { verifyPhoto, checkReadingOnPhoto, readingCheckMode, meterNoOnPhoto, meterNoCheckMode, photoPrint, printDistance } from "./media.js";
 import { store } from "./store.js";
 import { putPhoto, getPhotoDataUrl, deletePhoto, photoStoreEnabled } from "./photostore.js";
@@ -131,6 +131,14 @@ app.use("/ocr", photoJson);
 // submission would fail on body size rather than on anything to do with the meter.
 app.use("/meter/fix-basis", photoJson);
 app.use(express.json({ limit: "64kb" }));
+// A meter number is a short label. Unchecked, one of tens of kilobytes was stored
+// under several keys, written into the on-chain metadata (gas paid by the
+// distributor) and scanned on every request. Checked once here for every route.
+app.use((req, res, next) => {
+  const m = req.body?.meterNo;
+  if (m != null && !validMeterNo(m)) return res.status(400).json({ error: "invalid meter number — use the number on the meter, at most 40 characters" });
+  next();
+});
 
 // Nothing may change state until the durable state has actually been read.
 //
@@ -234,7 +242,10 @@ app.get("/health", async (req, res) => {
     walletCheck: WALLET_CHECK,
     // The emergency stop (PAYOUTS_PAUSED): true = no payout goes out at all.
     payoutsPaused: PAYOUTS_PAUSED,
+    // The largest single stored value: what has to fit in one storage request.
     stateBytes: store.stateBytes(),
+    // Each stored value's size (Redis only): which part is growing.
+    stateParts: store.stateParts(),
     distributor: await distributorAddress().catch(() => null),
     poolB3TR: chain.poolB3TR,
     distributorAuthorized: chain.distributorAuthorized,
@@ -1507,6 +1518,9 @@ app.get("/cron/tick", async (req, res) => {
   res.json({ ok: true, powerfox: pulled, tibber });
 });
 
+const INGEST_MIN_INTERVAL_MS = Number(process.env.INGEST_MIN_INTERVAL_MS ?? 15000);
+const lastIngestAt = new Map();   // device token -> last accepted push
+
 // The endpoint a reader posts to. Token-authed (the token IS the secret binding to
 // a wallet) — deliberately no wallet cert, since an unattended device can't sign.
 app.post("/meter-ingest", (req, res) => {
@@ -1522,6 +1536,19 @@ app.post("/meter-ingest", (req, res) => {
   if (!link) return res.status(401).json({ error: "unknown device token" });
   const reading = Number(req.body.reading);
   if (!Number.isFinite(reading) || reading < 0) return res.status(400).json({ error: "invalid reading" });
+  // Every push is a save. Readers push every few minutes at most (the bridge's
+  // floor is 60 s); a device token pushing faster is a script, and is told to
+  // wait. The bridge and Home Assistant retry a 429 after 20 s, so an honest
+  // double push still lands.
+  {
+    const now = Date.now(), prev = lastIngestAt.get(token) || 0;
+    if (INGEST_MIN_INTERVAL_MS > 0 && now - prev < INGEST_MIN_INTERVAL_MS) {
+      res.set("Retry-After", String(Math.ceil((INGEST_MIN_INTERVAL_MS - (now - prev)) / 1000)));
+      return res.status(429).json({ error: "readings are coming in too fast — at most one every 15 seconds per device" });
+    }
+    lastIngestAt.set(token, now);
+    if (lastIngestAt.size > 20000) for (const [k, t] of lastIngestAt) if (now - t > INGEST_MIN_INTERVAL_MS) lastIngestAt.delete(k);
+  }
   store.setLinkReading(link.address, {
     reading,
     meterNo: String(req.body.meterNo || link.meterNo || "").trim() || null,
