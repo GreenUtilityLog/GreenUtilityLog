@@ -44,6 +44,8 @@ function fakeNode(mode, { revertSelector = null } = {}) {
       }
       // A transaction the node has but no block yet holds: no receipt.
       if (mode === "no-receipt" && u.includes("/receipt")) return send(null);
+      // Taken, then expired before any block held it: no receipt, unknown to the node.
+      if (mode === "expired" && req.method === "GET" && u.startsWith("/transactions/")) return send(null);
       if (req.method === "GET" && u.startsWith("/transactions/")) return send(seen.size ? { id: "0x" } : null);
       send(null);
     });
@@ -145,4 +147,41 @@ test("sent but not yet in a block: reported as pending, not as paid", async () =
   await new Promise((r) => child.on("exit", r));
   node.srv.close();
   assert.match(out, /PENDING true/, out);   // the fake node never returns a receipt
+});
+
+async function recheck(mode) {
+  const node = await fakeNode(mode);
+  const script = `
+    const { sendClauseTo, payoutPending, recheckPendingPayouts } = await import("./reward.js");
+    const abi = { name: "claim", type: "function", stateMutability: "nonpayable", inputs: [], outputs: [] };
+    const r = await sendClauseTo("0x${"3".repeat(40)}", abi, [], "test");
+    const lost = [];
+    const res = await recheckPendingPayouts(async (x) => { lost.push(x.txid); });
+    console.log("RECHECK " + JSON.stringify({ ...res, lostIsMine: lost[0] === r.txid, stillPending: payoutPending(r.txid) }));
+    process.exit(0);
+  `;
+  const child = spawn(process.execPath, ["--input-type=module", "-e", script], {
+    cwd: SERVER_DIR,
+    env: { ...process.env, RECEIPT_WAIT_MS: "300", BROADCAST_RETRY_MS: "50", PENDING_LOST_AFTER_MS: "0", NODE_URL: node.url, DISTRIBUTOR_PRIVATE_KEY: randomBytes(32).toString("hex"), DISTRIBUTOR_DRY_RUN: "", NETWORK: "testnet" },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  let out = ""; child.stdout.on("data", (d) => (out += d)); child.stderr.on("data", (d) => (out += d));
+  await new Promise((r) => child.on("exit", r));
+  node.srv.close();
+  const m = /RECHECK (.*)/.exec(out);
+  assert.ok(m, out);
+  return JSON.parse(m[1]);
+}
+
+test("a pending payout that expired is reported as lost, not forgotten", async () => {
+  const r = await recheck("expired");
+  assert.equal(r.lost, 1);
+  assert.equal(r.lostIsMine, true);
+  assert.equal(r.stillPending, false);
+});
+
+test("a pending payout the node still holds stays pending", async () => {
+  const r = await recheck("no-receipt");
+  assert.equal(r.lost, 0);
+  assert.equal(r.stillPending, true);
 });

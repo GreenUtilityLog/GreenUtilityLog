@@ -12,7 +12,7 @@ import { validateSubmission, validMeterNo } from "./verify.js";
 import { verifyPhoto, checkReadingOnPhoto, readingCheckMode, meterNoOnPhoto, meterNoCheckMode, photoPrint, printDistance } from "./media.js";
 import { store } from "./store.js";
 import { putPhoto, getPhotoDataUrl, deletePhoto, photoStoreEnabled } from "./photostore.js";
-import { distributeReward, distributorAddress, chainDiagnostics, moveToRewardsPool, DRY_RUN, hasDistributorKey, payoutPending } from "./reward.js";
+import { distributeReward, distributorAddress, chainDiagnostics, moveToRewardsPool, DRY_RUN, hasDistributorKey, payoutPending, pendingPayoutCount, recheckPendingPayouts } from "./reward.js";
 import { signalStatus, passportFor, signalUser, passportVouches } from "./passport.js";
 import { budgetState, scaledAmount, recordPayout, autoClaimAllocation, autoMoveToRewardsPool } from "./budget.js";
 import { ocrImage, ocrEnabled, ocrProviders } from "./ocr.js";
@@ -242,6 +242,8 @@ app.get("/health", async (req, res) => {
     walletCheck: WALLET_CHECK,
     // The emergency stop (PAYOUTS_PAUSED): true = no payout goes out at all.
     payoutsPaused: PAYOUTS_PAUSED,
+    // Payouts sent without a receipt yet; a lost one becomes an admin flag.
+    pendingPayouts: pendingPayoutCount(),
     // false = mainnet hasn't yet confirmed its node is on mainnet: no payout goes out.
     chainConfirmed,
     // The largest single stored value: what has to fit in one storage request.
@@ -1477,10 +1479,23 @@ app.post("/meter/tibber/link", async (req, res) => {
 
   const r = await fetchTibberReading(tibberToken);
   if (!r.ok) return res.status(r.code === "unreachable" ? 503 : 400).json({ error: r.error, code: r.code });
-  // One Tibber home feeds one wallet, or a single Pulse could pay many.
-  if (store.allTibber().some((x) => x.homeId === r.homeId && x.address !== address.toLowerCase())) {
-    return res.status(409).json({ error: "this Tibber home is already connected to another wallet" });
-  }
+  // One Tibber home feeds one wallet, or a single Pulse could pay many. Within one
+  // process the check below and the write after it are one synchronous step. During
+  // a deploy two processes run, each with its own copy of the state: one could link
+  // a home the other had just linked. So the home is also reserved in the storage
+  // both share, and the reservation is KEPT for two minutes — longer than the 30 s
+  // in which the other process picks up the new link (store.js pull). The same
+  // wallet relinking its own home doesn't need it.
+  const linkedElsewhere = () => store.allTibber().some((x) => x.homeId === r.homeId && x.address !== address.toLowerCase());
+  const elsewhere = { error: "this Tibber home is already connected to another wallet" };
+  if (linkedElsewhere()) return res.status(409).json(elsewhere);
+  const homeKey = `tbhome:${createHash("sha256").update(String(r.homeId)).digest("hex").slice(0, 32)}`;
+  // The same wallet relinking (or linking again right after an unlink) is let through.
+  const mine = store.allTibber().some((x) => x.homeId === r.homeId && x.address === address.toLowerCase())
+    || tibberHomeTakenBy.get(homeKey) === address.toLowerCase();
+  const held = mine ? true : await store.takeOnce(homeKey, 120000);
+  if (held !== true) return res.status(held === null ? 503 : 409).json({ error: "this Tibber home is being connected right now, or was just connected to another wallet — try again in a few minutes" });
+  if (linkedElsewhere()) return res.status(409).json(elsewhere);
 
   const existing = store.getLinkByAddress(address);
   const token = existing ? existing.token : randomBytes(24).toString("hex");
@@ -1490,11 +1505,16 @@ app.post("/meter/tibber/link", async (req, res) => {
   store.setMeterLink(token, link);
   store.setTibber(address, { cred: sealCredentials("tibber", tibberToken), token, homeId: r.homeId, linkedAt: Date.now(), lastPullAt: Date.now(), lastError: null });
   store.setLinkReading(address, { reading: r.reading, meterNo, at: r.at, source: "tibber" });
+  tibberHomeTakenBy.set(homeKey, address.toLowerCase());
+  if (tibberHomeTakenBy.size > 5000) tibberHomeTakenBy.delete(tibberHomeTakenBy.keys().next().value);
   await store.flush();
   console.log(`[tibber] ${shortAddr(address)} linked`);
   res.json({ ok: true, token, reading: r.reading, at: r.at });
   if (AUTO_CLAIM_ON_PUSH) setImmediate(() => { autoSettle({ token, ...link }, "tibber").catch(() => {}); });
 });
+
+// Which wallet took a Tibber home's reservation last, in this process.
+const tibberHomeTakenBy = new Map();
 
 // Forget the Tibber token: deleted at once.
 app.post("/meter/tibber/unlink", async (req, res) => {
@@ -1850,6 +1870,12 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
     await store.flush(); // durable before returning, so a crash can't replay this reading
     return { ok: true, txid, amount: pay.amount, fullAmount: recordOnly ? 0 : v.amount, factor: pay.factor, usage: v.usage, reading: Number(latest.reading), source: latest.source || "meter",
       pending: txid ? payoutPending(txid) : false, ...(recordOnly ? { recorded: true, reason: v.noReward || "recorded, no reward this time" } : {}) };
+  } catch (e) {
+    // Once paid, a throw in the bookkeeping after it must not reach the caller as
+    // "nothing was used up": the reward went out and the reading is spent.
+    if (!paid) throw e;
+    console.error("[settle] paid, but recording it failed:", scrub(e?.message || e));
+    return { ok: false, code: 502, committed: true, error: "the reward was sent, but recording it hit a problem — check your wallet before trying again" };
   } finally {
     if (!paid && guard?.release) await guard.release();
     inFlight.delete(lockKey);
@@ -2306,6 +2332,18 @@ const budgetHousekeeping = () => autoClaimAllocation()
   .catch((e) => console.warn("[budget] auto-move:", e?.message || e));
 setTimeout(budgetHousekeeping, 30000).unref();
 setInterval(budgetHousekeeping, 60 * 60 * 1000).unref();
+
+// Payouts answered as "pending" (no receipt in time) are asked about again every
+// minute (reward.js). One that never landed is flagged for the admin with the
+// wallet and amount — the user's reading was used up without B3TR arriving.
+setInterval(() => {
+  recheckPendingPayouts(async ({ txid, receiver, amount, reverted }) => {
+    const why = reverted ? "reverted on-chain" : "never landed (expired)";
+    console.error(`[payout] ${txid} ${why} — ${receiver ? shortAddr(receiver) : "?"} was not paid ${amount ?? "?"} B3TR; check and compensate`);
+    store.addFlag(`lost-${String(txid).slice(2, 12)}`, receiver || "", `payout ${why}: ${amount ?? "?"} B3TR not received (tx ${txid}) — the reading was used up; compensate or reset this meter's cooldown`);
+    await store.flush().catch(() => {});
+  }).catch(() => {});
+}, 60 * 1000).unref();
 
 // Last in line: turns a thrown/rejected handler into a plain 500, without the
 // error's text (which can carry node or provider internals) going to the client.

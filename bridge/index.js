@@ -96,7 +96,9 @@ const SUFFIX = INGEST === DEFAULT_INGEST ? "" : "-" + (() => {
 
 // The token is remembered next to this file, so the second run needs no arguments at
 // all. Only the token: everything else is either discovered or has a sensible default.
-const HERE = __dirname;
+// GUL_DATA_DIR moves that file and the log elsewhere: the Home Assistant add-on sets
+// it to /data, the one folder that survives an add-on update or rebuild.
+const HERE = process.env.GUL_DATA_DIR || __dirname;
 const SELF = basename(process.argv[1] || "index.js");
 const CONFIG_FILE = join(HERE, `.gul-bridge${SUFFIX}.json`);
 function readSaved() {

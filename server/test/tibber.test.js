@@ -112,6 +112,39 @@ describe("Tibber, fetched by the server", () => {
   });
 });
 
+describe("a Tibber home just linked by one wallet", () => {
+  // Within one process the check and the write are one synchronous step. Across the
+  // two processes of a deploy they aren't: the other process sees the new link only
+  // at its next pull. The reservation in the shared storage covers that gap, so it
+  // stays taken for two minutes after a link, also when that link is undone.
+  let srv, tb;
+  before(async () => {
+    tb = await fakeTibber();
+    const state = stateWithBaseline();
+    state.meterOwners["electric:e2000"] = OTHER.toLowerCase();
+    state.readings["electric:e2000"] = 2000;
+    srv = await startServer({ state, env: { TIBBER_API_URL: tb.url, TIBBER_LIVE_WAIT_MS: "1500", POWERFOX_SECRET: "a-test-secret-of-some-length", AUTO_CLAIM_ON_PUSH: "off" } });
+  });
+  after(async () => { await srv.stop(); tb.srv.close(); });
+
+  test("can't be taken by another wallet for a few minutes", async () => {
+    tb.live = [{ lastMeterConsumption: 1004.5 }];
+    const a = await srv.post("/meter/tibber/link", { address: WALLET, meterNo: "E1000", tibberToken: TOKEN });
+    assert.equal(a.status, 200, JSON.stringify(a.body));
+    assert.equal((await srv.post("/meter/tibber/unlink", { address: WALLET })).body.unlinked, true);
+    tb.live = [{ lastMeterConsumption: 1004.6 }];
+    const b = await srv.post("/meter/tibber/link", { address: OTHER, meterNo: "E2000", tibberToken: TOKEN });
+    assert.equal(b.status, 409, JSON.stringify(b.body));
+    assert.match(b.body.error, /just connected to another wallet/);
+  });
+
+  test("but the wallet that took it can link it again", async () => {
+    tb.live = [{ lastMeterConsumption: 1004.7 }];
+    const a = await srv.post("/meter/tibber/link", { address: WALLET, meterNo: "E1000", tibberToken: TOKEN });
+    assert.equal(a.status, 200, JSON.stringify(a.body));
+  });
+});
+
 describe("Tibber without a server key", () => {
   let srv;
   before(async () => { srv = await startServer({ state: stateWithBaseline() }); });
