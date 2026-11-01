@@ -40,7 +40,7 @@ Laatst bijgewerkt: 2026-11-01.
 - [x] Handleiding met logo, terugknop en inhoudsopgave (#153)
 - [ ] Hele app vertalen (NL, DE, FR, ES) — `src/i18n.js` + taalkeuze in Instellingen:
   - [x] Stap 1: intro, tutorial, verbinden, registratie, Home, menu, kopbalk, banners (#154)
-  - [ ] Stap 2: meterscherm (foto, stand, insturen, meldingen)
+  - [x] Stap 2: meterscherm (foto, stand, insturen, meldingen) (#155)
   - [ ] Stap 3: Voortgang, Geschiedenis, Profiel, Instellingen, Feedback
   - [ ] Stap 4: automatisch uitlezen; Help-teksten naar de vertaalde knopnamen
   - Foutmeldingen van de server blijven Engels

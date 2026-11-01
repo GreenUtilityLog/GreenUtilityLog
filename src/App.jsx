@@ -1972,7 +1972,7 @@ function PhoneQr({ T }) {
     return () => { live = false; };
   }, []);
   return src
-    ? <img src={src} alt="QR code to open this app on your phone" width={180} height={180} style={{ display: "block", margin: "0 auto 12px", borderRadius: 8, border: `1px solid ${T.border}` }} />
+    ? <img src={src} alt={t("v.qrAlt")} width={180} height={180} style={{ display: "block", margin: "0 auto 12px", borderRadius: 8, border: `1px solid ${T.border}` }} />
     : <div className="vz-icon">📱</div>;
 }
 
@@ -1981,7 +1981,7 @@ function PhoneQr({ T }) {
 // meter apps avoid reading barcodes/serials/nameplate text. Returns a cropped Blob
 // (or null = use the whole photo) to the caller.
 function MeterCropper({ imgUrl, onCancel, onConfirm }) {
-  const dlg = useDialog(onCancel, "Align the reading");
+  const dlg = useDialog(onCancel, t("v.align"));
   const imgRef = useRef(null);
   const dRef = useRef(null);            // displayed + natural dimensions
   const drag = useRef(null);
@@ -2035,8 +2035,8 @@ function MeterCropper({ imgUrl, onCancel, onConfirm }) {
   // form behind doesn't show through.
   return createPortal(
     <div {...dlg} style={{position:"fixed",inset:OVERLAY_INSET,background:"#0a120e",zIndex:360,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:16}}>
-      <div style={{color:"#fff",fontSize:14,fontWeight:800,marginBottom:4,textAlign:"center"}}>Align the reading</div>
-      <div style={{color:"rgba(255,255,255,0.7)",fontSize:11,marginBottom:14,textAlign:"center"}}>Box ONLY the digits row (e.g. 003755) — leave out any text above or below it</div>
+      <div style={{color:"#fff",fontSize:14,fontWeight:800,marginBottom:4,textAlign:"center"}}>{t("v.align")}</div>
+      <div style={{color:"rgba(255,255,255,0.7)",fontSize:11,marginBottom:14,textAlign:"center"}}>{t("v.align.long")}</div>
       <div style={{position:"relative",maxWidth:"100%",maxHeight:"60vh",touchAction:"none"}}>
         <img ref={imgRef} src={imgUrl} onLoad={onImgLoad} alt="" draggable={false}
           style={{display:"block",maxWidth:"100%",maxHeight:"60vh",userSelect:"none",pointerEvents:"none",borderRadius:6}} />
@@ -2049,10 +2049,10 @@ function MeterCropper({ imgUrl, onCancel, onConfirm }) {
         )}
       </div>
       <div style={{display:"flex",gap:10,marginTop:20,width:"100%",maxWidth:340}}>
-        <button onClick={()=>onConfirm(null)} style={{...btn,border:"1px solid rgba(255,255,255,0.3)",background:"transparent",color:"#fff"}}>Whole photo</button>
-        <button onClick={scan} style={{...btn,flex:2,border:"none",background:"#2E7D32",color:"#fff"}}>Scan this area</button>
+        <button onClick={()=>onConfirm(null)} style={{...btn,border:"1px solid rgba(255,255,255,0.3)",background:"transparent",color:"#fff"}}>{t("v.whole")}</button>
+        <button onClick={scan} style={{...btn,flex:2,border:"none",background:"#2E7D32",color:"#fff"}}>{t("v.scan")}</button>
       </div>
-      <button onClick={onCancel} style={{marginTop:12,minHeight:44,padding:"0 16px",background:"transparent",border:"none",color:"rgba(255,255,255,0.7)",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",cursor:"pointer"}}>Retake</button>
+      <button onClick={onCancel} style={{marginTop:12,minHeight:44,padding:"0 16px",background:"transparent",border:"none",color:"rgba(255,255,255,0.7)",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",cursor:"pointer"}}>{t("v.retake")}</button>
     </div>,
     document.body,
   );
@@ -2105,7 +2105,7 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
       });
     } catch {
       if (stale()) return;
-      setResult({ summary: "Couldn't read that photo — please tap the camera and take it again." });
+      setResult({ summary: t("v.unreadable") });
       setPhase("error");
       return;
     }
@@ -2122,7 +2122,7 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
     const hashOk = !isDuplicate;
     if (isDuplicate) {
       fraudFlags.push("duplicate_photo");
-      fraudReason = "Duplicate photo detected. Each submission needs a fresh photo.";
+      fraudReason = t("v.duplicate");
     }
 
     setAiStep(1);
@@ -2131,7 +2131,7 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
 
     setAiStep(2);
     const ssCheck = await detectScreenshot(base64, mime);
-    if (ssCheck.isScreenshot) { fraudFlags.push("screenshot_detected"); fraudReason = fraudReason || "Screenshot detected. Please take a real photo of your physical meter."; }
+    if (ssCheck.isScreenshot) { fraudFlags.push("screenshot_detected"); fraudReason = fraudReason || t("v.screenshot"); }
 
     setAiStep(3);
     // OCR runs on the cropped region (if the user boxed the reading) so it ignores
@@ -2194,12 +2194,12 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
     const blocked  = isDuplicate;
     const verified = !blocked;
     const softFlags = fraudFlags.filter(f => f !== "duplicate_photo");
-    const meterNote = meterNoConfirmed === true ? " ✓ Meter # confirmed on photo."
-      : meterNoConfirmed === false ? " Tip: next time try to get the whole meter in frame, including its number."
+    const meterNote = meterNoConfirmed === true ? t("v.meterOk")
+      : meterNoConfirmed === false ? t("v.meterTip")
       : "";
     const summary  = blocked
-      ? (fraudReason || "Verification failed. Please retake the photo.")
-      : `${getUtil(utilId).label} meter${meterNo ? ` #${meterNo}` : ""} accepted.${softFlags.length ? "" : ` ${ocrResult.ocrNums?.length ? "OCR read: " + ocrResult.ocrNums.slice(0,2).join(", ") + "." : "Reading accepted."}`}${meterNote}`;
+      ? (fraudReason || t("v.retakeGeneric"))
+      : `${t("v.accepted", { n: meterNo ? ` #${meterNo}` : "" })}${softFlags.length ? "" : ` ${ocrResult.ocrNums?.length ? t("v.read", { nums: ocrResult.ocrNums.slice(0,2).join(", ") }) : t("v.readingOk")}`}${meterNote}`;
 
     const finalResult = { verified, fraudFlags, fraudReason, summary, ocrNums: ocrResult.ocrNums, ocrFailed: !!ocrResult.ocrFailed, meterNoConfirmed, secScore: score, anomCheck, usageVal };
     setResult(finalResult);
@@ -2214,7 +2214,7 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
     // older was picked from the gallery or downloaded (where AI-generated images
     // come from) — reject it and ask for a live shot.
     if (photoTooOld(file)) {
-      setResult({ summary: "This photo wasn't taken just now. Tap the camera and photograph your meter live — gallery uploads and saved images aren't accepted." });
+      setResult({ summary: t("v.old") });
       setPhase("error");
       return;
     }
@@ -2233,8 +2233,8 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
     <div className="verify-zone" style={{cursor:"default"}}>
       <div className="vz-idle">
         <PhoneQr T={T} />
-        <div className="vz-title">Continue on your phone</div>
-        <div className="vz-sub">Scan this with your phone's camera or VeWorld's scanner and photograph the meter there — the photo has to be taken live, so file uploads aren't accepted.</div>
+        <div className="vz-title">{t("v.phone.t")}</div>
+        <div className="vz-sub">{t("v.phone.d")}</div>
       </div>
     </div>
   );
@@ -2243,9 +2243,9 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
     const body = (
       <div className="vz-idle">
         <div className="vz-icon">{cooldownMs > 0 ? "⏳" : "📸"}</div>
-        <div className="vz-title">Verify Meter</div>
-        {meterNo && <div className="vz-meter">Meter #{meterNo}</div>}
-        <div className="vz-sub">{cooldownMs > 0 ? `Next submission in ${fmtCooldown(cooldownMs)}` : "Tap to photograph with your camera"}</div>
+        <div className="vz-title">{t("v.title")}</div>
+        {meterNo && <div className="vz-meter">{t("v.meter", { n: meterNo })}</div>}
+        <div className="vz-sub">{cooldownMs > 0 ? t("v.next", { time: fmtCooldown(cooldownMs) }) : t("v.tap")}</div>
       </div>
     );
     // During the cooldown there is nothing to open, so this is a plain box that says
@@ -2265,8 +2265,8 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
       <div className="verify-zone">
         <div className="vz-idle">
           <div className="vz-icon">✂️</div>
-          <div className="vz-title">Align the reading</div>
-          <div className="vz-sub">Box only the digits row, then scan</div>
+          <div className="vz-title">{t("v.align")}</div>
+          <div className="vz-sub">{t("v.align.short")}</div>
         </div>
       </div>
       <MeterCropper imgUrl={photoUrl} onCancel={reset} onConfirm={(cropBlob) => runVerify(origFileRef.current, cropBlob)} />
@@ -2276,10 +2276,10 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
   if (phase === "verifying") return (
     <div className="verify-zone">
       <div className="vz-verifying">
-        {photoUrl && <img className="vz-photo sm" src={photoUrl} alt="Captured meter" />}
+        {photoUrl && <img className="vz-photo sm" src={photoUrl} alt={t("v.captured")} />}
         <div className="ai-ring"/>
         <div className="ai-steps">
-          {["Hash check", "File meta", "Screenshot detect", "OCR", "Security score"].map((s, i) => (
+          {t("v.steps").split("|").map((s, i) => (
             <div key={i} className={`ai-step ${i < aiStep ? 'done' : i === aiStep ? 'active' : ''}`}>
               <span className="ai-step-icon">{i < aiStep ? '✓' : i === aiStep ? '●' : '○'}</span>
               {s}
@@ -2293,10 +2293,10 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
   if (phase === "error" && result) return (
     <div className="verify-zone error">
       <div className="vz-result">
-        {photoUrl && <img className="vz-photo" src={photoUrl} alt="Captured meter" />}
-        <div style={{fontSize:12,fontWeight:700,color:T?.gas||"#7a1c1c",marginBottom:8}}>⚠️ Verification failed</div>
+        {photoUrl && <img className="vz-photo" src={photoUrl} alt={t("v.captured")} />}
+        <div style={{fontSize:12,fontWeight:700,color:T?.gas||"#7a1c1c",marginBottom:8}}>{t("v.failed")}</div>
         <div style={{fontSize:11,color:T?.textMid||"#666",marginBottom:12}}>{result.summary}</div>
-        <div role="button" tabIndex={0} className="vr-retry" onClick={reset}>Try again</div>
+        <div role="button" tabIndex={0} className="vr-retry" onClick={reset}>{t("v.tryAgain")}</div>
       </div>
     </div>
   );
@@ -2304,20 +2304,20 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
   if (phase === "verified" && result) return (
     <div className="verify-zone verified">
       <div className="vz-result">
-        {photoUrl && <img className="vz-photo" src={photoUrl} alt="Captured meter" />}
+        {photoUrl && <img className="vz-photo" src={photoUrl} alt={t("v.captured")} />}
         <div className="vr-header">
-          <div className="vr-badge">✓ Verified</div>
-          <div className="vr-confidence">Score: {result.secScore}</div>
+          <div className="vr-badge">{t("v.ok")}</div>
+          <div className="vr-confidence">{t("v.score", { n: result.secScore })}</div>
         </div>
         <div className="vr-summary">{result.summary}</div>
         {result.anomCheck?.anomaly && (
           <div style={{marginTop:12,padding:10,background:T?.electricBg||"#fff3e0",border:`1px solid ${T?.electricBorder||"#FFB74D"}`,borderRadius:6}}>
-            <div style={{fontSize:11,fontWeight:700,color:T?.electric||"#E65100"}}>⚠️ High Usage Detected</div>
-            <div style={{fontSize:10,color:T?.textMid||"#666",marginTop:4}}>This reading is {result.anomCheck.avg ? `${Math.round((result.usageVal/result.anomCheck.avg - 1)*100)}%` : "significantly"} higher than your average.</div>
-            <div style={{fontSize:10,color:T?.electric||"#E65100",marginTop:4,fontWeight:600}}>Allow anyway? Tap Submit to continue.</div>
+            <div style={{fontSize:11,fontWeight:700,color:T?.electric||"#E65100"}}>{t("v.high.t")}</div>
+            <div style={{fontSize:10,color:T?.textMid||"#666",marginTop:4}}>{result.anomCheck.avg ? t("v.high.pct", { pct: Math.round((result.usageVal/result.anomCheck.avg - 1)*100) }) : t("v.high.any")}</div>
+            <div style={{fontSize:10,color:T?.electric||"#E65100",marginTop:4,fontWeight:600}}>{t("v.high.ok")}</div>
           </div>
         )}
-        <div role="button" tabIndex={0} className="vr-retry tap44" onClick={reset} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); reset(); } }}>Retake photo</div>
+        <div role="button" tabIndex={0} className="vr-retry tap44" onClick={reset} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); reset(); } }}>{t("v.retakePhoto")}</div>
       </div>
     </div>
   );
@@ -3531,8 +3531,8 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
   return (
     <>
       <div className="sub-header">
-        <div className="sub-title">Meter Reading</div>
-        <div className="sub-sub">Photograph your meter · Earn B3TR</div>
+        <div className="sub-title">{t("m.title")}</div>
+        <div className="sub-sub">{t("m.sub")}</div>
       </div>
 
       {TURNSTILE_SITE_KEY && <div id="cf-turnstile" style={{display:"flex",justifyContent:"center",margin:"0 0 12px"}} />}
@@ -3553,16 +3553,16 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
 
       <div role="button" tabIndex={0} onClick={() => { if (!meterNo) onRegisterMeter?.([selUtil]); }}
         style={{margin:"0 14px 12px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"9px 12px",background:meterNo?getColorBg(selUtil,T):T.gasBg,border:`1px solid ${meterNo?(T[selUtil+"Border"]||T.electricBorder):T.gasBorder}`,borderRadius:6,cursor:meterNo?"default":"pointer"}}>
-        <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft}}>Registered meter</div>
-        <div style={{fontSize:12,fontWeight:700,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:meterNo?(T[selUtil]||T.text):T.gas}}>{meterNo || "Tap to register →"}</div>
+        <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft}}>{t("m.registered")}</div>
+        <div style={{fontSize:12,fontWeight:700,fontFamily:"'SF Mono',Menlo,'Courier New',monospace",color:meterNo?(T[selUtil]||T.text):T.gas}}>{meterNo || t("m.tapRegister")}</div>
       </div>
 
       {/* Method switch only once a reader exists — otherwise there's nothing to choose.
           It also appears while the reader view is open, so there's always a way back. */}
       {(showMethodSwitch || method === "type") && (
         <div style={{display:"flex",gap:8,margin:"0 14px 12px"}}>
-          <button onClick={() => setMethod("photo")} style={methodBtn(method === "photo")}>📸 Photo</button>
-          <button onClick={() => setMethod("type")} style={methodBtn(method === "type")}>⚡ Auto (reader)</button>
+          <button onClick={() => setMethod("photo")} style={methodBtn(method === "photo")}>{t("m.method.photo")}</button>
+          <button onClick={() => setMethod("type")} style={methodBtn(method === "type")}>{t("m.method.auto")}</button>
         </div>
       )}
 
@@ -3570,9 +3570,9 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
       {/* Progress strip — at a glance: what's done, what's left, what's next. */}
       {(() => {
         const stepDefs = [
-          { n: 1, label: "Photo",   done: aiOk },
-          { n: 2, label: "Reading", done: readingReady },
-          { n: 3, label: "Submit",  done: false },
+          { n: 1, label: t("m.step.photo"),   done: aiOk },
+          { n: 2, label: t("m.step.reading"), done: readingReady },
+          { n: 3, label: t("m.step.submit"),  done: false },
         ];
         const activeIdx = !aiOk ? 0 : !readingReady ? 1 : 2;
         return (
@@ -3605,8 +3605,8 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
         <div role="note" style={{display:"flex",gap:10,alignItems:"flex-start",margin:"0 14px 12px",padding:"11px 12px",background:T.electricBg||T.bgAlt,border:`1px solid ${T.electricBorder||T.border}`,borderRadius:10}}>
           <span aria-hidden="true" style={{fontSize:16,lineHeight:"20px"}}>📸</span>
           <div style={{fontSize:12,color:T.text,lineHeight:1.5}}>
-            <b>This time, photograph {photoRegister === 1 ? "1.8.1 (low tariff)" : photoRegister === 2 ? "1.8.2 (normal tariff)" : `register ${photoRegister}`}.</b>{" "}
-            Wait until your display shows it — your last photo showed the other one.
+            <b>{t("m.register.photo", { reg: photoRegister === 1 ? t("m.register.low") : photoRegister === 2 ? t("m.register.normal") : t("m.register.n", { n: photoRegister }) })}</b>{" "}
+            {t("m.register.wait")}
           </div>
         </div>
       )}
@@ -3631,39 +3631,34 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
           <div style={{ margin: "2px 0 12px" }}>
             <label style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 44, cursor: "pointer", fontSize: 13, fontWeight: 700, color: T.text }}>
               <input type="checkbox" style={{ width: 22, height: 22, flexShrink: 0, accentColor: T.green2 }} checked={!!dualTariff} onChange={e => { setDualTariff(e.target.checked); if (!e.target.checked) { setRegLow(""); setRegNormal(""); setReading(""); } }} />
-              My meter shows two readings (low and normal tariff)
+              {t("m.dual")}
             </label>
             {dualTariff ? (
               <>
                 <div className="irow" style={{ marginTop: 8 }}>
                   <div className="igroup">
-                    <div className="ilabel">Reading <span className="utag">1.8.1</span></div>
+                    <div className="ilabel">{t("m.dual.reading")} <span className="utag">1.8.1</span></div>
                     <input className="ifield" type="text" inputMode="decimal" autoComplete="off" placeholder="3852.104"
                       value={regLow} onChange={e => setRegLow(normDecimal(e.target.value))} />
                   </div>
                   <div className="igroup">
-                    <div className="ilabel">Reading <span className="utag">1.8.2</span></div>
+                    <div className="ilabel">{t("m.dual.reading")} <span className="utag">1.8.2</span></div>
                     <input className="ifield" type="text" inputMode="decimal" autoComplete="off" placeholder="3853.410"
                       value={regNormal} onChange={e => setRegNormal(normDecimal(e.target.value))} />
                   </div>
                 </div>
                 <div style={{ marginTop: 6, fontSize: 11, color: T.textSoft }}>
-                  Total used for your reading:{" "}
+                  {t("m.dual.total")}{" "}
                   <b style={{ fontFamily: "'SF Mono',Menlo,monospace", color: T.text }}>{reading || "—"}</b> {u.unit}
                   <span style={{ display: "block", marginTop: 3, fontSize: 10.5, lineHeight: 1.5 }}>
-                    Your display alternates between the two. The photo is checked against the register it shows, and
-                    the two take turns: each time, photograph the one your last photo didn’t show. Keep 1.8.1 and 1.8.2
-                    in their own boxes — each one only counts up.
+                    {t("m.dual.explain")}
                   </span>
 
                 </div>
               </>
             ) : (
               <div style={{ marginTop: 5, fontSize: 10.5, color: T.textSoft, lineHeight: 1.5 }}>
-                Tick this if your display cycles between two readings, usually marked{" "}
-                <span style={{ fontFamily: "'SF Mono',Menlo,monospace" }}>1.8.1</span> and{" "}
-                <span style={{ fontFamily: "'SF Mono',Menlo,monospace" }}>1.8.2</span> — the low and normal tariff.
-                Entering only one of them reports about half your consumption.
+                {t("m.dual.hint")}
               </div>
             )}
           </div>
@@ -3675,22 +3670,18 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
         {fixBasis && (
           <div style={{ marginBottom: 12, padding: "11px 13px", background: T.bgAlt, border: `1px dashed ${T.border}`, borderRadius: 6 }}>
             <div style={{ fontSize: 12, fontWeight: 800, color: T.text, marginBottom: 5 }}>
-              Your starting point only covers one tariff
+              {t("m.fix.title")}
             </div>
             <div style={{ fontSize: 11, color: T.textSoft, lineHeight: 1.6 }}>
-              Earlier readings for this meter recorded a single register, and you are now entering both
-              ({fixBasis.registers.join(" + ")} = <b style={{ fontFamily: "'SF Mono',Menlo,monospace", color: T.text }}>
-              {+(fixBasis.registers[0] + fixBasis.registers[1]).toFixed(3)}</b> {u.unit}). Until those agree, every
-              submission is refused as impossible consumption. This sets the starting point to today’s two registers.
-              It pays nothing, uses the photo you just took as proof, and can be done once.
+              {t("m.fix.text", { sum: `${fixBasis.registers.join(" + ")} = ${+(fixBasis.registers[0] + fixBasis.registers[1]).toFixed(3)}`, unit: u.unit })}
             </div>
             <div style={{ display: "flex", gap: 8, marginTop: 9, flexWrap: "wrap" }}>
               <button disabled={fixBusy} onClick={runFixBasis}
                 style={{ padding: "9px 12px", fontSize: 12, fontWeight: 700, color: "#fff", background: T[u.id] || T.electric, border: "none", borderRadius: 6, cursor: "pointer", opacity: fixBusy ? .6 : 1 }}>
-                {fixBusy ? "Setting…" : "Set my starting point to these registers"}
+                {fixBusy ? t("m.fix.busy") : t("m.fix.go")}
               </button>
               <button disabled={fixBusy} onClick={() => dismissFixBasis?.()} style={{ background: "none", border: "none", color: T.textSoft, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                Not now
+                {t("m.fix.later")}
               </button>
             </div>
           </div>
@@ -3699,25 +3690,25 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
         {knowPrev ? (
           <>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:12,padding:"8px 12px",background:T.bgAlt,border:`1px solid ${T.border}`,borderRadius:6}}>
-              <div style={{fontSize:11,color:T.textSoft}}>Previous&nbsp;
+              <div style={{fontSize:11,color:T.textSoft}}>{t("m.prev")}&nbsp;
                 <span style={{fontFamily:"'SF Mono',Menlo,'Courier New',monospace",fontWeight:700,color:T.text}}>{prevRead || lastKnown} {u.unit}</span>
-                <span style={{color:T.textSoft}}> · from your last reading</span>
+                <span style={{color:T.textSoft}}>{t("m.prev.from")}</span>
               </div>
-              <button onClick={()=>setEditPrev(true)} style={{background:"none",border:"none",color:T.green3||T[u.id]||T.electric,fontSize:11,fontWeight:700,cursor:"pointer",padding:0}}>Edit</button>
+              <button onClick={()=>setEditPrev(true)} style={{background:"none",border:"none",color:T.green3||T[u.id]||T.electric,fontSize:11,fontWeight:700,cursor:"pointer",padding:0}}>{t("m.edit")}</button>
             </div>
             <div className="igroup">
-              <div className="ilabel">Current reading <span className="utag">{u.unit}</span></div>
+              <div className="ilabel">{t("m.current")} <span className="utag">{u.unit}</span></div>
               <input className="ifield" type="text" inputMode="decimal" autoComplete="off" placeholder={Number.isFinite(parseFloat(prevRead)) ? `above ${prevRead}` : u.ph[1]} value={reading} onChange={e=>setReading(normDecimal(e.target.value))} disabled={!!dualTariff} style={{width:"100%",boxSizing:"border-box"}}/>
             </div>
           </>
         ) : (
           <div className="irow">
             <div className="igroup">
-              <div className="ilabel">Previous <span className="utag">{u.unit}</span></div>
+              <div className="ilabel">{t("m.prev")} <span className="utag">{u.unit}</span></div>
               <input className="ifield" type="text" inputMode="decimal" autoComplete="off" placeholder={u.ph[0]} value={prevRead} onChange={e=>setPrevRead(normDecimal(e.target.value))}/>
             </div>
             <div className="igroup">
-              <div className="ilabel">Current <span className="utag">{u.unit}</span></div>
+              <div className="ilabel">{t("m.current.short")} <span className="utag">{u.unit}</span></div>
               <input className="ifield" type="text" inputMode="decimal" autoComplete="off" placeholder={Number.isFinite(parseFloat(prevRead)) ? `above ${prevRead}` : u.ph[1]} value={reading} onChange={e=>setReading(normDecimal(e.target.value))} disabled={!!dualTariff}/>
             </div>
           </div>
@@ -3734,10 +3725,10 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
           const nearZero = isSaving && nearZeroUsage(u.id, usage(), days);
           const rateText = isSaving
             ? (nearZero
-                ? `No reward — almost no usage recorded`
+                ? t("m.rate.near")
                 : saved > 0
-                ? `${saved.toFixed(1)} ${u.unit} saved × ${u.rate} B3TR (target ≤ ${bench} ${u.unit})`
-                : `No saving — used ${usage()} ${u.unit}, target is ≤ ${bench} ${u.unit}. Recorded, no reward`)
+                ? t("m.rate.saved", { saved: saved.toFixed(1), unit: u.unit, rate: u.rate, bench })
+                : t("m.rate.none", { used: usage(), unit: u.unit, bench }))
             : `${usage()} ${u.unit} produced × ${u.rate} B3TR`;
           // Beyond this the submission cannot be paid under any span, so promising a
           // reward for it is a lie the server will contradict a moment later. The
@@ -3749,27 +3740,24 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
             {impossible ? (
               <div className="reward-preview" style={{ borderColor: "#e0a800" }}>
                 <div>
-                  <div className="rp-label">This won’t be accepted</div>
+                  <div className="rp-label">{t("m.impossible.t")}</div>
                   <div className="rp-rate">
-                    {usage()} {u.unit} between readings is more than anyone uses — the most that can ever be
-                    counted is {ceiling} {u.unit}. Usually this means your starting point covers one tariff
-                    register while this reading covers both. Take the photo and submit anyway: you’ll be
-                    offered a one-time correction that lines them up.
+                    {t("m.impossible.d", { used: usage(), unit: u.unit, max: ceiling })}
                   </div>
                 </div>
               </div>
             ) : (
             <div className="reward-preview">
               <div>
-                <div className="rp-label">Estimated Reward</div>
+                <div className="rp-label">{t("m.estimate")}</div>
                 <div className="rp-rate">{subs.some(x => x.type === selUtil && x.status !== "failed")
-                  ? <>Use less, earn more · {rateText}</>
-                  : <>First reading sets your starting point · savings pay from the next one</>}</div>
+                  ? t("m.useLess", { rate: rateText })
+                  : t("m.firstSets")}</div>
                 {rewardFactor < 1 && (
-                  <div className="rp-rate" style={{marginTop:3}}>This week's B3TR is shared by everyone: rewards at {Math.round(rewardFactor * 100)}%</div>
+                  <div className="rp-rate" style={{marginTop:3}}>{t("m.shared", { pct: Math.round(rewardFactor * 100) })}</div>
                 )}
                 {String(reading).trim() !== "" && String(prevRead).trim() !== "" && nearZeroUsage(selUtil, usage(), days) && (
-                  <div className="rp-rate" style={{marginTop:3}}>Almost no usage since your last reading — that is recorded without a reward. Check the number?</div>
+                  <div className="rp-rate" style={{marginTop:3}}>{t("m.nearZero")}</div>
                 )}
               </div>
               <div style={{textAlign:"right"}}>
@@ -3785,27 +3773,27 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
             {isSaving && (
               <div style={{fontSize:10,color:T.textSoft,lineHeight:1.5,margin:"-6px 0 12px 2px"}}>
                 {span > 1
-                  ? `Target ${bench} ${u.unit} — ${USAGE_BENCHMARK[u.id]} per day over the ${span.toFixed(span % 1 ? 1 : 0)} days since your last reading.`
-                  : `Target ${bench} ${u.unit} per day. Take longer between readings and the target grows with it, up to ${MAX_SPAN_DAYS} days.`}
+                  ? t("m.target.span", { bench, unit: u.unit, perDay: USAGE_BENCHMARK[u.id], days: span.toFixed(span % 1 ? 1 : 0) })
+                  : t("m.target.day", { bench, unit: u.unit, max: MAX_SPAN_DAYS })}
               </div>
             )}
           </>);
         })()}
 
         {!wallet
-          ? <button className="sbtn" onClick={() => setShowWallet(true)}>Connect Wallet to Submit</button>
+          ? <button className="sbtn" onClick={() => setShowWallet(true)}>{t("m.btn.connect")}</button>
           : !meterNo
-            ? <button className="sbtn" onClick={() => onRegisterMeter?.([selUtil])}>Register this meter →</button>
+            ? <button className="sbtn" onClick={() => onRegisterMeter?.([selUtil])}>{t("m.btn.register")}</button>
             : !aiOk
               ? <button className="sbtn" onClick={() => document.getElementById("gul-photo-step")?.scrollIntoView({ behavior: "smooth", block: "start" })}>
-                  {IS_MOBILE ? "📸 Take the meter photo →" : "📱 Scan the QR code above with your phone ↑"}
+                  {IS_MOBILE ? t("m.btn.photo") : t("m.btn.qr")}
                 </button>
               : readingLower
-                ? <button className="sbtn" disabled style={{opacity:.55}}>Current can't be lower than previous</button>
+                ? <button className="sbtn" disabled style={{opacity:.55}}>{t("m.btn.lower")}</button>
                 : !readingReady
-                ? <button className="sbtn" disabled style={{opacity:.55}}>Enter the current reading above</button>
+                ? <button className="sbtn" disabled style={{opacity:.55}}>{t("m.btn.enter")}</button>
                 : <button className="sbtn" disabled={busy} onClick={handleSubmit}>
-                    {busy ? <><span className="spin-sm"/> Submitting on VeChain…</> : <>Submit & Earn B3TR</>}
+                    {busy ? <><span className="spin-sm"/> {t("m.btn.busy")}</> : t("m.btn.submit")}
                   </button>
         }
       </div>
@@ -3813,15 +3801,11 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
       {/* Photo tips — collapsed by default so the photo flow stays clean. */}
       <div style={{margin:"14px 14px 0"}}>
         <button onClick={() => setTipsOpen(o => !o)} style={{display:"flex",width:"100%",alignItems:"center",justifyContent:"space-between",background:T.bgAlt,border:`1px solid ${T.border}`,borderRadius:6,padding:"9px 12px",cursor:"pointer",color:T.textMid,fontSize:11,fontWeight:700}}>
-          <span>💡 Photo tips</span><span style={{color:T.textSoft}}>{tipsOpen ? "▲" : "▼"}</span>
+          <span>{t("m.tips")}</span><span style={{color:T.textSoft}}>{tipsOpen ? "▲" : "▼"}</span>
         </button>
         {tipsOpen && (
           <ul style={{margin:"8px 2px 0",paddingLeft:20,fontSize:11,color:T.textSoft,lineHeight:1.7}}>
-            <li>Clear, well-lit photo of the meter face</li>
-            <li>All the numbers visible and readable</li>
-            <li>Avoid shadows or glare on the display</li>
-            <li>Hold steady for a sharp image</li>
-            <li>Fresh photo each time — a photo can only ever earn once</li>
+            {["m.tip1", "m.tip2", "m.tip3", "m.tip4", "m.tip5"].map((k) => <li key={k}>{t(k)}</li>)}
           </ul>
         )}
       </div>
@@ -3831,7 +3815,7 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
       {autoAvailable && !hasReader && (
         <div style={{margin:"12px 14px 0",textAlign:"center"}}>
           <button onClick={() => setMethod("type")} style={{background:"none",border:"none",padding:"6px",cursor:"pointer",fontSize:11,fontWeight:700,color:T.textSoft,textDecoration:"underline"}}>
-            ⚡ Have a meter reader (P1, Home Assistant…)? Set up automatic readings — optional
+            {t("m.readerLink")}
           </button>
         </div>
       )}
@@ -6455,11 +6439,11 @@ export default function App() {
         }
         if (cancelled) return;
         if (uncertain) recheckPayout(wallet);
-        const syncedMsg = synced ? `🔄 Synced ${synced} offline submission${synced > 1 ? "s" : ""} to ${NETWORK_LABEL}` : "";
+        const syncedMsg = synced ? t("s.synced", { n: synced, net: NETWORK_LABEL }) : "";
         // There is no queue screen, so a refused item is said out loud here, with
         // the server's reason, and dropped from the queue.
         if (refused.length) {
-          showToast(`❌ ${refused.length} offline submission${refused.length > 1 ? "s were" : " was"} refused and removed from the queue:\n${refused.join("\n")}${syncedMsg ? `\n\n${syncedMsg}` : ""}`);
+          showToast(`${t("s.refused", { n: refused.length })}\n${refused.join("\n")}${syncedMsg ? `\n\n${syncedMsg}` : ""}`);
         } else if (syncedMsg) showToast(syncedMsg);
       } finally {
         syncingRef.current = false;
@@ -6745,12 +6729,12 @@ export default function App() {
   // submission) and the reading is fresh; all the normal reward rules still apply.
   const [meterAutoBusy, setMeterAutoBusy] = useState(false);
   const handleMeterAutoSubmit = async () => {
-    if (networkMismatch) { showToast(`⚠️ This app is on ${NETWORK} but its server is on ${serverNetwork} — submitting is paused`); return; }
+    if (networkMismatch) { showToast(t("s.mismatch", { app: NETWORK, server: serverNetwork })); return; }
     if (!wallet) { openConnectModal(); return; }
-    if (!online) { showToast("⚡ Automatic submit needs a connection — try again when online"); return; }
+    if (!online) { showToast(t("s.auto.offline")); return; }
     if (!REWARD_API) { showToast("Automatic submit isn't available yet"); return; }
     const meterNo = (meters["electric"] || "").trim();
-    if (!meterNo) { showToast("⚠️ Register your electricity meter number first"); return; }
+    if (!meterNo) { showToast(t("s.auto.noMeter")); return; }
     if (TURNSTILE_SITE_KEY && !captchaToken) { showToast("🤖 Complete the verification checkbox first"); return; }
     setMeterAutoBusy(true);
     const payWallet = wallet;
@@ -6763,7 +6747,7 @@ export default function App() {
         certificate = { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
       } catch {
         setMeterAutoBusy(false);
-        showToast("✋ Sign the confirmation in your wallet to submit");
+        showToast(t("s.sign"));
         return;
       }
       sent = true;
@@ -6783,19 +6767,19 @@ export default function App() {
       const prev = cur && data.usage != null && Number.isFinite(useN) ? String(+(curN - useN).toFixed(3)) : "";
       setSubs(prev0 => [{ id: Date.now(), type: "electric", meterNo, cur, prev, date: dayKey(new Date()), b3tr: data.recorded ? 0 : paid, status: data.recorded ? "recorded" : data.pending ? "pending" : "confirmed", txHash: data.txid || "", submittedAt: Date.now(), ...(data.recorded ? { note: data.reason || "" } : {}) }, ...prev0]);
       setCooldown("electric");
-      if (data.recorded) showToast(`📝 Automatic reading recorded — ${data.reason || "no saving to reward this time"}`);
-      else if (data.pending) { recheckPayout(payWallet); showToast(`⚡ Automatic reading +${paid} B3TR sent — pending until it's in a block`); }
-      else { setB3tr(b => b + paid); showToast(`⚡ Automatic reading: +${paid} B3TR!`); }
+      if (data.recorded) showToast(t("s.auto.recorded", { reason: data.reason || t("s.noSaving") }));
+      else if (data.pending) { recheckPayout(payWallet); showToast(t("s.auto.pending", { amount: paid })); }
+      else { setB3tr(b => b + paid); showToast(t("s.auto.paid", { amount: paid })); }
     } catch (e) {
       if (sent && !isRefusal(e)) recheckPayout(payWallet);
-      showToast(`❌ Automatic submit failed: ${e?.message || "try again later"}`);
+      showToast(t("s.auto.failed", { reason: e?.message || t("s.tryLater") }));
     } finally {
       setMeterAutoBusy(false);
     }
   };
 
   const handleSubmit = async () => {
-    if (networkMismatch) { showToast(`⚠️ This app is on ${NETWORK} but its server is on ${serverNetwork} — submitting is paused`); return; }
+    if (networkMismatch) { showToast(t("s.mismatch", { app: NETWORK, server: serverNetwork })); return; }
     setBusy(true);
     const earned = reward();
     const meterNo = (meters[selUtil] || "").trim();
@@ -6803,7 +6787,7 @@ export default function App() {
     // A reading without its registered meter can't be verified — block it.
     if (!meterNo) {
       setBusy(false);
-      showToast("⚠️ Register this meter's number before submitting");
+      showToast(t("s.noMeter"));
       return;
     }
 
@@ -6812,8 +6796,8 @@ export default function App() {
       setBusy(false);
       const p = parseFloat(prevRead), r = parseFloat(reading);
       showToast(Number.isFinite(r) && Number.isFinite(p) && r < p
-        ? "⚠️ The current reading can't be lower than the previous one"
-        : "⚠️ Enter the current meter reading");
+        ? t("s.lower")
+        : t("s.enter"));
       return;
     }
     // A reading that saves something but would pay nothing: this week's B3TR is
@@ -6822,14 +6806,14 @@ export default function App() {
     // reward, and is the starting point for the next one.
     if (fullReward() > 0 && !(earned > 0)) {
       setBusy(false);
-      showToast("⏳ This week's reward budget is used up — rewards resume after the next VeBetterDAO round");
+      showToast(t("s.budget"));
       return;
     }
 
     // Anti-bot captcha must be solved first (only when a site key is configured).
     if (TURNSTILE_SITE_KEY && !captchaToken) {
       setBusy(false);
-      showToast("🤖 Complete the captcha to submit");
+      showToast(t("s.captcha"));
       return;
     }
 
@@ -6838,7 +6822,7 @@ export default function App() {
     const cdRem = getCooldownRemaining(selUtil);
     if (cdRem > 0) {
       setBusy(false);
-      showToast(`⏳ ${getUtil(selUtil).label} on cooldown — ${fmtCooldown(cdRem)} left`);
+      showToast(t("s.cooldown", { time: fmtCooldown(cdRem) }));
       return;
     }
 
@@ -6856,7 +6840,7 @@ export default function App() {
     const scaleMismatch = !!registers && plaus.tooHigh;
     if (!plaus.ok && !scaleMismatch) {
       setBusy(false);
-      showToast(`⚠️ ${plaus.reason || "That reading looks implausible"}`);
+      showToast(plaus.reason ? `⚠️ ${plaus.reason}` : t("s.implausible"));
       return;
     }
     // High compared with your own history: flagged for review, never blocked. The
@@ -6902,12 +6886,12 @@ export default function App() {
         });
       } catch {
         setBusy(false);
-        showToast("⚠️ Couldn't save this offline on this device — try again when you're back online");
+        showToast(t("s.offlineFail"));
         return;
       }
       setAiOk(false); setPhoto(null); setReading(""); setPrevRead(""); prevReadEdited.current = false; setVerifyKey(k=>k+1);
       setBusy(false);
-      showToast("💾 Saved offline — will submit when you're back online");
+      showToast(t("s.offlineSaved"));
       return;
     }
 
@@ -6961,7 +6945,7 @@ export default function App() {
           certificate = { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
         } catch {
           setBusy(false);
-          showToast("✋ Sign the confirmation in your wallet to submit");
+          showToast(t("s.sign"));
           return;
         }
         const device = await deviceInfo();
@@ -6987,7 +6971,7 @@ export default function App() {
       // Recording it here would put it in the new wallet's history and totals.
       if (!sameWallet(payWallet)) {
         setBusy(false);
-        showToast(`✅ +${paidAmount.toFixed(2)} B3TR paid to ${payWallet.slice(0, 6)}…${payWallet.slice(-4)} (the wallet you started with)`);
+        showToast(t("s.otherWallet", { amount: paidAmount.toFixed(2), wallet: `${payWallet.slice(0, 6)}…${payWallet.slice(-4)}` }));
         return;
       }
 
@@ -7019,10 +7003,10 @@ export default function App() {
       prevReadEdited.current = false;
       setVerifyKey(k => k + 1);
       showToast(recordedOnly
-        ? `📝 Reading recorded — ${recordedOnly}`
+        ? t("s.recorded", { reason: recordedOnly })
         : onChainPending
-        ? `⏳ +${paidAmount.toFixed(2)} B3TR sent on ${NETWORK_LABEL} — pending until it's in a block${txid ? ` • TX: ${txid.slice(0, 10)}...` : ""}`
-        : `✅ +${paidAmount.toFixed(2)} B3TR on ${NETWORK_LABEL}${txid ? ` • TX: ${txid.slice(0, 10)}...` : ""}`);
+        ? `${t("s.pending", { amount: paidAmount.toFixed(2), net: NETWORK_LABEL })}${txid ? ` • TX: ${txid.slice(0, 10)}...` : ""}`
+        : `${t("s.paid", { amount: paidAmount.toFixed(2), net: NETWORK_LABEL })}${txid ? ` • TX: ${txid.slice(0, 10)}...` : ""}`);
       setBusy(false);
     } catch (e) {
       setBusy(false);
@@ -7033,10 +7017,10 @@ export default function App() {
       // rather than leaving the user to read a range they cannot influence.
       if (registers && /outside the plausible range/i.test(String(e?.message || ""))) {
         setFixBasis({ registers, meterNo, utility: selUtil, photo });
-        showToast("⚠️ Your starting point only covers one tariff — see below");
+        showToast(t("s.oneTariff"));
         return;
       }
-      showToast(`❌ Submission failed: ${e?.message || "Transaction cancelled"}`);
+      showToast(t("s.failed", { reason: e?.message || t("s.cancelled") }));
     }
   };
 
