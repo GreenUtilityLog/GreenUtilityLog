@@ -1556,7 +1556,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 /* 400, above the admin screen's 320: at 200 every message the admin panel
    produced rendered UNDER it, so signing an action showed nothing at all.
    Any new full-screen overlay must stay below this. */
-.toast{position:fixed;top:72px;left:50%;transform:translateX(-50%);background:${T.text};border-radius:6px;padding:8px 14px;font-size:11px;font-weight:700;letter-spacing:.3px;color:${T.bg};z-index:400;width:max-content;max-width:min(88vw,420px);white-space:normal;overflow-wrap:anywhere;text-align:center;line-height:1.4;animation:toastin .18s ease;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
+.toast{position:fixed;bottom:calc(96px + env(safe-area-inset-bottom, 0px));left:50%;transform:translateX(-50%);background:${T.text};border-radius:8px;padding:10px 16px;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.25);font-weight:700;letter-spacing:.3px;color:${T.bg};z-index:400;width:max-content;max-width:min(88vw,420px);white-space:normal;overflow-wrap:anywhere;text-align:center;line-height:1.4;animation:toastin .18s ease;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
 @keyframes toastin{from{opacity:0;transform:translateX(-50%) translateY(-5px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);z-index:100;display:flex;align-items:flex-end;justify-content:center;}
@@ -1660,7 +1660,13 @@ function WalletGate({ onConnect, online }) {
         >
           {online ? "Connect Wallet" : "You're offline"}
         </button>
-        <div style={{ marginTop:14, fontSize:11, color:"rgba(255,255,255,0.55)", lineHeight:1.5 }}>
+        {/* The wallet dialog lists the options without saying which to pick. */}
+        <div style={{ marginTop:14, fontSize:12.5, color:"rgba(255,255,255,0.8)", lineHeight:1.5 }}>
+          {IS_MOBILE
+            ? <>In the next step pick <b>VeWorld</b>.</>
+            : <>In the next step pick <b>VeWorld</b> if you have the browser extension, or <b>WalletConnect</b> and scan the code with the VeWorld app.</>}
+        </div>
+        <div style={{ marginTop:8, fontSize:11, color:"rgba(255,255,255,0.6)", lineHeight:1.5 }}>
           Your wallet stays in your control — we never see your keys.
         </div>
         <NoWalletHint />
@@ -1706,13 +1712,9 @@ function IntroScreen({ onStart }) {
   const [slide, setSlide] = useState(0);
   const s = slides[slide];
   const isLast = slide === slides.length - 1;
-  const progress = ((slide + 1) / slides.length) * 100;
-
+  // One progress indicator — the dots. A bar at the top said the same thing again.
   return (
     <div className="intro-screen">
-      <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:"rgba(255,255,255,0.1)"}}>
-        <div style={{height:"100%",background:"#4CAF50",width:`${progress}%`,transition:"width 0.3s ease"}}/>
-      </div>
 
       <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",width:"100%"}}>
         <div style={{textAlign:"center"}}>
@@ -1726,13 +1728,17 @@ function IntroScreen({ onStart }) {
 
       <div style={{display:"flex",gap:6,justifyContent:"center",marginBottom:32}}>
         {slides.map((_, i) => (
-          <div 
-            key={i} 
+          <button
+            key={i}
+            aria-label={`Slide ${i + 1} of ${slides.length}`}
+            aria-current={i === slide ? "step" : undefined}
             style={{
-              width: i === slide ? 24 : 6,
-              height: 6,
+              width: i === slide ? 24 : 8,
+              height: 8,
+              padding: 0,
+              border: "none",
               borderRadius: 6,
-              background: i === slide ? "#4CAF50" : "rgba(255,255,255,0.3)",
+              background: i === slide ? "#a8e0bd" : "rgba(255,255,255,0.35)",
               transition: "all 0.3s",
               cursor: "pointer"
             }}
@@ -1920,6 +1926,23 @@ function clampBox(b, dd) {
   nb.x = Math.max(0, Math.min(nb.x, dd.w - nb.w));
   nb.y = Math.max(0, Math.min(nb.y, dd.h - nb.h));
   return nb;
+}
+
+// A QR code of this page, for moving from a computer to a phone. The encoder is
+// only loaded on a computer.
+function PhoneQr({ T }) {
+  const [src, setSrc] = useState("");
+  useEffect(() => {
+    let live = true;
+    import("qrcode")
+      .then((m) => (m.default || m).toDataURL(window.location.origin + window.location.pathname, { margin: 1, width: 360, color: { dark: "#14301f", light: "#ffffff" } }))
+      .then((u) => { if (live) setSrc(u); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, []);
+  return src
+    ? <img src={src} alt="QR code to open this app on your phone" width={180} height={180} style={{ display: "block", margin: "0 auto 12px", borderRadius: 8, border: `1px solid ${T.border}` }} />
+    : <div className="vz-icon">📱</div>;
 }
 
 // Full-screen "align the reading" step: the user drags/resizes a box over the
@@ -2172,12 +2195,14 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
 
   // Desktop has no phone camera — and a file picker invites downloaded or
   // AI-generated images. Block capture entirely outside a mobile browser.
+  // It used to stop there: a dead end on a computer, with nothing to take the user
+  // to their phone. A QR code of this page does.
   if (phase === "idle" && !IS_MOBILE) return (
-    <div className="verify-zone">
+    <div className="verify-zone" style={{cursor:"default"}}>
       <div className="vz-idle">
-        <div className="vz-icon">📵</div>
-        <div className="vz-title">Phone camera required</div>
-        <div className="vz-sub">Open this app on your phone (VeWorld's in-app browser) and photograph the meter live — file uploads aren't accepted.</div>
+        <PhoneQr T={T} />
+        <div className="vz-title">Continue on your phone</div>
+        <div className="vz-sub">Scan this with your phone's camera or VeWorld's scanner and photograph the meter there — the photo has to be taken live, so file uploads aren't accepted.</div>
       </div>
     </div>
   );
@@ -3739,7 +3764,7 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
             ? <button className="sbtn" onClick={() => onRegisterMeter?.([selUtil])}>Register this meter →</button>
             : !aiOk
               ? <button className="sbtn" onClick={() => document.getElementById("gul-photo-step")?.scrollIntoView({ behavior: "smooth", block: "start" })}>
-                  📸 Take the meter photo →
+                  {IS_MOBILE ? "📸 Take the meter photo →" : "📱 Scan the QR code above with your phone ↑"}
                 </button>
               : readingLower
                 ? <button className="sbtn" disabled style={{opacity:.55}}>Current can't be lower than previous</button>
@@ -4096,6 +4121,23 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
         </div>
       </div>
 
+      {/* The leaderboard sat in the third tab under four stat cards, though the intro
+          promises "Climb the Leaderboard". The top three and your own place come
+          first now; the full list stays in its tab. */}
+      {isLive && board.length > 1 && (
+        <div style={{ ...card, margin: "0 14px 12px", padding: 14 }}>
+          <div style={{ ...label, marginBottom: 10 }}>🏆 Leaderboard</div>
+          {[...board.slice(0, 3), ...(myRank > 3 ? board.filter((b) => b.isMe) : [])].map((item) => (
+            <div key={item.isMe ? "me" : (item.rawAddr || item.name)} style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 36, fontSize: 13 }}>
+              <span aria-hidden="true" style={{ width: 24, textAlign: "center", fontSize: item.rank <= 3 ? 18 : 13, fontWeight: 800, color: T.textSoft }}>{["🥇", "🥈", "🥉"][item.rank - 1] || item.rank}</span>
+              <span style={{ flex: 1, minWidth: 0, fontWeight: item.isMe ? 800 : 600, color: T.text, fontFamily: item.isMe ? undefined : "'SF Mono',Menlo,monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.isMe ? `You (#${item.rank})` : item.name}</span>
+              <span style={{ fontWeight: 800, color: T.text }}>{Number(item.b3tr).toFixed(2)} <span style={{ fontSize: 10, color: T.textSoft }}>B3TR</span></span>
+            </div>
+          ))}
+          <button type="button" onClick={() => setView("board")} style={{ marginTop: 8, minHeight: 40, width: "100%", border: `1px solid ${T.border}`, borderRadius: 6, background: "transparent", color: T.textMid, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>Full leaderboard ↓</button>
+        </div>
+      )}
+
       <ChartsScreen subs={subs} T={T} part="impact" />
 
       <div style={{ ...card, margin: "0 14px 12px", padding: 14 }}>
@@ -4148,9 +4190,12 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8, margin: "0 14px 12px" }}>
           {badges.map(b => (
             <div key={b.id} style={{ background: T.card, border: b.unlocked ? `2px solid ${T.green3}` : `1px solid ${T.border}`, borderRadius: 10, padding: "12px 6px", textAlign: "center" }}>
-              <div aria-hidden="true" style={{ fontSize: 26, opacity: b.unlocked ? 1 : .3, filter: b.unlocked ? "none" : "grayscale(1)" }}>{b.icon}</div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: T.text, marginTop: 4 }}>{b.name}</div>
-              <div style={{ fontSize: 10, color: T.textSoft, marginTop: 2 }}>{b.unlocked ? "Earned" : b.how}</div>
+              <div aria-hidden="true" style={{ position: "relative", display: "inline-block", fontSize: 26 }}>
+                <span style={{ opacity: b.unlocked ? 1 : .35, filter: b.unlocked ? "none" : "grayscale(1)" }}>{b.icon}</span>
+                {!b.unlocked && <span style={{ position: "absolute", right: -10, bottom: -4, fontSize: 13 }}>🔒</span>}
+              </div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: b.unlocked ? T.text : T.textSoft, marginTop: 4 }}>{b.name}</div>
+              <div style={{ fontSize: 10, color: T.textSoft, marginTop: 2 }}>{b.unlocked ? "Earned ✓" : `Locked · ${b.how}`}</div>
             </div>
           ))}
         </div>

@@ -72,7 +72,13 @@ jobs:
       - run: cp -r docs/share dist/share && cp -r brand/animated/out dist/media
       # App icon: the browser tab and the WalletConnect prompt ("Green Utility Log
       # wants to connect") both showed a broken image before this.
-      - run: cp brand/logo-256.png dist/icon.png && cp brand/logo-256.png dist/testnet/icon.png
+      - run: |
+          for d in dist dist/testnet; do
+            cp brand/logo-256.png $d/icon.png
+            cp brand/logo-512.png $d/icon-512.png
+            cp brand/apple-touch-icon.png $d/apple-touch-icon.png
+            cp docs/manifest.webmanifest $d/manifest.webmanifest
+          done
       # The bridge helper itself. Setup is now "download this one file and run it"
       # — no git, no clone — so the guide's and the app's commands both point here.
       # Regenerated from bridge/index.js by build_guide.py; verified below so a stale
