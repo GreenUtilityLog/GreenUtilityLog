@@ -1231,6 +1231,9 @@ app.post("/reward", async (req, res) => {
       try { store.addFlag(recordId, req.body.address, reasons.join(" · ")); }
       catch (e) { console.error("[/reward] could not record flag:", e?.message || e); }
     }
+    // One line per outcome, so the log shows every payout (and every reading
+    // recorded without one) — it used to show only automatic ones.
+    console.log(`[payout:photo] ${shortAddr(req.body.address)} ${recordOnly ? `recorded, no reward (${v.noReward})` : `+${pay.amount} B3TR (${txid})`} · ${v.usage} kWh${reasons.length ? " · flagged" : ""}`);
     if (recordOnly) {
       return res.json({ txid: null, amount: 0, fullAmount: 0, recorded: true, reason: v.noReward || "recorded, no reward this time", usage: v.usage, flagged: reasons.length > 0, pending: false });
     }
@@ -1863,6 +1866,7 @@ app.post("/reward-from-meter", async (req, res) => {
   try {
     const r = await settleMeterReading({ address, utility: String(req.body.utility || "electric"), meterNo: req.body.meterNo });
     if (!r.ok) return res.status(r.code || 400).json({ error: r.error, ...(r.needsPhoto ? { needsPhoto: true } : {}) });
+    console.log(`[payout:${r.source || "reader"}] ${shortAddr(address)} ${r.recorded ? `recorded, no reward (${r.reason})` : `+${r.amount} B3TR (${r.txid})`} · ${r.usage} kWh`);
     res.json({ txid: r.txid, amount: r.amount, usage: r.usage, reading: r.reading, source: r.source, pending: !!r.pending, ...(r.recorded ? { recorded: true, reason: r.reason } : {}) });
   } catch (e) {
     console.error("[/reward-from-meter]", e?.message || e);

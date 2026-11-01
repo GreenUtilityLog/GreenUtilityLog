@@ -1,4 +1,6 @@
-# Daily check that the reward server can actually pay. Every problem it finds
+# Hourly check that the reward server can actually pay (at :37, after wake.yml
+# has woken it at :23). A save that fails pauses every payout; once a day meant
+# that could go unnoticed for most of a day. Every problem it finds
 # fails the run with a ::error:: line, so a red run here means "look now"; a
 # ::warning:: is something to deal with this week. The last step prints a
 # snapshot of the numbers (also as a SNAPSHOT notice annotation), which the
@@ -9,7 +11,7 @@
 name: Server watchdog
 on:
   schedule:
-    - cron: "7 5 * * *"
+    - cron: "37 * * * *"
   workflow_dispatch:
 permissions: {}
 jobs:
@@ -55,6 +57,7 @@ jobs:
           if h.get("durableState") is False: err("no durable storage configured: a restart forgets everything")
           if h.get("dryRun"): warn("DRY_RUN is on: nothing is actually paid")
           if h.get("payoutsPaused"): warn("payouts are paused (PAYOUTS_PAUSED): remove it in Render to resume")
+          if h.get("chainConfirmed") is False: err("the server has not confirmed its node is on mainnet: payouts wait (check NODE_URL)")
           # The state is saved as a few values (the core, plus one per field that
           # grows: photo hashes, prints, flags, …); stateBytes is the largest. Past
           # the storage's request limit every save of it fails and payouts pause.
