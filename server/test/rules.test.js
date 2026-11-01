@@ -37,3 +37,21 @@ describe("rules and the next allowed submission", () => {
     assert.ok(left > 71000000 && left <= 72000000, `about 20h left, got ${left}`);
   });
 });
+
+describe("the last recorded reading per meter", () => {
+  let srv;
+  before(async () => { srv = await startServer({ state: stateWithBaseline() }); });
+  after(async () => { await srv.stop(); });
+
+  test("/wallet/seen returns it, so another device measures from the same number", async () => {
+    let r = await srv.post("/wallet/seen", { address: WALLET });
+    assert.deepEqual(r.body.lastReadings.map((x) => [x.utility, x.meterNo, x.reading]), [["electric", "e1000", 1000]]);
+    // A reading that saves nothing is recorded without a payout — and only the
+    // server knows it then.
+    const pay = await srv.post("/reward", { utility: "electric", meterNo: "E1000", address: WALLET, reading: 1009, prevRead: 1000, photo: photo("last"), photoMime: "image/jpeg" });
+    assert.equal(pay.body.recorded, true, JSON.stringify(pay.body));
+    r = await srv.post("/wallet/seen", { address: WALLET });
+    assert.equal(r.body.lastReadings[0].reading, 1009);
+    assert.ok(r.body.lastReadings[0].at > Date.now() - 60000);
+  });
+});

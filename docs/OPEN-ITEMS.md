@@ -48,15 +48,15 @@ Laatst bijgewerkt: 2026-11-01.
 - [ ] Bijsnijden met het toetsenbord (pijltjestoetsen)
 
 ## App — code
-- [ ] Voortgang en PDF tellen mislukte uitbetalingen mee; "bespaard" rekent met één dag i.p.v. de periode
+- [x] Voortgang en PDF tellen mislukte uitbetalingen mee; "bespaard" rekent met één dag i.p.v. de periode (#158)
 - [ ] Offline foto's blijven voor altijd in IndexedDB; één databaseverbinding
 - [ ] Content-Security-Policy in `index.html`
 - [ ] Bundel 2 MB: beheerscherm, Help en koppelschermen later laden
-- [ ] Geschiedenis van de chain samenvoegen met een functionele update (inzending tijdens laden verdwijnt)
-- [ ] "Pending" wordt nooit "failed" als de chain niets teruggeeft
-- [ ] Afteller van de cooldown loopt niet door
+- [x] Geschiedenis van de chain samenvoegen met wat nu op het scherm staat (inzending tijdens laden verdwijnt) (#158)
+- [x] "Pending" wordt nooit "failed" als de chain niets teruggeeft (#158)
+- [x] Afteller van de cooldown loopt niet door (#158)
 - [ ] Klassement elke keer opnieuw geladen (tot 40 verzoeken); kan een uitbetaling dubbel tellen
-- [ ] Standen zonder beloning staan alleen op het eigen toestel: laatste stand per meter van de server halen
+- [x] Standen zonder beloning staan alleen op het eigen toestel: laatste stand per meter van de server halen (#158)
 - [ ] `App.jsx` (7.200 regels) opsplitsen: eerst pure logica, dan i18n, dan schermen
 - [ ] Dode code opruimen (`sendAndEarn`, `Toggle`, `B3TR_USD`, `!REWARD_API`-takken, …)
 - [ ] Privacy: apparaatkenmerk vermelden; Tesseract-taaldata zelf hosten

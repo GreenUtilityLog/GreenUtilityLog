@@ -296,7 +296,7 @@ async function generateMonthlyPDF(b3tr, subs) {
     // emoji, so none are used.
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).getTime();
     const rows = subs.filter(s => (s.submittedAt || localDayTs(s.date) || 0) >= monthStart);
-    const monthB3tr = rows.reduce((a, s) => a + (Number(s.b3tr) || 0), 0);
+    const monthB3tr = earnedTotal(rows);
 
     doc.setFontSize(24);
     doc.text('Green Utility Log', 20, 20);
@@ -314,7 +314,7 @@ async function generateMonthlyPDF(b3tr, subs) {
     if (!rows.length) doc.text('No submissions this month yet.', 20, yPos);
     rows.forEach((s, i) => {
       if (yPos > 270) { doc.addPage(); yPos = 20; }
-      const paid = `+${(Number(s.b3tr) || 0).toFixed(2)} B3TR`;
+      const paid = s.status === "failed" ? "payout failed" : s.status === "pending" ? `+${(Number(s.b3tr) || 0).toFixed(2)} B3TR (pending)` : s.status === "recorded" ? "recorded, no saving to reward" : `+${(Number(s.b3tr) || 0).toFixed(2)} B3TR`;
       if (s.type === "eco") {
         doc.text(`${i+1}. Eco bonus${s.appliance ? ` (${s.appliance})` : ""} - ${s.date}`, 20, yPos);
         doc.text(paid, 20, yPos+5);
@@ -392,8 +392,12 @@ function mergeSubs(local, chain) {
     .map(l => (l.status === "pending" && Date.now() - (l.submittedAt || 0) > PENDING_GIVE_UP_MS ? { ...l, status: "failed" } : l));
   return [...(chain || []), ...extras].sort((a, b) => (b.submittedAt || 0) - (a.submittedAt || 0));
 }
-// What counts as earned: only payouts that are in a block.
-const earnedTotal = (subs) => (subs || []).reduce((a, s) => a + (s.status === "pending" || s.status === "failed" ? 0 : (parseFloat(s.b3tr) || 0)), 0);
+// What counts as earned: only payouts that are in a block. One rule for every
+// total — Progress, the week chart, records and the PDF used to add pending and
+// failed payouts while "Total earned" next to them didn't.
+const countsAsPaid = (s) => !!s && s.status !== "pending" && s.status !== "failed" && s.status !== "recorded";
+const paidAmount = (s) => (countsAsPaid(s) ? (parseFloat(s.b3tr) || 0) : 0);
+const earnedTotal = (subs) => (subs || []).reduce((a, s) => a + paidAmount(s), 0);
 
 // ────────────────────────────────────────────────────────────────────────────
 // ANTI-FARMING ENGINE
@@ -2069,6 +2073,15 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
   const fileInputRef = useRef(null);
   const origFileRef = useRef(null);
   const cooldownMs = getCooldownRemaining(utilId);
+  // Re-render while the cooldown runs: the countdown only moved when something else
+  // re-rendered, and the photo box could stay locked after the cooldown had ended.
+  const [, setCdTick] = useState(0);
+  const coolingDown = cooldownMs > 0;
+  useEffect(() => {
+    if (!coolingDown) return undefined;
+    const id = setInterval(() => setCdTick((x) => x + 1), Math.min(30000, Math.max(1000, cooldownMs + 500)));
+    return () => clearInterval(id);
+  }, [coolingDown, cooldownMs]);
 
   // Release the preview object URL when it changes or the component unmounts.
   useEffect(() => () => { if (photoUrl) URL.revokeObjectURL(photoUrl); }, [photoUrl]);
@@ -3839,11 +3852,27 @@ function ChartsScreen({ subs, T, part }) {
   // ── Headline impact numbers (same model as the on-chain proofs) ────────────
   const totalB3TR = earnedTotal(subs);
   const ecoB3TR   = earnedTotal(ecoSubs);
+  // Each reading is judged against the target over the days since that meter's
+  // previous reading, exactly like the reward (and the on-chain proof). A meter's
+  // first reading is its starting point and saves nothing. It used to be one day's
+  // target for every reading, so anyone who didn't log daily saw too little saved.
+  const spanOfSub = new Map();
+  {
+    const lastOf = {};
+    const ordered = subs.filter(s => s.type !== "eco" && s.status !== "failed").sort((a, b) => subTs(a) - subTs(b));
+    for (const s of ordered) {
+      const k = `${s.type}:${String(s.meterNo || "").toLowerCase()}`;
+      spanOfSub.set(s, lastOf[k] ? spanDays(subTs(s) - subTs(lastOf[k])) : null);
+      lastOf[k] = s;
+    }
+  }
   let savedUnits = 0, co2g = ecoSubs.length * ECO_CO2_PER_CLAIM, kwhSaved = ecoSubs.length * ECO_KWH_PER_CLAIM;
   for (const s of meterSubs) {
     const bench = USAGE_BENCHMARK[s.type] ?? 0;
     if (SAVING_UTILS.has(s.type)) {
-      const saved = Math.max(0, bench - usageOf(s));
+      const span = spanOfSub.get(s);
+      if (span == null) continue;
+      const saved = Math.max(0, bench * span - usageOf(s));
       savedUnits += saved;
       co2g += saved * (CO2_PER_UNIT_UI[s.type] || 0);
       if (s.type === "electric") kwhSaved += saved;
@@ -3864,14 +3893,15 @@ function ChartsScreen({ subs, T, part }) {
     const ts = s.submittedAt || localDayTs(s.date);
     if (!Number.isFinite(ts)) continue;
     const w = weeks.find(w => ts >= w.start && ts < w.start + WEEK);
-    if (w) { w.b3tr += parseFloat(s.b3tr) || 0; w.n += 1; }
+    if (w) { w.b3tr += paidAmount(s); w.n += 1; }
   }
   const weekMax = Math.max(...weeks.map(w => w.b3tr), 0);
   const wkLabel = (t) => fmtDay(t);
 
   // ── Personal records ────────────────────────────────────────────────────────
   const bestDay = meterSubs.length ? meterSubs.reduce((a, s) => usageOf(s) < usageOf(a) ? s : a) : null;
-  const bestReward = subs.length ? subs.reduce((a, s) => (parseFloat(s.b3tr) || 0) > (parseFloat(a.b3tr) || 0) ? s : a) : null;
+  const paidSubs = subs.filter(s => paidAmount(s) > 0);
+  const bestReward = paidSubs.length ? paidSubs.reduce((a, s) => paidAmount(s) > paidAmount(a) ? s : a) : null;
 
   const Tile = ({ icon, val, unit, label, sub }) => (
     <div className="pstat">
@@ -6052,6 +6082,8 @@ export default function App() {
     setPassInfo({ required: false, has: true, pass: null, isAdmin: false });
     setRulesVer(v => v + 1);
   }, [wallet]);
+  // The last reading the server recorded per meter of this wallet (/wallet/seen).
+  const [serverLast, setServerLast] = useState(null);
   // Bumped to ask /wallet/seen again, e.g. after a payout whose outcome is unknown.
   const [seenTick, setSeenTick] = useState(0);
 
@@ -6081,6 +6113,7 @@ export default function App() {
           for (const [u, t] of Object.entries(d.nextAt)) SERVER_NEXT_AT[u] = Number(t) || 0;
           setRulesVer(v => v + 1);
         }
+        if (Array.isArray(d.lastReadings)) setServerLast(d.lastReadings);
       })
       .catch(() => {});
     return () => { cancelled = true; };
@@ -6251,8 +6284,12 @@ export default function App() {
     })
       .then(res => {
         if (cancelled || sessionWalletRef.current !== addr) return;
-        if (res.ok && res.rows.length) {
-          const merged = mergeSubs(local, res.rows);
+        // Also with no rows at all: that is what ages a payout stuck on "pending"
+        // into "failed". And merged into what is on screen NOW, not the list from
+        // when the wallet connected — a reading submitted while the history loaded
+        // used to vanish from the screen and from storage.
+        if (res.ok) {
+          const merged = mergeSubs(subsRef.current, res.rows);
           setSubs(merged);
           setB3tr(earnedTotal(merged));
           saveSubs(addr, merged);
@@ -6277,7 +6314,7 @@ export default function App() {
       setSeenTick(t => t + 1);
       fetchWalletHistory({ node: ACTIVE_NODE, contract: CONTRACTS.X2EarnRewardsPool, appId: VEBETTER_APP_ID, address: a })
         .then(res => {
-          if (!sameWallet(a) || sessionWalletRef.current !== a || !res.ok || !res.rows.length) return;
+          if (!sameWallet(a) || sessionWalletRef.current !== a || !res.ok) return;
           const merged = mergeSubs(subsRef.current, res.rows);
           setSubs(merged);
           setB3tr(earnedTotal(merged));
@@ -6452,8 +6489,15 @@ export default function App() {
   // The best-known "previous reading" for a meter: the most recent submission's
   // reading, falling back to the registered baseline. This is what next time's
   // usage is measured from.
+  // The server's own record wins when it has one: it is what the server measures
+  // from, and it includes readings recorded on another device or without a reward.
   const lastReadingFor = (id) => {
-    const lastSub = subs.find(s => s.type === id);
+    const mine = String(meters?.[id] || "").trim().toLowerCase();
+    const srv = (serverLast || []).find(r => r.utility === id && String(r.meterNo).toLowerCase() === mine);
+    const lastSub = subs.find(s => s.type === id && s.status !== "failed");
+    // A reading submitted on this device after the server answered is newer.
+    const localNewer = lastSub && (!srv?.at || subTs(lastSub) > Number(srv.at));
+    if (srv && Number.isFinite(Number(srv.reading)) && !localNewer) return String(srv.reading);
     return lastSub ? String(lastSub.cur) : (baselines[id] ? String(baselines[id]) : "");
   };
 
@@ -6477,7 +6521,7 @@ export default function App() {
     const v = lastReadingFor(selUtil);
     if (v && v !== prevRead) setPrevRead(v);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selUtil, subs, baselines]);
+  }, [selUtil, subs, baselines, serverLast]);
 
   // Cloudflare Turnstile (anti-bot): render the widget on the Meter and Eco tabs when a
   // site key is set; its token rides along with each /reward submission.
