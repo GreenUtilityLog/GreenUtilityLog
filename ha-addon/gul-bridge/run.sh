@@ -13,6 +13,10 @@ if [ -z "${TOKEN}" ] || [ "${TOKEN}" = "null" ]; then
 fi
 
 export GUL_TOKEN="${TOKEN}"
+# The bridge's memory (when a reading last went through) and its log live in /data,
+# which Home Assistant keeps across add-on updates. Next to the code in /opt/bridge
+# they were lost at every update.
+export GUL_DATA_DIR=/data
 export INTERVAL_SEC="$(bashio::config 'interval_sec')"
 
 # Optional fields: only export when actually filled in, so the bridge falls back to

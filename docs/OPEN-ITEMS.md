@@ -63,16 +63,16 @@ Laatst bijgewerkt: 2026-11-01.
 - [ ] Afhankelijkheden: vite 8, plugin-react 6, React 19; WalletConnect-meldingen via `overrides`
 
 ## Server en koppelingen
-- [ ] Transactie zonder ontvangstbewijs wordt nooit opnieuw gecontroleerd
+- [x] Transactie zonder ontvangstbewijs: elke minuut opnieuw gecontroleerd; na 15 min weg → melding voor de beheerder (#159)
 - [ ] `/health` doet 6 chain-aanroepen per keer zonder cache
-- [ ] Tibber koppelen mist de reservering die Powerfox heeft (twee wallets tegelijk)
-- [ ] `/reward-from-meter` zegt "niets gebruikt" als de boekhouding na een uitbetaling faalt
+- [x] Tibber koppelen: thuis 2 min gereserveerd in de gedeelde opslag (twee processen tijdens een deploy) (#159)
+- [x] `/reward-from-meter` zegt "niets gebruikt" als de boekhouding na een uitbetaling faalt (#159)
 - [ ] Time-outs op Enode- en R2-aanroepen; Roboflow-sleutel niet in de URL
 - [ ] Snelheidslimiet per IPv6-/64 in plaats van per adres
 - [ ] `index.js` (2.400 regels) opsplitsen; `/reward` en eco-resten delen één helper
 - [ ] Tests voor: afsluiten met uitbetaling onderweg, `/admin/photo`, `/admin/move-rewards-pool`
 - [ ] gul.js: versie meesturen (`User-Agent`); antwoordgrootte begrenzen
-- [ ] HA-add-on: instellingen in `/data` i.p.v. `/opt/bridge` (geheugen van laatste stand gaat nu verloren)
+- [x] HA-add-on: instellingen en log in `/data` (`GUL_DATA_DIR`), versie 1.5.2 (#159)
 - [ ] Afhankelijkheden server: express 5, @anthropic-ai/sdk, @vechain/sdk 2.1
 
 ## Product en organisatie

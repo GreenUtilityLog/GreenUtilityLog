@@ -392,12 +392,41 @@ export const DRY_RUN = /^(1|true|yes)$/i.test(process.env.DISTRIBUTOR_DRY_RUN ||
 // Payouts sent whose receipt didn't come within the wait: on their way, not yet in
 // a block. The app shows these as "pending" until the chain lists them.
 const RECEIPT_WAIT_MS = Number(process.env.RECEIPT_WAIT_MS || 30000);
-const unconfirmed = new Set();
+const unconfirmed = new Map();   // txid -> { at, receiver, amount }
 function notConfirmed(txid) {
-  unconfirmed.add(String(txid));
-  if (unconfirmed.size > 1000) unconfirmed.delete(unconfirmed.values().next().value);
+  if (!unconfirmed.has(String(txid))) unconfirmed.set(String(txid), { at: Date.now(), receiver: null, amount: null });
+  if (unconfirmed.size > 1000) unconfirmed.delete(unconfirmed.keys().next().value);
 }
 export const payoutPending = (txid) => unconfirmed.has(String(txid));
+export const pendingPayoutCount = () => unconfirmed.size;
+
+// ── Payouts that never got a receipt ──────────────────────────────────────────
+// They were answered as "pending" and then forgotten: one that expired or
+// reverted later cost the user a reading (cooldown, baseline, photo all used up)
+// without anyone knowing. Each is asked about again every minute. Landed: done.
+// Reverted, or unknown to the node long after it would have expired: reported
+// through onLost (index.js turns it into an admin flag with wallet and amount,
+// and a log error) so the admin can make it right. The state is not rolled back
+// automatically: a retry may already have used the same reading.
+const LOST_AFTER_MS = Number(process.env.PENDING_LOST_AFTER_MS || 15 * 60 * 1000);
+export async function recheckPendingPayouts(onLost) {
+  let landed = 0, lost = 0;
+  for (const [txid, info] of [...unconfirmed]) {
+    let receipt;
+    try {
+      const res = await fetch(`${NODE_URL.replace(/\/$/, "")}/transactions/${txid}/receipt`, { signal: AbortSignal.timeout(15000) });
+      if (!res.ok) continue;            // node trouble: ask again next time
+      receipt = await res.json();
+    } catch { continue; }
+    if (receipt && !receipt.reverted) { unconfirmed.delete(txid); landed++; continue; }
+    const age = Date.now() - info.at;
+    if (receipt?.reverted || (age > LOST_AFTER_MS && (await nodeHasTransaction(txid)) === false)) {
+      unconfirmed.delete(txid); lost++;
+      try { await onLost?.({ txid, ...info, reverted: !!receipt?.reverted }); } catch { /* reporting must not stop the loop */ }
+    }
+  }
+  return { landed, lost, pending: unconfirmed.size };
+}
 if (DRY_RUN) {
   console.warn("[reward] DISTRIBUTOR_DRY_RUN is on — rewards are NOT sent on-chain.");
 }
@@ -466,6 +495,8 @@ async function sendProofReward({ amount, receiver, proofText, impacts, descripti
   if (chosen !== variants[0]) console.warn(`[reward] "${variants[0].name}" reverts ("${reasons[0]}") — sending "${chosen.name}"`);
 
   const attempt = await sendClause(chosen.abi, chosen.args, chosen === variants[0] ? comment : `${comment} (${chosen.name})`);
+  // Who and how much, for the report if this payout never lands.
+  if (unconfirmed.has(String(attempt.txid))) Object.assign(unconfirmed.get(String(attempt.txid)), { receiver, amount });
   if (attempt.reverted) {
     console.error(`[reward] tx ${attempt.txid} reverted on-chain despite clean simulation`);
     throw publicError("payout reverted on-chain — re-run the admin System Check and try again");
