@@ -7034,6 +7034,11 @@ export default function App() {
               <div className={`hdr-online ${online ? "is-online" : ""}`} title={online ? "Online" : "Offline"} aria-label={online ? "Online" : "Offline"} style={{display:"flex",alignItems:"center",justifyContent:"center",width:30,height:30,borderRadius:6,border:`1px solid ${online?T.green4:T.gasBorder}`,background:online?T.green5:T.gasBg,flexShrink:0}}>
                 <div style={{width:7,height:7,borderRadius:"50%",background:online?T.green3:T.gas,animation:online?"pulse 2.5s infinite":"none"}}/>
               </div>
+              {/* Light/dark, one tap from every screen again — it had moved into
+                  Profile → Settings, where people stopped finding it. Still there too. */}
+              <button className="dark-toggle" onClick={toggleDark} aria-label={dark ? "Switch to light mode" : "Switch to dark mode"} title={dark ? "Light mode" : "Dark mode"}>
+                {dark ? "☀️" : "🌙"}
+              </button>
               <button className="dark-toggle" onClick={() => setShowHelp(true)} aria-label="Help and FAQ" title="Help & FAQ">
                 ❓
               </button>
