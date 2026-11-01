@@ -25,17 +25,17 @@ Laatst bijgewerkt: 2026-11-01.
 - [x] Opnieuw maken of een nieuwe zondagsvraag: `node brand/animated/render.cjs sunday --q="…"` (#149)
 
 ## Ronde 3 — afwerking ontwerp
-- [ ] Emoji in menu, kop en badges vervangen door de bestaande `UI_ICONS` (SVG)
-- [ ] Knoppen minimaal 44 px (wallet-knop, help, dubbeltarief-vinkje, taalkeuze, Sluiten, Retake)
-- [ ] Invoervelden 16 px (iPhone zoomt nu in) en zichtbare focusrand (`:focus-visible`) — registratievelden al gedaan (#148)
-- [ ] Formuliercontrast: randen, placeholders, foutkleur, "pending"-label
+- [ ] Emoji in menu, kop en badges vervangen door `UI_ICONS` (SVG) — **wacht op keuze eigenaar** (opties A/B/C getoond; tot dan blijven de emoji)
+- [x] Knoppen minimaal 44 px (wallet-knop, help, dubbeltarief-vinkje, Sluiten, Retake); taalkeuze 36 px (#150)
+- [x] Invoervelden 16 px (iPhone zoomt nu in) en zichtbare focusrand (`:focus-visible`) (#148, #150)
+- [x] Formuliercontrast: randen, placeholders, foutkleur, "pending"-label (#150)
 - [ ] Vaste lettergroottes (12/14/16/20/28/40) en kleuren als tokens
-- [ ] Datums overal hetzelfde (`Intl.DateTimeFormat`)
+- [x] Datums overal hetzelfde (`Intl.DateTimeFormat`, `fmtDay`) (#150)
 - [ ] Geschiedenis: beloning als hoofdgetal, meternummer uit de rij
-- [ ] Offline-melding als balk met uitleg in plaats van een rood stipje
+- [x] Offline-melding als balk met uitleg in plaats van een rood stipje (#150)
 - [ ] Computer: QR-code naar de app i.p.v. een actieve fotoknop die niets kan
 - [ ] Klassement hoger in Voortgang; vergrendelde badges met slotje
-- [ ] Intro: één voortgangsindicator, lijn-iconen, geen eindeloze animatie (`prefers-reduced-motion`)
+- [ ] Intro: één voortgangsindicator, lijn-iconen — `prefers-reduced-motion` al gedaan (#150)
 - [ ] Wallet-keuzevenster: uitleg per optie; meldingen onderaan i.p.v. over knoppen
 - [ ] `apple-touch-icon` en manifest; handleiding met logo, terugknop en inhoudsopgave
 - [ ] Hele app vertalen (NL, DE, FR, ES), niet alleen Help; Help verwijst nu naar Engelse knopnamen
