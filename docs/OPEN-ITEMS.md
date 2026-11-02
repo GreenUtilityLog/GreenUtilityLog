@@ -59,7 +59,7 @@ Laatst bijgewerkt: 2026-11-01.
 - [x] Klassement 2 min gedeeld tussen schermen; lezen tot een vast blok, dus geen dubbele telling meer (#161)
 - [x] Standen zonder beloning staan alleen op het eigen toestel: laatste stand per meter van de server halen (#158)
 - [ ] `App.jsx` (7.200 regels) opsplitsen: eerst pure logica, dan i18n, dan schermen
-- [ ] Dode code opruimen (`sendAndEarn`, `Toggle`, `B3TR_USD`, `!REWARD_API`-takken, …)
+- [x] Dode code opruimen: `sendAndEarn`, `Toggle`, `B3TR_USD`, ongebruikt beheeronderdeel, `!REWARD_API`-takken en het directe on-chain-pad, 4 ongebruikte vertalingen; server: ongebruikte imports en sleutels (#162)
 - [ ] Privacy: apparaatkenmerk vermelden; Tesseract-taaldata zelf hosten
 - [ ] Afhankelijkheden: vite 8, plugin-react 6, React 19; WalletConnect-meldingen via `overrides`
 
