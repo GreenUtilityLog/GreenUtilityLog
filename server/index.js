@@ -133,6 +133,10 @@ app.use("/ocr", photoJson);
 // submission would fail on body size rather than on anything to do with the meter.
 app.use("/meter/fix-basis", photoJson);
 app.use(express.json({ limit: "64kb" }));
+// Express 5 leaves req.body undefined when a request carries no JSON body (v4 gave
+// {}). Every handler reads fields off it, so a body-less POST would throw and
+// answer 500 instead of the 400 it is due.
+app.use((req, res, next) => { if (req.body === undefined) req.body = {}; next(); });
 // A meter number is a short label. Unchecked, one of tens of kilobytes was stored
 // under several keys, written into the on-chain metadata (gas paid by the
 // distributor) and scanned on every request. Checked once here for every route.

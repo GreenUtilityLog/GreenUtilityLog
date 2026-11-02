@@ -61,7 +61,8 @@ Laatst bijgewerkt: 2026-11-01.
 - [ ] `App.jsx` (7.200 regels) opsplitsen: eerst pure logica, dan i18n, dan schermen
 - [x] Dode code opruimen: `sendAndEarn`, `Toggle`, `B3TR_USD`, ongebruikt beheeronderdeel, `!REWARD_API`-takken en het directe on-chain-pad, 4 ongebruikte vertalingen; server: ongebruikte imports en sleutels (#162)
 - [ ] Privacy: apparaatkenmerk vermelden; Tesseract-taaldata zelf hosten
-- [ ] Afhankelijkheden: vite 8, plugin-react 6, React 19; WalletConnect-meldingen via `overrides`
+- [x] Afhankelijkheden app: Vite 8 (bouwen 3 s i.p.v. 20 s), plugin-react 6, React 19; `ws` en `zod` via `overrides` (#163)
+- [ ] Nog open in `npm audit`: `decode-uri-component` via WalletConnect (`query-string` 7; de veilige versie is alleen ESM en breekt het) en `elliptic` in de Node-polyfills (laag) — wachten op een dapp-kit-update
 
 ## Server en koppelingen
 - [x] Transactie zonder ontvangstbewijs: elke minuut opnieuw gecontroleerd; na 15 min weg → melding voor de beheerder (#159)
@@ -75,7 +76,7 @@ Laatst bijgewerkt: 2026-11-01.
 - [x] Servertests hingen in CI na een poortbotsing; nu opnieuw starten en `--test-force-exit` (#159)
 - [x] gul.js: versie in de `User-Agent` (server bewaart hem bij de stand), antwoorden max. 1 MB; een nu opgegeven `--ip` wint van een opgeslagen Tasmota/URL; add-on 1.5.3 (#160)
 - [x] HA-add-on: instellingen en log in `/data` (`GUL_DATA_DIR`), versie 1.5.2 (#159)
-- [ ] Afhankelijkheden server: express 5, @anthropic-ai/sdk, @vechain/sdk 2.1
+- [x] Afhankelijkheden server: Express 5, @anthropic-ai/sdk 1.3 (API-versie 2026-10-21, sleutel als Bearer), @vechain/sdk 2.1, ws 8.22 (#163)
 
 ## Product en organisatie
 - [ ] Antwoord aan VeBetterDAO (beoordeling) versturen en opvolgen
