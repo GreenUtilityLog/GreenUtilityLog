@@ -1,7 +1,8 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
-import { copyFileSync, mkdirSync, readdirSync } from 'node:fs'
+import { copyFileSync, mkdirSync, readdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { gzipSync } from 'node:zlib'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
 
@@ -21,18 +22,45 @@ const networkMeta = () => ({
 // loader script could be pinned with SRI, but the worker and the WebAssembly core it
 // then fetches could not — and they run as this origin, next to the wallet session.
 // Copied from the exact npm versions in package.json into <outDir>/tesseract/.
+// The seven-segment model (github.com/Shreeshrii/tessdata_ssd) isn't on npm, so the
+// build fetches it once, by commit, checks its SHA-256 and caches it. A changed or
+// unreachable file fails the build rather than shipping something else.
+const SSD_URL = 'https://raw.githubusercontent.com/Shreeshrii/tessdata_ssd/e493a10a4bf81632506cf24ba99d83854afff9f6/ssd.traineddata'
+const SSD_SHA256 = 'f0060f4d2acb107f7c48c418f60887eddb37656fbbc2c21677df06ecbdf44ca5'
+async function ssdTrainedData() {
+  const cache = join('node_modules', '.cache', 'gul-tessdata', 'ssd.traineddata')
+  const sha = (b) => createHash('sha256').update(b).digest('hex')
+  if (existsSync(cache)) {
+    const b = readFileSync(cache)
+    if (sha(b) === SSD_SHA256) return b
+  }
+  const res = await fetch(SSD_URL)
+  if (!res.ok) throw new Error(`ssd.traineddata: ${SSD_URL} answered ${res.status}`)
+  const b = Buffer.from(await res.arrayBuffer())
+  if (sha(b) !== SSD_SHA256) throw new Error('ssd.traineddata: SHA-256 does not match the pinned file')
+  mkdirSync(join('node_modules', '.cache', 'gul-tessdata'), { recursive: true })
+  writeFileSync(cache, b)
+  return b
+}
+
 const selfHostTesseract = () => {
   let outDir = 'dist'
   return {
     name: 'self-host-tesseract',
     configResolved(c) { outDir = c.build.outDir },
-    closeBundle() {
+    async closeBundle() {
       const dest = join(outDir, 'tesseract')
-      mkdirSync(dest, { recursive: true })
+      mkdirSync(join(dest, 'lang'), { recursive: true })
       for (const f of ['tesseract.min.js', 'worker.min.js']) copyFileSync(join('node_modules/tesseract.js/dist', f), join(dest, f))
       for (const f of readdirSync('node_modules/tesseract.js-core')) {
         if (f.endsWith('.wasm.js')) copyFileSync(join('node_modules/tesseract.js-core', f), join(dest, f))
       }
+      // The language data too. It came from jsdelivr, so every scan told a third
+      // party that this visitor was reading a meter. English (water meters) is the
+      // npm package tesseract.js would have fetched; the seven-segment model
+      // (electricity) is pinned below by commit and hash.
+      copyFileSync('node_modules/@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz', join(dest, 'lang', 'eng.traineddata.gz'))
+      writeFileSync(join(dest, 'lang', 'ssd.traineddata.gz'), gzipSync(await ssdTrainedData(), { level: 9 }))
     },
   }
 }

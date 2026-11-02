@@ -16,6 +16,7 @@
     "react-dom": "^19.3.1"
   },
   "devDependencies": {
+    "@tesseract.js-data/eng": "1.0.0",
     "@vitejs/plugin-react": "^6.1.2",
     "tesseract.js": "5.1.1",
     "tesseract.js-core": "5.1.1",

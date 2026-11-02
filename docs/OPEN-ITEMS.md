@@ -61,7 +61,7 @@ Laatst bijgewerkt: 2026-11-01.
 - [x] `App.jsx` 7.200 → 5.140 regels: dode code eruit, beheerscherm en koppelschermen in eigen bestanden (#162, #164)
 - [ ] Verder opsplitsen: pure logica (beloning, datums, offline-wachtrij) naar `src/lib/`, dan de schermen; de nieuwe bestanden importeren nu nog hulpfuncties uit `App.jsx`
 - [x] Dode code opruimen: `sendAndEarn`, `Toggle`, `B3TR_USD`, ongebruikt beheeronderdeel, `!REWARD_API`-takken en het directe on-chain-pad, 4 ongebruikte vertalingen; server: ongebruikte imports en sleutels (#162)
-- [ ] Privacy: apparaatkenmerk vermelden; Tesseract-taaldata zelf hosten
+- [x] Privacy: nieuwe vraag "Wat bewaren jullie over mij?" in Help (5 talen): blockchain, server, apparaatkenmerk, logins; Tesseract-taaldata komt van de eigen site, een scan praat met niemand anders (#166)
 - [x] Afhankelijkheden app: Vite 8 (bouwen 3 s i.p.v. 20 s), plugin-react 6, React 19; `ws` en `zod` via `overrides` (#163)
 - [ ] Nog open in `npm audit`: `decode-uri-component` via WalletConnect (`query-string` 7; de veilige versie is alleen ESM en breekt het) en `elliptic` in de Node-polyfills (laag) — wachten op een dapp-kit-update
 
@@ -73,7 +73,7 @@ Laatst bijgewerkt: 2026-11-01.
 - [x] Time-outs op Enode (15 s) en R2 (30 s); Google Vision-sleutel in een header. Roboflow neemt zijn sleutel alleen in de URL: die URL wordt nergens gelogd (#160)
 - [x] Snelheidslimiet per IPv6-/64 in plaats van per adres (#160)
 - [ ] `index.js` (2.400 regels) opsplitsen in routegroepen (beheer, koppelingen, uitbetaling); eco-resten zijn weg (alleen `/eco-action` → 410). Bewust nog niet gedaan: veel gedeelde toestand, eerst tests voor de admin-routes
-- [ ] Tests voor: afsluiten met uitbetaling onderweg, `/admin/photo`, `/admin/move-rewards-pool`
+- [x] Tests voor: afsluiten met uitbetaling onderweg, `/admin/photo`, `/admin/move-rewards-pool` (#166)
 - [x] Servertests hingen in CI na een poortbotsing; nu opnieuw starten en `--test-force-exit` (#159)
 - [x] gul.js: versie in de `User-Agent` (server bewaart hem bij de stand), antwoorden max. 1 MB; een nu opgegeven `--ip` wint van een opgeslagen Tasmota/URL; add-on 1.5.3 (#160)
 - [x] HA-add-on: instellingen en log in `/data` (`GUL_DATA_DIR`), versie 1.5.2 (#159)
