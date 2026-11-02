@@ -68,7 +68,45 @@ export function decodeRewardData(data){
 
 // Fetch and aggregate the on-chain reward field for one app.
 // Returns { ok, reason?, rows:[{ addr, b3tr, count, last }] } sorted desc by B3TR.
-export async function fetchOnChainLeaderboard({ node, contract, appId, max = 10000, signal } = {}) {
+// The newest block when a read starts. Pages are fetched newest-first by offset, so
+// a payout landing between two pages shifted every later offset by one and the same
+// event came back on the next page: counted twice. Reading up to a fixed block
+// keeps the offsets still while paging.
+async function bestBlockNumber(node, signal) {
+  const res = await fetch(`${node}/blocks/best`, { signal });
+  if (!res.ok) throw new Error(`blocks/best responded ${res.status}`);
+  const b = await res.json();
+  const n = Number(b?.number);
+  if (!Number.isFinite(n)) throw new Error("blocks/best gave no block number");
+  return n;
+}
+
+// The leaderboard is read on Home, on Progress and in admin, and each read is up to
+// 40 requests to the node. One read serves them all for LEADERBOARD_TTL_MS.
+const LEADERBOARD_TTL_MS = 2 * 60 * 1000;
+const leaderboardCache = new Map(); // key -> { at, promise }
+
+export function fetchOnChainLeaderboard({ node, contract, appId, max = 10000, signal } = {}) {
+  const key = `${node}|${contract}|${appId}|${max}`;
+  const hit = leaderboardCache.get(key);
+  if (!hit || Date.now() - hit.at > LEADERBOARD_TTL_MS) {
+    const promise = readLeaderboard({ node, contract, appId, max });
+    leaderboardCache.set(key, { at: Date.now(), promise });
+    // A failed read isn't kept: the next screen asks again.
+    promise.then((r) => { if (!r.ok) leaderboardCache.delete(key); }, () => leaderboardCache.delete(key));
+  }
+  const shared = leaderboardCache.get(key).promise;
+  // The read is shared, so a caller that goes away (signal) stops waiting for it
+  // rather than cancelling it for the others.
+  if (!signal) return shared;
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) return reject(new DOMException("Aborted", "AbortError"));
+    signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+    shared.then(resolve, reject);
+  });
+}
+
+async function readLeaderboard({ node, contract, appId, max }) {
   if (!node || !contract) return { ok: false, reason: "misconfigured", rows: [] };
   // An all-zero appId means the app isn't registered on VeBetterDAO yet, so
   // there is no real field to read — let the caller fall back to sample data.
@@ -78,9 +116,11 @@ export async function fetchOnChainLeaderboard({ node, contract, appId, max = 100
   const pageSize = 256;
   let offset = 0;
   let truncated = false;
+  const to = await bestBlockNumber(node);
 
   for (let fetched = 0; ; ) {
     const body = {
+      range: { unit: "block", from: 0, to },
       options: { offset, limit: pageSize },
       criteriaSet: [{ address: contract, topic0: REWARD_TOPIC, topic1: appId }],
       // Newest first: if the event count ever exceeds `max`, the cap must drop the
@@ -92,7 +132,6 @@ export async function fetchOnChainLeaderboard({ node, contract, appId, max = 100
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-      signal,
     });
     if (!res.ok) throw new Error(`logs/event responded ${res.status}`);
     const logs = await res.json();
@@ -136,8 +175,10 @@ export async function fetchOnChainLeaderboard({ node, contract, appId, max = 100
 async function fetchLogsPaged({ node, contract, topic0, appId, topic2, max, signal, onLog }) {
   const pageSize = 256;
   let offset = 0;
+  const to = await bestBlockNumber(node, signal);
   for (let fetched = 0; fetched < max; ) {
     const body = {
+      range: { unit: "block", from: 0, to },
       options: { offset, limit: pageSize },
       criteriaSet: [{ address: contract, topic0, topic1: appId, topic2 }],
       order: "desc",

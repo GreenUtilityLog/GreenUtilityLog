@@ -49,13 +49,14 @@ Laatst bijgewerkt: 2026-11-01.
 
 ## App — code
 - [x] Voortgang en PDF tellen mislukte uitbetalingen mee; "bespaard" rekent met één dag i.p.v. de periode (#158)
-- [ ] Offline foto's blijven voor altijd in IndexedDB; één databaseverbinding
-- [ ] Content-Security-Policy in `index.html`
-- [ ] Bundel 2 MB: beheerscherm, Help en koppelschermen later laden
+- [x] Offline foto's: verstuurde, geweigerde en te oude (>14 dagen) worden opgeruimd; één databaseverbinding (#161)
+- [x] Content-Security-Policy in `index.html` (alleen eigen scripts, inline-scripts per hash, jsPDF en captcha) (#161)
+- [x] Bundel: bibliotheken in een eigen bestand (1,8 MB), app-code 396 KB — na een update alleen dat laatste opnieuw (#161)
+- [ ] Beheerscherm, Help en koppelschermen pas laden als ze geopend worden (komt met het opsplitsen van `App.jsx`)
 - [x] Geschiedenis van de chain samenvoegen met wat nu op het scherm staat (inzending tijdens laden verdwijnt) (#158)
 - [x] "Pending" wordt nooit "failed" als de chain niets teruggeeft (#158)
 - [x] Afteller van de cooldown loopt niet door (#158)
-- [ ] Klassement elke keer opnieuw geladen (tot 40 verzoeken); kan een uitbetaling dubbel tellen
+- [x] Klassement 2 min gedeeld tussen schermen; lezen tot een vast blok, dus geen dubbele telling meer (#161)
 - [x] Standen zonder beloning staan alleen op het eigen toestel: laatste stand per meter van de server halen (#158)
 - [ ] `App.jsx` (7.200 regels) opsplitsen: eerst pure logica, dan i18n, dan schermen
 - [ ] Dode code opruimen (`sendAndEarn`, `Toggle`, `B3TR_USD`, `!REWARD_API`-takken, …)
