@@ -922,7 +922,9 @@ async function detectScreenshot(base64, mime) {
 const TESSERACT_FILES = new URL(`${import.meta.env.BASE_URL}tesseract/`, window.location.href).href;
 // workerBlobURL false: the worker is started from its own file on this site instead
 // of a blob made from fetched code.
-const TESSERACT_OPTS = { workerPath: TESSERACT_FILES + "worker.min.js", corePath: TESSERACT_FILES, workerBlobURL: false, logger: () => {} };
+// The language models are served from this site too (vite.config.js), so a scan
+// contacts no one but us.
+const TESSERACT_OPTS = { workerPath: TESSERACT_FILES + "worker.min.js", corePath: TESSERACT_FILES, langPath: TESSERACT_FILES + "lang", workerBlobURL: false, logger: () => {} };
 let _tesseractReady = null;
 async function loadTesseract() {
   if (window.Tesseract) return window.Tesseract;
@@ -1003,11 +1005,10 @@ async function preprocessForOCR(file, invert = false, binarize = true) {
 // them far better than generic "eng". Water is a mechanical rolling counter →
 // plain "eng" handles those printed digits.
 const OCR_MODEL = { electric: "ssd", gas: "ssd", solar: "ssd", water: "eng" };
-const SSD_LANG_PATH = "https://cdn.jsdelivr.net/gh/Shreeshrii/tessdata_ssd@e493a10a4bf81632506cf24ba99d83854afff9f6"; // pinned commit of master
 
 async function makeWorker(Tesseract, model) {
   const worker = model === "ssd"
-    ? await Tesseract.createWorker("ssd", 1, { ...TESSERACT_OPTS, langPath: SSD_LANG_PATH, gzip: false })
+    ? await Tesseract.createWorker("ssd", 1, TESSERACT_OPTS)
     : await Tesseract.createWorker("eng", 1, TESSERACT_OPTS);
   // PSM 7 = treat the image as a SINGLE TEXT LINE. A cropped meter reading is one
   // line of digits, so this reads it as one number instead of fragmenting it into
@@ -3655,6 +3656,7 @@ const HELP_I18N = {
       { q:"My photo was rejected.", a:"Use a real, clear photo of your own meter — good lighting, numbers in focus, no screenshots or photos of a screen." },
       { q:"I reconnected and lost my meters?", a:"Reconnecting the SAME wallet keeps your meters and baselines. Only connecting a different wallet starts a fresh setup." },
       { q:"My wallet won't connect.", a:"Make sure VeWorld is switched to Testnet. On mobile, use the in-app browser or WalletConnect QR." },
+      { q:"What do you store about me?", a:"On the blockchain (public and permanent): your wallet address, your meter number, each reading and what it earned. That is the proof of saving VeBetterDAO asks for.\nOn our server: your meter's readings and waiting time, a fingerprint of each photo (so it can't be reused) and, for review, a small copy of the photo for up to 30 days. Photos can be read and checked by an AI service (Anthropic's Claude) to spot fakes.\nFrom your phone: a random app id and a scrambled code (hash) made from what the browser reports about the device: screen, language, time zone, graphics. Only these two codes leave the phone. They can't be turned back into who you are; they stop one phone from earning with many wallets.\nA Powerfox login or Tibber token is stored encrypted and used only to read your meter; unlinking deletes it. Your name and avatar stay on this phone." },
       { q:"Found a bug or have an idea?", a:"Use Send Feedback below — it pre-fills an email with your message and some helpful diagnostics." },
     ] },
   nl: { name:"Nederlands", subtitle:"Aan de slag", quick:"Snel starten", faqLabel:"Veelgestelde vragen", close:"Sluiten", feedback:"✉️ Feedback sturen",
@@ -3674,6 +3676,7 @@ const HELP_I18N = {
       { q:"Mijn foto werd geweigerd.", a:"Gebruik een echte, scherpe foto van je eigen meter — goed licht, cijfers in beeld, geen screenshots of foto's van een scherm." },
       { q:"Ik verbond opnieuw en mijn meters zijn weg?", a:"Opnieuw verbinden met DEZELFDE wallet behoudt je meters en baselines. Alleen een ándere wallet start opnieuw." },
       { q:"Mijn wallet verbindt niet.", a:"Zorg dat VeWorld op Testnet staat. Op mobiel: gebruik de in-app browser of WalletConnect-QR." },
+      { q:"Wat bewaren jullie over mij?", a:"Op de blockchain (openbaar en blijvend): je wallet-adres, je meternummer, elke stand en wat die opleverde. Dat is het bewijs van besparing waar VeBetterDAO om vraagt.\nOp onze server: de standen en wachttijd van je meter, een vingerafdruk van elke foto (zodat die niet opnieuw gebruikt kan worden) en, ter controle, een kleine kopie van de foto, maximaal 30 dagen. Foto's kunnen door een AI-dienst (Claude van Anthropic) gelezen en gecontroleerd worden om nep te herkennen.\nVan je telefoon: een willekeurige app-code en een versleutelde code (hash) van wat de browser over het toestel meldt: scherm, taal, tijdzone, grafische chip. Alleen deze twee codes verlaten de telefoon. Ze zijn niet terug te rekenen naar wie je bent; ze voorkomen dat één telefoon met veel wallets verdient.\nEen Powerfox-login of Tibber-token wordt versleuteld bewaard en alleen gebruikt om je meter uit te lezen; ontkoppelen wist hem. Je naam en avatar blijven op deze telefoon." },
       { q:"Bug gevonden of een idee?", a:"Gebruik Feedback sturen hieronder — het vult een e-mail voor met je bericht en handige diagnostiek." },
     ] },
   de: { name:"Deutsch", subtitle:"Erste Schritte", quick:"Schnellstart", faqLabel:"Häufige Fragen", close:"Schließen", feedback:"✉️ Feedback senden",
@@ -3693,6 +3696,7 @@ const HELP_I18N = {
       { q:"Mein Foto wurde abgelehnt.", a:"Nutze ein echtes, scharfes Foto deines eigenen Zählers — gutes Licht, Ziffern im Fokus, keine Screenshots oder Bildschirmfotos." },
       { q:"Neu verbunden und meine Zähler sind weg?", a:"Erneutes Verbinden mit DEMSELBEN Wallet behält deine Zähler und Basiswerte. Nur ein anderes Wallet startet neu." },
       { q:"Mein Wallet verbindet nicht.", a:"Stelle sicher, dass VeWorld auf Testnet steht. Mobil: nutze den In-App-Browser oder WalletConnect-QR." },
+      { q:"Was speichert ihr über mich?", a:"Auf der Blockchain (öffentlich und dauerhaft): deine Wallet-Adresse, deine Zählernummer, jeder Zählerstand und was er eingebracht hat. Das ist der Nachweis der Einsparung, den VeBetterDAO verlangt.\nAuf unserem Server: die Stände und die Wartezeit deines Zählers, ein Fingerabdruck jedes Fotos (damit es nicht erneut verwendet wird) und zur Kontrolle eine kleine Kopie des Fotos für höchstens 30 Tage. Fotos können von einem KI-Dienst (Claude von Anthropic) gelesen und geprüft werden, um Fälschungen zu erkennen.\nVon deinem Handy: eine zufällige App-Kennung und ein verschlüsselter Code (Hash) aus dem, was der Browser über das Gerät meldet: Bildschirm, Sprache, Zeitzone, Grafikchip. Nur diese zwei Codes verlassen das Handy. Sie lassen sich nicht auf deine Person zurückführen; sie verhindern, dass ein Handy mit vielen Wallets verdient.\nEin Powerfox-Login oder Tibber-Token wird verschlüsselt gespeichert und nur zum Auslesen deines Zählers genutzt; Trennen löscht ihn. Dein Name und Avatar bleiben auf diesem Handy." },
       { q:"Bug gefunden oder eine Idee?", a:"Nutze Feedback senden unten — es füllt eine E-Mail mit deiner Nachricht und hilfreicher Diagnose vor." },
     ] },
   fr: { name:"Français", subtitle:"Démarrer", quick:"Démarrage rapide", faqLabel:"Questions fréquentes", close:"Fermer", feedback:"✉️ Envoyer un retour",
@@ -3712,6 +3716,7 @@ const HELP_I18N = {
       { q:"Ma photo a été refusée.", a:"Utilisez une vraie photo nette de votre compteur — bon éclairage, chiffres nets, pas de captures ni photos d'écran." },
       { q:"Reconnecté et j'ai perdu mes compteurs ?", a:"Se reconnecter avec le MÊME wallet garde vos compteurs et bases. Seul un autre wallet repart de zéro." },
       { q:"Mon wallet ne se connecte pas.", a:"Assurez-vous que VeWorld est sur Testnet. Sur mobile : navigateur intégré ou QR WalletConnect." },
+      { q:"Que conservez-vous à mon sujet ?", a:"Sur la blockchain (public et permanent) : l'adresse de votre wallet, votre numéro de compteur, chaque relevé et ce qu'il a rapporté. C'est la preuve d'économie que demande VeBetterDAO.\nSur notre serveur : les relevés et le délai d'attente de votre compteur, une empreinte de chaque photo (pour qu'elle ne soit pas réutilisée) et, pour vérification, une petite copie de la photo pendant 30 jours au plus. Les photos peuvent être lues et vérifiées par un service d'IA (Claude d'Anthropic) pour repérer les faux.\nDe votre téléphone : un identifiant d'app aléatoire et un code chiffré (hash) de ce que le navigateur indique sur l'appareil : écran, langue, fuseau horaire, puce graphique. Seuls ces deux codes quittent le téléphone. Ils ne permettent pas de savoir qui vous êtes ; ils empêchent un seul téléphone de gagner avec plusieurs wallets.\nUn identifiant Powerfox ou un jeton Tibber est conservé chiffré et sert uniquement à lire votre compteur ; le déconnecter l'efface. Votre nom et votre avatar restent sur ce téléphone." },
       { q:"Un bug ou une idée ?", a:"Utilisez Envoyer un retour ci-dessous — un e-mail est prérempli avec votre message et quelques infos utiles." },
     ] },
   es: { name:"Español", subtitle:"Empezar", quick:"Inicio rápido", faqLabel:"Preguntas frecuentes", close:"Cerrar", feedback:"✉️ Enviar comentarios",
@@ -3731,6 +3736,7 @@ const HELP_I18N = {
       { q:"Rechazaron mi foto.", a:"Usa una foto real y nítida de tu propio contador — buena luz, cifras enfocadas, sin capturas ni fotos de pantalla." },
       { q:"Reconecté y perdí mis contadores.", a:"Reconectar con la MISMA wallet mantiene tus contadores y bases. Solo otra wallet empieza de cero." },
       { q:"Mi wallet no conecta.", a:"Asegúrate de que VeWorld esté en Testnet. En móvil: navegador interno o QR de WalletConnect." },
+      { q:"¿Qué guardáis sobre mí?", a:"En la blockchain (pública y permanente): la dirección de tu wallet, tu número de contador, cada lectura y lo que te dio. Es la prueba de ahorro que pide VeBetterDAO.\nEn nuestro servidor: las lecturas y el tiempo de espera de tu contador, una huella de cada foto (para que no se reutilice) y, para revisión, una copia pequeña de la foto durante 30 días como máximo. Las fotos pueden ser leídas y revisadas por un servicio de IA (Claude de Anthropic) para detectar falsificaciones.\nDe tu teléfono: un identificador de app aleatorio y un código cifrado (hash) de lo que el navegador indica del dispositivo: pantalla, idioma, zona horaria, chip gráfico. Solo estos dos códigos salen del teléfono. No permiten saber quién eres; evitan que un solo teléfono gane con muchas wallets.\nUn acceso de Powerfox o un token de Tibber se guarda cifrado y solo se usa para leer tu contador; al desvincularlo se borra. Tu nombre y avatar se quedan en este teléfono." },
       { q:"¿Un fallo o una idea?", a:"Usa Enviar comentarios abajo — rellena un correo con tu mensaje y algunos datos útiles." },
     ] },
 };

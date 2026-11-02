@@ -6,6 +6,8 @@
 
 import { spawn } from "node:child_process";
 import { createServer } from "node:net";
+import { createServer as createHttpServer } from "node:http";
+import { Certificate, Secp256k1, Address } from "@vechain/sdk-core";
 import { mkdtempSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -132,7 +134,7 @@ async function startServerOnce({ state = {}, env = {} } = {}) {
       const res = await fetch(base + path, { headers });
       return { status: res.status, body: await res.json().catch(() => ({})) };
     },
-    async stop() {
+    async stop({ keepDir = false } = {}) {
       // SIGTERM first: the server flushes debounced state on it, so shutting down
       // this way exercises that path instead of stepping around it.
       child.kill("SIGTERM");
@@ -140,7 +142,7 @@ async function startServerOnce({ state = {}, env = {} } = {}) {
       const timer = setTimeout(() => child.kill("SIGKILL"), 4000);
       await exited;
       clearTimeout(timer);
-      try { rmSync(dir, { recursive: true, force: true }); } catch { /* best effort */ }
+      if (!keepDir) try { rmSync(dir, { recursive: true, force: true }); } catch { /* best effort */ }
     },
   };
 }
@@ -183,4 +185,71 @@ export function stateWithBaseline({ wallet = WALLET, meterNo = "E1000", reading 
     readings: { [key]: reading },
     readingAts: { [key]: Date.now() - agoMs },
   };
+}
+
+// A fake VeChain node: enough of Thor's REST API for the distributor to sign, send
+// and confirm a transaction. `mode` picks how it misbehaves (see the branches);
+// `postDelayMs` holds every transaction POST that long, and `onPost` is called
+// when one arrives.
+export function fakeNode(mode, { revertSelector = null, postDelayMs = 0, onPost = null } = {}) {
+  const seen = new Set();
+  const raws = [];
+  let posts = 0;
+  const best = { id: "0x00000a" + "1".repeat(58), number: 655360, timestamp: Math.floor(Date.now() / 1000), gasLimit: 40000000, baseFeePerGas: "0x9184e72a000", parentID: "0x" + "2".repeat(64) };
+  const genesis = { id: "0x00000000" + "27".repeat(28), number: 0, timestamp: 1530014400, gasLimit: 10000000 };
+  const srv = createHttpServer((req, res) => {
+    let b = ""; req.on("data", (c) => (b += c)); req.on("end", () => handle());
+    function handle() {
+      const send = (o, c = 200) => { res.statusCode = c; res.setHeader("content-type", "application/json"); res.end(JSON.stringify(o)); };
+      const u = req.url;
+      if (u.startsWith("/blocks/0")) return send(genesis);
+      if (u.startsWith("/blocks/best")) return send(best);
+      if (u.startsWith("/fees/history")) return send({ oldestBlock: best.id, baseFeePerGas: ["0x9184e72a000"], gasUsedRatio: [0.5], reward: [["0x0"]] });
+      if (u.startsWith("/fees/priority")) return send({ maxPriorityFeePerGas: "0x0" });
+      if (u.startsWith("/accounts/*")) {
+        const data = (JSON.parse(b || "{}").clauses || [])[0]?.data || "";
+        const reverted = !!revertSelector && data.startsWith(revertSelector);
+        return send([{ data: "0x", events: [], transfers: [], gasUsed: 30000, reverted, vmError: reverted ? "execution reverted" : "" }]);
+      }
+      if (u.startsWith("/accounts/")) return send({ balance: "0x0", energy: "0xffffffffffff", hasCode: false });
+      if (req.method === "POST" && u.startsWith("/transactions") && postDelayMs > 0 && !req.delayed) {
+        onPost?.();
+        req.delayed = true;
+        return setTimeout(() => handle(), postDelayMs);
+      }
+      if (req.method === "POST" && u.startsWith("/transactions")) {
+        if (!postDelayMs) onPost?.();
+        if (mode === "refused") return send({ error: "rejected" }, 400);
+        // Fails the first time without taking it, then takes the same transaction.
+        if (mode === "flaky" && posts++ === 0) return send({ error: "busy" }, 503);
+        seen.add("tx");
+        raws.push(JSON.parse(b).raw);
+        if (mode === "lost-reply") { res.socket.destroy(); return; } // took it, reply never came back
+        return send({ id: "0x" });
+      }
+      // A transaction the node has but no block yet holds: no receipt.
+      if (mode === "no-receipt" && u.includes("/receipt")) return send(null);
+      // Taken, then expired before any block held it: no receipt, unknown to the node.
+      if (mode === "expired" && req.method === "GET" && u.startsWith("/transactions/")) return send(null);
+      if (req.method === "GET" && u.startsWith("/transactions/")) return send(seen.size ? { id: "0x" } : null);
+      send(null);
+    }
+  });
+  return new Promise((r) => srv.listen(0, "127.0.0.1", () => r({ srv, seen, raws, url: `http://127.0.0.1:${srv.address().port}` })));
+}
+
+// An admin wallet for the tests: a fresh key, and certificates signed the way the
+// app signs an /admin/* call (action and parameters, network, time).
+export async function adminSigner() {
+  const priv = await Secp256k1.generatePrivateKey();
+  const address = Address.ofPrivateKey(priv).toString();
+  async function cert(path, body, network = "testnet") {
+    const extra = { ...body };
+    const content = `Green Utility Log — admin\nAction: ${path}|${JSON.stringify(extra, Object.keys(extra).sort())}\nNetwork: ${network}\nTime: ${new Date().toISOString()}`;
+    const base = { purpose: "identification", payload: { type: "text", content }, domain: "test.local", timestamp: Math.floor(Date.now() / 1000), signer: address };
+    const c = Certificate.of(base); c.sign(priv);
+    const signature = typeof c.signature === "string" ? c.signature : Buffer.from(c.signature).toString("hex");
+    return { ...base, signature };
+  }
+  return { address, cert, call: async (srv, path, body) => srv.post(path, { ...body, address, certificate: await cert(path, body) }) };
 }
