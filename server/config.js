@@ -142,9 +142,13 @@ export function computeReward(utility, usage, days = 1) {
 }
 
 // Plausible usage grows with the span as well — otherwise a perfectly normal
-// fortnight's consumption is rejected as "outside the plausible range".
+// fortnight's consumption is rejected as "outside the plausible range". NOT capped at
+// MAX_SPAN_DAYS: that cap is for the savings target. Capped here it made 30 days of
+// normal use "implausible", and since every later reading is higher still, the meter
+// was refused for good. A long gap simply pays nothing (the target stops at a week).
+export const MAX_BOUNDS_DAYS = 400;
 export function usageBoundsFor(utility, days = 1) {
-  const span = Math.min(Math.max(Number(days) || 1, 1), MAX_SPAN_DAYS);
+  const span = Math.min(Math.max(Number(days) || 1, 1), MAX_BOUNDS_DAYS);
   const [lo, hi] = USAGE_BOUNDS[utility] || [0, Infinity];
   return [lo, hi * span];
 }

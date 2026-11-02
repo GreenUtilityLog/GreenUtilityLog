@@ -382,13 +382,15 @@ function checkPlausibility(utilId, usageVal, days = 1) {
   // server: eight kWh a day over a week is 56, not 8. Without this the app was the
   // stricter of the two and refused readings the backend would have paid — anyone
   // who doesn't submit daily was blocked by their own client.
-  const span = Math.min(Math.max(Number(days) || 1, 1), MAX_SPAN_DAYS);
+  // Not capped at MAX_SPAN_DAYS (that's the savings target): a month between two
+  // readings is normal, and capped it was refused for good (server: usageBoundsFor).
+  const span = Math.min(Math.max(Number(days) || 1, 1), 400);
   const ceiling = +(range.max * span).toFixed(2);
   // Almost no usage on a saving meter is accepted (the server records it without a
   // reward and flags it — see nearZeroUsage); only for production meters is a tiny-but-
   // nonzero value treated as a typo. High is abnormal either way.
-  if (!SAVING_UTILS.has(utilId) && usageVal > 0 && usageVal < range.min) return { ok:false, reason:`Usage too low (${usageVal} < ${range.min})` };
-  if (usageVal > ceiling) return { ok:false, reason:`Abnormally high (${usageVal} > ${ceiling})`, tooHigh:true };
+  if (!SAVING_UTILS.has(utilId) && usageVal > 0 && usageVal < range.min) return { ok:false, reason: t("plaus.low", { usage: usageVal, min: range.min }) };
+  if (usageVal > ceiling) return { ok:false, reason: t("plaus.high", { usage: usageVal, max: ceiling }), tooHigh:true };
   return { ok:true };
 }
 
@@ -936,7 +938,9 @@ async function loadTesseract() {
     // two could not be pinned, and they run as this page, next to the wallet session.
     s.src = TESSERACT_FILES + "tesseract.min.js";
     s.onload  = () => resolve(window.Tesseract);
-    s.onerror = reject;
+    // Not cached as failed: one load that failed (offline for a moment) used to
+    // leave every later scan in the session without OCR.
+    s.onerror = (e) => { _tesseractReady = null; s.remove(); reject(e); };
     document.head.appendChild(s);
   });
   return _tesseractReady;
@@ -1136,8 +1140,8 @@ export async function fetchT(url, opts = {}, ms = 30000) {
   } catch (e) {
     if (e?.name === "TimeoutError") {
       throw new Error(ms >= PAYOUT_MS
-        ? "the server didn't answer in time — check your history before trying again (nothing is ever paid twice)"
-        : "the server didn't answer in time — it may be waking up, try again in a minute");
+        ? t("net.timeoutPay")
+        : t("net.timeout"));
     }
     throw e;
   }
@@ -1231,6 +1235,12 @@ async function runOCR(file, claimedReading, utilId) {
       : (remote.text.match(/\d+(?:[.,]\d+)?/g) || []).map(s => parseFloat(s.replace(",", "."))).filter(Number.isFinite);
     return { matched: true, ocrNums: nums, ocrBest: pickMeterReading(nums), ocrConfidence: 90, remote: true };
   }
+  // Offline the worker and its WebAssembly can't load, and the attempt only ends
+  // in an uncaught error from inside the worker. The reading is typed and queued
+  // either way; the server checks the photo itself when it is sent.
+  if (typeof navigator !== "undefined" && navigator.onLine === false) {
+    return { matched: true, ocrNums: [], ocrBest: null, ocrConfidence: 0, ocrFailed: true };
+  }
   try {
     const Tesseract = await loadTesseract();
     const model = OCR_MODEL[utilId] || "eng";
@@ -1278,6 +1288,7 @@ async function ocrFullText(file) {
   // Backend OCR first — a trained model / Vision reads serials far better.
   const remote = await remoteOcr(file);
   if (remote) return (remote.text || remote.numbers.join(" ")).toUpperCase();
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return ""; // see runOCR
   try {
     const Tesseract = await loadTesseract();
     if (!Tesseract?.createWorker) return "";
@@ -1753,7 +1764,7 @@ function IntroScreen({ onStart }) {
       </div>
 
       <div style={{fontSize:10,color:"rgba(255,255,255,0.4)",marginTop:16}}>
-        Slide {slide + 1} of {slides.length}
+        {t("intro.slide", { n: slide + 1, total: slides.length })}
       </div>
     </div>
   );
@@ -1831,7 +1842,7 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
           <div key={u.id} style={{display:"flex",alignItems:"flex-start",gap:12,background:T.card,borderRadius:6,padding:"10px 14px",border:`1px solid ${T.border}`}}>
             <span style={{width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center",color:T[u.id]||T.text,flexShrink:0,marginTop:2}}>{UTIL_ICONS[u.id]}</span>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginBottom:4}}>{u.label} <span style={{fontWeight:400}}>({u.unit})</span>{locked ? <span style={{fontWeight:400,textTransform:"none",letterSpacing:0,color:T.eco||T.text}}> · {t("reg.locked")}</span> : (!needsMeter && <span style={{fontWeight:400,textTransform:"none",letterSpacing:0}}> · optional</span>)}</div>
+              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginBottom:4}}>{utilName(u.id)} <span style={{fontWeight:400}}>({u.unit})</span>{locked ? <span style={{fontWeight:400,textTransform:"none",letterSpacing:0,color:T.eco||T.text}}> · {t("reg.locked")}</span> : (!needsMeter && <span style={{fontWeight:400,textTransform:"none",letterSpacing:0}}> · {t("reg.optional")}</span>)}</div>
               <input
                 type="text"
                 readOnly={locked}
@@ -1862,7 +1873,7 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
       </div>
       {/* Only while solar is offered (it is commented out of UTILS for now). */}
       {SOLAR_UTILS.length > 0 && !isSolarOnly && !allLocked && <div style={{fontSize:11,color:T.textSoft,marginTop:16,textAlign:"center"}}>ℹ️ Got solar panels? Add them later in Settings.</div>}
-      {allLocked && <div style={{fontSize:11,color:T.textSoft,marginTop:16,textAlign:"center"}}>🔒 Locked to prevent fraud. To replace a meter, contact support.</div>}
+      {allLocked && <div style={{fontSize:11,color:T.textSoft,marginTop:16,textAlign:"center"}}>{t("reg.allLocked")}</div>}
       {!allMetersFilled && <div style={{fontSize:11,color:Object.keys(touched).length ? (T === DARK ? "#f08c78" : "#b3261e") : T.textSoft,marginTop:6,textAlign:"center"}}>{t("reg.missing")}</div>}
       <button className="ob-btn" onClick={handleDone} disabled={!allMetersFilled} style={!allMetersFilled?{opacity:.5,cursor:"not-allowed"}:undefined}>{allLocked ? t("reg.done.locked") : (isSolarOnly ? t("reg.done.solar") : t("reg.done"))}</button>
     </div>
@@ -1870,7 +1881,7 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
 }
 
 function Onboarding({ onDone }) {
-  const dlg = useDialog(onDone, "Tutorial");
+  const dlg = useDialog(onDone, t("dlg.tutorial"));
   const [slide, setSlide] = useState(0);
   const slides = ONBOARD_SLIDES();
   const s = slides[slide];
@@ -2412,7 +2423,10 @@ const subTs = (s) => s.submittedAt || localDayTs(s.date) || 0;
 function TodayPanel({ subs, wallet, setTab, onOpenReader, T }) {
   const [reader, setReader] = useState(null); // null = not asked; { paired, fresh, at }
   useEffect(() => {
-    if (!wallet) { setReader(null); return; }
+    // Cleared first: a failed lookup for a new wallet left the previous one's reader
+    // on screen.
+    setReader(null);
+    if (!wallet) return;
     let stop = false;
     let token = "";
     try { token = localStorage.getItem(`gul_mtoken_${wallet.toLowerCase()}`) || ""; } catch { /* no storage */ }
@@ -2801,7 +2815,7 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
             </div>
             <div className="igroup">
               <div className="ilabel">{t("m.current")} <span className="utag">{u.unit}</span></div>
-              <input className="ifield" type="text" inputMode="decimal" autoComplete="off" placeholder={Number.isFinite(parseFloat(prevRead)) ? `above ${prevRead}` : u.ph[1]} value={reading} onChange={e=>setReading(normDecimal(e.target.value))} disabled={!!dualTariff} style={{width:"100%",boxSizing:"border-box"}}/>
+              <input className="ifield" type="text" inputMode="decimal" autoComplete="off" placeholder={Number.isFinite(parseFloat(prevRead)) ? t("m.above", { n: prevRead }) : u.ph[1]} value={reading} onChange={e=>setReading(normDecimal(e.target.value))} disabled={!!dualTariff} style={{width:"100%",boxSizing:"border-box"}}/>
             </div>
           </>
         ) : (
@@ -2812,7 +2826,7 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
             </div>
             <div className="igroup">
               <div className="ilabel">{t("m.current.short")} <span className="utag">{u.unit}</span></div>
-              <input className="ifield" type="text" inputMode="decimal" autoComplete="off" placeholder={Number.isFinite(parseFloat(prevRead)) ? `above ${prevRead}` : u.ph[1]} value={reading} onChange={e=>setReading(normDecimal(e.target.value))} disabled={!!dualTariff}/>
+              <input className="ifield" type="text" inputMode="decimal" autoComplete="off" placeholder={Number.isFinite(parseFloat(prevRead)) ? t("m.above", { n: prevRead }) : u.ph[1]} value={reading} onChange={e=>setReading(normDecimal(e.target.value))} disabled={!!dualTariff}/>
             </div>
           </div>
         )}
@@ -3053,11 +3067,16 @@ function ChartsScreen({ subs, T, part }) {
 
       {/* Usage vs the efficiency target — the core conservation view */}
       {UTILS.map(u => {
-        const myS = subs.filter(s => s.type === u.id).slice(0, 7).reverse();
-        const series = myS.map(s => ({ v: usageOf(s), label: fmtDay(s.date || "") }));
         // Production meters (solar) have no "stay under" target — more is better,
         // so they get plain green bars and no target framing.
         const saving = SAVING_UTILS.has(u.id);
+        // Usage PER DAY over each reading's span, against the per-day target: a
+        // 3-day reading of 18 kWh is 6 a day, under the 8 a day target. Drawn as a
+        // total it showed red, "above target", for a reading that paid a saving.
+        // Failed rows and a meter's first reading (no span: nothing to compare) are
+        // left out.
+        const myS = subs.filter(s => s.type === u.id && s.status !== "failed" && (!saving || spanOfSub.get(s))).slice(0, 7).reverse();
+        const series = myS.map(s => ({ v: saving ? usageOf(s) / spanOfSub.get(s) : usageOf(s), label: fmtDay(s.date || "") }));
         const bench = saving ? (USAGE_BENCHMARK[u.id] ?? 0) : 0;
         const avg = series.length ? series.reduce((a, d) => a + d.v, 0) / series.length : 0;
         // Scale so the target line is always on-canvas, even when every bar is below it.
@@ -3067,18 +3086,18 @@ function ChartsScreen({ subs, T, part }) {
           <div key={u.id} className="chart-card">
             <div className="chart-hdr">
               <div className="chart-title">{saving ? t("c.usageVsTarget", { label: utilName(u.id) }) : `${utilName(u.id)} — production`}</div>
-              <div style={{fontSize:10,color:T.textSoft}}>{series.length ? t("c.avg", { n: avg.toFixed(1), unit: u.unit }) : ""}</div>
+              <div style={{fontSize:10,color:T.textSoft}}>{series.length ? t("c.avg", { n: avg.toFixed(1), unit: saving ? t("c.perDayUnit", { unit: u.unit }) : u.unit }) : ""}</div>
             </div>
             {series.length ? (
               <>
                 <div style={{position:"relative",height:110,display:"flex",alignItems:"flex-end",gap:2,padding:"14px 2px 0"}}>
                   {bench > 0 && (
                     <div style={{position:"absolute",left:0,right:0,bottom:`${(bench / maxScale) * 100}%`,borderTop:`2px dashed ${T.textSoft}`,zIndex:1}}>
-                      <span style={{position:"absolute",right:2,top:-14,fontSize:10.5,fontWeight:700,color:T.textSoft,background:T.card,padding:"0 3px"}}>{t("c.target", { n: bench, unit: u.unit })}</span>
+                      <span style={{position:"absolute",right:2,top:-14,fontSize:10.5,fontWeight:700,color:T.textSoft,background:T.card,padding:"0 3px"}}>{t("c.target", { n: bench, unit: t("c.perDayUnit", { unit: u.unit }) })}</span>
                     </div>
                   )}
                   {series.map((d, i) => (
-                    <div key={i} title={`${d.label}: ${d.v.toFixed(2)} ${u.unit}${saving ? ` — ${d.v <= bench ? "under" : "above"} target` : " produced"}`}
+                    <div key={i} title={t(!saving ? "c.tipProduced" : d.v <= bench ? "c.tipUnder" : "c.tipAbove", { label: d.label, v: d.v.toFixed(2), unit: saving ? t("c.perDayUnit", { unit: u.unit }) : u.unit })}
                       style={{flex:1,height:`${Math.max(4, (d.v / maxScale) * 100)}%`,background: !saving || d.v <= bench ? T.green3 : T.electric,borderRadius:"4px 4px 0 0"}} />
                   ))}
                 </div>
@@ -3241,7 +3260,7 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
             </div>
           )}
         </div>
-        <div role="progressbar" aria-label={nextTier ? `Progress to ${nextTier.name} tier` : "Top tier"} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent}
+        <div role="progressbar" aria-label={nextTier ? t("p.progressTo", { tier: t("p.tier", { name: nextTier.name }) }) : t("p.topTier")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent}
           style={{ height: 8, borderRadius: 999, background: T.bgAlt, overflow: "hidden", marginTop: 12 }}>
           <div style={{ width: `${progressPercent}%`, height: "100%", background: T.green3, transition: "width .3s" }} />
         </div>
@@ -3461,24 +3480,24 @@ function ProfileHero({ wallet, domain, tier, summary, role, onToast, T }) {
       {editing ? (
         <div style={{marginTop:14}}>
           <label style={{display:"block",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginBottom:6}}>
-            Name
-            <input value={draft.name} maxLength={PROFILE_NAME_MAX} placeholder={domain || "Your name"}
+            {t("prof.name")}
+            <input value={draft.name} maxLength={PROFILE_NAME_MAX} placeholder={domain || t("prof.yourName")}
               onChange={(e) => setDraft(d => ({ ...d, name: e.target.value }))}
               style={{display:"block",width:"100%",boxSizing:"border-box",marginTop:6,background:T.bg,border:`1px solid ${T.border}`,borderRadius:6,padding:"10px 12px",fontSize:14,color:T.text,outline:"none",textTransform:"none",letterSpacing:0,fontWeight:500}} />
           </label>
-          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,margin:"12px 0 6px"}}>Photo</div>
+          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,margin:"12px 0 6px"}}>{t("prof.photo")}</div>
           {/* Kept in the layout and driven by a <label>, not display:none + .click():
               VeWorld's WebView silently ignores that (see HIDDEN_FILE_INPUT). */}
           <input id="gul-profile-photo" ref={fileRef} type="file" accept="image/*" onChange={pickPhoto} style={HIDDEN_FILE_INPUT} />
           <div style={{display:"flex",gap:8}}>
             <label htmlFor="gul-profile-photo" style={{flex:1,textAlign:"center",background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"10px",fontSize:12,fontWeight:700,color:T.text,cursor:"pointer"}}>
-              📷 {draft.photo ? "Change photo" : "Choose a photo"}
+              📷 {draft.photo ? t("prof.changePhoto") : t("prof.choosePhoto")}
             </label>
             {draft.photo && (
-              <button onClick={() => setDraft(d => ({ ...d, photo: "" }))} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"10px 12px",fontSize:12,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Remove</button>
+              <button onClick={() => setDraft(d => ({ ...d, photo: "" }))} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"10px 12px",fontSize:12,fontWeight:700,color:T.textMid,cursor:"pointer"}}>{t("prof.remove")}</button>
             )}
           </div>
-          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,margin:"12px 0 6px"}}>Or an avatar</div>
+          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,margin:"12px 0 6px"}}>{t("prof.orAvatar")}</div>
           <div role="radiogroup" aria-label="Avatar" style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:6}}>
             {AVATARS.map(a => {
               const on = (draft.avatar || "🌱") === a;
@@ -3490,10 +3509,10 @@ function ProfileHero({ wallet, domain, tier, summary, role, onToast, T }) {
               );
             })}
           </div>
-          <div style={{fontSize:10,color:T.textSoft,lineHeight:1.5,marginTop:10}}>Only on this device — nobody else sees your name or photo.</div>
+          <div style={{fontSize:10,color:T.textSoft,lineHeight:1.5,marginTop:10}}>{t("prof.deviceOnly")}</div>
           <div style={{display:"flex",gap:8,marginTop:12}}>
-            <button onClick={() => setEditing(false)} style={{flex:1,background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"11px",fontSize:12,fontWeight:700,color:T.textMid,cursor:"pointer"}}>Cancel</button>
-            <button onClick={save} style={{flex:2,background:"#2E7D32",border:"none",borderRadius:6,padding:"11px",fontSize:12,fontWeight:800,color:"#fff",cursor:"pointer"}}>Save</button>
+            <button onClick={() => setEditing(false)} style={{flex:1,background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"11px",fontSize:12,fontWeight:700,color:T.textMid,cursor:"pointer"}}>{t("prof.cancel")}</button>
+            <button onClick={save} style={{flex:2,background:"#2E7D32",border:"none",borderRadius:6,padding:"11px",fontSize:12,fontWeight:800,color:"#fff",cursor:"pointer"}}>{t("prof.save")}</button>
           </div>
         </div>
       ) : (
@@ -3510,28 +3529,26 @@ function ProfileHero({ wallet, domain, tier, summary, role, onToast, T }) {
 // to "Only with a role". The address is what the team needs to give one.
 function NoAccessScreen({ wallet, T, onSwitch, onToast }) {
   const copy = async () => {
-    try { await navigator.clipboard.writeText(wallet); onToast?.("📋 Address copied"); }
-    catch { onToast?.("Couldn't copy here — select the address and copy it by hand."); }
+    try { await navigator.clipboard.writeText(wallet); onToast?.(t("noacc.copied")); }
+    catch { onToast?.(t("noacc.copyFail")); }
   };
   return (
     <div style={{margin:"24px 16px",padding:"22px 18px",background:T.card,border:`1px solid ${T.border}`,borderRadius:10,textAlign:"center"}}>
       <div style={{fontSize:34,lineHeight:1}} aria-hidden="true">🔒</div>
       <h2 style={{fontSize:17,fontWeight:800,color:T.text,margin:"12px 0 6px"}}>
-        {NETWORK === "mainnet" ? "Not open yet" : "This test version is for testers"}
+        {NETWORK === "mainnet" ? t("noacc.titleMain") : t("noacc.titleTest")}
       </h2>
       <p style={{fontSize:12.5,color:T.textMid,lineHeight:1.6,margin:"0 0 14px"}}>
-        {NETWORK === "mainnet"
-          ? "Green Utility Log is opening in steps. Your wallet doesn't have access yet."
-          : "Only wallets the team has given a tester role can use it."}
-        {" "}Send the team this address to ask for access:
+        {NETWORK === "mainnet" ? t("noacc.bodyMain") : t("noacc.bodyTest")}
+        {" "}{t("noacc.ask")}
       </p>
       <div style={{fontFamily:"'SF Mono',Menlo,monospace",fontSize:11.5,color:T.text,background:T.bgAlt,border:`1px solid ${T.border}`,borderRadius:6,padding:"9px 10px",wordBreak:"break-all",userSelect:"all"}}>{wallet}</div>
       <div style={{display:"flex",gap:8,marginTop:12}}>
-        <button type="button" onClick={copy} style={{flex:1,padding:"11px",fontSize:12,fontWeight:800,color:T === DARK ? T.bg : "#fff",background:T.green2,border:"none",borderRadius:6,cursor:"pointer"}}>Copy address</button>
-        <button type="button" onClick={onSwitch} style={{flex:1,padding:"11px",fontSize:12,fontWeight:700,color:T.textMid,background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,cursor:"pointer"}}>Use another wallet</button>
+        <button type="button" onClick={copy} style={{flex:1,padding:"11px",fontSize:12,fontWeight:800,color:T === DARK ? T.bg : "#fff",background:T.green2,border:"none",borderRadius:6,cursor:"pointer"}}>{t("noacc.copy")}</button>
+        <button type="button" onClick={onSwitch} style={{flex:1,padding:"11px",fontSize:12,fontWeight:700,color:T.textMid,background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,cursor:"pointer"}}>{t("noacc.switch")}</button>
       </div>
       {MAIN_APP_URL && NETWORK !== "mainnet" && (
-        <p style={{fontSize:11,color:T.textSoft,marginTop:14}}>Looking for the app itself? <a href={MAIN_APP_URL} style={{color:T.green3,fontWeight:700}}>Open Green Utility Log</a></p>
+        <p style={{fontSize:11,color:T.textSoft,marginTop:14}}>{t("noacc.lookingFor")} <a href={MAIN_APP_URL} style={{color:T.green3,fontWeight:700}}>{t("noacc.open")}</a></p>
       )}
     </div>
   );
@@ -3615,7 +3632,7 @@ function SettingsScreen({ lang, onLang, b3tr, subs, wallet, setShowWallet, dark,
       {group(t("set.data"))}
       <div style={listCard(T)}>
         <RowButton T={T} icon="📄" label={t("set.report")} sub={t("set.report.sub")} last
-          onClick={async () => { const ok = await generateMonthlyPDF(b3tr, subs); onToast?.(ok ? "📄 Report downloaded" : "❌ Couldn't generate the report"); }} />
+          onClick={async () => { const ok = await generateMonthlyPDF(b3tr, subs); onToast?.(ok ? t("set.reportOk") : t("set.reportFail")); }} />
       </div>
 
       {group(t("set.account"))}
@@ -3774,7 +3791,7 @@ function HelpScreen({ onClose, onFeedback, onLang, T }) {
     <div {...dlg} style={{position:"fixed",inset:OVERLAY_INSET,background:T.bg,zIndex:330,display:"flex",flexDirection:"column"}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 18px",borderBottom:`1px solid ${T.border}`}}>
         <div>
-          <div style={{fontSize:14,fontWeight:800,color:T.text}}>❓ Help &amp; FAQ</div>
+          <div style={{fontSize:14,fontWeight:800,color:T.text}}>{t("help.title")}</div>
           <div style={{fontSize:10.5,fontWeight:700,textTransform:"uppercase",letterSpacing:".8px",color:T.textSoft,marginTop:2}}>{L.subtitle} · {NETWORK_LABEL}</div>
         </div>
         <button onClick={onClose} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"6px 14px",minHeight:44,fontSize:12,fontWeight:700,color:T.textMid,cursor:"pointer"}}>{L.close}</button>
@@ -3818,8 +3835,8 @@ function HelpScreen({ onClose, onFeedback, onLang, T }) {
           style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,marginTop:16,
             background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"13px 14px",textDecoration:"none"}}>
           <span>
-            <span style={{display:"block",fontSize:12.5,fontWeight:700,color:T.text}}>📖 Automatic meter reading — full guide</span>
-            <span style={{display:"block",fontSize:10.5,color:T.textSoft,marginTop:2}}>P1 reader, Home Assistant & other readers · step by step</span>
+            <span style={{display:"block",fontSize:12.5,fontWeight:700,color:T.text}}>{t("help.guide")}</span>
+            <span style={{display:"block",fontSize:10.5,color:T.textSoft,marginTop:2}}>{t("help.guideSub")}</span>
           </span>
           <span style={{color:T.green3,fontWeight:800}}>↗</span>
         </a>
@@ -4210,9 +4227,9 @@ export default function App() {
       if (!res.ok) throw new Error(d.error || `could not reconcile (${res.status})`);
       setFixBasis(null);
       setPrevRead(String(d.to));
-      showToast(`✅ Starting point set to ${d.to} ${d.unit || ""} — submit again from your next reading`);
+      showToast(t("fix.done", { n: d.to, unit: d.unit || "" }));
     } catch (e) {
-      showToast(`❌ ${e?.message || "could not reconcile this meter"}`);
+      showToast(`❌ ${e?.message || t("fix.fail")}`);
     } finally { setFixBusy(false); }
   };
   const [regLow, setRegLow]         = useState("");
@@ -4245,6 +4262,11 @@ export default function App() {
     setSubs(local);
     setB3tr(earnedTotal(local));
     setReading(""); setPrevRead(""); prevReadEdited.current = false; setAiOk(false); setPhoto(null);
+    // Everything else that belongs to the previous wallet: its tariff registers, its
+    // "reconcile" card (which would sign for its meter with this wallet), what the
+    // server said about its meters, and its token balance.
+    setDualTariff(false); setRegLow(""); setRegNormal(""); setFixBasis(null);
+    setServerLast(null); setRegHint({}); setWalletB3tr(null);
     setVerifyKey(k => k + 1);
     setTab("home");
 
@@ -4442,7 +4464,7 @@ export default function App() {
               // retrying can't change it, so take it out of the queue.
               const reason = data.error || `refused (${res.status})`;
               await markFailed(item.id, reason);
-              refused.push(`${getUtil(item.type).label} ${item.cur}: ${reason}`);
+              refused.push(`${utilName(item.type)} ${item.cur}: ${reason}`);
             } else {
               await markBroadcasting(item.id, false);   // 5xx: try again next time
               uncertain = true;
@@ -4741,14 +4763,28 @@ export default function App() {
   // Conservation reward: you earn for using LESS than the benchmark, not more.
   // The benchmark covers the days since this meter's last reading, so a reading that
   // spans several days is judged against several days of allowance.
-  const daysSinceLast = () => {
-    const last = subs.find(x => x.type === selUtil && x.submittedAt);
-    return last ? spanDays(Date.now() - last.submittedAt) : 1;
+  // When this meter was last read: the later of this device's last row and the
+  // server's record (a reading made on another phone, or one recorded without a
+  // reward, is only in the latter). The preview measured from the device alone and
+  // promised a week's allowance for a meter the server had read yesterday.
+  const serverLastFor = (id) => {
+    const mine = String(meters?.[id] || "").trim().toLowerCase();
+    return (serverLast || []).find(r => r.utility === id && String(r.meterNo).toLowerCase() === mine) || null;
   };
+  const lastReadAt = () => {
+    const local = subs.find(x => x.type === selUtil && x.status !== "failed" && subTs(x));
+    const srvAt = Number(serverLastFor(selUtil)?.at) || 0;
+    return Math.max(local ? subTs(local) : 0, srvAt) || null;
+  };
+  const daysSinceLast = () => { const at = lastReadAt(); return at ? spanDays(Date.now() - at) : 1; };
+  // The real gap, uncapped: what counts as plausible grows with it (the server does
+  // the same, usageBoundsFor), while the savings target stops at a week.
+  const gapDays = () => { const at = lastReadAt(); return at ? Math.max(1, (Date.now() - at) / 86400000) : 1; };
   // A meter's first reading earns nothing (the server can't vouch for a starting
   // point it never recorded); the saving is paid from the next one. Paid rows come
-  // back from chain on connect, recorded ones are kept on this device.
-  const firstForUtil = () => !subs.some(x => x.type === selUtil && x.status !== "failed" && x.type !== "eco");
+  // back from chain on connect, recorded ones are kept on this device, and the
+  // server knows about readings made elsewhere.
+  const firstForUtil = () => !serverLastFor(selUtil) && !subs.some(x => x.type === selUtil && x.status !== "failed" && x.type !== "eco");
   // The full-rate amount: kWh saved × rate, nothing for a first or near-zero reading.
   const fullReward = () => {
     if (!readingReady()) return 0;
@@ -4794,7 +4830,7 @@ export default function App() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw httpError(data.error || `service error ${res.status}`, res.status);
       const paid = Number(data.amount) || 0;
-      if (!sameWallet(payWallet)) { showToast(`⚡ Automatic reading +${paid} B3TR paid to ${payWallet.slice(0, 6)}…${payWallet.slice(-4)} (the wallet you started with)`); return; }
+      if (!sameWallet(payWallet)) { showToast(t("auto.otherWallet", { amount: paid, wallet: `${payWallet.slice(0, 6)}…${payWallet.slice(-4)}` })); return; }
       // The server answers with the reading and the usage it paid for, not the
       // previous reading; derive that, so history shows "x kWh" instead of "NaN".
       const curN = Number(data.reading), useN = Number(data.usage);
@@ -4866,7 +4902,7 @@ export default function App() {
     // to the verified photo, so a reading edited after the green "verified" badge
     // can no longer pass unchecked.
     const usageVal = usage();
-    const plaus = checkPlausibility(selUtil, usageVal, daysSinceLast());
+    const plaus = checkPlausibility(selUtil, usageVal, gapDays());
     // One exception: a gap too big for ANY span, with both tariff registers filled
     // in, is the double-tariff mismatch. The app already says so above the button
     // and tells the user to submit anyway — and it has to, because the correction
@@ -4924,7 +4960,10 @@ export default function App() {
         showToast(t("s.offlineFail"));
         return;
       }
-      setAiOk(false); setPhoto(null); setReading(""); setPrevRead(""); prevReadEdited.current = false; setVerifyKey(k=>k+1);
+      // The queued reading is the next one's starting point. Cleared instead, the field
+      // stayed empty (nothing that refills it changes until the queue syncs) and the
+      // Submit button sat on "Enter reading".
+      setAiOk(false); setPhoto(null); setReading(""); setPrevRead(String(reading)); prevReadEdited.current = false; setVerifyKey(k=>k+1);
       setBusy(false);
       showToast(t("s.offlineSaved"));
       return;
@@ -5036,7 +5075,9 @@ export default function App() {
       <style>{CSS}</style>
       {showIntro && <IntroScreen onStart={() => { setShowIntro(false); try { localStorage.setItem('greenlog_seen_intro', 'true'); } catch { /* storage blocked */ } }} />}
       {!showIntro && !wallet && <WalletGate onConnect={openConnectModal} online={online} />}
-      {needsBaselines && <BaselineOnboarding onDone={(bl, mtrs) => { setBaselines(bl); setMeters(mtrs); closeRegistration(); }} utils={regUtils} editMode={regEdit} existingBaselines={baselines} existingMeters={meters} T={T} />}
+      {/* Not under the intro: its dialog took the keyboard focus and trapped Tab in
+          fields nobody could see, so Next and Skip on the intro were unreachable. */}
+      {needsBaselines && !showIntro && <BaselineOnboarding onDone={(bl, mtrs) => { setBaselines(bl); setMeters(mtrs); closeRegistration(); }} utils={regUtils} editMode={regEdit} existingBaselines={baselines} existingMeters={meters} T={T} />}
       {!onboarded && <Onboarding onDone={() => setOnboarded(true)} />}
       {showAdmin && isAdmin && <Suspense fallback={<div role="status" style={{position:"fixed",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.4)",color:"#fff",zIndex:400}}>Loading…</div>}><AdminScreen onClose={() => setShowAdmin(false)} T={T} wallet={wallet} onFundPool={handleFundPool} onMoveToRewardsPool={handleMoveToRewardsPool} onDisableRewardsPool={handleDisableRewardsPool} onSetDistributionPaused={handleSetDistributionPaused} onAssignSignaler={handleAssignSignaler} onClaimB3TR={FAUCET_ENABLED ? handleClaimB3TR : null} onAdminApi={adminApi} onToast={showToast} /></Suspense>}
       {showHelp && <HelpScreen onLang={changeLang} onClose={() => setShowHelp(false)} onFeedback={() => { setShowHelp(false); setShowFeedback(true); }} T={T} />}
@@ -5046,9 +5087,9 @@ export default function App() {
           <div style={{wordBreak:"break-word"}}>{toast.msg}</div>
           <div style={{display:"flex",gap:8,marginTop:10}}>
             <button onClick={() => { navigator.clipboard?.writeText(toast.msg).catch(() => {}); }}
-              style={{flex:1,background:T.gas,color:T.bg,border:0,borderRadius:6,padding:"8px 10px",fontSize:11,fontWeight:800,cursor:"pointer"}}>📋 Copy error</button>
+              style={{flex:1,background:T.gas,color:T.bg,border:0,borderRadius:6,padding:"8px 10px",fontSize:11,fontWeight:800,cursor:"pointer"}}>{t("toast.copyError")}</button>
             <button onClick={() => setToast(null)}
-              style={{background:"transparent",color:T.gas,border:`1px solid ${T.gasBorder}`,borderRadius:6,padding:"8px 12px",fontSize:11,fontWeight:800,cursor:"pointer"}}>✕ Close</button>
+              style={{background:"transparent",color:T.gas,border:`1px solid ${T.gasBorder}`,borderRadius:6,padding:"8px 12px",fontSize:11,fontWeight:800,cursor:"pointer"}}>{t("toast.close")}</button>
           </div>
         </div>
       ) : (
@@ -5071,7 +5112,7 @@ export default function App() {
               </div>
             </div>
             <div className="hdr-actions">
-              <div className={`hdr-online ${online ? "is-online" : ""}`} title={online ? "Online" : "Offline"} aria-label={online ? "Online" : "Offline"} style={{display:"flex",alignItems:"center",justifyContent:"center",width:30,height:30,borderRadius:6,border:`1px solid ${online?T.green4:T.gasBorder}`,background:online?T.green5:T.gasBg,flexShrink:0}}>
+              <div className={`hdr-online ${online ? "is-online" : ""}`} title={online ? t("hdr.online") : t("hdr.offline")} aria-label={online ? t("hdr.online") : t("hdr.offline")} style={{display:"flex",alignItems:"center",justifyContent:"center",width:30,height:30,borderRadius:6,border:`1px solid ${online?T.green4:T.gasBorder}`,background:online?T.green5:T.gasBg,flexShrink:0}}>
                 <div style={{width:7,height:7,borderRadius:"50%",background:online?T.green3:T.gas,animation:online?"pulse 2.5s infinite":"none"}}/>
               </div>
               {/* Light/dark, one tap from every screen again — it had moved into
@@ -5087,7 +5128,7 @@ export default function App() {
               <button
                 className={`wallet-pill ${wallet ? "connected" : ""}`}
                 onClick={openConnectModal}
-                title={wallet || "Connect wallet"}
+                title={wallet || t("hdr.connectWallet")}
               >
                 <span className={`wdot ${wallet ? "" : "off"}`} />
                 <span className="waddr">
@@ -5107,7 +5148,7 @@ export default function App() {
 
           {networkMismatch && (
             <div role="alert" style={{margin:"10px 14px 0",padding:"10px 12px",fontSize:11.5,lineHeight:1.5,fontWeight:600,color:"#7a1c1c",background:"#fdecec",border:"1px solid #e3a3a3",borderRadius:6}}>
-              ⚠️ This app is set up for <b>{NETWORK}</b>, but its reward server runs on <b>{serverNetwork}</b>. Submitting is paused until that's fixed — please let the team know.
+              {t("net.mismatch", { app: NETWORK, server: serverNetwork })}
             </div>
           )}
 

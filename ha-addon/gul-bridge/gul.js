@@ -34,6 +34,7 @@
 //                 Powerfox e-mail; asks for the password once and keeps it in
 //                 the private settings file (GUL_POWERFOX_PASS for Docker)
 //   --once        push one reading and exit                       (ONCE=1)
+//   --forget-last accept a lower total once, after a meter change (GUL_FORGET_LAST=1)
 //   --install     run twice a day by itself (Windows Task Scheduler, cron elsewhere)
 //   --uninstall   remove that schedule again
 
@@ -47,7 +48,7 @@ const https = require("node:https");
 // Sent with every request as the User-Agent, so the server can tell which bridge
 // versions are still out there. The Home Assistant add-on carries the same number
 // (ha-addon/gul-bridge/config.yaml); CI checks they match.
-const BRIDGE_VERSION = "1.5.3";
+const BRIDGE_VERSION = "1.5.4";
 const USER_AGENT = `GreenUtilityLog-bridge/${BRIDGE_VERSION} (node ${process.versions.node}; ${process.platform})`;
 // No meter, reader or server answer is anywhere near this. A device or proxy that
 // streams without end used to fill the bridge's memory.
@@ -150,17 +151,26 @@ const READ_FLAGS = ["ip", "url", "tasmota", "field", "interval"];
 // A source given now (a flag or its environment variable) replaces the saved
 // source as a whole: an --ip typed today used to lose to a --tasmota saved by an
 // earlier setup, and the old reader kept being read.
-const SOURCE_SETTINGS = { ip: "HW_IP", url: "READ_URL", tasmota: "TASMOTA_IP" };
+// A Powerfox account counts too (--powerfox=<e-mail> or GUL_POWERFOX_USER), but a
+// bare --powerfox does not: that is the scheduled job asking for the saved account.
+const SOURCE_SETTINGS = { ip: "HW_IP", url: "READ_URL", tasmota: "TASMOTA_IP", powerfox: "GUL_POWERFOX_USER" };
 const sourceGivenNow = Object.entries(SOURCE_SETTINGS).some(([f, env]) => (FLAGS[f] && FLAGS[f] !== "1") || process.env[env]);
 const SAVED_READ = (() => {
   const r = SAVED.read && typeof SAVED.read === "object" ? { ...SAVED.read } : {};
   if (sourceGivenNow) for (const k of [...Object.keys(SOURCE_SETTINGS), "field"]) delete r[k];
   return r;
 })();
+// The environment variable behind each saved reader setting. --install saves what
+// came in this way just like a flag: a setup done as HW_IP=… node gul.js --install
+// used to read the meter once and then schedule a job that knew nothing of it,
+// because cron and Task Scheduler don't see the variables of that shell.
+const READ_ENV = { ip: "HW_IP", url: "READ_URL", tasmota: "TASMOTA_IP", field: "READ_FIELD", interval: "INTERVAL_SEC" };
 const pickRead = (flag, env, fallback = "") => pick(flag, env, SAVED_READ[flag] ?? fallback);
 
 let TOKEN = pick("token", "GUL_TOKEN", SAVED.token || "");
-const FIXED_IP = pickRead("ip", "HW_IP");
+// Scheme and path dropped, as for --tasmota: an address pasted from the browser
+// (http://192.168.1.50/) used to become http://http://192.168.1.50//api/v1/data.
+const FIXED_IP = pickRead("ip", "HW_IP").replace(/^https?:\/\//i, "").replace(/\/.*$/, "");
 // Twelve hours, not one. A reading can only be claimed once per COOLDOWN_MS (20h)
 // and /meter-ingest keeps only the newest value, so 23 of 24 hourly pushes are
 // discarded. Two a day still leaves a wide margin against the 48h staleness rule,
@@ -193,7 +203,16 @@ const READ_FIELD = pickRead("field", "READ_FIELD");
 // --powerfox=<e-mail> (or bare --powerfox: the account saved by an earlier run).
 // The password is never a flag in a scheduled task: it is asked once and kept in
 // the private settings file next to this script, like the device token.
-const POWERFOX = FLAGS.powerfox !== undefined || !!process.env.GUL_POWERFOX_USER;
+// Also when nothing says so now but the last --install was for Powerfox (read.powerfox):
+// running --install again, which the guide says to do when something is off, used to
+// forget that, and the new schedule went looking for a HomeWizard instead. An install
+// from before read.powerfox existed left only the account behind (and --powerfox in
+// its schedule), so a re-install that finds an account and no other reader saved
+// takes that as Powerfox too. A reader given now (sourceGivenNow) replaces all this.
+const SAVED_POWERFOX = !sourceGivenNow && (SAVED_READ.powerfox === true || (
+  SAVED_READ.powerfox === undefined && FLAGS.install === "1" && !!SAVED.powerfoxUser && !!SAVED.powerfoxPass
+  && !SAVED_READ.ip && !SAVED_READ.url && !SAVED_READ.tasmota));
+const POWERFOX = FLAGS.powerfox !== undefined || !!process.env.GUL_POWERFOX_USER || SAVED_POWERFOX;
 const PF = {
   user: (FLAGS.powerfox && FLAGS.powerfox !== "1" ? FLAGS.powerfox : (process.env.GUL_POWERFOX_USER || SAVED.powerfoxUser || "")).trim(),
   pass: String(FLAGS["powerfox-pass"] || process.env.GUL_POWERFOX_PASS || SAVED.powerfoxPass || ""),
@@ -483,6 +502,7 @@ function pushOnce(reading) {
       collect(res, req, (body) => {
         if (res.statusCode >= 200 && res.statusCode < 300) return resolve(body);
         const err = new Error(`server said ${res.statusCode}: ${short(body)}`);
+        err.status = res.statusCode;
         err.retry = res.statusCode === 502 || res.statusCode === 503 || res.statusCode === 504 || res.statusCode === 429;
         reject(err);
       });
@@ -509,7 +529,17 @@ async function push(reading) {
 }
 
 let lastIp = FIXED_IP || null;
+// --forget-last, or GUL_FORGET_LAST=1 for the Home Assistant add-on and Docker, which
+// can't pass a flag: after a meter change the remembered total is higher than
+// anything the new meter reports, and every reading was refused, forever. Honoured
+// once per start, by the first cycle that gets a reading: left on in a long-running
+// add-on, it would otherwise wave every lower reading through, also a broken one.
+let forgetLast = FLAGS["forget-last"] === "1" || process.env.GUL_FORGET_LAST === "1";
+// Set when the server refused the device token (401), so the long-running loop can
+// wait hours instead of minutes before asking again (see main()).
+let tokenRefused = false;
 async function cycle() {
+  tokenRefused = false;
   try {
     let reading, split = "";
     if (POWERFOX) {
@@ -538,10 +568,14 @@ async function cycle() {
     if (!(typeof reading === "number" && Number.isFinite(reading) && reading > 0)) {
       log(`the reader gave ${reading} — not a meter total, nothing sent`); return false;
     }
-    if (FLAGS["forget-last"] === "1") saveConfig({ lastReading: null });
+    if (forgetLast) {
+      saveConfig({ lastReading: null });
+      forgetLast = false;
+      log("forgot the total sent last time (forget-last) — this reading counts as the new starting point");
+    }
     const prevSent = Number(readSaved().lastReading);
-    if (FLAGS["forget-last"] !== "1" && Number.isFinite(prevSent) && prevSent > 0 && reading < prevSent - 0.001) {
-      log(`the reader gave ${reading} kWh, lower than the ${prevSent} kWh sent last time — a meter never goes down, so nothing was sent. A new meter? Run once with --forget-last.`);
+    if (Number.isFinite(prevSent) && prevSent > 0 && reading < prevSent - 0.001) {
+      log(`the reader gave ${reading} kWh, lower than the ${prevSent} kWh sent last time — a meter never goes down, so nothing was sent. A new meter? Run once with --forget-last (Home Assistant add-on: switch on forget_last and restart it).`);
       return false;
     }
     const body = await push(reading);
@@ -557,6 +591,10 @@ async function cycle() {
     // the scheduled runs can try again. Only a refused login is not kept.
     if (POWERFOX && !e.auth && !SAVED_PF_OK && PF.user && PF.pass) { saveConfig({ powerfoxUser: PF.user, powerfoxPass: PF.pass }); SAVED_PF_OK = true; }
     log("cycle failed:", e?.message || e);
+    if (e?.status === 401) {
+      tokenRefused = true;
+      log("the server does not accept this device token — asking again won't change that. Get a new one in the app (Meter → ⚡ Automatic setup) and put it in: --ask-token --install on a computer, the token field in the Home Assistant add-on, GUL_TOKEN in Docker.");
+    }
     if (!READ_URL && !POWERFOX) lastIp = FIXED_IP || null; // re-discover next time in case the IP changed
     return false;
   }
@@ -572,18 +610,22 @@ async function cycle() {
 // needs no window, survives a reboot, and needs no admin rights. The schedule matches
 // the push interval for the same reason it was chosen: a reading only has to be under
 // 48 hours old, so twice a day leaves room for two missed runs.
-// The flags that say where to read and where to send. Only the token is saved to
-// disk, so anything scheduled has to be given these again or it quietly falls back
-// to auto-discovery — which is what fails for the people who needed --ip.
-function keptFlags() {
+// The flags the scheduled job still needs on its command line: where to send, and
+// whether it is Powerfox. Where to read is in the settings file (READ_FLAGS).
+// Returned as separate words, for the caller to quote the way its scheduler wants.
+function keptArgs() {
   // Only --ingest: it picks which settings file is read (SUFFIX). The rest is in
-  // that file (see READ_FLAGS).
-  return [...["ingest"]
-    .filter((k) => FLAGS[k] && FLAGS[k] !== "1")
-    .map((k) => `--${k}=${FLAGS[k]}`),
+  // that file (see READ_FLAGS). Given as GUL_INGEST_URL it is written out as the
+  // flag: the scheduled job doesn't see this shell's variables, so it read the
+  // default server's settings file and said "No device token".
+  return [...(INGEST !== DEFAULT_INGEST ? [`--ingest=${INGEST}`] : []),
     // Powerfox: only that it is Powerfox — the account comes from the settings file.
-    ...(POWERFOX ? ["--powerfox"] : [])]
-    .join(" ");
+    ...(POWERFOX ? ["--powerfox"] : [])];
+}
+function keptFlags() {
+  // Task Scheduler splits the command at spaces like any Windows program does; an
+  // argument with one in it goes in double quotes (a URL never holds a " itself).
+  return keptArgs().map((a) => (/\s/.test(a) ? `"${a}"` : a)).join(" ");
 }
 
 function taskCommand(action) {
@@ -639,7 +681,7 @@ function manageCron(action) {
   // Single-quoted for sh: a space in a path or an & in --url would otherwise split
   // or background the command. ' itself becomes '\''.
   const q = (v) => `'${String(v).replace(/'/g, "'\\''")}'`;
-  const keep = [...["ingest"].filter((k) => FLAGS[k] && FLAGS[k] !== "1").map((k) => q(`--${k}=${FLAGS[k]}`)), ...(POWERFOX ? ["--powerfox"] : [])].join(" ");
+  const keep = keptArgs().map((a) => (a.startsWith("--ingest=") ? q(a) : a)).join(" ");
   const cmd = `${q(stableNodePath())} ${q(process.argv[1])} --once --due${keep ? " " + keep : ""}`;
   // Every hour, but --due makes it push only when the last reading is 11 h old:
   // twice a day in practice, and caught up within the hour when the machine wakes.
@@ -721,10 +763,22 @@ async function main() {
     // A task is useless without a token: it runs unattended and cannot ask.
     if (!(await ensureToken())) process.exit(1);
     if (!(await ensurePowerfox())) process.exit(1);
-    // What this setup was told about where to read — exactly that, so a re-install
-    // without --ip forgets an old IP. The schedule reads it from here.
-    const read = {};
-    for (const k of READ_FLAGS) if (FLAGS[k] && FLAGS[k] !== "1") read[k] = FLAGS[k];
+    // Where to read, for the schedule to find here. A re-install that names no
+    // reader keeps the saved one: the guide sends people back to --install for a
+    // refused token or a stale reading, and starting from nothing then quietly
+    // switched their Tasmota head or Powerfox account back to HomeWizard discovery.
+    // A reader named now (flag or environment variable) replaces the saved one as a
+    // whole — SAVED_READ has already dropped it then — and --field/--interval given
+    // now win over saved ones. Environment variables count like their flags, since
+    // the scheduled job won't have them.
+    const read = { ...SAVED_READ };
+    for (const k of READ_FLAGS) {
+      const given = FLAGS[k] && FLAGS[k] !== "1" ? FLAGS[k] : process.env[READ_ENV[k]];
+      if (given && String(given).trim()) read[k] = String(given).trim();
+    }
+    // Saved either way, so a later re-install can tell "this was Powerfox" from
+    // "this was a HomeWizard, and a Powerfox account was once tried".
+    read.powerfox = POWERFOX;
     saveConfig({ read });
     const code = manageTask("install");
     // And push once, right now. Scheduling alone sends nothing: the task first runs
@@ -762,8 +816,18 @@ async function main() {
   // Running on (Docker, the Home Assistant add-on): a failed run tries again within
   // 15 minutes instead of a whole interval later — a reading must be under 48 hours
   // old, and a meter not yet reachable right after boot cost half of that.
-  const RETRY_SOON_MS = Math.min(INTERVAL_MS, 15 * 60 * 1000);
-  const next = (wasOk) => setTimeout(async () => next(await cycle()), wasOk ? INTERVAL_MS : RETRY_SOON_MS);
+  // GUL_RETRY_SOON_MS exists for the tests only.
+  const RETRY_SOON_MS = Number(process.env.GUL_RETRY_SOON_MS) || Math.min(INTERVAL_MS, 15 * 60 * 1000);
+  // Except a refused token: that one doesn't pass on its own, and asking every 15
+  // minutes, forever, only filled the log and the server with the same refusal. A
+  // new token means a restart (it is read at start), which starts over anyway. Not
+  // never again, though: a refusal the server takes back is still caught that day.
+  const TOKEN_REFUSED_WAIT_MS = 6 * 60 * 60 * 1000;
+  const next = (wasOk) => {
+    const wait = wasOk ? INTERVAL_MS : tokenRefused ? TOKEN_REFUSED_WAIT_MS : RETRY_SOON_MS;
+    if (!wasOk && tokenRefused) log("trying again in 6 hours, not sooner — the token has to be renewed first (restart after putting the new one in)");
+    setTimeout(async () => next(await cycle()), wait);
+  };
   next(ok);
 }
 

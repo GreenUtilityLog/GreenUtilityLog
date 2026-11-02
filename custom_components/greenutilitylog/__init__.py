@@ -31,7 +31,7 @@ from .const import (
     CONF_INTERVAL,
     CONF_SOURCE_ENTITY,
     CONF_TOKEN,
-    DEFAULT_INGEST_URL,
+    resolve_ingest_url,
     DEFAULT_INTERVAL_MINUTES,
     DOMAIN,
     FAILED_PUSH_RETRIES,
@@ -197,7 +197,7 @@ class GreenUtilityLogPusher:
             LOGGER.warning("GreenUtilityLog: %s", self.last_error)
             return
 
-        url = opts.get(CONF_INGEST_URL) or DEFAULT_INGEST_URL
+        url = resolve_ingest_url(opts.get(CONF_INGEST_URL))
         session = async_get_clientsession(self.hass)
         # The public backend sleeps between pushes (free plan) and takes 30-60 s to
         # wake, and with two pushes a day nearly every push is the one that wakes
@@ -208,7 +208,7 @@ class GreenUtilityLogPusher:
             try:
                 async with session.post(
                     url,
-                    json={"token": opts[CONF_TOKEN], "reading": reading},
+                    json={"token": str(opts[CONF_TOKEN]).strip(), "reading": reading},
                     timeout=aiohttp.ClientTimeout(total=PUSH_TIMEOUT_SECONDS),
                 ) as resp:
                     if resp.status < 400:

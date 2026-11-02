@@ -1,5 +1,5 @@
 name: GreenUtilityLog Meter Bridge
-version: "1.5.3"
+version: "1.5.4"
 slug: gul_bridge
 description: Sends your smart-meter reading to GreenUtilityLog automatically — no terminal, no scripts.
 url: https://github.com/GreenUtilityLog/GreenUtilityLog/tree/main/bridge
@@ -23,6 +23,7 @@ options:
   ingest_url: ""
   powerfox_email: ""
   powerfox_password: ""
+  forget_last: false
 schema:
   # Device token from the app: Meter → ⚡ Automatic setup. A password field, so it
   # isn't shown in clear on the Configuration tab.
@@ -46,3 +47,6 @@ schema:
   # account. The reading then comes from the Powerfox cloud.
   powerfox_email: str?
   powerfox_password: password?
+  # After a meter change: the new meter reads lower than the old one did, and the
+  # bridge refuses a total that goes down. Switch on, restart once, switch off again.
+  forget_last: bool?

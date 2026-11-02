@@ -141,7 +141,7 @@ app.use((req, res, next) => { if (req.body === undefined) req.body = {}; next();
 // distributor) and scanned on every request. Checked once here for every route.
 app.use((req, res, next) => {
   const m = req.body?.meterNo;
-  if (m != null && !validMeterNo(m)) return res.status(400).json({ error: "invalid meter number — use the number on the meter, at most 40 characters" });
+  if (m != null && m !== "" && !validMeterNo(m)) return res.status(400).json({ error: "invalid meter number — use the number on the meter, at most 40 characters" });
   next();
 });
 
@@ -441,9 +441,21 @@ if (SECRET_URLS.length) {
   }
 }
 
+// The spelling under which THIS wallet's meter is stored, when the request names it
+// differently ("E-1000" for "E1000"). Ownership already treated the two as one meter,
+// but the previous reading, its date and the payout guard were kept per exact
+// spelling: a second spelling started a second baseline, and each claim under it paid
+// the same days again. The request's own spelling is kept when it is already the one.
+function sameMeterSpelling(utility, meterNo, addr) {
+  const raw = String(meterNo ?? "").trim();
+  if (!raw || !/^0x[0-9a-fA-F]{40}$/.test(String(addr || ""))) return raw;
+  const owned = store.ownedSpelling(utility, raw.toLowerCase(), addr);
+  return owned === raw.toLowerCase() ? raw : owned;
+}
+
 const meterPayoutKeys = (addr, utility, meterNo, reading) => [
   ...(COOLDOWN_MS > 0 ? [[`cool:${String(addr).toLowerCase()}:${utility}`, COOLDOWN_MS, "cooldown active — this meter was already paid recently"]] : []),
-  [`read:${utility}:${String(meterNo).trim().toLowerCase()}:${Number(reading)}`, 60 * DAY_MS, "this reading has already been paid"],
+  [`read:${utility}:${String(meterNo).trim().toLowerCase()}:${Number(reading)}`, 60 * DAY_MS, "this reading was already submitted — send it again once the meter has moved on"],
   // A meter nobody owns yet: the owner check ran before the long photo checks, so
   // two wallets claiming it at once both passed it and both were paid. One claim.
   ...(store.meterOwner(utility, String(meterNo).trim().toLowerCase()) ? [] : [[`claim:${utility}:${String(meterNo).toUpperCase().replace(/[^A-Z0-9]/g, "")}`, DAY_MS, "this meter is registered to another wallet"]]),
@@ -1095,6 +1107,7 @@ app.post("/reward", async (req, res) => {
   }
 
   // 1) Structural checks + server-recomputed amount.
+  if (req.body.meterNo != null) req.body.meterNo = sameMeterSpelling(req.body.utility, req.body.meterNo, req.body.address);
   const v = validateSubmission(req.body);
   if (!v.ok) return res.status(400).json({ error: v.error });
 
@@ -1334,7 +1347,7 @@ app.post("/meter/pair", async (req, res) => {
   // Keep what this wallet's pairing has already been through (autoPaidAt closes
   // /meter/rebaseline) when it is the same meter. Pairing again must not reset it.
   const carried = existing && String(existing.meterNo || "").toLowerCase() === meterNo.toLowerCase() && existing.utility === utility
-    ? { autoPaidAt: existing.autoPaidAt, rebasedAt: existing.rebasedAt } : {};
+    ? { autoPaidAt: existing.autoPaidAt, rebasedAt: existing.rebasedAt, lastPayout: existing.lastPayout, source: existing.source, keepsReader: existing.keepsReader } : {};
   store.setMeterLink(token, { ...carried, address: address.toLowerCase(), meterNo, utility, createdAt: Date.now() });
   res.json({
     token,
@@ -1383,9 +1396,19 @@ function linkAttemptOk(address) {
 }
 // Unlinking a cloud account also ends the meter link it fed and its last reading,
 // so nothing from it can still be paid — but never a P1 reader's link.
+// A cloud account linked by a wallet that already had a P1 reader reuses that
+// reader's token. Unlinking the account used to delete the token with it, and the
+// reader at home was refused from then on.
+const CLOUD_SOURCES = new Set(["powerfox", "tibber"]);
+const keepsReader = (link) => !!link && (link.keepsReader || !CLOUD_SOURCES.has(link.source));
 function forgetCloudLink(address, source) {
   const link = store.getLinkByAddress(address);
-  if (link?.source === source) store.delMeterLink(link.token);
+  if (link?.source === source) {
+    if (link.keepsReader) {
+      const { source: _s, keepsReader: _k, ...reader } = link;
+      store.setMeterLink(link.token, reader);
+    } else store.delMeterLink(link.token);
+  }
   if (store.getLinkReading(address)?.source === source) store.delLinkReading(address);
 }
 
@@ -1445,7 +1468,9 @@ app.post("/meter/powerfox/link", async (req, res) => {
   const token = existing ? existing.token : randomBytes(24).toString("hex");
   const carried = existing && String(existing.meterNo || "").toLowerCase() === meterNo.toLowerCase()
     ? { autoPaidAt: existing.autoPaidAt, rebasedAt: existing.rebasedAt, lastPayout: existing.lastPayout } : {};
-  const link = { ...carried, address: address.toLowerCase(), meterNo, utility: "electric", source: "powerfox", createdAt: existing?.createdAt || Date.now() };
+  const link = { ...carried, address: address.toLowerCase(), meterNo, utility: "electric", source: "powerfox", createdAt: existing?.createdAt || Date.now(),
+    // The token was a P1 reader's first: unlinking powerfox gives it back instead of deleting it.
+    ...(keepsReader(existing) ? { keepsReader: true } : {}) };
   store.setMeterLink(token, link);
   store.setPowerfox(address, { cred: sealCredentials(email, password), acct, token, linkedAt: Date.now(), lastPullAt: Date.now(), lastError: null });
   if (!r.outdated) store.setLinkReading(address, { reading: r.reading, meterNo, at: r.at, source: "powerfox" });
@@ -1520,7 +1545,9 @@ app.post("/meter/tibber/link", async (req, res) => {
   const token = existing ? existing.token : randomBytes(24).toString("hex");
   const carried = existing && String(existing.meterNo || "").toLowerCase() === meterNo.toLowerCase()
     ? { autoPaidAt: existing.autoPaidAt, rebasedAt: existing.rebasedAt, lastPayout: existing.lastPayout } : {};
-  const link = { ...carried, address: address.toLowerCase(), meterNo, utility: "electric", source: "tibber", createdAt: existing?.createdAt || Date.now() };
+  const link = { ...carried, address: address.toLowerCase(), meterNo, utility: "electric", source: "tibber", createdAt: existing?.createdAt || Date.now(),
+    // The token was a P1 reader's first: unlinking tibber gives it back instead of deleting it.
+    ...(keepsReader(existing) ? { keepsReader: true } : {}) };
   store.setMeterLink(token, link);
   store.setTibber(address, { cred: sealCredentials("tibber", tibberToken), token, homeId: r.homeId, linkedAt: Date.now(), lastPullAt: Date.now(), lastError: null });
   store.setLinkReading(address, { reading: r.reading, meterNo, at: r.at, source: "tibber" });
@@ -1680,8 +1707,10 @@ app.get("/meter/latest", (req, res) => {
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
   const link = store.getLinkByAddress(address);
   const given = String(req.get("x-device-token") || "");
-  const tokenOk = !!(link?.token && given && given.length === link.token.length
-    && timingSafeEqual(Buffer.from(given), Buffer.from(link.token)));
+  // Compared as bytes: a header with non-ASCII characters has the same length in
+  // characters but not in bytes, and timingSafeEqual threw (a 500) on the mismatch.
+  const a = Buffer.from(given), b = Buffer.from(String(link?.token || ""));
+  const tokenOk = !!(link?.token && given && a.length === b.length && timingSafeEqual(a, b));
   if (!tokenOk) {
     return res.json({
       paired: !!link,
@@ -1752,7 +1781,7 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
     if (!isEnabledUtility(link.utility)) return { ok: false, code: 400, error: "this utility isn't available" };
     utility = link.utility;
   }
-  meterNo = String(meterNo || "").trim();
+  meterNo = sameMeterSpelling(utility, meterNo, addr);
   if (!meterNo) return { ok: false, code: 400, error: "register your meter number first" };
   // Without a paired device (a reading from a source that has none), the meter number comes from the
   // request — so it must be one this wallet already owns. Otherwise the one reading
@@ -1898,7 +1927,7 @@ app.post("/meter/rebaseline", async (req, res) => {
   }
 
   const utility = pickUtility(link.utility);
-  const meterNo = String(link.meterNo || req.body.meterNo || "").trim();
+  const meterNo = sameMeterSpelling(utility, link.meterNo || req.body.meterNo, address);
   if (!meterNo) return res.status(400).json({ error: "register your meter number first" });
 
   const latest = store.getLinkReading(address);
@@ -1977,7 +2006,7 @@ app.post("/meter/fix-basis", async (req, res) => {
   }
 
   const utility = pickUtility(req.body.utility);
-  const meterNo = String(req.body.meterNo || "").trim();
+  const meterNo = sameMeterSpelling(utility, req.body.meterNo, address);
   if (!meterNo) return res.status(400).json({ error: "meter number is required" });
   const meterKey = meterNo.toLowerCase();
 
@@ -2007,12 +2036,17 @@ app.post("/meter/fix-basis", async (req, res) => {
   }
 
   { const busy = photoCheckBudget(address); if (busy) return res.status(429).json({ error: busy }); }
+  // The same lock a payout takes: a payout running meanwhile would write back the
+  // single-register reading it read before this one raised it.
+  const lockKey = `${address.toLowerCase()}:${utility}`;
+  if (inFlight.has(lockKey)) return res.status(429).json({ error: "a submission for this meter is already processing" });
+  inFlight.add(lockKey);
   let photo = null;
   try {
     // The photo carries the same weight as it does for a payout: it has to be a real,
     // fresh, unused image, and OCR (when on) has to find one of these registers on it.
     photo = await verifyPhoto({ imageBase64: req.body.photo, reading: total, registers, ocr: OCR_ENABLED, mime: req.body.photoMime });
-    if (!photo.ok) return res.status(400).json({ error: photo.error });
+    if (!photo.ok) return res.status(photo.unavailable ? 503 : 400).json({ error: photo.error });
     if (aiPhotoCheckEnabled()) {
       const auth = await checkPhotoAuthenticity(req.body.photo, photo.mime);
       if (!auth.ok) { photo.unreserve(); return res.status(auth.unavailable ? 503 : 400).json({ error: auth.unavailable ? auth.reason : `photo rejected: ${auth.reason}` }); }
@@ -2046,6 +2080,8 @@ app.post("/meter/fix-basis", async (req, res) => {
     if (photo?.ok) photo.unreserve();
     console.error("[/meter/fix-basis]", e?.message || e);
     res.status(500).json({ error: "could not reconcile this meter — nothing was changed, please try again" });
+  } finally {
+    inFlight.delete(lockKey);
   }
 });
 
@@ -2308,6 +2344,10 @@ setInterval(() => {
 app.use((err, req, res, next) => {
   if (err?.type === "entity.too.large") return res.status(413).json({ error: "request too large" });
   if (err?.type === "entity.parse.failed") return res.status(400).json({ error: "invalid JSON" });
+  // Other request errors body-parser raises (an unsupported charset or encoding, an
+  // aborted upload) are the client's: answer their own 4xx, not a 500 with a stack.
+  const status = Number(err?.status || err?.statusCode);
+  if (status >= 400 && status < 500) { if (!res.headersSent) res.status(status).json({ error: "the request couldn't be read" }); return; }
   console.error(`[error] ${req.method} ${req.path}:`, err?.stack || err?.message || err);
   if (!res.headersSent) res.status(500).json({ error: "something went wrong on the server — please try again" });
 });

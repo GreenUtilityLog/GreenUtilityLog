@@ -373,7 +373,7 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
     const certificate = await signCert();
     // Send the registered meter number so the backend scheduler (auto-submit) knows
     // which meter's baseline to measure this wallet's readings against.
-    const r = await fetchT(`${API}/meter/pair`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: wallet, meterNo: meterNo || "", certificate }) });
+    const r = await fetchT(`${API}/meter/pair`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: wallet, ...(meterNo ? { meterNo } : {}), certificate }) });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || `pairing failed (${r.status})`);
     if (!validDeviceToken(d.token)) throw new Error("pairing failed (the server sent an unexpected device token)");
@@ -396,7 +396,7 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
       const certificate = await signCert();
       const r = await fetchT(`${API}/meter/pair`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: wallet, meterNo: meterNo || "", certificate }),
+        body: JSON.stringify({ address: wallet, ...(meterNo ? { meterNo } : {}), certificate }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || `pairing failed (${r.status})`);
@@ -704,16 +704,27 @@ rest_command:
     url: "${ingestUrl}"
     method: POST
     content_type: "application/json"
-    payload: '{"token":"${token}","reading":{{ states("sensor.YOUR_IMPORT_KWH_ENTITY") | float }}}'
+    payload: '{"token":"${token}","reading":{{ states("sensor.YOUR_IMPORT_KWH_ENTITY") | float(0) }}}'
 
-# automations.yaml — twice a day; you can only claim once per 20h anyway
-- alias: Push meter to GreenUtilityLog
-  trigger: { platform: time_pattern, hours: "/12" }
-  action: { service: rest_command.gul_push }`;
-                    const curlSnippet = `# Any reader/script that can POST JSON works — send your cumulative kWh total:
-curl -X POST ${ingestUrl} \\
+# Twice a day; you can only claim once per 20h anyway. "automation gul:" (not
+# "automation:") so this whole block can go into configuration.yaml next to the
+# usual "automation: !include automations.yaml" line. It only sends when the
+# sensor has a number (not while it is "unavailable").
+automation gul:
+  - alias: Push meter to GreenUtilityLog
+    trigger: { platform: time_pattern, hours: "/12" }
+    condition: "{{ states('sensor.YOUR_IMPORT_KWH_ENTITY') | is_number }}"
+    action: { service: rest_command.gul_push }`;
+                    // The POST itself in this computer's shell: on Windows `curl` in
+                    // PowerShell is Invoke-WebRequest, and backslash line breaks and
+                    // single-quoted JSON don't work there.
+                    const postCmd = os === "win"
+                      ? `Invoke-RestMethod -Method Post -Uri "${ingestUrl}" -ContentType "application/json" -Body '{"token":"${token}","reading":12345.6}'`
+                      : `curl -X POST ${ingestUrl} \\
   -H "Content-Type: application/json" \\
-  -d '{"token":"${token}","reading":12345.6}'
+  -d '{"token":"${token}","reading":12345.6}'`;
+                    const curlSnippet = `# Any reader/script that can POST JSON works — send your cumulative kWh total:
+${postCmd}
 
 # Or let the bridge read any HTTP/JSON reader for you — one file, no install:
 ${fetchCmd(`--ask-token --install --url=http://<reader-ip>/api/v1/data${INGEST_FLAG}`)}

@@ -14,6 +14,16 @@ CONF_INGEST_URL = "ingest_url"
 
 # The public reward backend. Only changed by someone running their own instance.
 DEFAULT_INGEST_URL = "https://greenutilitylog-rewards.onrender.com/meter-ingest"
+# Server addresses this integration has shipped as its default. An entry that holds one
+# of them was set up with the default left alone, and follows the current default; when
+# DEFAULT_INGEST_URL moves, add the old value here.
+SHIPPED_DEFAULT_INGEST_URLS = frozenset({DEFAULT_INGEST_URL})
+
+
+def resolve_ingest_url(stored: str | None) -> str:
+    """The address to push to: the current default unless the user set another."""
+    url = str(stored or "").strip()
+    return DEFAULT_INGEST_URL if not url or url in SHIPPED_DEFAULT_INGEST_URLS else url
 
 # Twelve hours, not one. A reading can only be claimed once per COOLDOWN_MS (20h)
 # and /meter-ingest keeps only the newest value, so 23 of 24 hourly pushes are
