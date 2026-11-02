@@ -12,17 +12,20 @@
     "@vechain/dapp-kit-react": "^2.2.0",
     "@vechain/sdk-core": "^2.0.7",
     "qrcode": "1.5.4",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.0.0",
+    "@vitejs/plugin-react": "^6.1.2",
     "tesseract.js": "5.1.1",
     "tesseract.js-core": "5.1.1",
-    "vite": "^4.3.9",
+    "vite": "^8.3.5",
     "vite-plugin-node-polyfills": "^0.28.0"
   },
   "overrides": {
-    "valtio": "1.13.2"
+    "valtio": "1.13.2",
+    "use-sync-external-store": "1.6.0",
+    "ws": "^8.22.1",
+    "zod": "^4.6.7"
   }
 }
