@@ -20,7 +20,6 @@ import { verifyWalletCertificate, REQUIRE_CERT, CERT_MAX_AGE_MS, certDomainsSeen
 import { checkPhotoAuthenticity, aiPhotoCheckEnabled } from "./authenticity.js";
 import { verifyCaptcha, captchaEnabled } from "./captcha.js";
 import { deviceKeys, DEVICE_MAX_WALLETS, DEVICE_FP_FLAG, REQUIRE_DEVICE } from "./device.js";
-import { enodeEnabled, enodeInfo, createMeterLink, fetchLatestReading } from "./enode.js";
 import { powerfoxEnabled, sealCredentials, openCredentials, fetchPowerfoxReading } from "./powerfox.js";
 import { fetchTibberReading } from "./tibber.js";
 import { rateKeyFor } from "./ratekey.js";
@@ -280,9 +279,8 @@ app.get("/health", async (req, res) => {
     distributionPaused: chain.distributionPaused,
     // Gas sponsorship (VIP-191): when set, the distributor needs no VTHO of its own.
     delegation: !!(process.env.DELEGATION_URL || "").trim(),
-    // Smart-meter sources: the free push path is always on; enode only when configured.
+    // Smart-meter push (/meter-ingest) is always on.
     meterIngest: true,
-    enode: enodeInfo(),
     // Powerfox: the server fetches readings from the Powerfox cloud itself.
     powerfox: { enabled: powerfoxEnabled(), linked: powerfoxEnabled() ? store.allPowerfox().length : 0 },
     // Tibber Pulse: same idea, a personal token instead of a login (tibber.js).
@@ -1293,7 +1291,7 @@ app.post("/eco-action", (req, res) => {
 //      /meter-ingest with a device token this wallet paired. No file uploads, no
 //      OCR; the reading is machine-read at the meter. Works anywhere such a reader
 //      exists (NL/BE P1, Nordics HAN, or any script that can read the meter).
-//   2) ENODE (optional) — global aggregator; see enode.js. Env-gated.
+//   2) CLOUD — Powerfox and Tibber, fetched by the server (powerfox.js, tibber.js).
 // Either way the value is surfaced to the app, which submits it through the SAME
 // /reward validation (monotonic vs last reading, bounds, cooldown, reward cap).
 
@@ -1722,71 +1720,6 @@ app.get("/meter/latest", (req, res) => {
   });
 });
 
-// ── Enode source (optional) ──────────────────────────────────────────────────
-// Create a Link session; the app opens the returned linkUrl so the user authorises
-// their meter with Enode. Cert-authed so a link is only ever created for the
-// wallet that owns it.
-app.post("/meter/enode/link", async (req, res) => {
-  if (!enodeEnabled()) return res.status(503).json({ error: "enode not configured" });
-  const address = String(req.body.address || "");
-  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
-  {
-    // Bound to what the app signs for linking, and single-use. A bare "any valid
-    // signature by this wallet" also accepted one made for a different site.
-    const c = await requireBoundCert(req, ["Green Utility Log — link smart meter"]);
-    if (!c.ok) return res.status(c.code).json({ error: c.error });
-  }
-  try {
-    const session = await createMeterLink(address);
-    res.json({ linkUrl: session?.linkUrl || session?.url || null, session });
-  } catch (e) {
-    console.error("[/meter/enode/link]", e?.message || e);
-    res.status(502).json({ error: "couldn't reach the meter service — please try again later" });
-  }
-});
-
-// Pull the latest reading from Enode into linkReadings. Returns `raw` so the exact
-// meter schema can be locked down against a live account (then tighten pickReading).
-app.post("/meter/enode/sync", async (req, res) => {
-  if (!enodeEnabled()) return res.status(503).json({ error: "enode not configured" });
-  const address = String(req.body.address || "");
-  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
-  {
-    // Bound to what the app signs for linking, and single-use. A bare "any valid
-    // signature by this wallet" also accepted one made for a different site.
-    const c = await requireBoundCert(req, ["Green Utility Log — link smart meter"]);
-    if (!c.ok) return res.status(c.code).json({ error: c.error });
-  }
-  try {
-    const latest = await fetchLatestReading(address);
-    if (!latest) return res.json({ linked: false });
-    // Only store a reading whose field was EXPLICITLY configured (ENODE_READING_FIELD).
-    // A heuristically-guessed field must never become payable: it feeds
-    // /reward-from-meter, so a wrong guess would pay out a wrong amount. The value and
-    // the raw object are still returned so an operator can pin the correct field.
-    const payable = Number.isFinite(latest.reading) && latest.guessed === false;
-    if (payable) {
-      store.setLinkReading(address, {
-        reading: latest.reading,
-        meterNo: latest.meterId || null,
-        at: Date.now(),
-        source: "enode",
-      });
-    } else if (latest.guessed) {
-      console.warn("[enode] reading field not pinned — set ENODE_READING_FIELD; not storing a guessed value.");
-    }
-    res.json({
-      linked: true, reading: latest.reading, unit: latest.unit, field: latest.field,
-      guessed: !!latest.guessed, stored: payable,
-      hint: latest.guessed ? "Set ENODE_READING_FIELD to this field's dot-path to make it payable." : undefined,
-      raw: latest.raw,
-    });
-  } catch (e) {
-    console.error("[/meter/enode/sync]", e?.message || e);
-    res.status(502).json({ error: "couldn't reach the meter service — please try again later" });
-  }
-});
-
 // ── Photoless payout from an ingested reading (Step 2, beta) ─────────────────
 // Pay out from an automatically-received meter reading — no photo. The trust
 // anchor shifts from photo-authenticity to (a) the device-token→wallet binding
@@ -1821,7 +1754,7 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
   }
   meterNo = String(meterNo || "").trim();
   if (!meterNo) return { ok: false, code: 400, error: "register your meter number first" };
-  // Without a paired device (an Enode reading), the meter number comes from the
+  // Without a paired device (a reading from a source that has none), the meter number comes from the
   // request — so it must be one this wallet already owns. Otherwise the one reading
   // could be settled against any meter that happens to have no owner recorded.
   if ((!link || !link.meterNo) && String(store.meterOwner(utility, meterNo.toLowerCase()) || "").toLowerCase() !== addr.toLowerCase()) {
@@ -1874,7 +1807,7 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
       days:     v.days,
       amount:   pay.amount,
       receiver: addr,
-      // "push" for a reader, "enode" for the API route; either way no photo exists.
+      // "push" for a reader, "powerfox"/"tibber" for a cloud source; no photo either way.
       source:   latest.source || "reader",
       noImpact: !!(v.firstReading || v.nearZero),
     }));

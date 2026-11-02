@@ -4,8 +4,8 @@
 // and every check passed. Now each register only counts up, and the register
 // that has been off the photos longest must be on the next one.
 //
-// Also here: who may see a wallet's readings, and which meter an Enode reading
-// (no paired device) can be paid against.
+// Also here: who may see a wallet's readings, and which meter a reading with no
+// paired device behind it can be paid against.
 
 import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
@@ -136,7 +136,7 @@ describe("a wallet's live readings", () => {
   });
 });
 
-describe("an Enode reading without a paired device", () => {
+describe("a reading without a paired device", () => {
   let srv;
   before(async () => {
     // A meter with a baseline but no recorded owner, and another wallet holding an
@@ -144,7 +144,7 @@ describe("an Enode reading without a paired device", () => {
     const state = stateWithBaseline();
     state.readings["electric:e2000"] = 1000;
     state.readingAts["electric:e2000"] = Date.now();
-    state.linkReadings = { [OTHER.toLowerCase()]: { reading: 1006, at: Date.now(), source: "enode" } };
+    state.linkReadings = { [OTHER.toLowerCase()]: { reading: 1006, at: Date.now(), source: "push" } };
     srv = await startServer({ state });
   });
   after(async () => { await srv.stop(); });

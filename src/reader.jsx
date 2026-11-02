@@ -23,7 +23,7 @@ function IngestUrlStep({ API }) {
 // tap one button — no camera, no OCR. Under the hood the value goes to the same
 // backend store a real reader would push to (device token, cached after a one-time
 // pairing), then the photoless payout endpoint issues B3TR. All the technical bits
-// (device token, ingest URL, P1/Home-Assistant setup, Enode) live in a collapsed
+// (device token, ingest URL, P1/Home-Assistant setup) live in a collapsed
 // "Automatic setup" section so they never clutter the simple flow.
 // Tibber Pulse (Sweden, Norway, Denmark, Finland, and more): the server fetches
 // the meter total from the Tibber cloud with the user's personal access token;
@@ -316,7 +316,7 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
   const [health, setHealth]   = useState(null);
   const [latest, setLatest]   = useState(null);   // { paired, reading }
   const [token, setToken]     = useState("");     // paired device token (cached)
-  const [busy, setBusy]       = useState("");     // "enode" | "sync"
+  const [busy, setBusy]       = useState("");     // which action is running
   const [err, setErr]         = useState("");
   const [copied, setCopied]   = useState("");
   const [open, setOpen]       = useState(!!embedded); // embedded → always expanded (no toggle)
@@ -435,33 +435,6 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
     finally { setBusy(""); }
   };
 
-  const doEnodeLink = async () => {
-    setErr(""); setBusy("enode");
-    try {
-      const certificate = await signCert();
-      const r = await fetchT(`${API}/meter/enode/link`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: wallet, certificate }) });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error || `link failed (${r.status})`);
-      // Only open an https URL — never navigate to an arbitrary backend-supplied scheme.
-      if (d.linkUrl && /^https:\/\//i.test(String(d.linkUrl))) window.open(d.linkUrl, "_blank", "noopener");
-      else setErr("Enode returned no valid link URL");
-    } catch (e) { setErr(e?.message || "Enode link failed"); }
-    finally { setBusy(""); }
-  };
-
-  const doEnodeSync = async () => {
-    setErr(""); setBusy("sync");
-    try {
-      const certificate = await signCert();
-      const r = await fetchT(`${API}/meter/enode/sync`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: wallet, certificate }) });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error || `sync failed (${r.status})`);
-      if (!d.linked) setErr("No meter linked yet — connect one via Enode first.");
-      await refreshLatest();
-    } catch (e) { setErr(e?.message || "Enode sync failed"); }
-    finally { setBusy(""); }
-  };
-
   const showToken = async () => {   // Advanced: reveal/create the device token for a reader
     setErr("");
     try { await ensureToken(); } catch (e) { setErr(e?.message || "pairing failed"); }
@@ -479,7 +452,6 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
     }
   };
 
-  const enodeOn = !!health?.enode?.enabled;
   const rd = latest?.reading;
   // A gap bigger than the maximum plausible usage over the longest span the backend
   // will ever count isn't usage at all — it means the stored starting point and the
@@ -538,7 +510,7 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
           {!wallet ? (
             <div style={{ fontSize: 11, color: T.textSoft }}>{t("r.connectWallet")}</div>
           ) : rd != null ? (
-            /* A real reader (P1 / Enode) pushed a reading — claim it with one tap, no
+            /* A real reader (P1, Powerfox, Tibber) pushed a reading — claim it with one tap, no
                photo needed (the device token binds it to your wallet). */
             <>
             {/* Status at a glance: is the reader alive, what arrived, what was paid,
@@ -548,7 +520,7 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, fontWeight: 800, color: T.text }}>
                   <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: "50%", background: readerFresh ? T.green3 : T.electric, flexShrink: 0 }} />
-                  {rd.source === "enode" ? "Enode" : rd.source === "powerfox" ? "Powerfox" : rd.source === "tibber" ? "Tibber" : t("r.p1")}
+                  {rd.source === "powerfox" ? "Powerfox" : rd.source === "tibber" ? "Tibber" : t("r.p1")}
                 </div>
                 <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".6px", padding: "3px 8px", borderRadius: 999, color: readerFresh ? T.green3 : T.electric, background: readerFresh ? (T.green5 || T.bgAlt) : (T.electricBg || T.bgAlt) }}>
                   {readerFresh ? t("today.reader.ok") : t("today.reader.stale")}
@@ -647,7 +619,7 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
           {wallet && (
             <div style={{ marginTop: 12, borderTop: `1px solid ${T.ecoBorder || T.waterBorder}`, paddingTop: 10 }}>
               <button onClick={() => setAdvOpen(o => !o)} style={{ display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between", background: "none", border: "none", cursor: "pointer", padding: 0, color: T.textSoft, fontSize: 11, fontWeight: 700 }}>
-                <span>{t("r.setup", { enode: enodeOn ? " / Enode" : "" })}</span>
+                <span>{t("r.setup")}</span>
                 <span>{advOpen ? "▲" : "▼"}</span>
               </button>
 
@@ -846,12 +818,6 @@ ${fetchCmd(`--ask-token --install --url=http://<reader-ip>/api/v1/data${INGEST_F
                     );
                   })()}
 
-                  {enodeOn && (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
-                      <button disabled={!!busy} onClick={doEnodeLink} style={{ ...btn("#6c5ce7"), opacity: busy ? .6 : 1 }}>{busy === "enode" ? "Opening…" : "Connect via Enode (global)"}</button>
-                      <button disabled={!!busy} onClick={doEnodeSync} style={{ ...btn(T.textSoft), opacity: busy ? .6 : 1 }}>{busy === "sync" ? "Syncing…" : "Sync now"}</button>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
