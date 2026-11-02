@@ -52,13 +52,14 @@ Laatst bijgewerkt: 2026-11-01.
 - [x] Offline foto's: verstuurde, geweigerde en te oude (>14 dagen) worden opgeruimd; één databaseverbinding (#161)
 - [x] Content-Security-Policy in `index.html` (alleen eigen scripts, inline-scripts per hash, jsPDF en captcha) (#161)
 - [x] Bundel: bibliotheken in een eigen bestand (1,8 MB), app-code 396 KB — na een update alleen dat laatste opnieuw (#161)
-- [ ] Beheerscherm, Help en koppelschermen pas laden als ze geopend worden (komt met het opsplitsen van `App.jsx`)
+- [x] Beheerscherm (`src/admin.jsx`, 50 KB) en koppelschermen (`src/reader.jsx`, 37 KB) laden pas als ze geopend worden; Help is klein (73 regels) en blijft (#164)
 - [x] Geschiedenis van de chain samenvoegen met wat nu op het scherm staat (inzending tijdens laden verdwijnt) (#158)
 - [x] "Pending" wordt nooit "failed" als de chain niets teruggeeft (#158)
 - [x] Afteller van de cooldown loopt niet door (#158)
 - [x] Klassement 2 min gedeeld tussen schermen; lezen tot een vast blok, dus geen dubbele telling meer (#161)
 - [x] Standen zonder beloning staan alleen op het eigen toestel: laatste stand per meter van de server halen (#158)
-- [ ] `App.jsx` (7.200 regels) opsplitsen: eerst pure logica, dan i18n, dan schermen
+- [x] `App.jsx` 7.200 → 5.140 regels: dode code eruit, beheerscherm en koppelschermen in eigen bestanden (#162, #164)
+- [ ] Verder opsplitsen: pure logica (beloning, datums, offline-wachtrij) naar `src/lib/`, dan de schermen; de nieuwe bestanden importeren nu nog hulpfuncties uit `App.jsx`
 - [x] Dode code opruimen: `sendAndEarn`, `Toggle`, `B3TR_USD`, ongebruikt beheeronderdeel, `!REWARD_API`-takken en het directe on-chain-pad, 4 ongebruikte vertalingen; server: ongebruikte imports en sleutels (#162)
 - [ ] Privacy: apparaatkenmerk vermelden; Tesseract-taaldata zelf hosten
 - [x] Afhankelijkheden app: Vite 8 (bouwen 3 s i.p.v. 20 s), plugin-react 6, React 19; `ws` en `zod` via `overrides` (#163)
@@ -71,7 +72,7 @@ Laatst bijgewerkt: 2026-11-01.
 - [x] `/reward-from-meter` zegt "niets gebruikt" als de boekhouding na een uitbetaling faalt (#159)
 - [x] Time-outs op Enode (15 s) en R2 (30 s); Google Vision-sleutel in een header. Roboflow neemt zijn sleutel alleen in de URL: die URL wordt nergens gelogd (#160)
 - [x] Snelheidslimiet per IPv6-/64 in plaats van per adres (#160)
-- [ ] `index.js` (2.400 regels) opsplitsen; `/reward` en eco-resten delen één helper
+- [ ] `index.js` (2.400 regels) opsplitsen in routegroepen (beheer, koppelingen, uitbetaling); eco-resten zijn weg (alleen `/eco-action` → 410). Bewust nog niet gedaan: veel gedeelde toestand, eerst tests voor de admin-routes
 - [ ] Tests voor: afsluiten met uitbetaling onderweg, `/admin/photo`, `/admin/move-rewards-pool`
 - [x] Servertests hingen in CI na een poortbotsing; nu opnieuw starten en `--test-force-exit` (#159)
 - [x] gul.js: versie in de `User-Agent` (server bewaart hem bij de stand), antwoorden max. 1 MB; een nu opgegeven `--ip` wint van een opgeslagen Tasmota/URL; add-on 1.5.3 (#160)
