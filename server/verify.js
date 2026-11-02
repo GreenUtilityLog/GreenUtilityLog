@@ -3,7 +3,7 @@
 // every payout is re-validated here. The reward AMOUNT is always recomputed on
 // the server — a client-sent amount is never trusted.
 
-import { RATES, UNITS, isEnabledUtility, COOLDOWN_MS, computeReward, usageBoundsFor, spanDays, MAX_REWARD, USAGE_BENCHMARK, SAVING_UTILS, MAX_SPAN_DAYS } from "./config.js";
+import { UNITS, isEnabledUtility, COOLDOWN_MS, computeReward, usageBoundsFor, spanDays, MAX_REWARD, USAGE_BENCHMARK, SAVING_UTILS, MAX_SPAN_DAYS } from "./config.js";
 import { store } from "./store.js";
 
 const isAddress = (a) => typeof a === "string" && /^0x[0-9a-fA-F]{40}$/.test(a);

@@ -154,22 +154,6 @@ const GUIDE_URL = "https://greenutilitylog.github.io/GreenUtilityLog/guide.html"
 // from bridge/index.js by docs/build_guide.py, so the two cannot drift apart.
 const BRIDGE_JS_URL = "https://greenutilitylog.github.io/GreenUtilityLog/gul.js";
 
-// Indicative B3TR→USD rate for display only (not a live price feed).
-const B3TR_USD = 0.014;
-
-// ── ABI fragments needed ───────────────────────────────────────────────────
-const X2EARN_ABI = [
-  { name:"distributeReward", type:"function",
-    inputs:[
-      {name:"appId",    type:"bytes32"},
-      {name:"amount",   type:"uint256"},
-      {name:"receiver", type:"address"},
-      {name:"proof",    type:"string"},
-    ],
-    outputs:[{name:"",type:"bool"}],
-    stateMutability:"nonpayable"
-  },
-];
 
 // Funding the rewards pool: ERC20 approve on B3TR, then X2EarnRewardsPool.deposit.
 const ERC20_APPROVE_ABI = { name:"approve", type:"function", inputs:[{name:"spender",type:"address"},{name:"amount",type:"uint256"}], outputs:[{name:"",type:"bool"}], stateMutability:"nonpayable" };
@@ -237,39 +221,6 @@ function buildClaimClause() {
     []
   );
   return [{ to: claim.to, value: "0x0", data: claim.data, comment: "Claim test-B3TR from the testnet faucet" }];
-}
-
-// ── Build the on-chain clause for a meter submission ──────────────────────
-function buildRewardClauses(utilId, reading, prevRead, b3trAmount, userAddress, meterNo) {
-  // Build proof JSON — required by VeBetterDAO
-  const proof = JSON.stringify({
-    appId:     VEBETTER_APP_ID,
-    action:    "meter_reading",
-    utility:   utilId,
-    meterNo:   meterNo || "",
-    reading:   reading,
-    prevRead:  prevRead,
-    b3tr:      b3trAmount,
-    timestamp: new Date().toISOString(),
-    version:   APP_VERSION,
-  });
-
-  // Amount in wei (18 decimals) — string-based, no float rounding error.
-  const amountWei = toWei(b3trAmount);
-
-  // distributeReward(appId, amount, receiver, proof) on X2EarnRewardsPool
-  const clause = Clause.callFunction(
-    Address.of(CONTRACTS.X2EarnRewardsPool),
-    new ABIFunction(X2EARN_ABI[0]),
-    [VEBETTER_APP_ID, amountWei, userAddress, proof]
-  );
-
-  return [{
-    to: clause.to,
-    value: "0x0", // distributeReward is non-payable; send no VET.
-    data: clause.data,
-    comment: `Green Utility Log — ${utilId} meter reading — earn ${b3trAmount} B3TR`,
-  }];
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -697,21 +648,6 @@ const DARK = {
 // inline-SVG set, so these are drawn in the same idiom: 20x20 box, currentColor,
 // 1.7 stroke, round caps. They inherit the text colour, so they follow the theme and
 // the active/inactive nav state on their own.
-const UI_ICON = (paths, filled) => (
-  <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"
-       fill={filled ? "currentColor" : "none"} stroke={filled ? "none" : "currentColor"}
-       strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{paths}</svg>
-);
-const UI_ICONS = {
-  home:   UI_ICON(<><path d="M3.5 9.2 10 3.5l6.5 5.7"/><path d="M5.2 8.6V16a.8.8 0 0 0 .8.8h8a.8.8 0 0 0 .8-.8V8.6"/></>),
-  camera: UI_ICON(<><path d="M2.8 6.9h2.9l1.3-2h6l1.3 2h2.9a.8.8 0 0 1 .8.8v7.5a.8.8 0 0 1-.8.8H2.8a.8.8 0 0 1-.8-.8V7.7a.8.8 0 0 1 .8-.8Z"/><circle cx="10" cy="11.3" r="3"/></>),
-  chart:  UI_ICON(<><path d="M3 16.5V12"/><path d="M7.7 16.5V6.5"/><path d="M12.3 16.5V9.5"/><path d="M17 16.5V4"/></>),
-  trophy: UI_ICON(<><path d="M6 3.5h8v4a4 4 0 0 1-8 0v-4Z"/><path d="M6 5H3.8v1.2A2.6 2.6 0 0 0 6.4 8.8"/><path d="M14 5h2.2v1.2a2.6 2.6 0 0 1-2.6 2.6"/><path d="M10 11.5v3"/><path d="M7 16.5h6"/></>),
-  person: UI_ICON(<><circle cx="10" cy="7" r="3"/><path d="M4.5 16.5c0-2.8 2.5-4.6 5.5-4.6s5.5 1.8 5.5 4.6"/></>),
-  help:   UI_ICON(<><circle cx="10" cy="10" r="7"/><path d="M7.9 7.8a2.2 2.2 0 1 1 2.9 2.1c-.5.2-.8.6-.8 1.1v.4"/><path d="M10 14.2h.01"/></>),
-  moon:   UI_ICON(<><path d="M15.6 11.6A6 6 0 0 1 8.4 4.4a6.2 6.2 0 1 0 7.2 7.2Z"/></>),
-  sun:    UI_ICON(<><circle cx="10" cy="10" r="3.4"/><path d="M10 2.6v1.6M10 15.8v1.6M2.6 10h1.6M15.8 10h1.6M4.8 4.8l1.1 1.1M14.1 14.1l1.1 1.1M4.8 15.2l1.1-1.1M14.1 5.9l1.1-1.1"/></>),
-};
 
 const UTIL_ICONS = {
   electric: <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path d="M11 2L4 12h6l-1 6 7-10h-6l1-6z"/></svg>,
@@ -732,14 +668,6 @@ const UTILS = [
   // { id:"solar",    label:"Solar",    unit:"kWh", rate:0.72, ph:["130.1","142.3"],    hint:"Solar panel output", optional:true },
 ];
 
-// The welcome copy is built from UTILS rather than written out, because it had
-// drifted: three of the four meters above are commented out and the tagline still
-// promised "electric, gas, water & solar". A new tester read a promise the app broke
-// on the next screen. Re-enable a meter and this sentence follows on its own.
-const UTIL_WORDS = UTILS.map(u => u.label.toLowerCase());
-const UTILS_PHRASE = UTIL_WORDS.length === 1
-  ? `your ${UTIL_WORDS[0]} meter`
-  : `your ${UTIL_WORDS.slice(0, -1).join(", ")} & ${UTIL_WORDS[UTIL_WORDS.length - 1]} meters`;
 
 
 // ── Conservation-based reward (MUST match server/config.js) ───────────────────
@@ -1122,7 +1050,7 @@ async function recognizeAll(Tesseract, model, sources) {
 }
 
 function ocrBackendBase() {
-  const b = (OCR_API || REWARD_API || "").trim();
+  const b = (OCR_API || REWARD_API).trim();
   return b ? b.replace(/\/$/, "") : "";
 }
 
@@ -2106,7 +2034,6 @@ function MeterCropper({ imgUrl, onCancel, onConfirm }) {
 function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRead, subs, meterNo, T }) {
   const [phase, setPhase] = useState("idle");
   const [result, setResult] = useState(null);
-  const [secScore, setSecScore] = useState(null);
   const [aiStep, setAiStep] = useState(0);
   const [photoUrl, setPhotoUrl] = useState(null);
   const fileInputRef = useRef(null);
@@ -2236,7 +2163,6 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
       fileOk:        fileMeta.ok,
       screenshotOk:  !ssCheck.isScreenshot,
     });
-    setSecScore(score);
 
     if (hashOk) rememberHash(imgHash);
 
@@ -2277,7 +2203,7 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
     setPhase("crop");                          // let the user box the reading first
   };
 
-  const reset = () => { runIdRef.current++; setPhase("idle"); setResult(null); setSecScore(null); setPhotoUrl(null); origFileRef.current = null; onReset(); };
+  const reset = () => { runIdRef.current++; setPhase("idle"); setResult(null); setPhotoUrl(null); origFileRef.current = null; onReset(); };
 
   // Desktop has no phone camera — and a file picker invites downloaded or
   // AI-generated images. Block capture entirely outside a mobile browser.
@@ -2384,7 +2310,6 @@ function StreakCalendar({ subs }) {
   const year = today.getFullYear();
   const month = today.getMonth();
   const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0);
   const startDate = new Date(firstDay);
   startDate.setDate(startDate.getDate() - ((firstDay.getDay() + 6) % 7)); // weeks start on Monday, like the header
 
@@ -2480,7 +2405,7 @@ const subTs = (s) => s.submittedAt || localDayTs(s.date) || 0;
 function TodayPanel({ subs, wallet, setTab, onOpenReader, T }) {
   const [reader, setReader] = useState(null); // null = not asked; { paired, fresh, at }
   useEffect(() => {
-    if (!wallet || !REWARD_API) { setReader(null); return; }
+    if (!wallet) { setReader(null); return; }
     let stop = false;
     let token = "";
     try { token = localStorage.getItem(`gul_mtoken_${wallet.toLowerCase()}`) || ""; } catch { /* no storage */ }
@@ -2961,15 +2886,13 @@ ${fetchCmd(`--ask-token --powerfox=YOUR_POWERFOX_EMAIL --install${INGEST_FLAG}`)
 
 function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo, embedded = false }) {
   const { requestCertificate } = useWallet();
-  const API = (REWARD_API || "").replace(/\/$/, "");
+  const API = REWARD_API.replace(/\/$/, "");
   const ingestUrl = `${API}/meter-ingest`;
   const tkKey = wallet ? `gul_mtoken_${wallet.toLowerCase()}` : "";
 
   const [health, setHealth]   = useState(null);
   const [latest, setLatest]   = useState(null);   // { paired, reading }
   const [token, setToken]     = useState("");     // paired device token (cached)
-  const [manual, setManual]   = useState("");     // the reading the user typed
-  const [sending, setSending] = useState(false);  // manual send+submit in flight
   const [busy, setBusy]       = useState("");     // "enode" | "sync"
   const [err, setErr]         = useState("");
   const [copied, setCopied]   = useState("");
@@ -3063,25 +2986,6 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
     finally { setBusy(""); }
   };
 
-  // The one-tap path: send the typed reading to the backend, then pay it out.
-  const sendAndEarn = async () => {
-    const rv = parseFloat(manual);
-    if (!Number.isFinite(rv) || rv < 0) { setErr(t("r.validReading")); return; }
-    setErr(""); setSending(true);
-    try {
-      const tk = await ensureToken();
-      const r = await fetchT(ingestUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: tk, reading: rv }) });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error || `couldn't send the reading (${r.status})`);
-      await refreshLatest();
-      setManual("");
-      if (onAutoSubmit) await onAutoSubmit();   // pays out + shows its own toast/history
-    } catch (e) {
-      setErr(e?.message || "sending failed");
-    } finally {
-      setSending(false);
-    }
-  };
 
   // A photo can only capture one of a double-tariff meter's two registers, while the
   // reader reports their sum, so the stored starting point and everything the reader
@@ -3162,7 +3066,7 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
     ? +(Number(rd.reading) - Number(latest.baseline)).toFixed(3) : null;
   const scaleMismatch = !!latest?.canRebaseline && gapKwh != null
     && gapKwh > USAGE_RANGES.electric.max * MAX_SPAN_DAYS;
-  const busyAny = sending || !!autoBusy;
+  const busyAny = !!autoBusy;
   // Split for the timeline: the day on one line, the time under it.
   const dayTime = (ts) => {
     const w = fmtWhen(ts), t = new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -3190,7 +3094,6 @@ function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, autoBusy, meterNo
   const box = { margin: "0 14px 12px", padding: 12, background: T.ecoBg || T.waterBg, border: `1px solid ${T.ecoBorder || T.waterBorder}`, borderRadius: 10 };
   const btn = (bg) => ({ padding: "9px 12px", fontSize: 12, fontWeight: 700, color: "#fff", background: bg, border: "none", borderRadius: 6, cursor: "pointer" });
   const mono = { fontFamily: "'SF Mono',Menlo,'Courier New',monospace" };
-  const inputStyle = { flex: 1, minWidth: 0, padding: "10px 12px", fontSize: 15, fontWeight: 700, ...mono, color: T.text, background: T.bg, border: `1px solid ${T.border || T.waterBorder}`, borderRadius: 6, outline: "none" };
 
   if (!API) return null;
 
@@ -3905,14 +3808,13 @@ function ChartsScreen({ subs, T, part }) {
       lastOf[k] = s;
     }
   }
-  let savedUnits = 0, co2g = ecoSubs.length * ECO_CO2_PER_CLAIM, kwhSaved = ecoSubs.length * ECO_KWH_PER_CLAIM;
+  let co2g = ecoSubs.length * ECO_CO2_PER_CLAIM, kwhSaved = ecoSubs.length * ECO_KWH_PER_CLAIM;
   for (const s of meterSubs) {
     const bench = USAGE_BENCHMARK[s.type] ?? 0;
     if (SAVING_UTILS.has(s.type)) {
       const span = spanOfSub.get(s);
       if (span == null) continue;
       const saved = Math.max(0, bench * span - usageOf(s));
-      savedUnits += saved;
       co2g += saved * (CO2_PER_UNIT_UI[s.type] || 0);
       if (s.type === "electric") kwhSaved += saved;
     } else if (s.type === "solar") {
@@ -4095,7 +3997,6 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
   const b3trNeeded = nextTier ? Math.max(0, nextTier.min - b3tr) : 0;
   // The "100 B3TR Achievement" goal is a fixed 100, NOT the gap to the next tier —
   // reusing b3trNeeded showed a wrong number for anyone already past 100.
-  const to100 = Math.max(0, 100 - b3tr);
 
   // ── Real participant field ────────────────────────────────────────────────
   // Pull the ranked field straight from chain (aggregated RewardDistributed
@@ -4141,15 +4042,6 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
   const myIndex = board.findIndex(d => d.isMe);
   const myRank = myIndex + 1;
   const myBoardB3tr = myIndex >= 0 ? board[myIndex].b3tr : b3tr;
-  const aheadOfMe = board[myIndex - 1];
-  const gapToNext = aheadOfMe ? Math.max(0, aheadOfMe.b3tr - myBoardB3tr) : 0;
-  
-  const weekAgo = new Date();
-  weekAgo.setDate(weekAgo.getDate() - 7);
-  // Local days, not UTC: new Date("2026-10-01") is midnight UTC, a day off in the
-  // evening in Europe.
-  const weekSubs = subs.filter(s => (s.submittedAt || localDayTs(s.date) || 0) >= weekAgo.getTime());
-  const weekB3tr = weekSubs.reduce((a, s) => a + (Number(s.b3tr) || 0), 0).toFixed(2);
   
   const badges = [
     { id: "early", name: t("b.early"), icon: "🚀", how: t("b.early.how"), unlocked: subs.length > 0 },
@@ -4312,79 +4204,6 @@ function HistoryScreen({ subs, T }) {
 // Read-only admin overlay: every on-chain participant for this app, aggregated
 // from RewardDistributed events. Monitoring only — payouts/blocking require the
 // reward-distributor role (a backend), never the frontend.
-// ── Admin: account tools (block farmers · fix a wrong reading) ────────────────
-// Each action is a signed call to an /admin/* endpoint (onAdminApi handles the
-// certificate). All are guarded server-side by the admin allowlist too.
-function AdminAccountTools({ T, onAdminApi, onToast }) {
-  const [banW, setBanW]   = useState("");
-  const [meterNo, setMeterNo] = useState("");
-  const [reading, setReading] = useState("");
-  const [owner, setOwner] = useState("");
-  const [cdW, setCdW]     = useState("");
-  const [lookW, setLookW] = useState("");
-  const [busy, setBusy]   = useState("");
-  const [result, setResult] = useState(null);
-
-  const isAddr = (a) => /^0x[0-9a-fA-F]{40}$/.test(String(a || "").trim());
-  const run = async (key, fn, okMsg) => {
-    setBusy(key); setResult(null);
-    try { const d = await fn(); if (d) setResult(d); onToast?.(okMsg(d)); }
-    catch (e) { onToast?.(`❌ ${e?.message || "action failed"}`); }
-    finally { setBusy(""); }
-  };
-
-  const inp = { width: "100%", boxSizing: "border-box", background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, padding: "9px 11px", fontSize: 12, color: T.text, fontFamily: "'SF Mono',Menlo,'Courier New',monospace", outline: "none" };
-  const btn = (bg, fg, disabled) => ({ background: bg, color: fg, border: bg === "transparent" ? `1px solid ${T.border}` : "none", borderRadius: 6, padding: "9px 12px", fontWeight: 700, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap", opacity: disabled ? 0.6 : 1 });
-  const lbl = { fontSize:10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".6px", color: T.textSoft, margin: "0 0 5px" };
-  const card = { background: T.bgAlt, border: `1px solid ${T.border}`, borderRadius: 10, padding: 12, marginBottom: 10 };
-
-  return (
-    <div style={{ marginBottom: 14 }}>
-      <div style={{ fontSize: 12, fontWeight: 800, color: T.text, marginBottom: 8 }}>🛠️ Account tools</div>
-
-      {/* Block / unblock a farming wallet */}
-      <div style={card}>
-        <div style={lbl}>Block a wallet (farmer)</div>
-        <input value={banW} onChange={e => setBanW(e.target.value)} placeholder="0x… wallet to block" spellCheck={false} style={inp} />
-        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-          <button disabled={busy === "ban" || !isAddr(banW)} onClick={() => run("ban", () => onAdminApi("/admin/ban", { targetWallet: banW.trim(), ban: true }), () => `🚫 Blocked ${banW.trim().slice(0, 8)}…`)} style={btn("#c0392b", "#fff", busy === "ban" || !isAddr(banW))}>{busy === "ban" ? "…" : "Block"}</button>
-          <button disabled={busy === "unban" || !isAddr(banW)} onClick={() => run("unban", () => onAdminApi("/admin/ban", { targetWallet: banW.trim(), ban: false }), () => `✅ Unblocked ${banW.trim().slice(0, 8)}…`)} style={btn("transparent", T.textMid, busy === "unban" || !isAddr(banW))}>{busy === "unban" ? "…" : "Unblock"}</button>
-        </div>
-      </div>
-
-      {/* Correct a wrong meter reading (baseline) */}
-      <div style={card}>
-        <div style={lbl}>Fix a meter's baseline (wrong reading)</div>
-        <input value={meterNo} onChange={e => setMeterNo(e.target.value)} placeholder="Meter number" spellCheck={false} style={{ ...inp, marginBottom: 8 }} />
-        <input value={reading} onChange={e => setReading(normDecimal(e.target.value))} type="text" inputMode="decimal" autoComplete="off" placeholder="Correct current reading" style={{ ...inp, marginBottom: 8 }} />
-        <input value={owner} onChange={e => setOwner(e.target.value)} placeholder="Bind to wallet (optional 0x…)" spellCheck={false} style={inp} />
-        <button disabled={busy === "base" || !meterNo.trim() || !(Number(reading) >= 0)} onClick={() => run("base", () => onAdminApi("/admin/set-baseline", { meterNo: meterNo.trim(), reading: Number(reading), ...(isAddr(owner) ? { targetWallet: owner.trim() } : {}) }), (d) => `✅ Baseline set: ${d.meterNo} → ${d.baseline}`)} style={{ ...btn(T.green3 || "#2e7d5b", "#fff", busy === "base" || !meterNo.trim() || !(Number(reading) >= 0)), marginTop: 8 }}>{busy === "base" ? "Saving…" : "Set baseline"}</button>
-        <div style={{ fontSize:10, color: T.textSoft, marginTop: 6, lineHeight: 1.5 }}>Sets the value future usage is measured from. Use it to correct a mis-entered reading. To let the user resubmit now, also reset their cooldown below.</div>
-      </div>
-
-      {/* Reset a wallet's cooldown */}
-      <div style={card}>
-        <div style={lbl}>Reset cooldown (electric)</div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <input value={cdW} onChange={e => setCdW(e.target.value)} placeholder="0x… wallet" spellCheck={false} style={inp} />
-          <button disabled={busy === "cd" || !isAddr(cdW)} onClick={() => run("cd", () => onAdminApi("/admin/reset-cooldown", { targetWallet: cdW.trim(), utility: "electric" }), () => `✅ Cooldown reset`)} style={btn(T.green3 || "#2e7d5b", "#fff", busy === "cd" || !isAddr(cdW))}>{busy === "cd" ? "…" : "Reset"}</button>
-        </div>
-      </div>
-
-      {/* Look up a meter or wallet */}
-      <div style={card}>
-        <div style={lbl}>Look up (meter number or wallet)</div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <input value={lookW} onChange={e => setLookW(e.target.value)} placeholder="Meter number or 0x…" spellCheck={false} style={inp} />
-          <button disabled={busy === "look" || !lookW.trim()} onClick={() => run("look", () => onAdminApi("/admin/lookup", isAddr(lookW) ? { targetWallet: lookW.trim(), check: true } : { meterNo: lookW.trim() }), () => `🔎 Loaded`)} style={btn("transparent", T.textMid, busy === "look" || !lookW.trim())}>{busy === "look" ? "…" : "Look up"}</button>
-        </div>
-        {result && (
-          <pre style={{ margin: "8px 0 0", padding: 10, background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, fontSize: 11, color: T.text, fontFamily: "'SF Mono',Menlo,'Courier New',monospace", overflowX: "auto", lineHeight: 1.5 }}>{JSON.stringify(result, null, 2)}</pre>
-        )}
-      </div>
-    </div>
-  );
-}
 
 // Admin actions on the wallet you've drilled into — block/unblock, reset its
 // cooldown, and correct a meter's baseline right where you see the problem.
@@ -4469,7 +4288,6 @@ function AccessModePanel({ T, onAdminApi, onToast }) {
   const [mode, setMode] = useState(null);   // "roles" | "everyone" | null (unknown)
   const [busy, setBusy] = useState("");
   useEffect(() => {
-    if (!REWARD_API) return;
     let stop = false;
     fetchT(`${REWARD_API.replace(/\/$/, "")}/health`).then(r => (r.ok ? r.json() : null))
       .then(h => { if (!stop && (h?.access === "roles" || h?.access === "everyone")) setMode(h.access); })
@@ -5673,13 +5491,6 @@ function SettingsScreen({ lang, onLang, b3tr, subs, wallet, setShowWallet, dark,
   );
 }
 
-function Toggle({ on, onToggle, label }) {
-  return (
-    <button type="button" className={`toggle ${on ? 'on' : ''}`} onClick={onToggle} aria-pressed={!!on} aria-label={label}>
-      <div className="toggle-dot"/>
-    </button>
-  );
-}
 
 // ════════════════════════════════════════════════════════════════════════════
 // HELP & FAQ  — full-screen guide for new testers (no backend needed)
@@ -6083,7 +5894,7 @@ export default function App() {
   // who can't find their meter number doesn't have to enter it. Only fills EMPTY slots
   // — never overwrites a number the user typed themselves.
   useEffect(() => {
-    if (!wallet || !REWARD_API) return;
+    if (!wallet) return;
     let cancelled = false;
     (async () => {
       try {
@@ -6130,7 +5941,7 @@ export default function App() {
   // who have connected (and maybe registered meters locally) but not yet earned
   // on-chain. Fire-and-forget; failure is harmless.
   useEffect(() => {
-    if (!wallet || !REWARD_API) return;
+    if (!wallet) return;
     // An answer for a wallet that is no longer connected (or for an older meter
     // list) must not land: it would show that wallet's pass and cooldowns.
     let cancelled = false;
@@ -6195,7 +6006,6 @@ export default function App() {
   const [serverNetwork, setServerNetwork] = useState(null);
   const networkMismatch = !!serverNetwork && serverNetwork !== NETWORK;
   useEffect(() => {
-    if (!REWARD_API) return;
     let stop = false;
     const read = () => fetch(`${REWARD_API.replace(/\/$/, "")}/health`, { signal: AbortSignal.timeout(20000) })
       .then(r => (r.ok ? r.json() : null))
@@ -6420,7 +6230,7 @@ export default function App() {
   // skipped — they can't be verified server-side.
   const syncingRef = useRef(false);
   useEffect(() => {
-    if (!online || !wallet || !REWARD_API) return;
+    if (!online || !wallet) return;
     let cancelled = false;
     (async () => {
       if (syncingRef.current) return;
@@ -6812,7 +6622,6 @@ export default function App() {
     if (networkMismatch) { showToast(t("s.mismatch", { app: NETWORK, server: serverNetwork })); return; }
     if (!wallet) { openConnectModal(); return; }
     if (!online) { showToast(t("s.auto.offline")); return; }
-    if (!REWARD_API) { showToast("Automatic submit isn't available yet"); return; }
     const meterNo = (meters["electric"] || "").trim();
     if (!meterNo) { showToast(t("s.auto.noMeter")); return; }
     if (TURNSTILE_SITE_KEY && !captchaToken) { showToast("🤖 Complete the verification checkbox first"); return; }
@@ -6981,70 +6790,42 @@ export default function App() {
       return;
     }
 
-    // No payout path for a normal tester: without a reward backend the only option
-    // is the wallet signing distributeReward itself, which reverts unless it holds
-    // the distributor role. Rather than broadcast a doomed transaction, record the
-    // verified submission locally (no B3TR) so the flow still completes cleanly.
-    if (!REWARD_API && !isAdmin) {
-      const today = new Date();
-      const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      setSubs(prev => [{
-        id: Date.now(), type: selUtil, meterNo, cur: reading, prev: prevRead, date: dateStr,
-        b3tr: 0, status: "recorded", flagged: !photoConfirmed, flagReason, txHash: "", submittedAt: Date.now(),
-      }, ...prev]);
-      setCooldown(selUtil);
-      setAiOk(false); setPhoto(null); setReading(""); setPrevRead(""); prevReadEdited.current = false; setVerifyKey(k => k + 1);
-      if (window.turnstile && turnstileId.current) { try { window.turnstile.reset(turnstileId.current); } catch {} }
-      setCaptchaToken("");
-      setBusy(false);
-      showToast("ℹ️ Submission recorded — rewards aren't live yet (reward backend not connected).");
-      return;
-    }
-
     const payWallet = wallet;
     let sent = false;
     try {
-      // Two payout paths:
-      //  • REWARD_API set → a server-side reward-distributor verifies and issues
-      //    the B3TR (the production model; the user signs nothing).
-      //  • otherwise (admin only) → the connected wallet signs distributeReward
-      //    directly; only works if that wallet holds the distributor role.
+      // The reward server verifies the submission and issues the B3TR; the user
+      // signs nothing but a gasless certificate.
       let txid, onChainPending = false;
       // The server recomputes the payout from its own recorded baseline, so the
       // amount actually paid on-chain can differ from the client's `earned`. Show
       // and store the server's number when it returns one; fall back to `earned`.
       let paidAmount = earned, recordedOnly = "";
-      if (REWARD_API) {
-        // Prove wallet ownership: the user signs a gasless certificate, so the
-        // backend can verify the submission really comes from `wallet` and won't
-        // issue B3TR to an address someone just typed into the request.
-        let certificate;
-        try {
-          const content = `Green Utility Log — confirm submission\nWallet: ${wallet}\nUtility: ${selUtil}\nReading: ${reading}\nNetwork: ${NETWORK}\nTime: ${new Date().toISOString()}`;
-          const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } }, { signer: wallet });
-          certificate = { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
-        } catch {
-          setBusy(false);
-          showToast(t("s.sign"));
-          return;
-        }
-        const device = await deviceInfo();
-        sent = true;
-        const res = await fetchT(`${REWARD_API.replace(/\/$/, "")}/reward`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ utility: selUtil, reading, prevRead, ...(registers ? { registers } : {}), meterNo, address: wallet, photo: photo?.base64 || "", photoMime: photo?.mime || "", certificate, clientFlagged: !photoConfirmed || anom.anomaly, flagReason, ocrNums: photo?.ocrNums || [], meterNoConfirmed: photo?.meterNoConfirmed ?? null, avgUsage: anom.avg ?? null, captchaToken, device }),
-        }, PAYOUT_MS);
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw httpError(data.error || `Reward service error ${res.status}`, res.status);
-        txid = data.txid;
-        onChainPending = !!data.pending;
-        if (data.amount != null && Number.isFinite(Number(data.amount))) paidAmount = Number(data.amount);
-        if (data.recorded) { recordedOnly = data.reason || "no saving to reward this time"; paidAmount = 0; }
-      } else {
-        const clauses = buildRewardClauses(selUtil, reading, prevRead, earned, wallet, meterNo);
-        ({ txid } = await requestTransaction(clauses));
+      // Prove wallet ownership: the user signs a gasless certificate, so the
+      // backend can verify the submission really comes from `wallet` and won't
+      // issue B3TR to an address someone just typed into the request.
+      let certificate;
+      try {
+        const content = `Green Utility Log — confirm submission\nWallet: ${wallet}\nUtility: ${selUtil}\nReading: ${reading}\nNetwork: ${NETWORK}\nTime: ${new Date().toISOString()}`;
+        const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } }, { signer: wallet });
+        certificate = { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
+      } catch {
+        setBusy(false);
+        showToast(t("s.sign"));
+        return;
       }
+      const device = await deviceInfo();
+      sent = true;
+      const res = await fetchT(`${REWARD_API.replace(/\/$/, "")}/reward`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ utility: selUtil, reading, prevRead, ...(registers ? { registers } : {}), meterNo, address: wallet, photo: photo?.base64 || "", photoMime: photo?.mime || "", certificate, clientFlagged: !photoConfirmed || anom.anomaly, flagReason, ocrNums: photo?.ocrNums || [], meterNoConfirmed: photo?.meterNoConfirmed ?? null, avgUsage: anom.avg ?? null, captchaToken, device }),
+      }, PAYOUT_MS);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw httpError(data.error || `Reward service error ${res.status}`, res.status);
+      txid = data.txid;
+      onChainPending = !!data.pending;
+      if (data.amount != null && Number.isFinite(Number(data.amount))) paidAmount = Number(data.amount);
+      if (data.recorded) { recordedOnly = data.reason || "no saving to reward this time"; paidAmount = 0; }
 
       // Switched wallets while this was paying: the payout belongs to the wallet it
       // was sent for and shows in its history (from chain) once that one is back.

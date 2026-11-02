@@ -89,7 +89,6 @@ let loadError = false;
 const PART_FIELDS = ["hashes", "prints", "photos", "flags", "seen", "devices", "walletChecks", "usedCerts", "payLog"];
 const CORE = "core";
 const isPart = (f) => PART_FIELDS.includes(f);
-const partOf = (f) => (isPart(f) ? f : CORE);
 const keyOf = (part) => (part === CORE ? REDIS_KEY : `${REDIS_KEY}:part:${part}`);
 const verKeyOf = (part) => `${keyOf(part)}:version`;
 // Parts whose own key exists: only those are dropped from STATE_KEY.
@@ -267,7 +266,6 @@ let saveRetry = null;
 let hashAdds = 0;
 
 // ── Merging with what another process stored ─────────────────────────────────
-const VERSION_KEY = `${REDIS_KEY}:version`;
 // Set only if the version is still the one read; bumps it. One round trip, atomic.
 const CAS_SCRIPT = "if (redis.call('GET', KEYS[2]) or '0') == ARGV[1] then redis.call('SET', KEYS[1], ARGV[2]); return redis.call('INCR', KEYS[2]) else return 0 end";
 let casSupported = true;

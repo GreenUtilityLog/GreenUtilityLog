@@ -7,7 +7,7 @@ import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import express from "express";
 import cors from "cors";
 import { COOLDOWN_MS } from "./config.js";
-import { PORT, ALLOWED_ORIGIN, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, REQUIRE_PASS, PASSPORT_GRANTS_ACCESS, RATES, UNITS, pickUtility, pickAnyUtility, isEnabledUtility, MAX_PAYOUT_PER_SUBMISSION, ENABLED_UTILITIES, REWARD_BASE } from "./config.js";
+import { PORT, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, REQUIRE_PASS, PASSPORT_GRANTS_ACCESS, UNITS, pickUtility, pickAnyUtility, isEnabledUtility, MAX_PAYOUT_PER_SUBMISSION, ENABLED_UTILITIES, REWARD_BASE } from "./config.js";
 import { validateSubmission, validMeterNo } from "./verify.js";
 import { verifyPhoto, checkReadingOnPhoto, readingCheckMode, meterNoOnPhoto, meterNoCheckMode, photoPrint, printDistance } from "./media.js";
 import { store } from "./store.js";
