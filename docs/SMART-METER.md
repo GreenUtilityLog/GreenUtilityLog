@@ -18,7 +18,7 @@ place (`GET /meter/latest`). Adding a source later never changes the app.
 ```
  P1 / HAN reader  ─┐
  Home Assistant   ─┼──POST /meter-ingest──►  linkReadings[wallet]  ──►  app shows it
- Enode (global)   ─┘        (or Enode sync)                              "Use this reading"
+ Powerfox/Tibber  ─┘        (fetched by the server)                       "Use this reading"
 ```
 
 ### Source 1 — Push (free, works today, worldwide)
@@ -36,37 +36,10 @@ Flow:
 
 No env vars needed — this path is always on.
 
-### Source 2 — Enode (optional, global aggregator)
-[Enode](https://enode.com) is one API in front of 1000+ energy brands. Shown in the
-app only when configured. **Honest constraints:**
-- **Paid** for production (real meters). The **sandbox** is free but only returns
-  **simulated** devices — good for wiring, you can't link your real meter there.
-- Meter support is **beta** and region/DSO-dependent — coverage isn't guaranteed.
-
-Enable it on the backend (**Render → Environment**):
-
-| Env | Value |
-|---|---|
-| `ENODE_CLIENT_ID` | from your Enode dashboard |
-| `ENODE_CLIENT_SECRET` | from your Enode dashboard |
-| `ENODE_ENV` | `sandbox` (default) or `production` |
-| `ENODE_REDIRECT_URI` | (optional) where Enode returns the user; defaults to the app URL |
-| `ENODE_READING_FIELD` | **required before Enode readings can pay out** — the exact dot-path to the cumulative-kWh field in your account's meter object (e.g. `data.totalEnergy`) |
-
-Flow: `POST /meter/enode/link` (wallet-signed) → app opens Enode's link UI → user
-authorises their meter → `POST /meter/enode/sync` pulls the latest reading into the
-same store.
-
-> ⚠️ **Pin the reading field before trusting Enode payouts.** Enode's beta *meter*
-> schema isn't fixed, so `pickReading()` only returns a **payable** value when
-> `ENODE_READING_FIELD` names the exact dot-path. Without it, sync still returns a
-> best-guess value **and the raw meter object** (`guessed: true, stored: false`) so you
-> can identify the right field — but that guess is deliberately **not stored** and
-> cannot pay out. A wrong guess would feed `/reward-from-meter` and pay a wrong amount.
->
-> To pin it: enable Enode, call `/meter/enode/sync`, find the cumulative-kWh field in
-> the returned `raw`, then set `ENODE_READING_FIELD` to its dot-path and re-sync —
-> the response should show `guessed: false, stored: true`.
+### Source 2 — Cloud (Powerfox, Tibber)
+For a poweropti (Powerfox) or a Tibber Pulse the server fetches the meter total from
+that cloud itself, with the login or personal token the user links once in the app
+(`/meter/powerfox/link`, `/meter/tibber/link`). Same store, same rules.
 
 ---
 
@@ -76,20 +49,18 @@ same store.
 | POST | `/meter/pair` | wallet cert | issue a device token + ingest URL |
 | POST | `/meter-ingest` | device token | a reader pushes a reading |
 | GET | `/meter/latest?address=` | device token (header `x-device-token`) | latest reading for the app; without the token only whether a reader is paired |
-| POST | `/meter/enode/link` | wallet cert | start an Enode link session |
-| POST | `/meter/enode/sync` | wallet cert | pull latest Enode reading (+ raw) |
 | POST | `/reward-from-meter` | wallet cert | **photoless payout** from the latest ingested reading |
 
 `METER_MAX_AGE_MS` (default 48h) bounds how old an ingested reading may be and
 still pay out. `AUTO_SUBMIT_MS` (≥ 60000, unset = off) enables the hands-off
 scheduler that submits paired meters automatically.
 
-`GET /health` reports `meterIngest: true` and `enode: { enabled, env }`.
+`GET /health` reports `meterIngest: true`, and `powerfox` / `tibber` with how many wallets are linked.
 
 ---
 
 ## Roadmap
-- **Step 1 (done):** pairing + ingestion + Enode adapter + app card showing the live
+- **Step 1 (done):** pairing + ingestion + app card showing the live
   reading, "Use in form" prefills the Current field.
 - **Step 2 (done):** photoless payout — `POST /reward-from-meter` (cert-authed) pays
   from a fresh ingested reading instead of a photo. Trust anchors: the device

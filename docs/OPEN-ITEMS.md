@@ -86,6 +86,7 @@ Laatst bijgewerkt: 2026-11-01.
 - [ ] Grant-aanvraag VeBetter Grants (x2earn-spoor)
 - [ ] Normen per land (nu één norm van 8 kWh per dag)
 - [ ] Roadmap: gas en water, daarna zonnepanelen (staat in de server, uitgeschakeld)
+- [x] Enode verwijderd: nooit ingeschakeld, betaald, en P1/Home Assistant/Powerfox/Tibber dekken het (#165)
 
 ## Bewust zo gelaten
 - Tijdverschuiving bij automatische standen: geaccepteerd risico (zie `docs/MAINNET.md`)
