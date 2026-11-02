@@ -23,6 +23,7 @@ import { deviceKeys, DEVICE_MAX_WALLETS, DEVICE_FP_FLAG, REQUIRE_DEVICE } from "
 import { enodeEnabled, enodeInfo, createMeterLink, fetchLatestReading } from "./enode.js";
 import { powerfoxEnabled, sealCredentials, openCredentials, fetchPowerfoxReading } from "./powerfox.js";
 import { fetchTibberReading } from "./tibber.js";
+import { rateKeyFor } from "./ratekey.js";
 import { inspectWallet, judgeWallet } from "./walletcheck.js";
 
 const app = express();
@@ -72,11 +73,12 @@ app.use((req, res, next) => {
   const fromHeader = CLIENT_IP_HEADER !== "none" ? String(req.get(CLIENT_IP_HEADER) || "").trim() : "";
   const ip = (looksLikeIp(fromHeader) && fromHeader) || req.ip || req.socket.remoteAddress || "unknown";
   req.clientIp = ip;
+  req.rateKey = rateKeyFor(ip);
   const now = Date.now();
-  const win = hits.get(ip)?.filter((t) => now - t < 60_000) || [];
+  const win = hits.get(req.rateKey)?.filter((t) => now - t < 60_000) || [];
   if (win.length >= 30) return res.status(429).json({ error: "too many requests" });
   win.push(now);
-  hits.set(ip, win);
+  hits.set(req.rateKey, win);
   // Bounded between sweeps too: a flood of made-up addresses grew it for 5 minutes.
   if (hits.size > 50000) for (const [k, w] of hits) { if (!w.some((t) => now - t < 60_000)) hits.delete(k); }
   if (hits.size > 50000) hits.clear();
@@ -106,7 +108,7 @@ const photoBodiesByIp = new Map();
 for (const path of ["/reward", "/ocr", "/meter/fix-basis"]) {
   app.use(path, (req, res, next) => {
     if (req.method !== "POST") return next();
-    const ip = req.clientIp || "unknown";
+    const ip = req.rateKey || "unknown";
     const mine = photoBodiesByIp.get(ip) || 0;
     if (mine >= PHOTO_BODIES_PER_IP) return res.status(429).json({ error: "another photo from you is still being processed — wait for it to finish" });
     if (photoBodies >= PHOTO_BODIES_MAX) return res.status(503).json({ error: "the server is busy — try again in a minute" });
@@ -174,11 +176,26 @@ app.get("/livez", (req, res) => (store.loaded()
 const CHAIN_DIAG_MS = 8000;
 const withTimeout = (p, ms, fallback) => Promise.race([p, new Promise((r) => setTimeout(() => r(fallback), ms).unref?.())]);
 
+// /health is public and polled by the app, monitors and the watchdog. Its chain
+// part is six contract reads, so it is shared for HEALTH_CHAIN_CACHE_MS (30 s): a
+// burst of requests is one round of reads, not six per request.
+const HEALTH_CHAIN_CACHE_MS = Math.max(0, Number(process.env.HEALTH_CHAIN_CACHE_MS ?? 30000) || 0);
+let healthChain = { at: 0, value: null, inFlight: null };
+async function cachedChainDiagnostics() {
+  if (healthChain.value && Date.now() - healthChain.at < HEALTH_CHAIN_CACHE_MS) return healthChain.value;
+  if (!healthChain.inFlight) {
+    healthChain.inFlight = chainDiagnostics()
+      .then((v) => { if (v) healthChain = { at: Date.now(), value: v, inFlight: null }; return v; })
+      .finally(() => { healthChain.inFlight = null; });
+  }
+  return healthChain.inFlight;
+}
+
 app.get("/health", async (req, res) => {
   // On-chain self-diagnosis: poolB3TR is the app's available reward funds;
   // distributorAuthorized says whether our wallet holds the reward-distributor
   // role. false on either one explains a reverting distributeReward instantly.
-  const chain = await withTimeout(chainDiagnostics().catch(() => null), CHAIN_DIAG_MS, null) || { poolB3TR: null, distributorAuthorized: null };
+  const chain = await withTimeout(cachedChainDiagnostics().catch(() => null), CHAIN_DIAG_MS, null) || { poolB3TR: null, distributorAuthorized: null };
   res.json({
     ok: true,
     // Which commit is actually running. "Did my backend redeploy?" has come up after
@@ -972,10 +989,10 @@ app.post("/ocr", async (req, res) => {
   // Kept in the stored state (dailyCounter), so a server waking from sleep doesn't
   // start the day's count again.
   const ocrCount = dailyCounter("ocrQuota");
-  if (ocrCount.total >= OCR_DAILY_MAX || ocrCount.of(req.clientIp) >= OCR_DAILY_PER_IP) {
+  if (ocrCount.total >= OCR_DAILY_MAX || ocrCount.of(req.rateKey) >= OCR_DAILY_PER_IP) {
     return res.status(429).json({ ok: false, error: "photo reading limit reached for today — type the reading in yourself" });
   }
-  ocrCount.add(req.clientIp);
+  ocrCount.add(req.rateKey);
   const { text, numbers, provider } = await ocrImage(image);
   res.json({ ok: true, text, numbers, provider });
 });
@@ -1582,6 +1599,9 @@ app.post("/meter-ingest", (req, res) => {
     meterNo: String(req.body.meterNo || link.meterNo || "").trim() || null,
     at: Date.now(),
     source: "push",
+    // Which bridge version sent it (gul.js sends GreenUtilityLog-bridge/x.y.z), so an
+    // admin can see who still runs an old one. Other readers send none.
+    ...(() => { const m = String(req.get("user-agent") || "").match(/GreenUtilityLog-bridge\/(\d{1,3}\.\d{1,3}\.\d{1,3})/); return m ? { client: `bridge ${m[1]}` } : {}; })(),
   });
   // When a reading can next be paid. The free-plan server sleeps between pushes,
   // so a reading that arrives during the cooldown is only paid when the NEXT one

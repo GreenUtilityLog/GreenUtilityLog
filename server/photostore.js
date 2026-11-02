@@ -84,19 +84,21 @@ async function r2client() {
     return null;
   }
 }
+// R2 had no time limit: a stalled upload or an admin opening a photo hung for good.
+const R2_TIMEOUT_MS = Number(process.env.R2_TIMEOUT_MS) || 30000;
 const r2url = (id) => `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET}/${PREFIX}/${safeId(id)}.jpg`;
 
 async function r2Put(id, buf, mime) {
   const c = await r2client();
   if (!c) return false;
-  const res = await c.fetch(r2url(id), { method: "PUT", body: buf, headers: { "Content-Type": mime || "image/jpeg" } });
+  const res = await c.fetch(r2url(id), { method: "PUT", body: buf, headers: { "Content-Type": mime || "image/jpeg" }, signal: AbortSignal.timeout(R2_TIMEOUT_MS) });
   if (!res.ok) { console.error("[photostore] R2 put failed", res.status); return false; }
   return true;
 }
 async function r2Get(id) {
   const c = await r2client();
   if (!c) return null;
-  const res = await c.fetch(r2url(id), { method: "GET" });
+  const res = await c.fetch(r2url(id), { method: "GET", signal: AbortSignal.timeout(R2_TIMEOUT_MS) });
   if (res.status === 404) return null;
   if (!res.ok) { console.error("[photostore] R2 get failed", res.status); return null; }
   const mime = res.headers.get("content-type") || "image/jpeg";
@@ -106,7 +108,7 @@ async function r2Get(id) {
 async function r2Del(id) {
   const c = await r2client();
   if (!c) return false;
-  const res = await c.fetch(r2url(id), { method: "DELETE" });
+  const res = await c.fetch(r2url(id), { method: "DELETE", signal: AbortSignal.timeout(R2_TIMEOUT_MS) });
   return res.ok || res.status === 404;
 }
 

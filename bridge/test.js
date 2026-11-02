@@ -428,3 +428,60 @@ test("a total that went down, or a 0 from a reader that just rebooted, is not se
   assert.deepEqual(seen, [5000.5, 4999]);
   reader.close(); backend.close();
 });
+
+test("says which bridge version it is, and keeps its settings in GUL_DATA_DIR", async () => {
+  const reader = await fake(hw);
+  let ua = null;
+  const backend = await fake((req, res) => { ua = req.headers["user-agent"]; req.resume(); req.on("end", () => res.end("{}")); });
+  const data = mkdtempSync(join(tmpdir(), "gul data "));
+  const r = await run(["--token=t-data", "--once", `--ip=127.0.0.1:${reader.address().port}`, `--ingest=http://127.0.0.1:${backend.address().port}/meter-ingest`], { GUL_DATA_DIR: data });
+  reader.close(); backend.close();
+  assert.equal(r.code, 0, r.out);
+  assert.match(String(ua), /^GreenUtilityLog-bridge\/\d+\.\d+\.\d+ \(node /);
+  assert.ok(existsSync(join(data, ".gul-bridge-127.json")), "settings in the data folder");
+  assert.ok(existsSync(join(data, ".gul-bridge-127.log")), "log in the data folder");
+});
+
+test("a reader that answers without end is cut off, not read into memory", async () => {
+  const reader = await fake((req, res) => {
+    res.setHeader("content-type", "application/json");
+    res.write('{"total_power_import_kwh": 5, "pad": "');
+    const chunk = "x".repeat(64 * 1024);
+    const t = setInterval(() => { if (!res.write(chunk)) {} }, 1);
+    res.on("close", () => clearInterval(t));
+  });
+  const backend = await fake((req, res) => { req.resume(); req.on("end", () => res.end("{}")); });
+  const r = await run(["--token=t-big", "--once", `--ip=127.0.0.1:${reader.address().port}`, `--ingest=http://127.0.0.1:${backend.address().port}/meter-ingest`]);
+  reader.closeAllConnections?.(); reader.close(); backend.close();
+  assert.notEqual(r.code, 0, r.out);
+  assert.match(r.out, /larger than 1024 KB/);
+});
+
+test("a reader given now replaces the one an earlier setup saved", async () => {
+  if (process.platform === "win32") return;
+  const { writeFileSync, chmodSync, mkdirSync } = require("node:fs");
+  const bin = join(dir, "bin-src");
+  mkdirSync(bin, { recursive: true });
+  const cronFile = join(dir, "crontab-src.txt");
+  writeFileSync(cronFile, "");
+  writeFileSync(join(bin, "crontab"), '#!/bin/sh\nif [ "$1" = "-l" ]; then if [ -f "$CRONFILE" ]; then cat "$CRONFILE"; else exit 1; fi; elif [ "$1" = "-" ]; then cat > "$CRONFILE"; fi\n');
+  chmodSync(join(bin, "crontab"), 0o755);
+  const env = { PATH: `${bin}:${process.env.PATH}`, CRONFILE: cronFile };
+  let tasmotaHits = 0;
+  const tasmota = await fake((req, res) => { tasmotaHits++; res.end(JSON.stringify({ StatusSNS: { SML: { Total_in: 55.5 } } })); });
+  const homewizard = await fake(hw);
+  const seen = [];
+  const backend = await fake((req, res) => { let b = ""; req.on("data", (c) => (b += c)); req.on("end", () => { seen.push(JSON.parse(b).reading); res.end("{}"); }); });
+  const ingest = `--ingest=http://127.0.0.1:${backend.address().port}/meter-ingest`;
+  let inst, r;
+  try {
+    inst = await run(["--install", "--token=t-src", `--tasmota=127.0.0.1:${tasmota.address().port}`, ingest], env);
+    tasmotaHits = 0;
+    r = await run(["--once", `--ip=127.0.0.1:${homewizard.address().port}`, ingest], env);
+    await run(["--uninstall"], env);
+  } finally { tasmota.close(); homewizard.close(); backend.close(); }
+  assert.equal(inst.code, 0, inst.out);
+  assert.equal(r.code, 0, r.out);
+  assert.equal(tasmotaHits, 0, "the saved Tasmota head is not read");
+  assert.equal(seen.at(-1), 300.75, "the HomeWizard given now is");
+});

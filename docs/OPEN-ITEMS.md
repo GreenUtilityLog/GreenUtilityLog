@@ -64,14 +64,15 @@ Laatst bijgewerkt: 2026-11-01.
 
 ## Server en koppelingen
 - [x] Transactie zonder ontvangstbewijs: elke minuut opnieuw gecontroleerd; na 15 min weg → melding voor de beheerder (#159)
-- [ ] `/health` doet 6 chain-aanroepen per keer zonder cache
+- [x] `/health`: chain-gegevens 30 s gedeeld, één ronde aanroepen per keer (#160)
 - [x] Tibber koppelen: thuis 2 min gereserveerd in de gedeelde opslag (twee processen tijdens een deploy) (#159)
 - [x] `/reward-from-meter` zegt "niets gebruikt" als de boekhouding na een uitbetaling faalt (#159)
-- [ ] Time-outs op Enode- en R2-aanroepen; Roboflow-sleutel niet in de URL
-- [ ] Snelheidslimiet per IPv6-/64 in plaats van per adres
+- [x] Time-outs op Enode (15 s) en R2 (30 s); Google Vision-sleutel in een header. Roboflow neemt zijn sleutel alleen in de URL: die URL wordt nergens gelogd (#160)
+- [x] Snelheidslimiet per IPv6-/64 in plaats van per adres (#160)
 - [ ] `index.js` (2.400 regels) opsplitsen; `/reward` en eco-resten delen één helper
 - [ ] Tests voor: afsluiten met uitbetaling onderweg, `/admin/photo`, `/admin/move-rewards-pool`
-- [ ] gul.js: versie meesturen (`User-Agent`); antwoordgrootte begrenzen
+- [x] Servertests hingen in CI na een poortbotsing; nu opnieuw starten en `--test-force-exit` (#159)
+- [x] gul.js: versie in de `User-Agent` (server bewaart hem bij de stand), antwoorden max. 1 MB; een nu opgegeven `--ip` wint van een opgeslagen Tasmota/URL; add-on 1.5.3 (#160)
 - [x] HA-add-on: instellingen en log in `/data` (`GUL_DATA_DIR`), versie 1.5.2 (#159)
 - [ ] Afhankelijkheden server: express 5, @anthropic-ai/sdk, @vechain/sdk 2.1
 
