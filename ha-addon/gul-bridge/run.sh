@@ -26,6 +26,10 @@ if bashio::config.has_value 'read_url'; then export READ_URL="$(bashio::config '
 if bashio::config.has_value 'tasmota_ip'; then export TASMOTA_IP="$(bashio::config 'tasmota_ip')"; fi
 if bashio::config.has_value 'read_field'; then export READ_FIELD="$(bashio::config 'read_field')"; fi
 if bashio::config.has_value 'ingest_url'; then export GUL_INGEST_URL="$(bashio::config 'ingest_url')"; fi
+if bashio::config.true 'forget_last'; then
+  export GUL_FORGET_LAST=1
+  bashio::log.warning "forget_last is on: the next reading becomes the new starting point. Switch it off again afterwards."
+fi
 if bashio::config.has_value 'powerfox_email'; then
   export GUL_POWERFOX_USER="$(bashio::config 'powerfox_email')"
   export GUL_POWERFOX_PASS="$(bashio::config 'powerfox_password')"

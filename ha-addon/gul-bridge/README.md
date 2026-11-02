@@ -35,6 +35,7 @@ a day), and the panel's **Timeline** shows **Paid +… B3TR** — nothing to tap
 | `ingest_url` | empty = the app's server | Fill in only for the app's test copy or your own backend |
 | `tasmota_ip` | — | IP of a Tasmota IR reading head (e.g. Hichi) on the meter; the total is read from its `Total_in` value |
 | `powerfox_email` / `powerfox_password` | — | A Powerfox poweropti instead of a HomeWizard: your Powerfox login. The reading comes from the Powerfox cloud (switch on data transfer in the Powerfox app) |
+| `forget_last` | off | After a meter change: the new meter reads lower than the old one, and the add-on refuses a total that goes down. Switch on, restart the add-on once, then switch it off again |
 
 ## Not a HomeWizard?
 

@@ -24,3 +24,4 @@ __pycache__/
 .gul-bridge*.json
 .gul-bridge*.log*
 .gul-bridge*.tmp
+.claude/

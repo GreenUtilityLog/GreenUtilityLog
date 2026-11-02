@@ -60,8 +60,10 @@ export function validateSubmission(body) {
   // read before we recorded timestamps — counts as one day, i.e. the old behaviour.
   const lastAt = store.lastReadingAt(utility, meterKey);
   const days = lastAt ? spanDays(Date.now() - lastAt) : 1;
+  // The real gap, uncapped, for what counts as plausible (see usageBoundsFor).
+  const gapDays = lastAt ? Math.max(1, (Date.now() - lastAt) / 86400000) : 1;
 
-  const [lo, hi] = usageBoundsFor(utility, days);
+  const [lo, hi] = usageBoundsFor(utility, gapDays);
   // Almost no usage over the whole span — less than the floor per day (0.1 kWh a day
   // for electricity; a fridge alone uses about 1). A home that is lived in doesn't
   // do that, so it is a reader sending an old value, the same number typed again,

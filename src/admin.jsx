@@ -426,7 +426,7 @@ function WalletAdminActions({ T, address, meters, onAdminApi, onToast }) {
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
             <input value={renameVals[m.meterNo] ?? ""} onChange={e => setRenameVals(v => ({ ...v, [m.meterNo]: e.target.value }))} placeholder="Change meter number →" spellCheck={false} style={inp} />
-            <button disabled={busy === "ren" + i || !(renameVals[m.meterNo] || "").trim()} onClick={() => run("ren" + i, () => onAdminApi("/admin/rename-meter", { oldMeterNo: m.meterNo, newMeterNo: (renameVals[m.meterNo] || "").trim(), utility: m.utility, targetWallet: address }), (d) => `✅ Meter renamed → ${d.meterNo}`)} style={btn("transparent", T.textMid, busy === "ren" + i || !(renameVals[m.meterNo] || "").trim())}>{busy === "ren" + i ? "…" : "Rename"}</button>
+            <button disabled={busy === "ren" + i || !(renameVals[m.meterNo] || "").trim()} onClick={() => run("ren" + i, () => onAdminApi("/admin/rename-meter", { oldMeterNo: m.meterNo, newMeterNo: (renameVals[m.meterNo] || "").trim(), utility: m.utility, targetWallet: address }), (d) => { setBackendMeters(prev => (prev || []).map(x => x.meterNo === m.meterNo && x.utility === m.utility ? { ...x, meterNo: d.meterNo } : x)); setRenameVals(v => ({ ...v, [m.meterNo]: "" })); return `✅ Meter renamed → ${d.meterNo}`; })} style={btn("transparent", T.textMid, busy === "ren" + i || !(renameVals[m.meterNo] || "").trim())}>{busy === "ren" + i ? "…" : "Rename"}</button>
           </div>
         </div>
       ))}
@@ -463,7 +463,9 @@ function SubmissionRow({ r, T, onAdminApi, onToast, archiveOn }) {
   // A reader-sourced payout has no photo by design, so the camera would only ever
   // report its absence. Empty source means a payout from before this was recorded:
   // unknown, so the button stays and the message keeps naming both possibilities.
-  const fromReader = r.source === "push" || r.source === "enode" || r.source === "reader";
+  // Every source without a photo: a pushed reading, and the Powerfox and Tibber
+  // clouds the server reads itself ("enode" is in older payouts on chain).
+  const fromReader = ["push", "reader", "powerfox", "tibber", "enode"].includes(r.source);
   const canPhoto = archiveOn && !!r.txHash && !fromReader;
   const [photo, setPhoto] = useState({ status: "idle", dataUrl: null }); // idle|loading|shown|none|deleted|busy
 

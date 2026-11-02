@@ -21,10 +21,11 @@ from .const import (
     CONF_INTERVAL,
     CONF_SOURCE_ENTITY,
     CONF_TOKEN,
-    DEFAULT_INGEST_URL,
     DEFAULT_INTERVAL_MINUTES,
     DOMAIN,
     MIN_INTERVAL_MINUTES,
+    SHIPPED_DEFAULT_INGEST_URLS,
+    UNIT_TO_KWH,
 )
 
 
@@ -54,8 +55,10 @@ def _schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
                     mode=selector.NumberSelectorMode.BOX,
                 )
             ),
+            # Empty means "our server": the address used to be filled in here and was
+            # then stored in every entry, so installs never followed a server move.
             vol.Optional(
-                CONF_INGEST_URL, default=d.get(CONF_INGEST_URL, DEFAULT_INGEST_URL)
+                CONF_INGEST_URL, default=d.get(CONF_INGEST_URL, "") or ""
             ): selector.TextSelector(),
         }
     )
@@ -94,7 +97,9 @@ def _validate(hass, user_input: dict[str, Any]) -> dict[str, str]:
             errors[CONF_SOURCE_ENTITY] = "entity_not_numeric"
         else:
             unit = state.attributes.get("unit_of_measurement")
-            if unit and unit not in (UnitOfEnergy.KILO_WATT_HOUR, "kWh"):
+            # Wh and MWh are converted when pushing (UNIT_TO_KWH), so a meter sensor
+            # that reports natively in Wh (some ESPHome/Shelly setups) is fine too.
+            if unit and unit not in UNIT_TO_KWH and unit != UnitOfEnergy.KILO_WATT_HOUR:
                 errors[CONF_SOURCE_ENTITY] = "entity_not_kwh"
             elif state.attributes.get("state_class") in ("total", "measurement"):
                 # A kWh sensor that isn't total_increasing is one that RESETS. The
@@ -107,6 +112,18 @@ def _validate(hass, user_input: dict[str, Any]) -> dict[str, str]:
                 errors[CONF_SOURCE_ENTITY] = "entity_not_cumulative"
 
     return errors
+
+
+def _clean(user_input: dict[str, Any]) -> dict[str, Any]:
+    """What gets stored: a trimmed token, and no server address for the default."""
+    out = dict(user_input)
+    # The server looks the token up exactly; a pasted trailing space passed setup
+    # and was then refused on every push.
+    out[CONF_TOKEN] = str(out.get(CONF_TOKEN, "")).strip()
+    url = str(out.get(CONF_INGEST_URL) or "").strip()
+    out[CONF_INGEST_URL] = "" if url in SHIPPED_DEFAULT_INGEST_URLS else url
+    out[CONF_INTERVAL] = int(out[CONF_INTERVAL])
+    return out
 
 
 class GreenUtilityLogConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -125,8 +142,7 @@ class GreenUtilityLogConfigFlow(ConfigFlow, domain=DOMAIN):
                 # double the traffic for no benefit.
                 await self.async_set_unique_id(user_input[CONF_SOURCE_ENTITY])
                 self._abort_if_unique_id_configured()
-                user_input[CONF_INTERVAL] = int(user_input[CONF_INTERVAL])
-                return self.async_create_entry(title="GreenUtilityLog", data=user_input)
+                return self.async_create_entry(title="GreenUtilityLog", data=_clean(user_input))
 
         return self.async_show_form(
             step_id="user", data_schema=_schema(user_input), errors=errors
@@ -148,8 +164,7 @@ class GreenUtilityLogOptionsFlow(OptionsFlow):
         if user_input is not None:
             errors = _validate(self.hass, user_input)
             if not errors:
-                user_input[CONF_INTERVAL] = int(user_input[CONF_INTERVAL])
-                return self.async_create_entry(data=user_input)
+                return self.async_create_entry(data=_clean(user_input))
 
         current = {**self.config_entry.data, **self.config_entry.options}
         return self.async_show_form(

@@ -387,3 +387,49 @@ def test_the_server_address_must_be_https(url, ok):
     hass = FakeHass({METER: FakeState("8421.3")})
     errors = _validate(hass, {CONF_TOKEN: "abc", CONF_SOURCE_ENTITY: METER, CONF_INGEST_URL: url})
     assert (CONF_INGEST_URL not in errors) == ok
+
+
+# ── found in the November review ─────────────────────────────────────────────
+
+@pytest.mark.parametrize("unit", ["Wh", "MWh"])
+def test_a_meter_sensor_in_wh_or_mwh_can_be_picked(unit):
+    """Pushing converts these to kWh, so setup must not refuse them."""
+    hass = FakeHass({METER: FakeState("8421300", unit=unit)})
+    assert _validate(hass, {CONF_TOKEN: "abc", CONF_SOURCE_ENTITY: METER}) == {}
+
+
+def test_the_default_server_is_not_stored_and_the_token_is_trimmed():
+    from custom_components.greenutilitylog.config_flow import _clean
+    from custom_components.greenutilitylog.const import DEFAULT_INGEST_URL
+
+    out = _clean({CONF_TOKEN: "  tok-123 \n", CONF_SOURCE_ENTITY: METER, CONF_INTERVAL: 60.0, CONF_INGEST_URL: DEFAULT_INGEST_URL})
+    assert out[CONF_TOKEN] == "tok-123"
+    assert out[CONF_INGEST_URL] == "", "left as the default, so the entry follows a server move"
+    assert out[CONF_INTERVAL] == 60
+    own = _clean({CONF_TOKEN: "t", CONF_SOURCE_ENTITY: METER, CONF_INTERVAL: 60, CONF_INGEST_URL: " https://my.server/meter-ingest "})
+    assert own[CONF_INGEST_URL] == "https://my.server/meter-ingest"
+
+
+def test_an_entry_that_stored_the_old_default_follows_the_current_one():
+    from custom_components.greenutilitylog.const import DEFAULT_INGEST_URL, resolve_ingest_url
+
+    assert resolve_ingest_url("") == DEFAULT_INGEST_URL
+    assert resolve_ingest_url(None) == DEFAULT_INGEST_URL
+    assert resolve_ingest_url(DEFAULT_INGEST_URL) == DEFAULT_INGEST_URL
+    assert resolve_ingest_url("https://my.server/meter-ingest") == "https://my.server/meter-ingest"
+
+
+def test_an_empty_server_address_pushes_to_the_default():
+    from custom_components.greenutilitylog.const import DEFAULT_INGEST_URL
+
+    hass = FakeHass({METER: FakeState("8421.3")})
+    session = _session()
+    asyncio.run(_push(hass, _entry(**{CONF_INGEST_URL: ""}), session))
+    assert session.post.call_args[0][0] == DEFAULT_INGEST_URL
+
+
+def test_a_token_with_spaces_around_it_is_sent_trimmed():
+    hass = FakeHass({METER: FakeState("8421.3")})
+    session = _session()
+    asyncio.run(_push(hass, _entry(**{CONF_TOKEN: " tok-123\n"}), session))
+    assert session.post.call_args[1]["json"]["token"] == "tok-123"

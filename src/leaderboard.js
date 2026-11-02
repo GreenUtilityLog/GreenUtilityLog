@@ -237,7 +237,7 @@ export async function fetchWalletHistory({ node, contract, appId, address, max =
         type:      p.utility || "electric",
         appliance: p.appliance || "",
         meterNo:   p.meterNo || "",
-        // "photo" | "push" | "enode" | "reader". Absent on payouts made before this
+        // "photo" | "push" | "reader" | "powerfox" | "tibber" (older payouts: "enode"). Absent on payouts made before this
         // was recorded, which is why the UI treats "" as unknown rather than photo.
         source:    typeof p.source === "string" ? p.source : "",
         cur:       p.reading ?? "",

@@ -485,3 +485,186 @@ test("a reader given now replaces the one an earlier setup saved", async () => {
   assert.equal(tasmotaHits, 0, "the saved Tasmota head is not read");
   assert.equal(seen.at(-1), 300.75, "the HomeWizard given now is");
 });
+
+// ── Re-running --install, setup by environment variables, the long-running loop ──
+// Each of these gets a folder of its own (settings, log, a fake crontab), so what one
+// saves can't change what another reads.
+const CRONTAB_SH = '#!/bin/sh\nif [ "$1" = "-l" ]; then if [ -f "$CRONFILE" ]; then cat "$CRONFILE"; else echo "no crontab for you" >&2; exit 1; fi; elif [ "$1" = "-" ]; then cat > "$CRONFILE"; fi\n';
+function sandbox(name) {
+  const { writeFileSync, mkdirSync } = require("node:fs");
+  const d = mkdtempSync(join(tmpdir(), `gul ${name} `));
+  const script = join(d, "gul.js");
+  copyFileSync(join(__dirname, "index.js"), script);
+  const bin = join(d, "bin");
+  mkdirSync(bin);
+  writeFileSync(join(bin, "crontab"), CRONTAB_SH, { mode: 0o755 });
+  const cronFile = join(d, "crontab.txt");
+  const base = { ...process.env, PATH: `${bin}:${process.env.PATH}`, CRONFILE: cronFile, GUL_RETRY_WAIT_MS: "50" };
+  const exec = (cmd, args, env = {}) => new Promise((resolve) => {
+    const p = spawn(cmd, args, { env: { ...base, ...env } });
+    let out = "";
+    p.stdout.on("data", (c) => (out += c)); p.stderr.on("data", (c) => (out += c));
+    p.on("exit", (code) => resolve({ code, out }));
+  });
+  const cfgFile = join(d, ".gul-bridge-127.json");
+  return {
+    dir: d,
+    run: (args, env) => exec(process.execPath, [script, ...args], env),
+    tab: () => (existsSync(cronFile) ? readFileSync(cronFile, "utf8") : ""),
+    cfg: () => JSON.parse(readFileSync(cfgFile, "utf8")),
+    setCfg: (patch) => writeFileSync(cfgFile, JSON.stringify({ ...JSON.parse(readFileSync(cfgFile, "utf8")), ...patch })),
+    writeCfg: (c) => writeFileSync(cfgFile, JSON.stringify(c)),
+    // Runs the command of our cron line the way cron would: through sh, with cron's
+    // \% turned back into %, and none of this shell's GUL_*/HW_IP variables.
+    runCron: () => {
+      const line = readFileSync(cronFile, "utf8").split("\n").find((l) => /# GreenUtilityLog/.test(l));
+      const cmd = line.replace(/^0 \* \* \* \* /, "").replace(/ >\/dev\/null 2>&1 # GreenUtilityLog.*$/, "").replace(/\\%/g, "%");
+      return exec("sh", ["-c", cmd]);
+    },
+  };
+}
+// A fake backend that keeps every reading it was sent.
+async function recorder() {
+  const seen = [];
+  const srv = await fake((req, res) => { let b = ""; req.on("data", (c) => (b += c)); req.on("end", () => { seen.push(JSON.parse(b)); res.end("{}"); }); });
+  return { srv, seen, url: `http://127.0.0.1:${srv.address().port}/meter-ingest` };
+}
+
+test("--install again with no reader named keeps the saved one (here a Tasmota head)", async () => {
+  if (process.platform === "win32") return;
+  const sb = sandbox("reinstall");
+  let hits = 0;
+  const tasmota = await fake((req, res) => { hits++; res.end(JSON.stringify({ StatusSNS: { SML: { Total_in: 777.5 } } })); });
+  const homewizard = await fake(hw);
+  const be = await recorder();
+  try {
+    let r = await sb.run(["--install", "--token=t-re", `--tasmota=127.0.0.1:${tasmota.address().port}`, `--ingest=${be.url}`]);
+    assert.equal(r.code, 0, r.out);
+    // What the guide says for a 401 or a stale reading: the same line, without the reader.
+    r = await sb.run(["--install", `--ingest=${be.url}`]);
+    assert.equal(r.code, 0, r.out);
+    assert.equal(sb.cfg().read.tasmota, `127.0.0.1:${tasmota.address().port}`, "the Tasmota head is still saved");
+    assert.equal(hits, 2, "and was read by both setups");
+    sb.setCfg({ lastPushAt: Date.now() - 12 * 3600e3 });
+    r = await sb.runCron();
+    assert.equal(r.code, 0, r.out);
+    assert.equal(hits, 3, "the schedule reads it too");
+    assert.deepEqual(be.seen.map((s) => s.reading), [777.5, 777.5, 777.5]);
+    // A reader named now still replaces it. (Another fake meter, with a lower total.)
+    sb.setCfg({ lastReading: null });
+    r = await sb.run(["--install", `--ip=127.0.0.1:${homewizard.address().port}`, `--ingest=${be.url}`]);
+    assert.equal(r.code, 0, r.out);
+    assert.equal(sb.cfg().read.tasmota, undefined);
+    assert.equal(be.seen.at(-1).reading, 300.75);
+  } finally { tasmota.close(); homewizard.close(); be.srv.close(); }
+});
+
+test("--install again keeps reading Powerfox, also after a setup made before 1.5.4", async () => {
+  if (process.platform === "win32") return;
+  const pf = await fakePowerfox();
+  const homewizard = await fake(hw);
+  const be = await recorder();
+  const env = { GUL_POWERFOX_URL: pf.url };
+  try {
+    const sb = sandbox("pf reinstall");
+    let r = await sb.run(["--install", "--token=t-pf", "--powerfox=me@example.de", "--powerfox-pass=pw-123", `--ingest=${be.url}`], env);
+    assert.equal(r.code, 0, r.out);
+    r = await sb.run(["--install", `--ingest=${be.url}`], env);
+    assert.equal(r.code, 0, r.out);
+    assert.match(sb.tab(), / --powerfox /, "the new schedule still says Powerfox");
+    assert.equal(be.seen.at(-1).reading, 1004.5, "and the re-install itself read Powerfox");
+
+    // The settings an older version left behind: the account, and read without it.
+    const old = sandbox("pf old");
+    old.writeCfg({ token: "t-pf", powerfoxUser: "me@example.de", powerfoxPass: "pw-123", read: {} });
+    r = await old.run(["--install", `--ingest=${be.url}`], env);
+    assert.equal(r.code, 0, r.out);
+    assert.match(old.tab(), / --powerfox /);
+    assert.equal(old.cfg().read.powerfox, true, "remembered from now on");
+
+    // Another reader named now replaces Powerfox, in the schedule too.
+    old.setCfg({ lastReading: null });
+    r = await old.run(["--install", `--ip=127.0.0.1:${homewizard.address().port}`, `--ingest=${be.url}`], env);
+    assert.equal(r.code, 0, r.out);
+    assert.doesNotMatch(old.tab(), /--powerfox/);
+    assert.equal(old.cfg().read.powerfox, false);
+    assert.equal(be.seen.at(-1).reading, 300.75);
+  } finally { pf.srv.close(); homewizard.close(); be.srv.close(); }
+});
+
+test("a setup done with environment variables is carried into the schedule", async () => {
+  if (process.platform === "win32") return;
+  const sb = sandbox("env");
+  const homewizard = await fake(hw);
+  const be = await recorder();
+  try {
+    // A % in the server address too: cron would cut the line there unless escaped.
+    const ingest = `${be.url}?tag=a%20b`;
+    const r = await sb.run(["--install"], { GUL_TOKEN: "t-env", GUL_INGEST_URL: ingest, HW_IP: `127.0.0.1:${homewizard.address().port}` });
+    assert.equal(r.code, 0, r.out);
+    assert.match(sb.tab(), /'--ingest=http:\/\/127\.0\.0\.1:\d+\/meter-ingest\?tag=a\\%20b'/, "the server is in the cron line, its % escaped");
+    assert.equal(sb.cfg().read.ip, `127.0.0.1:${homewizard.address().port}`, "HW_IP is saved like --ip");
+    sb.setCfg({ lastPushAt: Date.now() - 12 * 3600e3 });
+    const sched = await sb.runCron();
+    assert.equal(sched.code, 0, sched.out);
+    assert.deepEqual(be.seen.at(-1), { token: "t-env", reading: 300.75 }, "the schedule finds the token and the meter");
+    assert.equal(be.seen.length, 2);
+  } finally { homewizard.close(); be.srv.close(); }
+});
+
+test("--ip with http:// and a path pasted in still reads the meter", async () => {
+  const sb = sandbox("ip scheme");
+  const homewizard = await fake(hw);
+  const be = await recorder();
+  try {
+    let r = await sb.run(["--once", "--token=t-ip", `--ip=http://127.0.0.1:${homewizard.address().port}/`, `--ingest=${be.url}`]);
+    assert.equal(r.code, 0, r.out);
+    r = await sb.run(["--once", `--ingest=${be.url}`], { HW_IP: `HTTP://127.0.0.1:${homewizard.address().port}/api` });
+    assert.equal(r.code, 0, r.out);
+    assert.deepEqual(be.seen.map((s) => s.reading), [300.75, 300.75]);
+  } finally { homewizard.close(); be.srv.close(); }
+});
+
+test("GUL_FORGET_LAST=1 lets a new meter's lower total through, like --forget-last", async () => {
+  const sb = sandbox("forget");
+  let total = 5000.5;
+  const reader = await fake((req, res) => res.end(JSON.stringify({ StatusSNS: { SML: { Total_in: total } } })));
+  const be = await recorder();
+  const flags = ["--once", "--token=t-new", `--tasmota=127.0.0.1:${reader.address().port}`, `--ingest=${be.url}`];
+  try {
+    assert.equal((await sb.run(flags)).code, 0);
+    total = 12.5;                                  // the new meter
+    let r = await sb.run(flags);
+    assert.equal(r.code, 1, r.out);
+    assert.match(r.out, /forget_last/, "the refusal names the add-on's way out too");
+    r = await sb.run(flags, { GUL_FORGET_LAST: "1" });
+    assert.equal(r.code, 0, r.out);
+    total = 11;                                    // and from then on it counts from there
+    r = await sb.run(flags);
+    assert.equal(r.code, 1, r.out);
+    assert.deepEqual(be.seen.map((s) => s.reading), [5000.5, 12.5]);
+  } finally { reader.close(); be.srv.close(); }
+});
+
+test("running on, a refused token waits hours before asking again; other failures retry soon", async () => {
+  const homewizard = await fake(hw);
+  let status = 401, n = 0;
+  const be = await fake((req, res) => { req.resume(); req.on("end", () => { n++; res.statusCode = status; res.end('{"error":"nope"}'); }); });
+  const runFor = async (ms) => {
+    const p = spawn(process.execPath, [GUL, "--token=t-loop", `--ip=127.0.0.1:${homewizard.address().port}`, `--ingest=http://127.0.0.1:${be.address().port}/x`],
+      { env: { ...process.env, GUL_RETRY_SOON_MS: "100", GUL_RETRY_WAIT_MS: "50", GUL_DATA_DIR: mkdtempSync(join(tmpdir(), "gul loop ")) } });
+    let out = ""; p.stdout.on("data", (c) => (out += c)); p.stderr.on("data", (c) => (out += c));
+    await new Promise((r) => setTimeout(r, ms));
+    p.kill();
+    return out;
+  };
+  try {
+    let out = await runFor(1500);
+    assert.equal(n, 1, out);
+    assert.match(out, /does not accept this device token/);
+    assert.match(out, /trying again in 6 hours/);
+    status = 500; n = 0;
+    out = await runFor(1500);
+    assert.ok(n >= 3, `a server error is tried again soon (${n} tries): ${out}`);
+  } finally { homewizard.close(); be.close(); }
+});

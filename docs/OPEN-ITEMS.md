@@ -79,6 +79,14 @@ Laatst bijgewerkt: 2026-11-01.
 - [x] HA-add-on: instellingen en log in `/data` (`GUL_DATA_DIR`), versie 1.5.2 (#159)
 - [x] Afhankelijkheden server: Express 5, @anthropic-ai/sdk 1.3 (API-versie 2026-10-21, sleutel als Bearer), @vechain/sdk 2.1, ws 8.22 (#163)
 
+## Volledige controle (november) — #167
+- [x] Server: zelfde meter met andere schrijfwijze betaalde dagen dubbel; >7 dagen tussen standen blokkeerde een meter voor altijd; Tibber/Powerfox ontkoppelen wiste een P1-token; opnieuw koppelen vergat de laatste uitbetaling; koppelen zonder meternummer gaf een fout; `fix-basis` zonder vergrendeling; drie verkeerde foutcodes
+- [x] App: voorbeeldbeloning rekende met de verkeerde periode; grafiek vergeleek meerdaagse standen met één dag; restanten van een vorige wallet; toetsenbordval achter de intro; verstuurknop bleef hangen na offline opslaan; OCR bleef uit na één mislukte laadpoging; ~45 Engelse teksten vertaald
+- [x] Koppelscherm/beheer: PowerShell-commando op Windows, Home Assistant-YAML in één keer plakbaar, Tibber/Powerfox als automatisch herkend in beheer, hernoemde meter direct zichtbaar
+- [x] Bridge 1.5.4 / add-on / HA-integratie: `--install` opnieuw vergat de uitlezer; instellingen via omgevingsvariabelen gingen niet mee naar de planning; `forget_last` in de add-on; 6 uur wachten na een geweigerd token; `http://` in `--ip`; HA: standaardserver niet vastgezet, Wh-sensoren toegestaan, token getrimd
+- [ ] Beslissing eigenaar: een stand binnen 24 uur telt nu als een hele dag (8 kWh), dus wie elke 20 uur instuurt krijgt 9,6 kWh/dag norm. Exact naar rato rekenen?
+- [ ] Nog Engels: foutmeldingen die de server zelf stuurt
+
 ## Product en organisatie
 - [ ] Antwoord aan VeBetterDAO (beoordeling) versturen en opvolgen
 - [ ] Creator NFT / endorsement afwachten
