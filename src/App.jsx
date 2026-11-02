@@ -523,15 +523,49 @@ function readingMatchesPhoto(reading, ocrNums) {
 // OFFLINE STORAGE (IndexedDB)
 // ────────────────────────────────────────────────────────────────────────────
 
-async function initDB() {
-  return new Promise((resolve, reject) => {
+// One connection for the whole session: every read and write used to open its own
+// and never closed it. Dropped when the browser closes it or another tab upgrades
+// the database, so the next call opens a fresh one.
+let dbPromise = null;
+function initDB() {
+  if (dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve, reject) => {
     const req = indexedDB.open(IDB_NAME, 1);
-    req.onerror = () => reject(req.error);
-    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => { dbPromise = null; reject(req.error); };
+    req.onsuccess = () => {
+      const db = req.result;
+      db.onversionchange = () => { db.close(); dbPromise = null; };
+      db.onclose = () => { dbPromise = null; };
+      resolve(db);
+    };
     req.onupgradeneeded = (e) => {
       const db = e.target.result;
       if (!db.objectStoreNames.contains("submissions")) db.createObjectStore("submissions", { keyPath: "id" });
     };
+  });
+  return dbPromise;
+}
+
+// Queued photos are a few hundred KB each and used to stay on the phone for good:
+// sent ones, refused ones and ones too old to be paid. The server takes a photo
+// up to 7 days old (PHOTO_MAX_AGE_DAYS), so anything older can never pay. Kept:
+// what is still waiting and can still be paid.
+const OFFLINE_KEEP_MS = 14 * 86400000;
+async function pruneOfflineQueue() {
+  const db = await initDB();
+  return new Promise((resolve) => {
+    const tx = db.transaction("submissions", "readwrite");
+    const req = tx.objectStore("submissions").openCursor();
+    req.onsuccess = () => {
+      const c = req.result;
+      if (!c) return;
+      const v = c.value || {};
+      if (v.synced || v.failed || !v.photo || Date.now() - (Number(v.id) || 0) > OFFLINE_KEEP_MS) c.delete();
+      c.continue();
+    };
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => resolve();
+    tx.onabort = () => resolve();
   });
 }
 
@@ -553,6 +587,7 @@ async function saveOfflineSubmission(data) {
 // expired one is safe — the server's photo-hash dedupe never pays a photo twice.
 // (PAYOUT_MS is declared further down, so it's read at call time, not here.)
 async function getUnsyncedSubmissions() {
+  await pruneOfflineQueue().catch(() => {});
   const db = await initDB();
   return new Promise((resolve, reject) => {
     const req = db.transaction("submissions", "readonly").objectStore("submissions").getAll();
@@ -597,11 +632,15 @@ function markLater(id, ms, reason) {
   return updateOfflineSubmission(id, { retryAfter: Date.now() + ms, failReason: String(reason || ""), broadcasting: false, broadcastAt: 0 });
 }
 
-// Mark a queued submission as broadcast so it isn't sent twice.
-function markSynced(id, txHash) {
-  const patch = { synced: true, broadcasting: false, broadcastAt: 0 };
-  if (txHash) patch.txHash = txHash;
-  return updateOfflineSubmission(id, patch);
+// A queued submission that went through is removed: nothing reads it again, and
+// keeping it kept its photo on the phone.
+async function markSynced(id) {
+  const db = await initDB();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction("submissions", "readwrite").objectStore("submissions").delete(id);
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => resolve();
+  });
 }
 
 function useOnlineStatus() {
@@ -6395,7 +6434,7 @@ export default function App() {
         const refused = [];
         for (const item of pending) {
           if (cancelled) break;
-          if (!item.photo) continue; // legacy/photoless item — can't be paid, leave queued
+          if (!item.photo) continue; // legacy/photoless item — can't be paid (pruned next time)
           // Only the wallet that saved it gets paid for it. Items saved before the
           // wallet was stored (or while none was connected) go to whoever is
           // connected, as they always did.
@@ -6455,7 +6494,7 @@ export default function App() {
             continue;
           }
           const paid = (data.amount != null && Number.isFinite(Number(data.amount))) ? Number(data.amount) : item.b3tr;
-          await markSynced(item.id, data.txid);
+          await markSynced(item.id);
           if (cancelled) break;
           setSubs(prev => [{
             id: item.id, type: item.type, meterNo: item.meterNo || "",
