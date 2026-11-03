@@ -92,7 +92,7 @@ Laatst bijgewerkt: 2026-11-01.
 - [x] Volledige browsertest in CI (`e2e/journey.mjs`, workflow "End-to-end"): echte app-build + echte server + ondertekenende nep-wallet; registreren, uitbetaling, Home/Geschiedenis/Voortgang, uitlezer, offline-wachtrij, Nederlands met servermelding. Faalt bij elke mislukte stap, paginafout of CSP-schending — gecontroleerd door de app en de server opzettelijk te breken (#169)
 
 ## Functies
-- [x] VeBetterDAO GM NFT op Profiel: plaatje, niveau (Earth … Galaxy), "niveau n van max" (max uit het contract) en tokennummer, rechtstreeks van de blockchain; zonder NFT een link naar VeBetterDAO, bij een onbereikbare node een melding in plaats van "geen NFT". Leest altijd van mainnet, ook in de testnet-versie, want daar staan de NFT's van gebruikers. Niveaunamen (Aarde … Melkweg) staan in de taal van de app. Op mainnet gecontroleerd door de eigenaar (Mercurius, niveau 3, #827, met plaatje).
+- [x] VeBetterDAO GM NFT op Profiel, als badge onderin de accountkaart (naast de rol): plaatje, niveau (Earth … Galaxy), "niveau n van max" (max uit het contract) en tokennummer, rechtstreeks van de blockchain; zonder NFT een link naar VeBetterDAO, bij een onbereikbare node een melding in plaats van "geen NFT". Leest altijd van mainnet, ook in de testnet-versie, want daar staan de NFT's van gebruikers. Niveaunamen (Aarde … Melkweg) staan in de taal van de app. Op mainnet gecontroleerd door de eigenaar (Mercurius, niveau 3, #827, met plaatje).
 - [x] Eigen app-niveaus (Maan, Zon, Ster, Goud, Platina) weggehaald: ze stonden naast de GM-niveaus met deels dezelfde namen. Voortgang toont nu je plek en je totaal Contractadressen en functies gecontroleerd tegen `@vechain/vebetterdao-contracts` 10.0.0 en `@vechain/vechain-kit`; in de browsertest
 
 ## Product en organisatie
@@ -101,6 +101,7 @@ Laatst bijgewerkt: 2026-11-01.
 - [ ] Mainnet-stappen uit `docs/MAINNET.md` (Render-dienst, sleutels, `CERT_DOMAINS`, eerste week `MAX_PAYOUT_PER_SUBMISSION=1`)
 - [ ] Grant-aanvraag VeBetter Grants (x2earn-spoor)
 - [ ] Normen per land (nu één norm van 8 kWh per dag)
+- [ ] Eigen app-niveaus terug, maar op aantal inzendingen (niet op B3TR); namen die niet lijken op de GM-niveaus (dus geen Maan/planeten), en de grenzen nog kiezen
 - [ ] Roadmap: gas en water, daarna zonnepanelen (staat in de server, uitgeschakeld)
 - [x] Enode verwijderd: nooit ingeschakeld, betaald, en P1/Home Assistant/Powerfox/Tibber dekken het (#165)
 

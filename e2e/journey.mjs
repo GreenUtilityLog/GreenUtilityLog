@@ -256,12 +256,12 @@ await step("Home, History and Progress show it", async () => {
 await step("Profile shows the wallet's GM NFT", async () => {
   await page.locator(".bnav button").nth(3).click(); await wait(2500);
   await shot("05b-profile-gm");
-  const t = await text();
-  // The label is upper-cased in CSS, and innerText returns it as shown.
-  assert.match(t, /VeBetterDAO GM NFT/i, "the GM card is on Profile");
-  assert.match(t, /Moon/, "its level name");
-  assert.match(t, /Level 2 of 10 · #7/, "its level and token");
-  const img = page.locator('img[src="https://api.gateway-proxy.vechain.org/ipfs/bafye2egmimg/2.png"]');
+  // A badge at the bottom of the account card, upper-cased in CSS (innerText
+  // returns it as shown): level name and level, with the token in its title.
+  const hero = page.locator(".profile-hero");
+  assert.match(await hero.innerText(), /GM Moon · Level 2 of 10/i, "the GM badge is in the account card");
+  assert.equal(await hero.locator('[title="VeBetterDAO GM NFT #7"]').count(), 1, "its token number");
+  const img = hero.locator('img[src="https://api.gateway-proxy.vechain.org/ipfs/bafye2egmimg/2.png"]');
   assert.equal(await img.count(), 1, "its picture, from VeChain's IPFS gateway");
   assert.ok(await img.evaluate((el) => el.complete && el.naturalWidth > 0), "the picture loaded (CSP allows it)");
 });
@@ -302,12 +302,11 @@ await step("Dutch: the app, and the server's messages", async () => {
   await page.getByText("Nederlands", { exact: true }).first().click(); await wait(1000);
   await page.locator(".bnav button").nth(0).click(); await wait(800);
   assert.match(await text(), /VOORTGANG|Voortgang/, "the menu is Dutch");
-  // The GM card on Profile, in Dutch too: the level's name and the level line.
+  // The GM badge on Profile, in Dutch too: the level's name and the level line.
   await page.locator(".bnav button").nth(3).click(); await wait(1500);
   await shot("10-nl-profile");
   const prof = await text();
-  assert.match(prof, /Maan/, "the GM level's name is Dutch");
-  assert.match(prof, /Niveau 2 van 10 · #7/, "the GM level line is Dutch");
+  assert.match(prof, /GM Maan · Niveau 2 van 10/i, "the GM badge is Dutch");
   // No app tier badge ("Niveau Maan") next to the GM level, and no English left over.
   assert.doesNotMatch(prof, /niveau maan/i, "no app tier badge on Profile");
   assert.doesNotMatch(prof, /\bmoon\b/i, "no English level name on Profile");
