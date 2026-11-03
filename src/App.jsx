@@ -754,22 +754,9 @@ export function normDecimal(v) {
 // Shorten a wallet address for display: 0x1234…abcd
 export function shortAddr(a){ return a ? `${a.slice(0,6)}…${a.slice(-4)}` : "—"; }
 
-// Tiers, keyed off lifetime B3TR. A badge only: the server pays the same rules at
-// every tier, so the old "1.25x–2.5x bonus" labels promised money that never came.
-// Each with a light- and a dark-theme colour: Moon's navy was nearly invisible on
-// the dark background, and Platinum's silver on the light one.
-const TIERS = [
-  { name: "Moon",     min: 0,   max: 99, color: "#10386a", dark: "#7fb2e8" },
-  { name: "Sun",      min: 100, max: 199, color: "#8a4200", dark: "#e09a5a" },
-  { name: "Star",     min: 200, max: 299, color: "#6d28d9", dark: "#b69cf5" },
-  { name: "Gold",     min: 300, max: 499, color: "#a16207", dark: "#f5b83d" },
-  { name: "Platinum", min: 500, max: Infinity, color: "#5b6670", dark: "#d4d8dc" },
-];
-function getTier(b3tr){ return TIERS.find(t => b3tr >= t.min && b3tr <= t.max) || TIERS[0]; }
-const tierColor = (t, T) => (T === DARK ? t.dark : t.color);
-const TIER_ICONS = { Moon: "🌙", Sun: "☀️", Star: "⭐", Gold: "🥇", Platinum: "💎" };
-// A tier's name as shown, in the app's language (tier.name stays the English key).
-const tierName = (tier) => t(`tier.${tier.name}`);
+// The app's own tiers (Moon … Platinum) are gone: the level that counts is the
+// wallet's VeBetterDAO GM NFT, shown on Profile, and two sets of levels with
+// overlapping names confused people.
 
 // Consecutive-day streak based on submission dates ("YYYY-MM-DD"). The streak
 // is allowed to end today OR yesterday, so it isn't reported as broken just
@@ -2578,7 +2565,6 @@ function HomeScreen({ b3tr, walletB3tr, streak, subs, setTab, wallet, onOpenRead
         <div className="hero-chips">
           <div className="hchip"><div className="hchip-val">{streak}</div><div className="hchip-key">{t("home.streak")}</div></div>
           <div className="hchip"><div className="hchip-val">{subs.length}</div><div className="hchip-key">{t("home.subs")}</div></div>
-          <div className="hchip"><div className="hchip-val">{tierName(getTier(b3tr))}</div><div className="hchip-key">{t("home.tier")}</div></div>
         </div>
       </div>
 
@@ -3179,16 +3165,11 @@ function ChartsScreen({ subs, T, part }) {
   );
 }
 
-// Progress: how you're doing — tier, impact, goals, then usage / leaderboard /
+// Progress: how you're doing — rank, impact, goals, then usage / leaderboard /
 // badges behind one switch. Charts and Rank used to be two tabs that repeated the
 // same totals; this is both, once.
 function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
-  const currentTier = getTier(b3tr);
-  const nextTier = TIERS[TIERS.indexOf(currentTier) + 1];
-  const progressPercent = nextTier ? Math.min(100, Math.round((b3tr - currentTier.min) / (nextTier.min - currentTier.min) * 100)) : 100;
-  const b3trNeeded = nextTier ? Math.max(0, nextTier.min - b3tr) : 0;
-  // The "100 B3TR Achievement" goal is a fixed 100, NOT the gap to the next tier —
-  // reusing b3trNeeded showed a wrong number for anyone already past 100.
+  // The "100 B3TR Achievement" goal is a fixed 100.
 
   // ── Real participant field ────────────────────────────────────────────────
   // Pull the ranked field straight from chain (aggregated RewardDistributed
@@ -3228,7 +3209,7 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
     // No on-chain field (yet, or the node is unreachable): show only you. This used
     // to rank you against made-up players — "#10, 127.60 B3TR to reach #9" — which
     // is a claim about other people that isn't true.
-    board = [{ name: "You", addr: shortAddr(wallet), b3tr: +b3tr.toFixed(2), streak, tier: currentTier.name, isMe: true, rank: 1 }];
+    board = [{ name: "You", addr: shortAddr(wallet), b3tr: +b3tr.toFixed(2), streak, isMe: true, rank: 1 }];
   }
 
   const myIndex = board.findIndex(d => d.isMe);
@@ -3262,30 +3243,13 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
         <div className="sub-sub">{t("p.sub")}</div>
       </div>
 
-      <div style={{ ...card, margin: "0 14px 12px", padding: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-            <span aria-hidden="true" style={{ fontSize: 30, lineHeight: 1 }}>{TIER_ICONS[currentTier.name] || "🌙"}</span>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 18, fontWeight: 800, color: T.text }}>{t("p.tier", { name: tierName(currentTier) })}</div>
-              <div style={{ fontSize: 12, color: T.textSoft, marginTop: 2 }}>
-                {chain.status === "loading" ? t("p.loading") : isLive ? t("p.rank", { rank: myRank, total: board.length }) : t("p.rankLater")}
-              </div>
-            </div>
+      <div style={{ ...card, margin: "0 14px 12px", padding: 16, display: "flex", alignItems: "center", gap: 10 }}>
+        <span aria-hidden="true" style={{ fontSize: 30, lineHeight: 1 }}>🏆</span>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 16, fontWeight: 800, color: T.text }}>
+            {chain.status === "loading" ? t("p.loading") : isLive ? t("p.rank", { rank: myRank, total: board.length }) : t("p.rankLater")}
           </div>
-          {nextTier && (
-            <div style={{ textAlign: "right", flexShrink: 0 }}>
-              <div style={label}>{t("p.next")}</div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: T.text, marginTop: 2 }}>{TIER_ICONS[nextTier.name] || ""} {tierName(nextTier)}</div>
-            </div>
-          )}
-        </div>
-        <div role="progressbar" aria-label={nextTier ? t("p.progressTo", { tier: t("p.tier", { name: tierName(nextTier) }) }) : t("p.topTier")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent}
-          style={{ height: 8, borderRadius: 999, background: T.bgAlt, overflow: "hidden", marginTop: 12 }}>
-          <div style={{ width: `${progressPercent}%`, height: "100%", background: T.green3, transition: "width .3s" }} />
-        </div>
-        <div style={{ fontSize: 12, color: T.textMid, marginTop: 8 }}>
-          {nextTier ? t("p.toGo", { amount: b3trNeeded.toFixed(2), pct: progressPercent }) : t("p.top")}
+          <div style={{ fontSize: 12, color: T.textSoft, marginTop: 2 }}>{t("p.earnedTotal", { amount: b3tr.toFixed(2) })}</div>
         </div>
       </div>
 
@@ -3450,7 +3414,7 @@ function saveProfile(w, p) {
   try { localStorage.setItem(profileKey(w), JSON.stringify(p)); return true; } catch { return false; }
 }
 
-function ProfileHero({ wallet, domain, tier, summary, role, onToast, T }) {
+function ProfileHero({ wallet, domain, summary, role, onToast, T }) {
   const [profile, setProfile] = useState(() => loadProfile(wallet));
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(profile);
@@ -3535,12 +3499,11 @@ function ProfileHero({ wallet, domain, tier, summary, role, onToast, T }) {
             <button onClick={save} style={{flex:2,background:"#2E7D32",border:"none",borderRadius:6,padding:"11px",fontSize:12,fontWeight:800,color:"#fff",cursor:"pointer"}}>{t("prof.save")}</button>
           </div>
         </div>
-      ) : (
+      ) : role ? (
         <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:12}}>
-          <span style={{fontSize:10.5,fontWeight:800,background:T.bgAlt,color:tierColor(tier, T),border:`1px solid ${T.border}`,borderRadius:999,padding:"4px 10px",textTransform:"uppercase",letterSpacing:".6px"}}>{TIER_ICONS[tier.name] || ""} {t("p.tier", { name: tierName(tier) })}</span>
-          {role && <span style={{fontSize:10.5,fontWeight:800,background:T.green5||T.bgAlt,color:T.green3,border:`1px solid ${T.green4||T.border}`,borderRadius:999,padding:"4px 10px",textTransform:"uppercase",letterSpacing:".6px"}}>🎟️ {role}</span>}
+          <span style={{fontSize:10.5,fontWeight:800,background:T.green5||T.bgAlt,color:T.green3,border:`1px solid ${T.green4||T.border}`,borderRadius:999,padding:"4px 10px",textTransform:"uppercase",letterSpacing:".6px"}}>🎟️ {role}</span>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -3638,7 +3601,6 @@ function GalaxyMemberCard({ wallet, T }) {
 
 // Profile: you. Settings live one tap away (⚙️), not on this page.
 function ProfileScreen({ b3tr, subs, wallet, walletDomain, pass, setTab, onOpenSettings, onOpenHelp, onOpenFeedback, onToast, T }) {
-  const tier = getTier(b3tr);
   const readings = subs.filter(s => s.type !== "eco").length;
   const first = subs.reduce((m, s) => { const t = s.submittedAt || localDayTs(s.date) || 0; return t && (!m || t < m) ? t : m; }, 0);
   const summary = `${t("pr.summary", { amount: b3tr.toFixed(2), n: readings })}${first ? t("pr.since", { date: new Date(first).toLocaleDateString(getLang(), { month: "short", year: "numeric" }) }) : ""}`;
@@ -3651,7 +3613,7 @@ function ProfileScreen({ b3tr, subs, wallet, walletDomain, pass, setTab, onOpenS
         </div>
         <button type="button" onClick={onOpenSettings} aria-label={t("pr.settings")} className="dark-toggle" style={{width:44,height:44,fontSize:18,background:T.card}}>⚙️</button>
       </div>
-      <ProfileHero wallet={wallet} domain={walletDomain} tier={tier} summary={wallet ? summary : ""} role={pass?.tier || ""} onToast={onToast} T={T} />
+      <ProfileHero wallet={wallet} domain={walletDomain} summary={wallet ? summary : ""} role={pass?.tier || ""} onToast={onToast} T={T} />
       {wallet && <GalaxyMemberCard wallet={wallet} T={T} />}
       <div style={listCard(T)}>
         <RowButton T={T} icon="🧾" label={t("pr.history")} sub={subs.length ? t("pr.history.sub", { n: subs.length }) : t("pr.history.empty")} onClick={() => setTab("history")} />
