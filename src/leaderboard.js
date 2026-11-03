@@ -410,3 +410,61 @@ export async function fetchIsAppAdmin({ node, appsContract, appId, address, sign
   } catch {}
   return false;
 }
+
+// ── VeBetterDAO Galaxy Member (GM) NFT ────────────────────────────────────────
+// The NFT a wallet holds in VeBetterDAO's GalaxyMember contract. A wallet chooses
+// one of its GM NFTs as its "selected" one (getSelectedTokenId), and that one's
+// level counts in VeBetterDAO; a wallet with one but none selected shows its first.
+// The picture comes from the token's metadata on IPFS, through VeChain's gateway.
+// Function names and the contract layout as in @vechain/vebetterdao-contracts.
+const GM_FN = {
+  getSelectedTokenId: { name: "getSelectedTokenId", type: "function", stateMutability: "view", inputs: [{ name: "owner", type: "address" }], outputs: [{ name: "", type: "uint256" }] },
+  balanceOf: { name: "balanceOf", type: "function", stateMutability: "view", inputs: [{ name: "owner", type: "address" }], outputs: [{ name: "", type: "uint256" }] },
+  tokenOfOwnerByIndex: { name: "tokenOfOwnerByIndex", type: "function", stateMutability: "view", inputs: [{ name: "owner", type: "address" }, { name: "index", type: "uint256" }], outputs: [{ name: "", type: "uint256" }] },
+  levelOf: { name: "levelOf", type: "function", stateMutability: "view", inputs: [{ name: "tokenId", type: "uint256" }], outputs: [{ name: "", type: "uint256" }] },
+  tokenURI: { name: "tokenURI", type: "function", stateMutability: "view", inputs: [{ name: "tokenId", type: "uint256" }], outputs: [{ name: "", type: "string" }] },
+  MAX_LEVEL: { name: "MAX_LEVEL", type: "function", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] },
+};
+// Level 1 is Earth; 2 to 10 as in VeBetterDAO's own configuration.
+export const GM_LEVEL_NAMES = ["", "Earth", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Galaxy"];
+export const IPFS_GATEWAY = "https://api.gateway-proxy.vechain.org/ipfs/";
+export const ipfsToHttp = (u) => {
+  const s = String(u || "").trim();
+  if (s.startsWith("ipfs://")) return IPFS_GATEWAY + s.slice(7).replace(/^ipfs\//, "");
+  return /^https:\/\//.test(s) ? s : "";
+};
+const bigOrNull = (v) => { try { return v == null ? null : BigInt(firstVal(v)); } catch { return null; } };
+
+// { tokenId, level, maxLevel, name, image } for the wallet's GM NFT, null when it
+// has none (maxLevel is 0 when it couldn't be read: governance raises it over time),
+// and { error } when the chain couldn't be read (so the app can tell "none" apart
+// from "couldn't check").
+export async function fetchGalaxyMember({ node, contract, address, signal } = {}) {
+  if (!node || !contract || !/^0x[0-9a-fA-F]{40}$/.test(String(address || ""))) return null;
+  try {
+    let tokenId = bigOrNull(await callView(node, contract, GM_FN.getSelectedTokenId, [address], signal));
+    if (!tokenId) {
+      const n = bigOrNull(await callView(node, contract, GM_FN.balanceOf, [address], signal));
+      if (!n) return null;
+      // Here a 0 is a real token id: only "no answer" means none.
+      tokenId = bigOrNull(await callView(node, contract, GM_FN.tokenOfOwnerByIndex, [address, 0], signal));
+      if (tokenId == null) return null;
+    }
+    const level = Number(bigOrNull(await callView(node, contract, GM_FN.levelOf, [tokenId], signal)) || 0n);
+    const maxLevel = Number(bigOrNull(await callView(node, contract, GM_FN.MAX_LEVEL, [], signal).catch(() => null)) || 0n);
+    let image = "";
+    try {
+      const uri = firstVal(await callView(node, contract, GM_FN.tokenURI, [tokenId], signal));
+      const metaUrl = ipfsToHttp(uri);
+      if (metaUrl) {
+        const r = await fetch(metaUrl, { signal });
+        if (r.ok) image = ipfsToHttp((await r.json().catch(() => ({})))?.image);
+      }
+    } catch { /* no picture: the level still shows */ }
+    return { tokenId: tokenId.toString(), level, maxLevel, name: GM_LEVEL_NAMES[level] || "", image };
+  } catch (e) {
+    if (e?.name === "AbortError") throw e;
+    return { error: String(e?.message || e) };
+  }
+}
+

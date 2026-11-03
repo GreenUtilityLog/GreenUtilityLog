@@ -23,7 +23,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
-import { Certificate, Secp256k1, Address } from "@vechain/sdk-core";
+import { Certificate, Secp256k1, Address, ABIFunction } from "@vechain/sdk-core";
 
 const { chromium, devices } = await import(process.env.PLAYWRIGHT_MODULE || "playwright");
 
@@ -113,6 +113,23 @@ await ctx.addInitScript(([addr]) => {
   document.addEventListener("securitypolicyviolation", (e) => console.error("CSP-VIOLATION", e.violatedDirective, e.blockedURI));
 }, [ADDR]);
 
+// The test wallet holds a Galaxy Member NFT: token 7, level 2 (Moon). The stand-in
+// node answers the GalaxyMember contract's calls (testnet address, as in the app),
+// and the IPFS gateway answers its metadata and picture.
+const GM_CONTRACT = "0x38a59fa7fd7039884465a0ff285b8c4b6fe394ca";
+const selector = (name, types) => new ABIFunction({ name, type: "function", stateMutability: "view", inputs: types.map((type, i) => ({ name: `a${i}`, type })), outputs: [] }).signatureHash.slice(0, 10);
+const word = (n) => BigInt(n).toString(16).padStart(64, "0");
+const abiString = (str) => { const b = Buffer.from(str, "utf8"); return word(32) + word(b.length) + b.toString("hex").padEnd(Math.max(64, Math.ceil(b.length / 32) * 64), "0"); };
+const GM_ANSWERS = {
+  [selector("getSelectedTokenId", ["address"])]: "0x" + word(7),
+  [selector("balanceOf", ["address"])]: "0x" + word(1),
+  [selector("levelOf", ["uint256"])]: "0x" + word(2),
+  [selector("tokenURI", ["uint256"])]: "0x" + abiString("ipfs://bafye2egmmeta/metadata/2.json"),
+  [selector("MAX_LEVEL", [])]: "0x" + word(10),
+};
+// A 1×1 PNG, for the NFT's picture.
+const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64");
+
 // Outside requests: the API goes to the local server, the VeChain node to the
 // stand-in, the rest is dropped (fonts, WalletConnect, …) so the run needs no network.
 const GENESIS = { id: "0x000000000b2bce3c70bc649a02749e8687721b09ed2e15997f466536b20bb127", number: 0, timestamp: 1530014400, gasLimit: 10000000, parentID: "0xffffffff00000000000000000000000000000000000000000000000000000000", size: 170, beneficiary: "0x0000000000000000000000000000000000000000", gasUsed: 0, totalScore: 0, txsRoot: "0x" + "0".repeat(64), txsFeatures: 0, stateRoot: "0x" + "0".repeat(64), receiptsRoot: "0x" + "0".repeat(64), signer: "0x0000000000000000000000000000000000000000", isTrunk: true, transactions: [] };
@@ -135,8 +152,17 @@ await ctx.route((url) => !/^http:\/\/(127\.0\.0\.1|localhost)[:/]/.test(url.href
     if (u.pathname.startsWith("/blocks/best")) return json({ ...GENESIS, id: "0x0100000a" + "1".repeat(56), number: 16777226, timestamp: Math.floor(Date.now() / 1000) });
     if (u.pathname.startsWith("/logs/event")) return json([]);
     if (u.pathname.startsWith("/accounts/*")) return json([{ data: "0x" + "0".repeat(64), events: [], transfers: [], gasUsed: 0, reverted: false, vmError: "" }]);
+    if (u.pathname.toLowerCase() === `/accounts/${GM_CONTRACT}` && route.request().method() === "POST") {
+      const data = String(JSON.parse(route.request().postData() || "{}").data || "");
+      const out = GM_ANSWERS[data.slice(0, 10)];
+      return json({ data: out || "0x", events: [], transfers: [], gasUsed: 0, reverted: !out, vmError: out ? "" : "execution reverted" });
+    }
     if (u.pathname.startsWith("/accounts/")) return json({ balance: "0x0", energy: "0x0", hasCode: false });
     return json(null);
+  }
+  if (u.hostname === "api.gateway-proxy.vechain.org") {
+    if (u.pathname === "/ipfs/bafye2egmmeta/metadata/2.json") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ name: "Moon", image: "ipfs://bafye2egmimg/2.png" }) });
+    if (u.pathname === "/ipfs/bafye2egmimg/2.png") return route.fulfill({ status: 200, contentType: "image/png", body: PNG });
   }
   return route.abort();
 });
@@ -220,6 +246,19 @@ await step("Home, History and Progress show it", async () => {
   assert.match(await text(), /1 total/, "one row in History");
   await page.locator(".bnav button").nth(2).click(); await wait(1200); await shot("05-progress");
   assert.match(await text(), /kWh/, "Progress renders");
+});
+
+await step("Profile shows the wallet's GM NFT", async () => {
+  await page.locator(".bnav button").nth(3).click(); await wait(2500);
+  await shot("05b-profile-gm");
+  const t = await text();
+  // The label is upper-cased in CSS, and innerText returns it as shown.
+  assert.match(t, /VeBetterDAO GM NFT/i, "the GM card is on Profile");
+  assert.match(t, /Moon/, "its level name");
+  assert.match(t, /Level 2 of 10 · #7/, "its level and token");
+  const img = page.locator('img[src="https://api.gateway-proxy.vechain.org/ipfs/bafye2egmimg/2.png"]');
+  assert.equal(await img.count(), 1, "its picture, from VeChain's IPFS gateway");
+  assert.ok(await img.evaluate((el) => el.complete && el.naturalWidth > 0), "the picture loaded (CSP allows it)");
 });
 
 await step("a reader: pair, push, and its reading appears", async () => {
