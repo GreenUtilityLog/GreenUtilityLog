@@ -33,7 +33,7 @@ const NETWORKS = {
       X2EarnRewardsPool: "0x6Bee7DDab6c99d5B2Af0554EaEA484CE18F52631",
       X2EarnApps:        "0x8392B7CCc763dB03b47afcD8E8f5e24F9cf0554D",
       // VeBetterDAO's Galaxy Member (GM) NFT. Address as in @vechain/vechain-kit.
-      // Read on mainnet in every build: see GalaxyMemberCard.
+      // Read on mainnet in every build: see GalaxyMemberBadge.
       GalaxyMember:      "0x93B8cD34A7Fc4f53271b9011161F7A2B5fEA9D1F",
     },
   },
@@ -3499,9 +3499,10 @@ function ProfileHero({ wallet, domain, summary, role, onToast, T }) {
             <button onClick={save} style={{flex:2,background:"#2E7D32",border:"none",borderRadius:6,padding:"11px",fontSize:12,fontWeight:800,color:"#fff",cursor:"pointer"}}>{t("prof.save")}</button>
           </div>
         </div>
-      ) : role ? (
-        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:12}}>
-          <span style={{fontSize:10.5,fontWeight:800,background:T.green5||T.bgAlt,color:T.green3,border:`1px solid ${T.green4||T.border}`,borderRadius:999,padding:"4px 10px",textTransform:"uppercase",letterSpacing:".6px"}}>🎟️ {role}</span>
+      ) : (wallet || role) ? (
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",marginTop:12}}>
+          {wallet && <GalaxyMemberBadge wallet={wallet} T={T} />}
+          {role && <span style={{fontSize:10.5,fontWeight:800,background:T.green5||T.bgAlt,color:T.green3,border:`1px solid ${T.green4||T.border}`,borderRadius:999,padding:"4px 10px",textTransform:"uppercase",letterSpacing:".6px"}}>🎟️ {role}</span>}
         </div>
       ) : null}
     </div>
@@ -3553,15 +3554,16 @@ function RowButton({ icon, label, sub, right, danger, onClick, T, last }) {
 }
 const listCard = (T) => ({ margin: "0 14px 12px", background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, overflow: "hidden" });
 
-// The wallet's VeBetterDAO Galaxy Member NFT, read from chain: its picture, name
-// and level. A wallet without one gets a short line and a link to get one; a chain
-// that can't be read says so instead of claiming there is none.
+// The wallet's VeBetterDAO Galaxy Member NFT, read from chain, as a badge at the
+// bottom of the account card: its picture, level name and level. A wallet without
+// one gets a link to get one; a chain that can't be read says so instead of
+// claiming there is none.
 const GM_PAGE = "https://governance.vebetterdao.org";
 // Always mainnet, also in the testnet build: a user's GM NFT lives on mainnet, and
-// the card only reads (nothing is signed or sent).
+// the badge only reads (nothing is signed or sent).
 const GM_NODE = NETWORKS.mainnet.node;
 const GM_CONTRACT = NETWORKS.mainnet.contracts.GalaxyMember;
-function GalaxyMemberCard({ wallet, T }) {
+function GalaxyMemberBadge({ wallet, T }) {
   const [gm, setGm] = useState({ status: "loading" });
   const [imgOk, setImgOk] = useState(true);
   useEffect(() => {
@@ -3572,30 +3574,19 @@ function GalaxyMemberCard({ wallet, T }) {
       .catch(() => { if (!ctrl.signal.aborted) setGm({ status: "error" }); });
     return () => ctrl.abort();
   }, [wallet]);
+  const pill = { display: "inline-flex", alignItems: "center", gap: 6, fontSize: 10.5, fontWeight: 800, background: T.bgAlt, color: T.text, border: `1px solid ${T.border}`, borderRadius: 999, padding: "4px 10px", textTransform: "uppercase", letterSpacing: ".6px", textDecoration: "none", maxWidth: "100%" };
+  if (gm.status === "loading") return <span style={{ ...pill, color: T.textSoft }} aria-busy="true" title={t("gm.loading")}>🪐 GM NFT…</span>;
+  if (gm.status === "error") return <span style={{ ...pill, color: T.textSoft, fontWeight: 700 }} title={t("gm.error")}>🪐 {t("gm.errorShort")}</span>;
+  if (gm.status === "none") return <a href={GM_PAGE} target="_blank" rel="noopener noreferrer" style={{ ...pill, color: T.green3 }} title={t("gm.none")}>🪐 {t("gm.getShort")}</a>;
+  const name = gm.level >= 1 && gm.level <= 10 ? t(`gm.lv.${gm.level}`) : "";
+  const level = gm.maxLevel >= gm.level && gm.level > 0 ? t("gm.levelOf", { n: gm.level, max: gm.maxLevel }) : t("gm.level", { n: gm.level });
   return (
-    <div style={{ ...listCard(T), display: "flex", alignItems: "center", gap: 12, padding: "12px 14px" }} aria-busy={gm.status === "loading"}>
-      <div aria-hidden="true" style={{ width: 56, height: 56, flexShrink: 0, borderRadius: 10, background: T.bgAlt, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, overflow: "hidden" }}>
-        {gm.status === "ok" && gm.image && imgOk
-          ? <img src={gm.image} alt="" width="56" height="56" style={{ width: 56, height: 56, objectFit: "cover" }} onError={() => setImgOk(false)} />
-          : "🪐"}
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".8px", color: T.textSoft }}>{t("gm.title")}</div>
-        {gm.status === "loading" && <div style={{ fontSize: 13, color: T.textSoft, marginTop: 3 }}>{t("gm.loading")}</div>}
-        {gm.status === "ok" && (
-          <>
-            <div style={{ fontSize: 15, fontWeight: 800, color: T.text, marginTop: 2 }}>{gm.level >= 1 && gm.level <= 10 ? t(`gm.lv.${gm.level}`) : t("gm.level", { n: gm.level })}</div>
-            <div style={{ fontSize: 11.5, color: T.textMid, marginTop: 1 }}>{gm.maxLevel >= gm.level && gm.level > 0 ? t("gm.levelOf", { n: gm.level, max: gm.maxLevel }) : t("gm.level", { n: gm.level })} · #{gm.tokenId}</div>
-          </>
-        )}
-        {gm.status === "none" && (
-          <div style={{ fontSize: 12, color: T.textMid, marginTop: 3, lineHeight: 1.45 }}>
-            {t("gm.none")} <a href={GM_PAGE} target="_blank" rel="noopener noreferrer" style={{ color: T.green3, fontWeight: 700 }}>{t("gm.get")}</a>
-          </div>
-        )}
-        {gm.status === "error" && <div style={{ fontSize: 12, color: T.textSoft, marginTop: 3 }}>{t("gm.error")}</div>}
-      </div>
-    </div>
+    <span style={{ ...pill, paddingLeft: 3 }} title={`${t("gm.title")} #${gm.tokenId}`}>
+      {gm.image && imgOk
+        ? <img src={gm.image} alt="" width="22" height="22" style={{ width: 22, height: 22, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} onError={() => setImgOk(false)} />
+        : <span aria-hidden="true" style={{ width: 22, textAlign: "center" }}>🪐</span>}
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>GM {name ? `${name} · ` : ""}{level}</span>
+    </span>
   );
 }
 
@@ -3614,7 +3605,6 @@ function ProfileScreen({ b3tr, subs, wallet, walletDomain, pass, setTab, onOpenS
         <button type="button" onClick={onOpenSettings} aria-label={t("pr.settings")} className="dark-toggle" style={{width:44,height:44,fontSize:18,background:T.card}}>⚙️</button>
       </div>
       <ProfileHero wallet={wallet} domain={walletDomain} summary={wallet ? summary : ""} role={pass?.tier || ""} onToast={onToast} T={T} />
-      {wallet && <GalaxyMemberCard wallet={wallet} T={T} />}
       <div style={listCard(T)}>
         <RowButton T={T} icon="🧾" label={t("pr.history")} sub={subs.length ? t("pr.history.sub", { n: subs.length }) : t("pr.history.empty")} onClick={() => setTab("history")} />
         <RowButton T={T} icon="❓" label={t("pr.help")} sub={t("pr.help.sub")} onClick={onOpenHelp} />
