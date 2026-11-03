@@ -9,7 +9,7 @@ import {
   VeChainPrivateKeySigner,
 } from "@vechain/sdk-network";
 import { Clause, Address, ABIFunction, HDKey, Transaction, HexUInt } from "@vechain/sdk-core";
-import { NODE_URL, CONTRACTS, APP_ID, APP_VERSION, USAGE_BENCHMARK, SAVING_UTILS, MAX_SPAN_DAYS } from "./config.js";
+import { NODE_URL, CONTRACTS, APP_ID, APP_VERSION, USAGE_BENCHMARK, SAVING_UTILS, MAX_SPAN_DAYS, MIN_SPAN_DAYS } from "./config.js";
 
 // The official VeBetterDAO distribution call (X2EarnRewardsPool v10 ABI). The
 // CONTRACT builds the standard proof-of-impact JSON on-chain from these typed
@@ -194,7 +194,7 @@ const CO2_PER_UNIT = { electric: 400, gas: 1900, water: 0.34, solar: 400 };
 // positive to claim. `usage` is the server-validated usage in the meter's unit,
 // `days` the span it covers: the benchmark covers the same days, exactly as in the
 // reward (config.js computeReward), so the chain records the saving that was paid.
-const spanOf = (days) => Math.min(Math.max(Number(days) || 1, 1), MAX_SPAN_DAYS);
+const spanOf = (days) => Math.min(Math.max(Number(days) > 0 ? Number(days) : 1, MIN_SPAN_DAYS), MAX_SPAN_DAYS);
 const savedBelowBenchmark = (utility, usage, days) => Math.max(0, (USAGE_BENCHMARK[utility] ?? 0) * spanOf(days) - usage);
 function computeImpact({ utility, usage, days = 1 }) {
   const factor = CO2_PER_UNIT[utility];

@@ -371,7 +371,7 @@ export const USAGE_RANGES = { electric: { min:0.1, max:80 }, gas: { min:0.01, ma
 function nearZeroUsage(utilId, usageVal, days = 1) {
   const range = USAGE_RANGES[utilId];
   if (!range || !SAVING_UTILS.has(utilId)) return false;
-  const span = Math.min(Math.max(Number(days) || 1, 1), MAX_SPAN_DAYS);
+  const span = Math.min(Math.max(Number(days) > 0 ? Number(days) : 1, MIN_SPAN_DAYS), MAX_SPAN_DAYS);
   return usageVal < range.min * span;
 }
 
@@ -691,6 +691,8 @@ const SAVING_UTILS    = new Set(["electric", "gas", "water"]); // solar rewards 
 // MUST mirror server/config.js — the preview here and the payout there have to
 // agree, or the app promises a number it doesn't deliver.
 export const MAX_SPAN_DAYS    = 7;
+// Parts of a day count as parts of a day (server: config.js MIN_SPAN_DAYS).
+const MIN_SPAN_DAYS = 1 / 24;
 // What this deployment's server enforces. /health → rules replaces these defaults
 // (the server's own) as soon as it answers, so a cautious start with a lower cap,
 // or a longer cooldown, is also what the app previews and counts down.
@@ -714,13 +716,13 @@ const floor2 = (n) => Math.floor(n * 100 + 1e-6) / 100;
 // instead of one — which is what made an efficient five-day reading pay the floor.
 function spanDays(msSinceLastReading) {
   const d = Number(msSinceLastReading) / 86400000;
-  if (!Number.isFinite(d) || d <= 1) return 1;
-  return Math.min(d, MAX_SPAN_DAYS);
+  if (!Number.isFinite(d)) return 1;
+  return Math.min(Math.max(d, MIN_SPAN_DAYS), MAX_SPAN_DAYS);
 }
 
 function computeReward(utilId, usage, days = 1) {
   const u = UTILS.find(x => x.id === utilId) || {};
-  const span = Math.min(Math.max(Number(days) || 1, 1), MAX_SPAN_DAYS);
+  const span = Math.min(Math.max(Number(days) > 0 ? Number(days) : 1, MIN_SPAN_DAYS), MAX_SPAN_DAYS);
   const base = REWARD_BASE[utilId] ?? 0;
   const rate = u.rate ?? 0;
   let amount;
@@ -1133,7 +1135,17 @@ function deviceInfo() {
   return devicePromise;
 }
 
+// The app's language for the reward server, which then answers its errors in it
+// (server/messages.js). Only on requests that already need a CORS preflight (a
+// POST, or our own headers), so a plain GET doesn't gain one.
+function withLang(url, opts) {
+  if (!String(url).startsWith(REWARD_API.replace(/\/$/, ""))) return opts;
+  const custom = opts.headers && Object.keys(opts.headers).length;
+  if (String(opts.method || "GET").toUpperCase() === "GET" && !custom) return opts;
+  return { ...opts, headers: { ...(opts.headers || {}), "X-GUL-Lang": getLang() } };
+}
 export async function fetchT(url, opts = {}, ms = 30000) {
+  opts = withLang(url, opts);
   if (opts.signal || typeof AbortSignal === "undefined" || typeof AbortSignal.timeout !== "function") return fetch(url, opts);
   try {
     return await fetch(url, { ...opts, signal: AbortSignal.timeout(ms) });
@@ -1150,9 +1162,12 @@ export async function fetchT(url, opts = {}, ms = 30000) {
 // An error that remembers the HTTP status it came from. A 4xx is the server's
 // final word on that request; anything else — a timeout, a dropped connection, a
 // 5xx — leaves open whether a payout went out before it failed.
-function httpError(message, status) {
+// `en` is the server's English text when it answered in the app's language: code
+// that acts on what a refusal says reads that, not the translation.
+function httpError(message, status, en) {
   const e = new Error(message);
   e.status = status;
+  e.en = en || message;
   return e;
 }
 const isRefusal = (e) => e?.status >= 400 && e?.status < 500;
@@ -2833,7 +2848,7 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
 
 
         {readingReady && (() => {
-          const span  = Math.min(Math.max(Number(days) || 1, 1), MAX_SPAN_DAYS);
+          const span  = Math.min(Math.max(Number(days) > 0 ? Number(days) : 1, MIN_SPAN_DAYS), MAX_SPAN_DAYS);
           const bench = +((USAGE_BENCHMARK[u.id] ?? 0) * span).toFixed(1);
           const saved = Math.max(0, bench - usage());
           const isSaving = SAVING_UTILS.has(u.id);
@@ -4446,7 +4461,7 @@ export default function App() {
           }
           if (!res.ok) {
             // 408/429 are "not now", not "no": those retry like a 5xx.
-            const notYet = data.needsPass || /cooldown|already processing/i.test(String(data.error || ""));
+            const notYet = data.needsPass || /cooldown|already processing/i.test(String(data.errorEn || data.error || ""));
             if (notYet) {
               // Kept for later: after the cooldown, or once an admin gives the pass.
               await markLater(item.id, data.needsPass ? 12 * 3600000 : 2 * 3600000, data.error);
@@ -4828,7 +4843,7 @@ export default function App() {
         body: JSON.stringify({ address: wallet, utility: "electric", meterNo, certificate, captchaToken }),
       }, PAYOUT_MS);
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw httpError(data.error || `service error ${res.status}`, res.status);
+      if (!res.ok) throw httpError(data.error || `service error ${res.status}`, res.status, data.errorEn);
       const paid = Number(data.amount) || 0;
       if (!sameWallet(payWallet)) { showToast(t("auto.otherWallet", { amount: paid, wallet: `${payWallet.slice(0, 6)}…${payWallet.slice(-4)}` })); return; }
       // The server answers with the reading and the usage it paid for, not the
@@ -5006,7 +5021,7 @@ export default function App() {
         body: JSON.stringify({ utility: selUtil, reading, prevRead, ...(registers ? { registers } : {}), meterNo, address: wallet, photo: photo?.base64 || "", photoMime: photo?.mime || "", certificate, clientFlagged: !photoConfirmed || anom.anomaly, flagReason, ocrNums: photo?.ocrNums || [], meterNoConfirmed: photo?.meterNoConfirmed ?? null, avgUsage: anom.avg ?? null, captchaToken, device }),
       }, PAYOUT_MS);
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw httpError(data.error || `Reward service error ${res.status}`, res.status);
+      if (!res.ok) throw httpError(data.error || `Reward service error ${res.status}`, res.status, data.errorEn);
       txid = data.txid;
       onChainPending = !!data.pending;
       if (data.amount != null && Number.isFinite(Number(data.amount))) paidAmount = Number(data.amount);
@@ -5061,7 +5076,7 @@ export default function App() {
       // be reconciled with the total of both — the step is thousands of kWh and this
       // is the refusal it produces, every time, forever. Offer the one-time fix here
       // rather than leaving the user to read a range they cannot influence.
-      if (registers && /outside the plausible range/i.test(String(e?.message || ""))) {
+      if (registers && /outside the plausible range/i.test(String(e?.en || e?.message || ""))) {
         setFixBasis({ registers, meterNo, utility: selUtil, photo });
         showToast(t("s.oneTariff"));
         return;

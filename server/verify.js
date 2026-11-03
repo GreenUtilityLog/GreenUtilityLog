@@ -3,7 +3,7 @@
 // every payout is re-validated here. The reward AMOUNT is always recomputed on
 // the server — a client-sent amount is never trusted.
 
-import { UNITS, isEnabledUtility, COOLDOWN_MS, computeReward, usageBoundsFor, spanDays, MAX_REWARD, USAGE_BENCHMARK, SAVING_UTILS, MAX_SPAN_DAYS } from "./config.js";
+import { UNITS, isEnabledUtility, COOLDOWN_MS, computeReward, usageBoundsFor, spanDays, MAX_REWARD, USAGE_BENCHMARK, SAVING_UTILS, MAX_SPAN_DAYS, MIN_SPAN_DAYS } from "./config.js";
 import { store } from "./store.js";
 
 const isAddress = (a) => typeof a === "string" && /^0x[0-9a-fA-F]{40}$/.test(a);
@@ -69,7 +69,7 @@ export function validateSubmission(body) {
   // do that, so it is a reader sending an old value, the same number typed again,
   // or an empty house. It used to count as the best saving there is and pay the
   // maximum; now it is recorded without a reward and flagged for review.
-  const span = Math.min(Math.max(Number(days) || 1, 1), MAX_SPAN_DAYS);
+  const span = Math.min(Math.max(Number(days) > 0 ? Number(days) : 1, MIN_SPAN_DAYS), MAX_SPAN_DAYS);
   const nearZero = SAVING_UTILS.has(utility) && usage < lo * span;
   if ((!SAVING_UTILS.has(utility) && usage > 0 && usage < lo) || usage > hi) {
     return { ok: false, error: `usage ${usage} ${UNITS[utility]} is outside the plausible range` };

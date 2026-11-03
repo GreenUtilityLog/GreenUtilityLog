@@ -175,7 +175,9 @@ export const OTHER  = "0x2222222222222222222222222222222222222222";
 
 // A state file with one electric meter already owned and baselined, as it would be
 // after a first photo submission.
-export function stateWithBaseline({ wallet = WALLET, meterNo = "E1000", reading = 1000, agoMs = 0 } = {}) {
+// The baseline is a day old by default: a reading taken right after its baseline
+// covers almost no time, so its target (and reward) is almost nothing.
+export function stateWithBaseline({ wallet = WALLET, meterNo = "E1000", reading = 1000, agoMs = 86_400_000 } = {}) {
   const key = `electric:${meterNo.toLowerCase()}`;
   return {
     cooldowns: {}, hashes: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {},

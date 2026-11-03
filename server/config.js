@@ -102,6 +102,10 @@ export const MAX_REWARD = Number(process.env.MAX_REWARD || 50);
 // MAX_SPAN_DAYS bounds how far the target can stretch, so a long silence can't mint a
 // huge payout.
 export const MAX_SPAN_DAYS     = Number(process.env.MAX_SPAN_DAYS || 7);
+// A reading within a day of the last one covers that part of a day, not a whole
+// one: counted as a full day, claiming every 20 hours (the cooldown) earned a 9.6 kWh
+// a day allowance instead of 8. One hour is the smallest span counted.
+export const MIN_SPAN_DAYS     = 1 / 24;
 
 // The most a single submission can ever pay, whatever span it covers. Deliberately
 // NOT multiplied by the span, unlike the target: saving the same amount and claiming
@@ -114,17 +118,17 @@ export const MAX_SPAN_DAYS     = Number(process.env.MAX_SPAN_DAYS || 7);
 // Only the ceiling on what comes out is flat.
 export const MAX_PAYOUT_PER_SUBMISSION = Number(process.env.MAX_PAYOUT_PER_SUBMISSION || 4);
 
-// Days a submission covers, clamped to [1, MAX_SPAN_DAYS]. Anything under a day (or
-// an unknown gap — a first submission, or a meter whose last reading predates this
-// being recorded) counts as one, which is exactly the old behaviour.
+// Days a submission covers, in parts of a day, clamped to [MIN_SPAN_DAYS,
+// MAX_SPAN_DAYS]. An unknown gap (a first submission, or a meter whose last reading
+// predates this being recorded) counts as one day.
 export function spanDays(msSinceLastReading) {
   const d = Number(msSinceLastReading) / 86400000;
-  if (!Number.isFinite(d) || d <= 1) return 1;
-  return Math.min(d, MAX_SPAN_DAYS);
+  if (!Number.isFinite(d)) return 1;
+  return Math.min(Math.max(d, MIN_SPAN_DAYS), MAX_SPAN_DAYS);
 }
 
 export function computeReward(utility, usage, days = 1) {
-  const span = Math.min(Math.max(Number(days) || 1, 1), MAX_SPAN_DAYS);
+  const span = Math.min(Math.max(Number(days) > 0 ? Number(days) : 1, MIN_SPAN_DAYS), MAX_SPAN_DAYS);
   const base = REWARD_BASE[utility] ?? 0;
   const rate = RATES[utility] ?? 0;
   let amount;

@@ -23,6 +23,7 @@ import { deviceKeys, DEVICE_MAX_WALLETS, DEVICE_FP_FLAG, REQUIRE_DEVICE } from "
 import { powerfoxEnabled, sealCredentials, openCredentials, fetchPowerfoxReading } from "./powerfox.js";
 import { fetchTibberReading } from "./tibber.js";
 import { rateKeyFor } from "./ratekey.js";
+import { pickLang, translateMessage } from "./messages.js";
 import { inspectWallet, judgeWallet } from "./walletcheck.js";
 
 const app = express();
@@ -48,6 +49,28 @@ app.set("trust proxy", Number(process.env.TRUST_PROXY_HOPS || 1));
 
 // Set on SIGTERM (see shutdown below): from then on nothing that pays starts.
 let shuttingDown = false;
+// Answers in the app's language (X-GUL-Lang, sent by the app): every `error` and
+// `reason` in a JSON answer goes through messages.js. The English text travels along
+// as errorEn/reasonEn, for code that acts on what a message says. Readers and other
+// callers send no header and get English, as before.
+app.use((req, res, next) => {
+  const lang = pickLang(req.get("x-gul-lang"));
+  if (!lang) return next();
+  const json = res.json.bind(res);
+  res.json = (body) => {
+    if (body && typeof body === "object" && !Array.isArray(body)) {
+      const out = { ...body };
+      for (const k of ["error", "reason"]) {
+        if (typeof out[k] !== "string") continue;
+        const tr = translateMessage(out[k], lang);
+        if (tr !== out[k]) { out[`${k}En`] = out[k]; out[k] = tr; }
+      }
+      return json(out);
+    }
+    return json(body);
+  };
+  next();
+});
 app.use((req, res, next) => (shuttingDown && req.method === "POST"
   ? res.status(503).json({ error: "the server is restarting — try again in a minute" })
   : next()));

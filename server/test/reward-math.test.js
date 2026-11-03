@@ -94,9 +94,10 @@ test("a big solar day is capped, not paid in full", () => {
   assert.equal(computeReward("solar", 10, 1), MAX_PAYOUT_PER_SUBMISSION);
 });
 
-test("spanDays counts whole days, floors at one and caps at MAX_SPAN_DAYS", () => {
-  assert.equal(spanDays(0), 1);
-  assert.equal(spanDays(DAY * 0.4), 1);
+test("spanDays counts parts of a day, floors at an hour and caps at MAX_SPAN_DAYS", () => {
+  assert.equal(spanDays(0), 1 / 24);
+  assert.equal(spanDays(DAY * 0.4), 0.4);
+  assert.equal(spanDays(NaN), 1, "an unknown gap counts as one day");
   assert.equal(spanDays(DAY * 3), 3);
   assert.equal(spanDays(DAY * 99), MAX_SPAN_DAYS);
 });
@@ -139,4 +140,12 @@ test("and it is on for exactly the values documented", () => {
   for (const value of ["1", "true", "TRUE", "yes", "Yes"]) {
     assert.equal(/^(1|true|yes)$/i.test(value), true, `${value} should enable it`);
   }
+});
+
+test("claiming every 20 hours is judged against 20 hours of the target, not a whole day", () => {
+  // 8 kWh a day × 20/24 = 6.67 kWh allowance; 5 kWh used saves 1.67, not 3.
+  const days = spanDays(DAY * 20 / 24);
+  assert.ok(Math.abs(days - 20 / 24) < 1e-9);
+  assert.equal(computeReward("electric", 5, days), +((8 * 20 / 24 - 5) * 0.61).toFixed(2));
+  assert.ok(computeReward("electric", 5, days) < computeReward("electric", 5, 1));
 });
