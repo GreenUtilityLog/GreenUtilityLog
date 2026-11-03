@@ -91,6 +91,9 @@ Laatst bijgewerkt: 2026-11-01.
 ## Kwaliteitsbewaking
 - [x] Volledige browsertest in CI (`e2e/journey.mjs`, workflow "End-to-end"): echte app-build + echte server + ondertekenende nep-wallet; registreren, uitbetaling, Home/Geschiedenis/Voortgang, uitlezer, offline-wachtrij, Nederlands met servermelding. Faalt bij elke mislukte stap, paginafout of CSP-schending — gecontroleerd door de app en de server opzettelijk te breken (#169)
 
+## Functies
+- [x] VeBetterDAO GM NFT op Profiel: plaatje, niveau (Earth … Galaxy), "niveau n van max" (max uit het contract) en tokennummer, rechtstreeks van de blockchain; zonder NFT een link naar VeBetterDAO, bij een onbereikbare node een melding in plaats van "geen NFT". Contractadressen en functies gecontroleerd tegen `@vechain/vebetterdao-contracts` 10.0.0 en `@vechain/vechain-kit`; in de browsertest
+
 ## Product en organisatie
 - [ ] Antwoord aan VeBetterDAO (beoordeling) versturen en opvolgen
 - [ ] Creator NFT / endorsement afwachten

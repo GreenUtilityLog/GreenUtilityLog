@@ -4,7 +4,7 @@ import { t, getLang, setLang, LANGS, weekdayInitials } from "./i18n.js";
 import { NETWORK, REWARD_API, TESTNET_BANNER, MAIN_APP_URL, ownStorageKeys, IDB_NAME } from "./network.js";
 import { useWallet, useWalletModal } from "@vechain/dapp-kit-react";
 import { Clause, Address, ABIFunction } from "@vechain/sdk-core";
-import { fetchOnChainLeaderboard, fetchWalletHistory, fetchIsAppAdmin, fetchTokenBalance } from "./leaderboard.js";
+import { fetchOnChainLeaderboard, fetchWalletHistory, fetchIsAppAdmin, fetchTokenBalance, fetchGalaxyMember } from "./leaderboard.js";
 // The admin screen is for the app's owner only, and ~1,000 lines: loaded when it
 // is opened rather than for every visitor.
 const AdminScreen = lazy(() => import("./admin.jsx"));
@@ -32,6 +32,8 @@ const NETWORKS = {
       B3TR:              "0x5ef79995FE8a89e0812330E4378eB2660ceDe699",
       X2EarnRewardsPool: "0x6Bee7DDab6c99d5B2Af0554EaEA484CE18F52631",
       X2EarnApps:        "0x8392B7CCc763dB03b47afcD8E8f5e24F9cf0554D",
+      // VeBetterDAO's Galaxy Member (GM) NFT. Addresses as in @vechain/vechain-kit.
+      GalaxyMember:      "0x93B8cD34A7Fc4f53271b9011161F7A2B5fEA9D1F",
     },
   },
   testnet: {
@@ -40,6 +42,7 @@ const NETWORKS = {
       B3TR:              "0x95761346d18244bb91664181bf91193376197088",
       X2EarnRewardsPool: "0x2d2a2207c68a46fc79325d7718e639d1047b0d8b",
       X2EarnApps:        "0x0b54a094b877a25bdc95b4431eaa1e2206b1ddfe",
+      GalaxyMember:      "0x38a59fa7fd7039884465a0ff285b8c4b6fe394ca",
     },
   },
 };
@@ -3585,6 +3588,49 @@ function RowButton({ icon, label, sub, right, danger, onClick, T, last }) {
 }
 const listCard = (T) => ({ margin: "0 14px 12px", background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, overflow: "hidden" });
 
+// The wallet's VeBetterDAO Galaxy Member NFT, read from chain: its picture, name
+// and level. A wallet without one gets a short line and a link to get one; a chain
+// that can't be read says so instead of claiming there is none.
+const GM_PAGE = "https://governance.vebetterdao.org";
+function GalaxyMemberCard({ wallet, T }) {
+  const [gm, setGm] = useState({ status: "loading" });
+  const [imgOk, setImgOk] = useState(true);
+  useEffect(() => {
+    if (!CONTRACTS.GalaxyMember) { setGm({ status: "none" }); return; }
+    const ctrl = new AbortController();
+    setGm({ status: "loading" }); setImgOk(true);
+    fetchGalaxyMember({ node: ACTIVE_NODE, contract: CONTRACTS.GalaxyMember, address: wallet, signal: ctrl.signal })
+      .then((r) => { if (ctrl.signal.aborted) return; setGm(!r ? { status: "none" } : r.error ? { status: "error" } : { status: "ok", ...r }); })
+      .catch(() => { if (!ctrl.signal.aborted) setGm({ status: "error" }); });
+    return () => ctrl.abort();
+  }, [wallet]);
+  return (
+    <div style={{ ...listCard(T), display: "flex", alignItems: "center", gap: 12, padding: "12px 14px" }} aria-busy={gm.status === "loading"}>
+      <div aria-hidden="true" style={{ width: 56, height: 56, flexShrink: 0, borderRadius: 10, background: T.bgAlt, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, overflow: "hidden" }}>
+        {gm.status === "ok" && gm.image && imgOk
+          ? <img src={gm.image} alt="" width="56" height="56" style={{ width: 56, height: 56, objectFit: "cover" }} onError={() => setImgOk(false)} />
+          : "🪐"}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".8px", color: T.textSoft }}>{t("gm.title")}</div>
+        {gm.status === "loading" && <div style={{ fontSize: 13, color: T.textSoft, marginTop: 3 }}>{t("gm.loading")}</div>}
+        {gm.status === "ok" && (
+          <>
+            <div style={{ fontSize: 15, fontWeight: 800, color: T.text, marginTop: 2 }}>{gm.name || t("gm.level", { n: gm.level })}</div>
+            <div style={{ fontSize: 11.5, color: T.textMid, marginTop: 1 }}>{gm.maxLevel >= gm.level && gm.level > 0 ? t("gm.levelOf", { n: gm.level, max: gm.maxLevel }) : t("gm.level", { n: gm.level })} · #{gm.tokenId}</div>
+          </>
+        )}
+        {gm.status === "none" && (
+          <div style={{ fontSize: 12, color: T.textMid, marginTop: 3, lineHeight: 1.45 }}>
+            {t("gm.none")} <a href={GM_PAGE} target="_blank" rel="noopener noreferrer" style={{ color: T.green3, fontWeight: 700 }}>{t("gm.get")}</a>
+          </div>
+        )}
+        {gm.status === "error" && <div style={{ fontSize: 12, color: T.textSoft, marginTop: 3 }}>{t("gm.error")}</div>}
+      </div>
+    </div>
+  );
+}
+
 // Profile: you. Settings live one tap away (⚙️), not on this page.
 function ProfileScreen({ b3tr, subs, wallet, walletDomain, pass, setTab, onOpenSettings, onOpenHelp, onOpenFeedback, onToast, T }) {
   const tier = getTier(b3tr);
@@ -3601,6 +3647,7 @@ function ProfileScreen({ b3tr, subs, wallet, walletDomain, pass, setTab, onOpenS
         <button type="button" onClick={onOpenSettings} aria-label={t("pr.settings")} className="dark-toggle" style={{width:44,height:44,fontSize:18,background:T.card}}>⚙️</button>
       </div>
       <ProfileHero wallet={wallet} domain={walletDomain} tier={tier} summary={wallet ? summary : ""} role={pass?.tier || ""} onToast={onToast} T={T} />
+      {wallet && <GalaxyMemberCard wallet={wallet} T={T} />}
       <div style={listCard(T)}>
         <RowButton T={T} icon="🧾" label={t("pr.history")} sub={subs.length ? t("pr.history.sub", { n: subs.length }) : t("pr.history.empty")} onClick={() => setTab("history")} />
         <RowButton T={T} icon="❓" label={t("pr.help")} sub={t("pr.help.sub")} onClick={onOpenHelp} />
