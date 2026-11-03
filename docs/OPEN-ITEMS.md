@@ -88,6 +88,9 @@ Laatst bijgewerkt: 2026-11-01.
 - [x] Norm naar rato: een stand na 20 uur telt als 20/24 dag (6,7 kWh), niet als een hele dag; server en app rekenen hetzelfde (#168)
 - [x] Foutmeldingen van de server in 5 talen: de app stuurt `X-GUL-Lang`, de server vertaalt centraal (`server/messages.js`); een test eist een vertaling voor elke nieuwe melding (#168)
 
+## Kwaliteitsbewaking
+- [x] Volledige browsertest in CI (`e2e/journey.mjs`, workflow "End-to-end"): echte app-build + echte server + ondertekenende nep-wallet; registreren, uitbetaling, Home/Geschiedenis/Voortgang, uitlezer, offline-wachtrij, Nederlands met servermelding. Faalt bij elke mislukte stap, paginafout of CSP-schending — gecontroleerd door de app en de server opzettelijk te breken (#169)
+
 ## Product en organisatie
 - [ ] Antwoord aan VeBetterDAO (beoordeling) versturen en opvolgen
 - [ ] Creator NFT / endorsement afwachten
