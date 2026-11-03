@@ -264,6 +264,15 @@ await step("Profile shows the wallet's GM NFT", async () => {
   const img = hero.locator('img[src="https://api.gateway-proxy.vechain.org/ipfs/bafye2egmimg/2.png"]');
   assert.equal(await img.count(), 1, "its picture, from VeChain's IPFS gateway");
   assert.ok(await img.evaluate((el) => el.complete && el.naturalWidth > 0), "the picture loaded (CSP allows it)");
+  // A name of the full 24 characters shows whole, not cut off with "…".
+  const NAME = "MrUnknownVeChainSaver123";
+  await hero.getByRole("button", { name: "Edit" }).click(); await wait(400);
+  await hero.getByPlaceholder("Your name").fill(NAME);
+  await hero.getByRole("button", { name: "Save" }).click(); await wait(400);
+  await shot("05c-profile-name");
+  const pname = hero.locator(".pname");
+  assert.equal(await pname.innerText(), NAME, "the name as typed");
+  assert.ok(await pname.evaluate((el) => el.scrollWidth <= el.clientWidth && getComputedStyle(el).textOverflow !== "ellipsis"), "the whole name is visible");
 });
 
 await step("a reader: pair, push, and its reading appears", async () => {

@@ -3447,16 +3447,17 @@ function ProfileHero({ wallet, domain, summary, role, onToast, T }) {
           {shown.photo ? <img src={shown.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} /> : (editing ? (draft.avatar || "🌱") : avatar)}
         </div>
         <div style={{minWidth:0,flex:1}}>
-          <div className="pname" style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{editing ? (draft.name.trim() || domain || t("pr.myAccount")) : title}</div>
+          <div className="pname" style={{overflowWrap:"anywhere",lineHeight:1.15}}>{editing ? (draft.name.trim() || domain || t("pr.myAccount")) : title}</div>
           {summary && !editing && <div style={{fontSize:12,color:T.textMid,marginTop:3}}>{summary}</div>}
           <div style={{fontSize:10,color:T.textSoft,fontFamily:mono,marginTop:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
             {wallet ? (profile.name && domain ? `${domain} · ${shortAddr(wallet)}` : shortAddr(wallet)) : t("pr.notConnected")}
           </div>
         </div>
         {wallet && !editing && (
-          <button onClick={() => { setDraft(profile); setEditing(true); }}
-            style={{flexShrink:0,background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"8px 10px",fontSize:11,fontWeight:700,color:T.textMid,cursor:"pointer"}}>
-            ✏️ {t("m.edit")}
+          // Icon only, so the name gets the room: "MrUnknownV…" was cut off on a phone.
+          <button onClick={() => { setDraft(profile); setEditing(true); }} aria-label={t("m.edit")} title={t("m.edit")}
+            style={{flexShrink:0,alignSelf:"flex-start",width:44,height:44,background:"transparent",border:`1px solid ${T.border}`,borderRadius:8,fontSize:18,cursor:"pointer"}}>
+            ✏️
           </button>
         )}
       </div>
