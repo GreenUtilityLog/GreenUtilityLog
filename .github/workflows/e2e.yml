@@ -1,0 +1,47 @@
+# The whole app, end to end: the production build in Chromium (phone-sized), against
+# the real reward server, with a VeWorld stand-in that signs for real. Unit tests
+# prove the parts; this proves what a user does still works, and fails on any step
+# that doesn't, any page error and any CSP violation. See e2e/journey.mjs.
+#
+# Not filtered by path, like the other checks: a change anywhere (app, server,
+# translations, build config) can break the journey.
+name: End-to-end
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  journey:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # The server's engines range (server/package.json); the app builds on it too.
+          node-version: 26
+      - run: npm ci
+      # Test-only tools, not app dependencies (as with the lint job).
+      - run: npm install --no-save playwright@1.56.1
+      - run: npx playwright install --with-deps chromium
+      - run: npm install --omit=optional
+        working-directory: server
+      # The photo checks decode real images with sharp (as in the server tests).
+      - run: npm install --no-save sharp
+        working-directory: server
+      # The app built for a test API host, which the journey routes to the local server.
+      - run: npx vite build --outDir e2e-dist
+        env:
+          VITE_REWARD_API: https://e2e-api.test
+      - run: node e2e/journey.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-screenshots
+          path: e2e-out/
+          retention-days: 7
