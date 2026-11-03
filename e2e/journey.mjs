@@ -242,11 +242,15 @@ await step("a photo reading a day after the last one pays", async () => {
 await step("Home, History and Progress show it", async () => {
   await page.locator(".bnav button").nth(0).click(); await wait(1200); await shot("03-home");
   assert.match(await text(), /\+\d+\.\d\d B3TR/, "today's reward on Home");
+  // The app's own tiers are gone: the level that counts is the GM NFT (Profile).
+  assert.doesNotMatch(await text(), /\btier\b/i, "no app tier on Home");
   await page.locator(".bnav button").nth(3).click(); await wait(600);
   await page.getByRole("button", { name: /history/i }).first().click(); await wait(1200); await shot("04-history");
   assert.match(await text(), /1 total/, "one row in History");
   await page.locator(".bnav button").nth(2).click(); await wait(1200); await shot("05-progress");
   assert.match(await text(), /kWh/, "Progress renders");
+  assert.match(await text(), /\d+\.\d\d B3TR earned in total/, "the total on Progress");
+  assert.doesNotMatch(await text(), /\btier\b/i, "no app tier on Progress");
 });
 
 await step("Profile shows the wallet's GM NFT", async () => {
@@ -304,9 +308,9 @@ await step("Dutch: the app, and the server's messages", async () => {
   const prof = await text();
   assert.match(prof, /Maan/, "the GM level's name is Dutch");
   assert.match(prof, /Niveau 2 van 10 · #7/, "the GM level line is Dutch");
-  // The app's own tier badge (upper-cased in CSS), and no English name left over.
-  assert.match(prof, /niveau maan/i, "the tier badge is Dutch");
-  assert.doesNotMatch(prof, /\bmoon\b/i, "no English tier or level name on Profile");
+  // No app tier badge ("Niveau Maan") next to the GM level, and no English left over.
+  assert.doesNotMatch(prof, /niveau maan/i, "no app tier badge on Profile");
+  assert.doesNotMatch(prof, /\bmoon\b/i, "no English level name on Profile");
   await page.locator(".bnav button").nth(0).click(); await wait(500);
   // The same reading again, on a new photo: the server refuses it, in Dutch.
   const photoTab = page.getByRole("button", { name: /📸 Foto/ }).first();
