@@ -62,7 +62,9 @@ const server = proc(process.execPath, ["index.js"], {
   WALLET_CHECK: "off", INGEST_MIN_INTERVAL_MS: "0", COOLDOWN_MS: "0", OCR_ENABLED: "false", AUTO_CLAIM_ON_PUSH: "on",
   UPSTASH_REDIS_REST_URL: "", UPSTASH_REDIS_REST_TOKEN: "", NODE_URL: "http://127.0.0.1:9", NETWORK: "testnet",
 }, join(ROOT, "server"));
-const preview = proc(process.platform === "win32" ? "npx.cmd" : "npx", ["vite", "preview", "--outDir", DIST, "--port", String(APP_PORT), "--strictPort"], {}, ROOT);
+// On 127.0.0.1 explicitly: vite's default "localhost" can resolve to ::1 only (as in
+// CI's Playwright container), and everything here talks to 127.0.0.1.
+const preview = proc(process.platform === "win32" ? "npx.cmd" : "npx", ["vite", "preview", "--outDir", DIST, "--host", "127.0.0.1", "--port", String(APP_PORT), "--strictPort"], {}, ROOT);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 async function up(url) {
   for (let i = 0; i < 90; i++) { try { const r = await fetch(url); if (r.status < 500) return; } catch {} await wait(500); }
