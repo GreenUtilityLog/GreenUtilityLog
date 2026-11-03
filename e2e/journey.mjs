@@ -114,9 +114,10 @@ await ctx.addInitScript(([addr]) => {
 }, [ADDR]);
 
 // The test wallet holds a Galaxy Member NFT: token 7, level 2 (Moon). The stand-in
-// node answers the GalaxyMember contract's calls (testnet address, as in the app),
-// and the IPFS gateway answers its metadata and picture.
-const GM_CONTRACT = "0x38a59fa7fd7039884465a0ff285b8c4b6fe394ca";
+// node answers the GalaxyMember contract's calls, and the IPFS gateway answers its
+// metadata and picture. Only on the mainnet node: the app reads the GM NFT there
+// even in this testnet build, since that's where users' NFTs are.
+const GM_CONTRACT = "0x93b8cd34a7fc4f53271b9011161f7a2b5fea9d1f";
 const selector = (name, types) => new ABIFunction({ name, type: "function", stateMutability: "view", inputs: types.map((type, i) => ({ name: `a${i}`, type })), outputs: [] }).signatureHash.slice(0, 10);
 const word = (n) => BigInt(n).toString(16).padStart(64, "0");
 const abiString = (str) => { const b = Buffer.from(str, "utf8"); return word(32) + word(b.length) + b.toString("hex").padEnd(Math.max(64, Math.ceil(b.length / 32) * 64), "0"); };
@@ -152,7 +153,7 @@ await ctx.route((url) => !/^http:\/\/(127\.0\.0\.1|localhost)[:/]/.test(url.href
     if (u.pathname.startsWith("/blocks/best")) return json({ ...GENESIS, id: "0x0100000a" + "1".repeat(56), number: 16777226, timestamp: Math.floor(Date.now() / 1000) });
     if (u.pathname.startsWith("/logs/event")) return json([]);
     if (u.pathname.startsWith("/accounts/*")) return json([{ data: "0x" + "0".repeat(64), events: [], transfers: [], gasUsed: 0, reverted: false, vmError: "" }]);
-    if (u.pathname.toLowerCase() === `/accounts/${GM_CONTRACT}` && route.request().method() === "POST") {
+    if (u.hostname === "mainnet.vechain.org" && u.pathname.toLowerCase() === `/accounts/${GM_CONTRACT}` && route.request().method() === "POST") {
       const data = String(JSON.parse(route.request().postData() || "{}").data || "");
       const out = GM_ANSWERS[data.slice(0, 10)];
       return json({ data: out || "0x", events: [], transfers: [], gasUsed: 0, reverted: !out, vmError: out ? "" : "execution reverted" });

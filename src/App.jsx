@@ -32,7 +32,8 @@ const NETWORKS = {
       B3TR:              "0x5ef79995FE8a89e0812330E4378eB2660ceDe699",
       X2EarnRewardsPool: "0x6Bee7DDab6c99d5B2Af0554EaEA484CE18F52631",
       X2EarnApps:        "0x8392B7CCc763dB03b47afcD8E8f5e24F9cf0554D",
-      // VeBetterDAO's Galaxy Member (GM) NFT. Addresses as in @vechain/vechain-kit.
+      // VeBetterDAO's Galaxy Member (GM) NFT. Address as in @vechain/vechain-kit.
+      // Read on mainnet in every build: see GalaxyMemberCard.
       GalaxyMember:      "0x93B8cD34A7Fc4f53271b9011161F7A2B5fEA9D1F",
     },
   },
@@ -42,7 +43,6 @@ const NETWORKS = {
       B3TR:              "0x95761346d18244bb91664181bf91193376197088",
       X2EarnRewardsPool: "0x2d2a2207c68a46fc79325d7718e639d1047b0d8b",
       X2EarnApps:        "0x0b54a094b877a25bdc95b4431eaa1e2206b1ddfe",
-      GalaxyMember:      "0x38a59fa7fd7039884465a0ff285b8c4b6fe394ca",
     },
   },
 };
@@ -3592,14 +3592,17 @@ const listCard = (T) => ({ margin: "0 14px 12px", background: T.card, border: `1
 // and level. A wallet without one gets a short line and a link to get one; a chain
 // that can't be read says so instead of claiming there is none.
 const GM_PAGE = "https://governance.vebetterdao.org";
+// Always mainnet, also in the testnet build: a user's GM NFT lives on mainnet, and
+// the card only reads (nothing is signed or sent).
+const GM_NODE = NETWORKS.mainnet.node;
+const GM_CONTRACT = NETWORKS.mainnet.contracts.GalaxyMember;
 function GalaxyMemberCard({ wallet, T }) {
   const [gm, setGm] = useState({ status: "loading" });
   const [imgOk, setImgOk] = useState(true);
   useEffect(() => {
-    if (!CONTRACTS.GalaxyMember) { setGm({ status: "none" }); return; }
     const ctrl = new AbortController();
     setGm({ status: "loading" }); setImgOk(true);
-    fetchGalaxyMember({ node: ACTIVE_NODE, contract: CONTRACTS.GalaxyMember, address: wallet, signal: ctrl.signal })
+    fetchGalaxyMember({ node: GM_NODE, contract: GM_CONTRACT, address: wallet, signal: ctrl.signal })
       .then((r) => { if (ctrl.signal.aborted) return; setGm(!r ? { status: "none" } : r.error ? { status: "error" } : { status: "ok", ...r }); })
       .catch(() => { if (!ctrl.signal.aborted) setGm({ status: "error" }); });
     return () => ctrl.abort();
