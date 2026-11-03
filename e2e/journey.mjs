@@ -298,6 +298,16 @@ await step("Dutch: the app, and the server's messages", async () => {
   await page.getByText("Nederlands", { exact: true }).first().click(); await wait(1000);
   await page.locator(".bnav button").nth(0).click(); await wait(800);
   assert.match(await text(), /VOORTGANG|Voortgang/, "the menu is Dutch");
+  // The GM card on Profile, in Dutch too: the level's name and the level line.
+  await page.locator(".bnav button").nth(3).click(); await wait(1500);
+  await shot("10-nl-profile");
+  const prof = await text();
+  assert.match(prof, /Maan/, "the GM level's name is Dutch");
+  assert.match(prof, /Niveau 2 van 10 · #7/, "the GM level line is Dutch");
+  // The app's own tier badge (upper-cased in CSS), and no English name left over.
+  assert.match(prof, /niveau maan/i, "the tier badge is Dutch");
+  assert.doesNotMatch(prof, /\bmoon\b/i, "no English tier or level name on Profile");
+  await page.locator(".bnav button").nth(0).click(); await wait(500);
   // The same reading again, on a new photo: the server refuses it, in Dutch.
   const photoTab = page.getByRole("button", { name: /📸 Foto/ }).first();
   await page.locator(".bnav button").nth(1).click(); await wait(800);

@@ -768,6 +768,8 @@ const TIERS = [
 function getTier(b3tr){ return TIERS.find(t => b3tr >= t.min && b3tr <= t.max) || TIERS[0]; }
 const tierColor = (t, T) => (T === DARK ? t.dark : t.color);
 const TIER_ICONS = { Moon: "🌙", Sun: "☀️", Star: "⭐", Gold: "🥇", Platinum: "💎" };
+// A tier's name as shown, in the app's language (tier.name stays the English key).
+const tierName = (tier) => t(`tier.${tier.name}`);
 
 // Consecutive-day streak based on submission dates ("YYYY-MM-DD"). The streak
 // is allowed to end today OR yesterday, so it isn't reported as broken just
@@ -2576,7 +2578,7 @@ function HomeScreen({ b3tr, walletB3tr, streak, subs, setTab, wallet, onOpenRead
         <div className="hero-chips">
           <div className="hchip"><div className="hchip-val">{streak}</div><div className="hchip-key">{t("home.streak")}</div></div>
           <div className="hchip"><div className="hchip-val">{subs.length}</div><div className="hchip-key">{t("home.subs")}</div></div>
-          <div className="hchip"><div className="hchip-val">{getTier(b3tr).name}</div><div className="hchip-key">{t("home.tier")}</div></div>
+          <div className="hchip"><div className="hchip-val">{tierName(getTier(b3tr))}</div><div className="hchip-key">{t("home.tier")}</div></div>
         </div>
       </div>
 
@@ -3265,7 +3267,7 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
           <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
             <span aria-hidden="true" style={{ fontSize: 30, lineHeight: 1 }}>{TIER_ICONS[currentTier.name] || "🌙"}</span>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 18, fontWeight: 800, color: T.text }}>{t("p.tier", { name: currentTier.name })}</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: T.text }}>{t("p.tier", { name: tierName(currentTier) })}</div>
               <div style={{ fontSize: 12, color: T.textSoft, marginTop: 2 }}>
                 {chain.status === "loading" ? t("p.loading") : isLive ? t("p.rank", { rank: myRank, total: board.length }) : t("p.rankLater")}
               </div>
@@ -3274,11 +3276,11 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
           {nextTier && (
             <div style={{ textAlign: "right", flexShrink: 0 }}>
               <div style={label}>{t("p.next")}</div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: T.text, marginTop: 2 }}>{TIER_ICONS[nextTier.name] || ""} {nextTier.name}</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: T.text, marginTop: 2 }}>{TIER_ICONS[nextTier.name] || ""} {tierName(nextTier)}</div>
             </div>
           )}
         </div>
-        <div role="progressbar" aria-label={nextTier ? t("p.progressTo", { tier: t("p.tier", { name: nextTier.name }) }) : t("p.topTier")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent}
+        <div role="progressbar" aria-label={nextTier ? t("p.progressTo", { tier: t("p.tier", { name: tierName(nextTier) }) }) : t("p.topTier")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent}
           style={{ height: 8, borderRadius: 999, background: T.bgAlt, overflow: "hidden", marginTop: 12 }}>
           <div style={{ width: `${progressPercent}%`, height: "100%", background: T.green3, transition: "width .3s" }} />
         </div>
@@ -3535,7 +3537,7 @@ function ProfileHero({ wallet, domain, tier, summary, role, onToast, T }) {
         </div>
       ) : (
         <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:12}}>
-          <span style={{fontSize:10.5,fontWeight:800,background:T.bgAlt,color:tierColor(tier, T),border:`1px solid ${T.border}`,borderRadius:999,padding:"4px 10px",textTransform:"uppercase",letterSpacing:".6px"}}>{TIER_ICONS[tier.name] || ""} {t("p.tier", { name: tier.name })}</span>
+          <span style={{fontSize:10.5,fontWeight:800,background:T.bgAlt,color:tierColor(tier, T),border:`1px solid ${T.border}`,borderRadius:999,padding:"4px 10px",textTransform:"uppercase",letterSpacing:".6px"}}>{TIER_ICONS[tier.name] || ""} {t("p.tier", { name: tierName(tier) })}</span>
           {role && <span style={{fontSize:10.5,fontWeight:800,background:T.green5||T.bgAlt,color:T.green3,border:`1px solid ${T.green4||T.border}`,borderRadius:999,padding:"4px 10px",textTransform:"uppercase",letterSpacing:".6px"}}>🎟️ {role}</span>}
         </div>
       )}
@@ -3619,7 +3621,7 @@ function GalaxyMemberCard({ wallet, T }) {
         {gm.status === "loading" && <div style={{ fontSize: 13, color: T.textSoft, marginTop: 3 }}>{t("gm.loading")}</div>}
         {gm.status === "ok" && (
           <>
-            <div style={{ fontSize: 15, fontWeight: 800, color: T.text, marginTop: 2 }}>{gm.name || t("gm.level", { n: gm.level })}</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: T.text, marginTop: 2 }}>{gm.level >= 1 && gm.level <= 10 ? t(`gm.lv.${gm.level}`) : t("gm.level", { n: gm.level })}</div>
             <div style={{ fontSize: 11.5, color: T.textMid, marginTop: 1 }}>{gm.maxLevel >= gm.level && gm.level > 0 ? t("gm.levelOf", { n: gm.level, max: gm.maxLevel }) : t("gm.level", { n: gm.level })} · #{gm.tokenId}</div>
           </>
         )}
