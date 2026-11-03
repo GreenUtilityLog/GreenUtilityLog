@@ -43,7 +43,8 @@ Laatst bijgewerkt: 2026-11-01.
   - [x] Stap 2: meterscherm (foto, stand, insturen, meldingen) (#155)
   - [x] Stap 3: Voortgang, Geschiedenis, Profiel, Instellingen, Feedback (#156)
   - [x] Stap 4: automatisch uitlezen; Help-teksten naar de vertaalde knopnamen (#157)
-  - [ ] Nog Engels: foutmeldingen van de server, de Home Assistant-stappen bij Tibber/Powerfox (volgen HA's eigen menu's), het beheerscherm (alleen eigenaar)
+  - [x] Foutmeldingen van de server (#168)
+  - Bewust Engels: de Home Assistant-stappen (volgen HA's eigen menu's) en het beheerscherm (alleen eigenaar)
 - [x] Toegankelijkheid: dialogen met `role="dialog"`, focus erin, Tab blijft binnen, Escape sluit (#153)
 - [ ] Bijsnijden met het toetsenbord (pijltjestoetsen)
 
@@ -84,8 +85,8 @@ Laatst bijgewerkt: 2026-11-01.
 - [x] App: voorbeeldbeloning rekende met de verkeerde periode; grafiek vergeleek meerdaagse standen met één dag; restanten van een vorige wallet; toetsenbordval achter de intro; verstuurknop bleef hangen na offline opslaan; OCR bleef uit na één mislukte laadpoging; ~45 Engelse teksten vertaald
 - [x] Koppelscherm/beheer: PowerShell-commando op Windows, Home Assistant-YAML in één keer plakbaar, Tibber/Powerfox als automatisch herkend in beheer, hernoemde meter direct zichtbaar
 - [x] Bridge 1.5.4 / add-on / HA-integratie: `--install` opnieuw vergat de uitlezer; instellingen via omgevingsvariabelen gingen niet mee naar de planning; `forget_last` in de add-on; 6 uur wachten na een geweigerd token; `http://` in `--ip`; HA: standaardserver niet vastgezet, Wh-sensoren toegestaan, token getrimd
-- [ ] Beslissing eigenaar: een stand binnen 24 uur telt nu als een hele dag (8 kWh), dus wie elke 20 uur instuurt krijgt 9,6 kWh/dag norm. Exact naar rato rekenen?
-- [ ] Nog Engels: foutmeldingen die de server zelf stuurt
+- [x] Norm naar rato: een stand na 20 uur telt als 20/24 dag (6,7 kWh), niet als een hele dag; server en app rekenen hetzelfde (#168)
+- [x] Foutmeldingen van de server in 5 talen: de app stuurt `X-GUL-Lang`, de server vertaalt centraal (`server/messages.js`); een test eist een vertaling voor elke nieuwe melding (#168)
 
 ## Product en organisatie
 - [ ] Antwoord aan VeBetterDAO (beoordeling) versturen en opvolgen
