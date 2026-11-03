@@ -19,6 +19,11 @@ jobs:
   journey:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Playwright's own image: Chromium and every system library it needs are in it.
+    # Installing them with `playwright install --with-deps` hung on apt for 15 min.
+    # The tag matches the playwright version installed below.
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -27,8 +32,8 @@ jobs:
           node-version: 26
       - run: npm ci
       # Test-only tools, not app dependencies (as with the lint job).
+      # Same version as the image, so it finds the browser the image ships.
       - run: npm install --no-save playwright@1.56.1
-      - run: npx playwright install --with-deps chromium
       - run: npm install --omit=optional
         working-directory: server
       # The photo checks decode real images with sharp (as in the server tests).
