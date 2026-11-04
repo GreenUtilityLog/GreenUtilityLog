@@ -2988,6 +2988,7 @@ const ECO_KWH_PER_CLAIM = 0.5;
 // part: "impact" = only the three impact tiles, "charts" = only the charts below
 // them (both used inside Progress); none = the whole screen.
 function ChartsScreen({ subs, T, part }) {
+  const [period, setPeriod] = useState("week"); // the saved-energy chart: "week" | "month"
   const mono = "'SF Mono',Menlo,'Courier New',monospace";
   const usageOf = (s) => { const u = parseFloat(s.cur) - parseFloat(s.prev); return Number.isFinite(u) && u > 0 ? +u.toFixed(2) : 0; };
   const meterSubs = subs.filter(s => s.type !== "eco" && usageOf(s) > 0);
@@ -3013,6 +3014,7 @@ function ChartsScreen({ subs, T, part }) {
     }
   }
   let co2g = ecoSubs.length * ECO_CO2_PER_CLAIM, kwhSaved = ecoSubs.length * ECO_KWH_PER_CLAIM;
+  const savedOfSub = new Map(); // each electricity reading's saving, for the period chart and the outlook
   for (const s of meterSubs) {
     const bench = USAGE_BENCHMARK[s.type] ?? 0;
     if (SAVING_UTILS.has(s.type)) {
@@ -3022,7 +3024,7 @@ function ChartsScreen({ subs, T, part }) {
       if (!known && span == null) continue;
       const saved = known ? Math.max(0, s.savedKwh) : Math.max(0, bench * span - usageOf(s));
       co2g += saved * (CO2_PER_UNIT_UI[s.type] || 0);
-      if (s.type === "electric") kwhSaved += saved;
+      if (s.type === "electric") { kwhSaved += saved; savedOfSub.set(s, saved); }
     } else if (s.type === "solar") {
       co2g += usageOf(s) * CO2_PER_UNIT_UI.solar;
       kwhSaved += usageOf(s);
@@ -3030,6 +3032,77 @@ function ChartsScreen({ subs, T, part }) {
   }
   const streak = computeStreak(subs);
   const co2Label = co2g >= 1000 ? `${(co2g / 1000).toFixed(1)} kg` : `${Math.round(co2g)} g`;
+
+  // ── Energy saved per week or month, and the average per day against the target ─
+  // Each electricity reading counts in the period it was sent in, with the saving
+  // the server paid on (or worked out here) and the days it covers.
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const elecSubs = subs.filter(s => s.type === "electric" && s.status !== "failed");
+  const periodStarts = (() => {
+    const now = new Date();
+    if (period === "month") return Array.from({ length: 6 }, (_, i) => new Date(now.getFullYear(), now.getMonth() - 5 + i, 1).getTime());
+    const wk = new Date(now); wk.setHours(0, 0, 0, 0); wk.setDate(wk.getDate() - ((wk.getDay() + 6) % 7));
+    return Array.from({ length: 8 }, (_, i) => { const d = new Date(wk); d.setDate(d.getDate() - (7 - i) * 7); return d.getTime(); });
+  })();
+  const periodEnd = (i) => {
+    if (i + 1 < periodStarts.length) return periodStarts[i + 1];
+    const d = new Date(periodStarts[i]);
+    if (period === "month") d.setMonth(d.getMonth() + 1); else d.setDate(d.getDate() + 7);
+    return d.getTime();
+  };
+  const periods = periodStarts.map((start, i) => {
+    const end = periodEnd(i);
+    let saved = 0, usage = 0, days = 0, n = 0;
+    for (const s of elecSubs) {
+      const ts = subTs(s);
+      if (ts < start || ts >= end) continue;
+      n++;
+      saved += savedOfSub.get(s) || 0;
+      const span = spanOfSub.get(s);
+      if (span) { usage += usageOf(s); days += span; }
+    }
+    return { start, saved, n, avg: days > 0 ? usage / days : null };
+  });
+  const periodMax = Math.max(...periods.map(p => p.saved), 0);
+  const nowP = periods[periods.length - 1];
+  const periodLabel = (ts) => period === "month"
+    ? (() => { try { return new Intl.DateTimeFormat(getLang(), { month: "short" }).format(new Date(ts)); } catch { return String(new Date(ts).getMonth() + 1); } })()
+    : fmtDay(ts);
+
+  // ── Calendar: the last 12 weeks, a square per day ─────────────────────────────
+  // Dark green: a reading that paid; light: one recorded without a reward.
+  const CAL_WEEKS = 12;
+  const calDays = (() => {
+    const byDay = {};
+    for (const s of subs) {
+      if (s.type === "eco" || s.status === "failed") continue;
+      const k = s.date || (s.submittedAt ? dayKey(new Date(s.submittedAt)) : "");
+      if (!k) continue;
+      byDay[k] = byDay[k] === "paid" || paidAmount(s) > 0 ? "paid" : "recorded";
+    }
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const first = new Date(today); first.setDate(first.getDate() - ((first.getDay() + 6) % 7) - (CAL_WEEKS - 1) * 7);
+    return Array.from({ length: CAL_WEEKS * 7 }, (_, i) => {
+      const d = new Date(first); d.setDate(d.getDate() + i);
+      return { key: dayKey(d), future: d > today, state: byDay[dayKey(d)] || "" };
+    });
+  })();
+  const calPast = calDays.filter(d => !d.future);
+  const calHit = calPast.filter(d => d.state).length;
+
+  // ── Outlook: the last 30 days (or since the first reading), over a year ───────
+  // Shown once there is a week of readings to go on; fewer days say too little.
+  const outlook = (() => {
+    const firstTs = Math.min(...elecSubs.map(subTs).filter(ts => ts > 0));
+    if (!Number.isFinite(firstTs)) return null;
+    const windowDays = Math.min(30, (Date.now() - firstTs) / DAY_MS);
+    if (windowDays < 7) return { soon: true };
+    const from = Date.now() - windowDays * DAY_MS;
+    let saved = 0, paid = 0;
+    for (const s of elecSubs) if (subTs(s) >= from) { saved += savedOfSub.get(s) || 0; paid += paidAmount(s); }
+    return { days: Math.round(windowDays), kwh: saved / windowDays * 365, b3tr: paid / windowDays * 365 };
+  })();
+  const roundYear = (x) => (x >= 100 ? Math.round(x / 10) * 10 : x >= 10 ? Math.round(x) : +x.toFixed(1));
 
   // ── Weekly B3TR earnings, last 6 calendar weeks (Mon–Sun, local) ───────────
   const weekStartOf = (ts) => { const d = new Date(ts); d.setHours(0,0,0,0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.getTime(); };
@@ -3103,6 +3176,68 @@ function ChartsScreen({ subs, T, part }) {
         <Tile icon="🪙" val={totalB3TR.toFixed(2)} unit="B3TR" label={t("c.totalEarned")} sub={ecoB3TR > 0 ? `${(totalB3TR - ecoB3TR).toFixed(2)} meters · ${ecoB3TR.toFixed(2)} eco` : undefined} />
         <Tile icon="🔥" val={streak} unit="" label={t("c.streak")} sub={t("c.submissions", { n: subs.length })} />
       </div>}
+
+      {/* Energy saved per week / month, with the average per day against the target */}
+      <div className="chart-card" data-chart="saved-per-period">
+        <div className="chart-hdr">
+          <div className="chart-title">{t("c.savedPer")}</div>
+          <div role="group" aria-label={t("c.savedPer")} style={{display:"flex",gap:4}}>
+            {[["week", t("c.week")], ["month", t("c.month")]].map(([id, name]) => (
+              <button key={id} type="button" aria-pressed={period === id} onClick={() => setPeriod(id)}
+                style={{minHeight:32,padding:"0 10px",borderRadius:999,border:`1px solid ${period === id ? T.green3 : T.border}`,background: period === id ? T.green3 : "transparent",color: period === id ? "#fff" : T.textMid,fontSize:11,fontWeight:700,cursor:"pointer"}}>{name}</button>
+            ))}
+          </div>
+        </div>
+        <div style={{position:"relative",height:90,display:"flex",alignItems:"flex-end",gap:4,padding:"12px 2px 0"}}>
+          {periods.map((p, i) => (
+            <div key={p.start} title={`${periodLabel(p.start)}: ${p.saved.toFixed(1)} kWh`}
+              style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end",height:"100%"}}>
+              {p.saved > 0 && p.saved === periodMax && <div style={{fontSize:10.5,fontWeight:700,color:T.textMid,fontFamily:mono,marginBottom:2}}>{p.saved.toFixed(1)}</div>}
+              <div style={{width:"100%",height: periodMax > 0 ? `${Math.max(4, (p.saved / periodMax) * 72)}%` : "4px",background: p.saved > 0 ? T.green3 : T.bgAlt,borderRadius:"4px 4px 0 0",opacity: i === periods.length - 1 ? 1 : 0.85}} />
+            </div>
+          ))}
+        </div>
+        <div style={{display:"flex",gap:4,padding:"2px 2px 0"}}>
+          {periods.map((p, i) => <div key={p.start} style={{flex:1,textAlign:"center",fontSize:10,color: i === periods.length - 1 ? T.green3 : T.textSoft,fontWeight: i === periods.length - 1 ? 700 : 400,overflow:"hidden",whiteSpace:"nowrap"}}>{i === periods.length - 1 ? t("c.now") : periodLabel(p.start)}</div>)}
+        </div>
+        <div style={{fontSize:11.5,color:T.textMid,marginTop:10,lineHeight:1.45}} data-testid="period-now">
+          {nowP.n
+            ? t(period === "month" ? "c.periodNowM" : "c.periodNowW", { kwh: nowP.saved.toFixed(1), avg: nowP.avg != null ? nowP.avg.toFixed(1) : "–", target: USAGE_BENCHMARK.electric })
+            : t(period === "month" ? "c.periodNoneM" : "c.periodNoneW")}
+        </div>
+      </div>
+
+      {/* Calendar of the days a reading was sent in */}
+      <div className="chart-card" data-chart="calendar">
+        <div className="chart-hdr">
+          <div className="chart-title">{t("c.cal")}</div>
+          <div style={{fontSize:10,color:T.textSoft}}>{t("c.calSub", { n: calHit, d: calPast.length })}</div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:`auto repeat(${CAL_WEEKS}, minmax(0, 1fr))`,gridTemplateRows:"repeat(7, auto)",gridAutoFlow:"column",gap:3,marginTop:6}}>
+          {weekdayInitials().map((w, i) => <div key={`w${i}`} aria-hidden="true" style={{fontSize:9,color:T.textSoft,paddingRight:4,lineHeight:1,display:"flex",alignItems:"center"}}>{i % 2 === 0 ? w : ""}</div>)}
+          {calDays.map((d) => (
+            <div key={d.key} title={d.future ? "" : `${fmtDay(d.key)}${d.state ? ` · ${t(d.state === "paid" ? "c.calPaid" : "c.calRecorded")}` : ""}`} data-state={d.state || (d.future ? "future" : "none")}
+              style={{aspectRatio:"1",borderRadius:3,background: d.future ? "transparent" : d.state === "paid" ? T.green3 : d.state === "recorded" ? (T.green4 || T.bgAlt) : T.bgAlt,border: d.future ? `1px dashed ${T.border}` : "none",opacity: d.future ? 0.5 : 1}} />
+          ))}
+        </div>
+        <div style={{display:"flex",gap:12,marginTop:8,fontSize:10.5,color:T.textMid}}>
+          <span><span style={{display:"inline-block",width:9,height:9,borderRadius:2,background:T.green3,marginRight:4,verticalAlign:"middle"}}/>{t("c.calPaid")}</span>
+          <span><span style={{display:"inline-block",width:9,height:9,borderRadius:2,background:T.green4 || T.bgAlt,marginRight:4,verticalAlign:"middle"}}/>{t("c.calRecorded")}</span>
+        </div>
+      </div>
+
+      {/* Outlook: what this pace adds up to in a year */}
+      {outlook && (
+        <div className="chart-card" data-chart="outlook">
+          <div className="chart-hdr"><div className="chart-title">{t("c.outlook")}</div></div>
+          {outlook.soon
+            ? <div style={{fontSize:11.5,color:T.textSoft,lineHeight:1.5}}>{t("c.outlookSoon")}</div>
+            : <>
+                <div style={{fontSize:15,fontWeight:800,color:T.text,lineHeight:1.35}}>{t("c.outlookLine", { kwh: roundYear(outlook.kwh), b3tr: roundYear(outlook.b3tr) })}</div>
+                <div style={{fontSize:11,color:T.textSoft,marginTop:4,lineHeight:1.5}}>{t("c.outlookBasis", { d: outlook.days })}</div>
+              </>}
+        </div>
+      )}
 
       {/* Usage vs the efficiency target — the core conservation view */}
       {UTILS.map(u => {

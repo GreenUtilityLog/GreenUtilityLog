@@ -261,6 +261,19 @@ await step("Home, History and Progress show it", async () => {
   const toGo = /(\d+) more readings to Sprout · (\d+)%/.exec(await text());
   assert.ok(toGo && Number(toGo[1]) >= 1 && Number(toGo[1]) <= 9, `readings to the next level: ${toGo?.[0]}`);
   assert.equal(await page.getByRole("progressbar", { name: "Progress to Sprout" }).getAttribute("aria-valuenow"), toGo[2], "the bar matches");
+  // Energy saved this week (the paid reading), and per month with the toggle.
+  const per = page.locator('[data-chart="saved-per-period"]');
+  const week = /This week: ([\d.]+) kWh saved · ([\d.]+) kWh a day on average \(target 8\)/.exec(await per.innerText());
+  assert.ok(week && Number(week[1]) > 0, `saved this week: ${week?.[0]}`);
+  await per.getByRole("button", { name: "Month" }).click(); await wait(300);
+  assert.match(await per.innerText(), /This month: [\d.]+ kWh saved/, "the month view");
+  assert.equal(await per.getByRole("button", { name: "Month" }).getAttribute("aria-pressed"), "true");
+  // The calendar: today has a paid reading.
+  const cal = page.locator('[data-chart="calendar"]');
+  assert.ok(await cal.locator('[data-state="paid"]').count() >= 1, "a paid day in the calendar");
+  assert.match(await cal.innerText(), /1 of the last \d+ days/, "one day with a reading");
+  // A first day of readings: the outlook says it needs a week first.
+  assert.match(await page.locator('[data-chart="outlook"]').innerText(), /After a week of readings/, "the outlook waits for a week");
 });
 
 await step("Profile shows the wallet's GM NFT", async () => {
@@ -341,6 +354,36 @@ await step("Dutch: the app, and the server's messages", async () => {
   assert.ok(b.errorEn, "the English text travels along");
   assert.match(b.error, /stand is al ingestuurd/, "the server answered in Dutch");
   assert.match(await text(), /stand is al ingestuurd/, "and the app shows it");
+});
+
+await step("Progress with three weeks of readings: outlook and calendar", async () => {
+  // Three weeks of earlier readings, one a day, each saving 3 kWh and paying 1 B3TR,
+  // as the app keeps them on the phone.
+  const DAY = 86400000, now = Date.now();
+  const rows = Array.from({ length: 21 }, (_, i) => {
+    const ts = now - (21 - i) * DAY;
+    const d = new Date(ts), date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    return { id: ts, type: "electric", meterNo: "E1000", cur: String(900 + i * 5), prev: String(895 + i * 5), date, b3tr: 1, status: "confirmed", txHash: `0xe2e${i}`, submittedAt: ts, savedKwh: 3, days: 1 };
+  });
+  await page.evaluate(([key, add]) => { const cur = JSON.parse(localStorage.getItem(key) || "[]"); localStorage.setItem(key, JSON.stringify([...cur, ...add])); }, [`greenlog_subs_${ADDR.toLowerCase()}`, rows]);
+  await page.reload({ waitUntil: "networkidle" }); await wait(1500);
+  await page.locator(".bnav button").nth(2).click(); await wait(1500);
+  await shot("11-nl-progress-history");
+  await page.locator('[data-chart="saved-per-period"]').scrollIntoViewIfNeeded(); await wait(300);
+  await shot("11b-nl-saved-calendar");
+  await page.locator('[data-chart="outlook"]').scrollIntoViewIfNeeded(); await wait(300);
+  await shot("11c-nl-outlook");
+  // 21 days × 3 kWh (+ today's) over ~21 days: about 3 kWh a day, ±1,100 a year;
+  // 21 B3TR (+ today's) the same way: ±400 a year.
+  const out = /±([\d.]+) kWh bespaard en ±([\d.]+) B3TR per jaar/.exec(await page.locator('[data-chart="outlook"]').innerText());
+  assert.ok(out, "the outlook, in Dutch");
+  assert.ok(Number(out[1]) >= 1000 && Number(out[1]) <= 1400, `kWh a year: ${out[1]}`);
+  assert.ok(Number(out[2]) >= 350 && Number(out[2]) <= 500, `B3TR a year: ${out[2]}`);
+  assert.match(await page.locator('[data-chart="outlook"]').innerText(), /laatste 21 dagen/, "the days it is based on");
+  const cal = page.locator('[data-chart="calendar"]');
+  assert.ok(await cal.locator('[data-state="paid"]').count() >= 21, "the three weeks in the calendar");
+  // 22 readings now: the second level, Sprout.
+  assert.match(await text(), /Niveau Spruit/, "the level follows the readings");
 });
 
 // ── result ───────────────────────────────────────────────────────────────────
