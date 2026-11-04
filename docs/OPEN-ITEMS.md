@@ -102,6 +102,8 @@ Laatst bijgewerkt: 2026-11-01.
 - [ ] Grant-aanvraag VeBetter Grants (x2earn-spoor)
 - [ ] Normen per land (nu één norm van 8 kWh per dag)
 - [x] Eigen app-niveaus terug, op aantal inzendingen (niet op B3TR): Kiemplant 🌱 (0), Spruit 🌿 (10), Jonge boom 🪴 (30), Boom 🌳 (100), Bos 🌲 (250); op Home, Voortgang (met balk naar het volgende niveau) en Profiel
+- [x] Voortgang: bespaarde energie per week/maand (met gemiddeld verbruik per dag t.o.v. de norm), inzendkalender van 12 weken, en een vooruitblik per jaar op basis van de laatste 30 dagen (na minstens een week)
+- [x] Voortgang rekent met de besparing waarop de server uitbetaalde (ook als de telefoon de vorige stand niet kent) (#175)
 - [ ] Roadmap: gas en water, daarna zonnepanelen (staat in de server, uitgeschakeld)
 - [x] Enode verwijderd: nooit ingeschakeld, betaald, en P1/Home Assistant/Powerfox/Tibber dekken het (#165)
 
