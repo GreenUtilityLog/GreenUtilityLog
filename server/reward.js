@@ -196,6 +196,18 @@ const CO2_PER_UNIT = { electric: 400, gas: 1900, water: 0.34, solar: 400 };
 // reward (config.js computeReward), so the chain records the saving that was paid.
 const spanOf = (days) => Math.min(Math.max(Number(days) > 0 ? Number(days) : 1, MIN_SPAN_DAYS), MAX_SPAN_DAYS);
 const savedBelowBenchmark = (utility, usage, days) => Math.max(0, (USAGE_BENCHMARK[utility] ?? 0) * spanOf(days) - usage);
+// The span a reading covers and what it saved below the benchmark over that span:
+// written into the on-chain metadata, and sent back to the app with the answer so
+// Progress shows the saving that was paid on (the app can't always work it out: it
+// may not know the previous reading, which only the server holds). For electricity
+// `savedKwh` is kWh; for the other saving utilities it is that meter's own unit.
+export function savingOf({ utility, usage, days = 1, noImpact = false }) {
+  const u = Math.max(0, Number(usage) || 0);
+  return {
+    days: +spanOf(days).toFixed(2),
+    ...(SAVING_UTILS.has(utility) ? { savedKwh: noImpact ? 0 : +savedBelowBenchmark(utility, u, days).toFixed(3) } : {}),
+  };
+}
 function computeImpact({ utility, usage, days = 1 }) {
   const factor = CO2_PER_UNIT[utility];
   if (!factor || !(usage >= 0)) return {};
@@ -538,8 +550,7 @@ export async function distributeReward({ utility, meterNo, reading, prevRead, us
     usage: u, b3tr: amount, timestamp: new Date().toISOString(), appVersion: APP_VERSION,
     // The span this reading covers and what was saved below the benchmark over it:
     // the figure the reward is paid on, so anyone reading the chain can redo the sum.
-    days: +spanOf(days).toFixed(2),
-    ...(SAVING_UTILS.has(utility) ? { savedKwh: noImpact ? 0 : +savedBelowBenchmark(utility, u, days).toFixed(3) } : {}),
+    ...savingOf({ utility, usage: u, days, noImpact }),
     // Where the number came from. An admin reviewing a payout could not tell a
     // photographed reading from one a reader pushed, which matters: only the first
     // has a photo to check, and only the second was never seen by a human. Written

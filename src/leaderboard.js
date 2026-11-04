@@ -247,6 +247,10 @@ export async function fetchWalletHistory({ node, contract, appId, address, max =
         status:    "confirmed",
         txHash:    log.meta?.txID || "",
         submittedAt: ts || Date.now(),
+        // The saving the payout was made on, and its span, as written on chain
+        // (payouts from before these were recorded have neither).
+        ...(typeof p.savedKwh === "number" && Number.isFinite(p.savedKwh) ? { savedKwh: p.savedKwh } : {}),
+        ...(typeof p.days === "number" && p.days > 0 ? { days: p.days } : {}),
       });
     },
   });

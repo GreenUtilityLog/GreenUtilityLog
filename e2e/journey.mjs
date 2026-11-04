@@ -250,6 +250,10 @@ await step("Home, History and Progress show it", async () => {
   await page.locator(".bnav button").nth(2).click(); await wait(1200); await shot("05-progress");
   assert.match(await text(), /kWh/, "Progress renders");
   assert.match(await text(), /\d+\.\d\d B3TR earned in total/, "the total on Progress");
+  // The paid reading saved energy; the app doesn't know its previous reading (only
+  // the server does), so this is the saving the server paid on.
+  const saved = Number((/([\d.]+) kWh \| saved/i.exec(await text()) || [])[1]);
+  assert.ok(saved > 0, `kWh saved on Progress is ${saved}, not more than 0`);
   assert.doesNotMatch(await text(), /\btier\b/i, "no app tier on Progress");
 });
 

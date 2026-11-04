@@ -12,7 +12,7 @@ import { validateSubmission, validMeterNo } from "./verify.js";
 import { verifyPhoto, checkReadingOnPhoto, readingCheckMode, meterNoOnPhoto, meterNoCheckMode, photoPrint, printDistance } from "./media.js";
 import { store } from "./store.js";
 import { putPhoto, getPhotoDataUrl, deletePhoto, photoStoreEnabled } from "./photostore.js";
-import { distributeReward, distributorAddress, chainDiagnostics, moveToRewardsPool, DRY_RUN, hasDistributorKey, payoutPending, pendingPayoutCount, recheckPendingPayouts } from "./reward.js";
+import { distributeReward, savingOf, distributorAddress, chainDiagnostics, moveToRewardsPool, DRY_RUN, hasDistributorKey, payoutPending, pendingPayoutCount, recheckPendingPayouts } from "./reward.js";
 import { signalStatus, passportFor, signalUser, passportVouches } from "./passport.js";
 import { budgetState, scaledAmount, recordPayout, autoClaimAllocation, autoMoveToRewardsPool } from "./budget.js";
 import { ocrImage, ocrEnabled, ocrProviders } from "./ocr.js";
@@ -1292,9 +1292,9 @@ app.post("/reward", async (req, res) => {
     // recorded without one) — it used to show only automatic ones.
     console.log(`[payout:photo] ${shortAddr(req.body.address)} ${recordOnly ? `recorded, no reward (${v.noReward})` : `+${pay.amount} B3TR (${txid})`} · ${v.usage} kWh${reasons.length ? " · flagged" : ""}`);
     if (recordOnly) {
-      return res.json({ txid: null, amount: 0, fullAmount: 0, recorded: true, reason: v.noReward || "recorded, no reward this time", usage: v.usage, flagged: reasons.length > 0, pending: false });
+      return res.json({ txid: null, amount: 0, fullAmount: 0, recorded: true, reason: v.noReward || "recorded, no reward this time", usage: v.usage, ...savingOf({ utility: req.body.utility, usage: v.usage, days: v.days, noImpact: !!(v.firstReading || v.nearZero) }), flagged: reasons.length > 0, pending: false });
     }
-    res.json({ txid, amount: pay.amount, fullAmount: v.amount, factor: pay.factor, flagged: reasons.length > 0, usage: v.usage, pending: payoutPending(txid) });
+    res.json({ txid, amount: pay.amount, fullAmount: v.amount, factor: pay.factor, flagged: reasons.length > 0, usage: v.usage, ...savingOf({ utility: req.body.utility, usage: v.usage, days: v.days, noImpact: !!(v.firstReading || v.nearZero) }), pending: payoutPending(txid) });
   } catch (e) {
     console.error("[/reward]", scrub(e?.message || e));
     if (!res.headersSent) {
@@ -1877,7 +1877,7 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
     const cur = link?.token ? store.getMeterLink(link.token) : null;
     if (cur) store.setMeterLink(link.token, { ...cur, autoPaidAt: Date.now(), lastPayout: { amount: pay.amount, txid, at: Date.now(), reading: Number(latest.reading) } });
     await store.flush(); // durable before returning, so a crash can't replay this reading
-    return { ok: true, txid, amount: pay.amount, fullAmount: recordOnly ? 0 : v.amount, factor: pay.factor, usage: v.usage, reading: Number(latest.reading), source: latest.source || "meter",
+    return { ok: true, txid, amount: pay.amount, fullAmount: recordOnly ? 0 : v.amount, factor: pay.factor, usage: v.usage, ...savingOf({ utility, usage: v.usage, days: v.days, noImpact: !!(v.firstReading || v.nearZero) }), reading: Number(latest.reading), source: latest.source || "meter",
       pending: txid ? payoutPending(txid) : false, ...(recordOnly ? { recorded: true, reason: v.noReward || "recorded, no reward this time" } : {}) };
   } catch (e) {
     // Once paid, a throw in the bookkeeping after it must not reach the caller as
@@ -1909,7 +1909,7 @@ app.post("/reward-from-meter", async (req, res) => {
     const r = await settleMeterReading({ address, utility: String(req.body.utility || "electric"), meterNo: req.body.meterNo });
     if (!r.ok) return res.status(r.code || 400).json({ error: r.error, ...(r.needsPhoto ? { needsPhoto: true } : {}) });
     console.log(`[payout:${r.source || "reader"}] ${shortAddr(address)} ${r.recorded ? `recorded, no reward (${r.reason})` : `+${r.amount} B3TR (${r.txid})`} · ${r.usage} kWh`);
-    res.json({ txid: r.txid, amount: r.amount, usage: r.usage, reading: r.reading, source: r.source, pending: !!r.pending, ...(r.recorded ? { recorded: true, reason: r.reason } : {}) });
+    res.json({ txid: r.txid, amount: r.amount, usage: r.usage, days: r.days, savedKwh: r.savedKwh, reading: r.reading, source: r.source, pending: !!r.pending, ...(r.recorded ? { recorded: true, reason: r.reason } : {}) });
   } catch (e) {
     console.error("[/reward-from-meter]", e?.message || e);
     res.status(502).json({ error: e?.public ? e.message : "the payout couldn't be completed — nothing was used up, please try again later" });
