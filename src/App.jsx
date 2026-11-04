@@ -344,6 +344,14 @@ function saveSubs(wallet, subs) {
 // after PENDING_GIVE_UP_MS never made it — a VeChain transaction expires within
 // minutes — and is shown as "failed", not as money earned.
 const PENDING_GIVE_UP_MS = 30 * 60 * 1000;
+// What the server says a reading saved, and over how many days: the figure the
+// reward is paid on (and that goes on chain). Kept on the row so Progress shows that
+// figure: the app can't always work it out itself, as it may not know the previous
+// reading (a new phone, a starting reading only the server holds).
+const serverSaving = (data) => ({
+  ...(Number.isFinite(Number(data?.savedKwh)) && data?.savedKwh != null ? { savedKwh: Number(data.savedKwh) } : {}),
+  ...(Number.isFinite(Number(data?.days)) && Number(data?.days) > 0 ? { days: Number(data.days) } : {}),
+});
 function mergeSubs(local, chain) {
   const same = (a, b) =>
     (a.txHash && b.txHash && a.txHash === b.txHash) ||
@@ -2977,7 +2985,9 @@ function ChartsScreen({ subs, T, part }) {
     const ordered = subs.filter(s => s.type !== "eco" && s.status !== "failed").sort((a, b) => subTs(a) - subTs(b));
     for (const s of ordered) {
       const k = `${s.type}:${String(s.meterNo || "").toLowerCase()}`;
-      spanOfSub.set(s, lastOf[k] ? spanDays(subTs(s) - subTs(lastOf[k])) : null);
+      // The server's span when it gave one (it knows the previous reading even when
+      // this phone doesn't); otherwise the time since this meter's previous row here.
+      spanOfSub.set(s, Number(s.days) > 0 ? Number(s.days) : lastOf[k] ? spanDays(subTs(s) - subTs(lastOf[k])) : null);
       lastOf[k] = s;
     }
   }
@@ -2986,8 +2996,10 @@ function ChartsScreen({ subs, T, part }) {
     const bench = USAGE_BENCHMARK[s.type] ?? 0;
     if (SAVING_UTILS.has(s.type)) {
       const span = spanOfSub.get(s);
-      if (span == null) continue;
-      const saved = Math.max(0, bench * span - usageOf(s));
+      // The saving the server paid on, when it said; else worked out here.
+      const known = typeof s.savedKwh === "number" && Number.isFinite(s.savedKwh);
+      if (!known && span == null) continue;
+      const saved = known ? Math.max(0, s.savedKwh) : Math.max(0, bench * span - usageOf(s));
       co2g += saved * (CO2_PER_UNIT_UI[s.type] || 0);
       if (s.type === "electric") kwhSaved += saved;
     } else if (s.type === "solar") {
@@ -4498,6 +4510,7 @@ export default function App() {
             id: item.id, type: item.type, meterNo: item.meterNo || "",
             cur: item.cur, prev: item.prev, date: dayKey(new Date(item.id)),
             b3tr: data.recorded ? 0 : paid, status: data.recorded ? "recorded" : data.pending ? "pending" : "confirmed", txHash: data.txid || "", submittedAt: item.id,
+            ...serverSaving(data),
             ...(data.recorded ? { note: data.reason || "no saving to reward this time" } : {}),
             // Carry the flag through. Without it this row had status "review" but no
             // `flagged`, so the history fell through to rendering the bare word
@@ -4856,7 +4869,7 @@ export default function App() {
       const curN = Number(data.reading), useN = Number(data.usage);
       const cur = data.reading != null && Number.isFinite(curN) ? String(data.reading) : "";
       const prev = cur && data.usage != null && Number.isFinite(useN) ? String(+(curN - useN).toFixed(3)) : "";
-      setSubs(prev0 => [{ id: Date.now(), type: "electric", meterNo, cur, prev, date: dayKey(new Date()), b3tr: data.recorded ? 0 : paid, status: data.recorded ? "recorded" : data.pending ? "pending" : "confirmed", txHash: data.txid || "", submittedAt: Date.now(), ...(data.recorded ? { note: data.reason || "" } : {}) }, ...prev0]);
+      setSubs(prev0 => [{ id: Date.now(), type: "electric", meterNo, cur, prev, date: dayKey(new Date()), b3tr: data.recorded ? 0 : paid, status: data.recorded ? "recorded" : data.pending ? "pending" : "confirmed", txHash: data.txid || "", submittedAt: Date.now(), ...serverSaving(data), ...(data.recorded ? { note: data.reason || "" } : {}) }, ...prev0]);
       setCooldown("electric");
       if (data.recorded) showToast(t("s.auto.recorded", { reason: data.reason || t("s.noSaving") }));
       else if (data.pending) { recheckPayout(payWallet); showToast(t("s.auto.pending", { amount: paid })); }
@@ -5000,7 +5013,7 @@ export default function App() {
     try {
       // The reward server verifies the submission and issues the B3TR; the user
       // signs nothing but a gasless certificate.
-      let txid, onChainPending = false;
+      let txid, onChainPending = false, saving = {};
       // The server recomputes the payout from its own recorded baseline, so the
       // amount actually paid on-chain can differ from the client's `earned`. Show
       // and store the server's number when it returns one; fall back to `earned`.
@@ -5028,6 +5041,7 @@ export default function App() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw httpError(data.error || `Reward service error ${res.status}`, res.status, data.errorEn);
       txid = data.txid;
+      saving = serverSaving(data);
       onChainPending = !!data.pending;
       if (data.amount != null && Number.isFinite(Number(data.amount))) paidAmount = Number(data.amount);
       if (data.recorded) { recordedOnly = data.reason || "no saving to reward this time"; paidAmount = 0; }
@@ -5056,7 +5070,8 @@ export default function App() {
         flagged: !photoConfirmed,
         flagReason,
         txHash: txid || "",
-        submittedAt: Date.now()
+        submittedAt: Date.now(),
+        ...saving,
       }, ...prev]);
 
       if (onChainPending) recheckPayout(wallet); else if (!recordedOnly) setB3tr(b => b + paidAmount);
