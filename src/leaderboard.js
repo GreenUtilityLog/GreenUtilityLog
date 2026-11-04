@@ -428,6 +428,9 @@ const GM_FN = {
   levelOf: { name: "levelOf", type: "function", stateMutability: "view", inputs: [{ name: "tokenId", type: "uint256" }], outputs: [{ name: "", type: "uint256" }] },
   tokenURI: { name: "tokenURI", type: "function", stateMutability: "view", inputs: [{ name: "tokenId", type: "uint256" }], outputs: [{ name: "", type: "string" }] },
   MAX_LEVEL: { name: "MAX_LEVEL", type: "function", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] },
+  // What is still needed for the next level: the contract takes off what was donated
+  // already and what an attached node gives for free, and answers 0 at the top level.
+  getB3TRtoUpgrade: { name: "getB3TRtoUpgrade", type: "function", stateMutability: "view", inputs: [{ name: "tokenId", type: "uint256" }], outputs: [{ name: "", type: "uint256" }] },
 };
 // Level 1 is Earth; 2 to 10 as in VeBetterDAO's own configuration.
 export const GM_LEVEL_NAMES = ["", "Earth", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Galaxy"];
@@ -439,8 +442,9 @@ export const ipfsToHttp = (u) => {
 };
 const bigOrNull = (v) => { try { return v == null ? null : BigInt(firstVal(v)); } catch { return null; } };
 
-// { tokenId, level, maxLevel, name, image } for the wallet's GM NFT, null when it
-// has none (maxLevel is 0 when it couldn't be read: governance raises it over time),
+// { tokenId, level, maxLevel, name, image, b3trToUpgrade } for the wallet's GM NFT,
+// null when it has none (maxLevel is 0 when it couldn't be read: governance raises it
+// over time; b3trToUpgrade, in B3TR, is null when it couldn't be read),
 // and { error } when the chain couldn't be read (so the app can tell "none" apart
 // from "couldn't check").
 export async function fetchGalaxyMember({ node, contract, address, signal } = {}) {
@@ -456,6 +460,8 @@ export async function fetchGalaxyMember({ node, contract, address, signal } = {}
     }
     const level = Number(bigOrNull(await callView(node, contract, GM_FN.levelOf, [tokenId], signal)) || 0n);
     const maxLevel = Number(bigOrNull(await callView(node, contract, GM_FN.MAX_LEVEL, [], signal).catch(() => null)) || 0n);
+    const upWei = bigOrNull(await callView(node, contract, GM_FN.getB3TRtoUpgrade, [tokenId], signal).catch(() => null));
+    const b3trToUpgrade = upWei == null ? null : Number(upWei / 10n ** 14n) / 1e4;
     let image = "";
     try {
       const uri = firstVal(await callView(node, contract, GM_FN.tokenURI, [tokenId], signal));
@@ -465,7 +471,7 @@ export async function fetchGalaxyMember({ node, contract, address, signal } = {}
         if (r.ok) image = ipfsToHttp((await r.json().catch(() => ({})))?.image);
       }
     } catch { /* no picture: the level still shows */ }
-    return { tokenId: tokenId.toString(), level, maxLevel, name: GM_LEVEL_NAMES[level] || "", image };
+    return { tokenId: tokenId.toString(), level, maxLevel, name: GM_LEVEL_NAMES[level] || "", image, b3trToUpgrade };
   } catch (e) {
     if (e?.name === "AbortError") throw e;
     return { error: String(e?.message || e) };
