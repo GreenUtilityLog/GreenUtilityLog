@@ -762,9 +762,28 @@ export function normDecimal(v) {
 // Shorten a wallet address for display: 0x1234…abcd
 export function shortAddr(a){ return a ? `${a.slice(0,6)}…${a.slice(-4)}` : "—"; }
 
-// The app's own tiers (Moon … Platinum) are gone: the level that counts is the
-// wallet's VeBetterDAO GM NFT, shown on Profile, and two sets of levels with
-// overlapping names confused people.
+// The app's own levels, by the number of readings sent in (not by B3TR: the reward
+// per kWh moves with the weekly budget, the effort of reading the meter doesn't).
+// Plants, so they can't be mixed up with the VeBetterDAO GM NFT's planets — the
+// old B3TR tiers had a "Moon" on both. A reading counts once it isn't failed:
+// one recorded without a reward was still sent in.
+const LEVELS = [
+  { key: "seedling", icon: "🌱", min: 0 },
+  { key: "sprout",   icon: "🌿", min: 10 },
+  { key: "sapling",  icon: "🪴", min: 30 },
+  { key: "tree",     icon: "🌳", min: 100 },
+  { key: "forest",   icon: "🌲", min: 250 },
+];
+const countReadings = (subs) => (subs || []).filter((s) => s.type !== "eco" && s.status !== "failed").length;
+// { level, next, n, toGo, pct } for this many readings.
+function levelFor(n) {
+  let i = 0;
+  while (i + 1 < LEVELS.length && n >= LEVELS[i + 1].min) i++;
+  const level = LEVELS[i], next = LEVELS[i + 1] || null;
+  const pct = next ? Math.min(100, Math.round(((n - level.min) / (next.min - level.min)) * 100)) : 100;
+  return { level, next, n, toGo: next ? next.min - n : 0, pct };
+}
+const levelName = (l) => t(`lvl.${l.key}`);
 
 // Consecutive-day streak based on submission dates ("YYYY-MM-DD"). The streak
 // is allowed to end today OR yesterday, so it isn't reported as broken just
@@ -2573,6 +2592,8 @@ function HomeScreen({ b3tr, walletB3tr, streak, subs, setTab, wallet, onOpenRead
         <div className="hero-chips">
           <div className="hchip"><div className="hchip-val">{streak}</div><div className="hchip-key">{t("home.streak")}</div></div>
           <div className="hchip"><div className="hchip-val">{subs.length}</div><div className="hchip-key">{t("home.subs")}</div></div>
+          {/* A name, not a number: smaller, and it wraps rather than being cut off. */}
+          <div className="hchip"><div className="hchip-val" style={{fontSize:15,lineHeight:1.2,overflowWrap:"anywhere"}}>{levelFor(countReadings(subs)).level.icon} {levelName(levelFor(countReadings(subs)).level)}</div><div className="hchip-key">{t("home.level")}</div></div>
         </div>
       </div>
 
@@ -3239,7 +3260,8 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
   const [view, setView] = useState("usage");
   const label = { fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".8px", color: T.textSoft };
   const card = { background: T.card, border: `1px solid ${T.border}`, borderRadius: 10 };
-  const meterReadings = subs.filter(s => s.type !== "eco").length;
+  const meterReadings = countReadings(subs);
+  const lv = levelFor(meterReadings);
   const goals = [
     streak < 7
       ? { icon: "🔥", label: t("p.goal.7"), left: t("p.daysToGo", { n: 7 - streak }) }
@@ -3255,14 +3277,32 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
         <div className="sub-sub">{t("p.sub")}</div>
       </div>
 
-      <div style={{ ...card, margin: "0 14px 12px", padding: 16, display: "flex", alignItems: "center", gap: 10 }}>
-        <span aria-hidden="true" style={{ fontSize: 30, lineHeight: 1 }}>🏆</span>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 16, fontWeight: 800, color: T.text }}>
-            {chain.status === "loading" ? t("p.loading") : isLive ? t("p.rank", { rank: myRank, total: board.length }) : t("p.rankLater")}
+      <div style={{ ...card, margin: "0 14px 12px", padding: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+            <span aria-hidden="true" style={{ fontSize: 30, lineHeight: 1 }}>{lv.level.icon}</span>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: T.text }}>{t("p.level", { name: levelName(lv.level) })}</div>
+              <div style={{ fontSize: 12, color: T.textSoft, marginTop: 2 }}>
+                {chain.status === "loading" ? t("p.loading") : isLive ? t("p.rank", { rank: myRank, total: board.length }) : t("p.rankLater")}
+              </div>
+            </div>
           </div>
-          <div style={{ fontSize: 12, color: T.textSoft, marginTop: 2 }}>{t("p.earnedTotal", { amount: b3tr.toFixed(2) })}</div>
+          {lv.next && (
+            <div style={{ textAlign: "right", flexShrink: 0 }}>
+              <div style={label}>{t("p.next")}</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: T.text, marginTop: 2 }}>{lv.next.icon} {levelName(lv.next)}</div>
+            </div>
+          )}
         </div>
+        <div role="progressbar" aria-label={lv.next ? t("p.progressTo", { level: levelName(lv.next) }) : t("p.topLevel")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={lv.pct}
+          style={{ height: 8, borderRadius: 999, background: T.bgAlt, overflow: "hidden", marginTop: 12 }}>
+          <div style={{ width: `${lv.pct}%`, height: "100%", background: T.green3, transition: "width .3s" }} />
+        </div>
+        <div style={{ fontSize: 12, color: T.textMid, marginTop: 8 }}>
+          {lv.next ? t("p.readingsToLevel", { n: lv.toGo, name: levelName(lv.next), pct: lv.pct }) : t("p.topLevel")}
+        </div>
+        <div style={{ fontSize: 12, color: T.textSoft, marginTop: 2 }}>{t("p.earnedTotal", { amount: b3tr.toFixed(2) })}</div>
       </div>
 
       {/* The leaderboard sat in the third tab under four stat cards, though the intro
@@ -3426,7 +3466,7 @@ function saveProfile(w, p) {
   try { localStorage.setItem(profileKey(w), JSON.stringify(p)); return true; } catch { return false; }
 }
 
-function ProfileHero({ wallet, domain, summary, role, onToast, T }) {
+function ProfileHero({ wallet, domain, summary, role, level, onToast, T }) {
   const [profile, setProfile] = useState(() => loadProfile(wallet));
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(profile);
@@ -3514,6 +3554,7 @@ function ProfileHero({ wallet, domain, summary, role, onToast, T }) {
         </div>
       ) : (wallet || role) ? (
         <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",marginTop:12}}>
+          {wallet && level && <span style={{fontSize:10.5,fontWeight:800,background:T.bgAlt,color:T.green3,border:`1px solid ${T.border}`,borderRadius:999,padding:"4px 10px",textTransform:"uppercase",letterSpacing:".6px"}}>{level.icon} {t("p.level", { name: levelName(level) })}</span>}
           {wallet && <GalaxyMemberBadge wallet={wallet} T={T} />}
           {role && <span style={{fontSize:10.5,fontWeight:800,background:T.green5||T.bgAlt,color:T.green3,border:`1px solid ${T.green4||T.border}`,borderRadius:999,padding:"4px 10px",textTransform:"uppercase",letterSpacing:".6px"}}>🎟️ {role}</span>}
         </div>
@@ -3617,7 +3658,7 @@ function ProfileScreen({ b3tr, subs, wallet, walletDomain, pass, setTab, onOpenS
         </div>
         <button type="button" onClick={onOpenSettings} aria-label={t("pr.settings")} className="dark-toggle" style={{width:44,height:44,fontSize:18,background:T.card}}>⚙️</button>
       </div>
-      <ProfileHero wallet={wallet} domain={walletDomain} summary={wallet ? summary : ""} role={pass?.tier || ""} onToast={onToast} T={T} />
+      <ProfileHero wallet={wallet} domain={walletDomain} level={levelFor(countReadings(subs)).level} summary={wallet ? summary : ""} role={pass?.tier || ""} onToast={onToast} T={T} />
       <div style={listCard(T)}>
         <RowButton T={T} icon="🧾" label={t("pr.history")} sub={subs.length ? t("pr.history.sub", { n: subs.length }) : t("pr.history.empty")} onClick={() => setTab("history")} />
         <RowButton T={T} icon="❓" label={t("pr.help")} sub={t("pr.help.sub")} onClick={onOpenHelp} />

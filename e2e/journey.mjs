@@ -244,6 +244,8 @@ await step("Home, History and Progress show it", async () => {
   assert.match(await text(), /\+\d+\.\d\d B3TR/, "today's reward on Home");
   // The app's own tiers are gone: the level that counts is the GM NFT (Profile).
   assert.doesNotMatch(await text(), /\btier\b/i, "no app tier on Home");
+  // The app's level, by readings sent in: one reading so far is the first level.
+  assert.match(await text(), /🌱 Seedling \| level/i, "the level on Home");
   await page.locator(".bnav button").nth(3).click(); await wait(600);
   await page.getByRole("button", { name: /history/i }).first().click(); await wait(1200); await shot("04-history");
   assert.match(await text(), /1 total/, "one row in History");
@@ -255,6 +257,10 @@ await step("Home, History and Progress show it", async () => {
   const saved = Number((/([\d.]+) kWh \| saved/i.exec(await text()) || [])[1]);
   assert.ok(saved > 0, `kWh saved on Progress is ${saved}, not more than 0`);
   assert.doesNotMatch(await text(), /\btier\b/i, "no app tier on Progress");
+  assert.match(await text(), /Level Seedling/, "the level on Progress");
+  const toGo = /(\d+) more readings to Sprout · (\d+)%/.exec(await text());
+  assert.ok(toGo && Number(toGo[1]) >= 1 && Number(toGo[1]) <= 9, `readings to the next level: ${toGo?.[0]}`);
+  assert.equal(await page.getByRole("progressbar", { name: "Progress to Sprout" }).getAttribute("aria-valuenow"), toGo[2], "the bar matches");
 });
 
 await step("Profile shows the wallet's GM NFT", async () => {
@@ -320,6 +326,7 @@ await step("Dutch: the app, and the server's messages", async () => {
   await shot("10-nl-profile");
   const prof = await text();
   assert.match(prof, /GM Maan · Niveau 2 van 10/i, "the GM badge is Dutch");
+  assert.match(prof, /niveau (kiemplant|spruit)/i, "the app's level badge, in Dutch");
   // No app tier badge ("Niveau Maan") next to the GM level, and no English left over.
   assert.doesNotMatch(prof, /niveau maan/i, "no app tier badge on Profile");
   assert.doesNotMatch(prof, /\bmoon\b/i, "no English level name on Profile");
