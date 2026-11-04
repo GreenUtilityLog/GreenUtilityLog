@@ -392,6 +392,9 @@ const ROWS = [
   ["gm.getShort", "No GM NFT yet · get one ↗", "Nog geen GM NFT · haal er een ↗", "Noch kein GM-NFT · hier holen ↗", "Pas encore de NFT GM · en obtenir ↗", "Aún sin NFT GM · consigue uno ↗"],
   ["gm.errorShort", "GM NFT: can't check now", "GM NFT: nu niet te controleren", "GM-NFT: gerade nicht prüfbar", "NFT GM : vérification impossible", "NFT GM: no se puede comprobar"],
   ["gm.error", "Couldn't check the blockchain right now — try again later.", "De blockchain kon nu niet gecontroleerd worden — probeer het later opnieuw.", "Die Blockchain konnte gerade nicht geprüft werden — versuch es später erneut.", "Impossible de vérifier la blockchain pour l'instant — réessayez plus tard.", "No se pudo comprobar la blockchain ahora — inténtalo más tarde."],
+  ["gm.toUpgrade", "{amount} B3TR still needed to upgrade", "nog {amount} B3TR nodig om te upgraden", "noch {amount} B3TR zum Upgraden nötig", "encore {amount} B3TR pour passer au niveau suivant", "faltan {amount} B3TR para mejorar"],
+  ["gm.upgradeLink", "Upgrade on VeBetterDAO ↗", "Upgraden op VeBetterDAO ↗", "Auf VeBetterDAO upgraden ↗", "Passer au niveau suivant sur VeBetterDAO ↗", "Mejorar en VeBetterDAO ↗"],
+  ["gm.maxReached", "highest GM level reached 🎉", "hoogste GM-niveau bereikt 🎉", "höchste GM-Stufe erreicht 🎉", "niveau GM maximum atteint 🎉", "nivel GM máximo alcanzado 🎉"],
   ["gm.none", "This wallet has no Galaxy Member NFT yet.", "Deze wallet heeft nog geen Galaxy Member NFT.", "Diese Wallet hat noch kein Galaxy-Member-NFT.", "Ce wallet n'a pas encore de NFT Galaxy Member.", "Esta wallet aún no tiene un NFT Galaxy Member."],
   // Progress → Usage: energy saved per period, the calendar, the outlook.
   ["c.savedPer", "Energy saved", "Bespaarde energie", "Gesparte Energie", "Énergie économisée", "Energía ahorrada"],

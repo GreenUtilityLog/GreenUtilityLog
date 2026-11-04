@@ -3458,6 +3458,7 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
       )}
 
       <ChartsScreen subs={subs} T={T} part="impact" />
+      {wallet && <GalaxyMemberNext wallet={wallet} T={T} />}
 
       <div style={{ ...card, margin: "0 14px 12px", padding: 14 }}>
         <div style={{ ...label, marginBottom: 10 }}>{t("p.goals")}</div>
@@ -3752,22 +3753,55 @@ const GM_PAGE = "https://governance.vebetterdao.org";
 // the badge only reads (nothing is signed or sent).
 const GM_NODE = NETWORKS.mainnet.node;
 const GM_CONTRACT = NETWORKS.mainnet.contracts.GalaxyMember;
-function GalaxyMemberBadge({ wallet, T }) {
+// The wallet's GM NFT as { status: "loading" | "ok" | "none" | "error", ...fields }.
+function useGalaxyMember(wallet) {
   const [gm, setGm] = useState({ status: "loading" });
-  const [imgOk, setImgOk] = useState(true);
   useEffect(() => {
+    if (!wallet) { setGm({ status: "none" }); return; }
     const ctrl = new AbortController();
-    setGm({ status: "loading" }); setImgOk(true);
+    setGm({ status: "loading" });
     fetchGalaxyMember({ node: GM_NODE, contract: GM_CONTRACT, address: wallet, signal: ctrl.signal })
       .then((r) => { if (ctrl.signal.aborted) return; setGm(!r ? { status: "none" } : r.error ? { status: "error" } : { status: "ok", ...r }); })
       .catch(() => { if (!ctrl.signal.aborted) setGm({ status: "error" }); });
     return () => ctrl.abort();
   }, [wallet]);
+  return gm;
+}
+const gmLevelName = (level) => (level >= 1 && level <= 10 ? t(`gm.lv.${level}`) : t("gm.level", { n: level }));
+const fmtB3tr = (x) => { try { return new Intl.NumberFormat(getLang(), { maximumFractionDigits: x >= 100 ? 0 : 2 }).format(x); } catch { return String(x); } };
+
+// Progress: the next GM level and what it still costs. Upgrading is VeBetterDAO's
+// own transaction (B3TR goes to its treasury), so this only links there.
+function GalaxyMemberNext({ wallet, T }) {
+  const gm = useGalaxyMember(wallet);
+  if (gm.status !== "ok") return null;
+  const top = gm.b3trToUpgrade === 0 || (gm.maxLevel > 0 && gm.level >= gm.maxLevel);
+  return (
+    <div className="chart-card" data-chart="gm-next" style={{ margin: "0 14px 12px" }}>
+      <div className="chart-hdr"><div className="chart-title">{t("gm.title")}</div></div>
+      <div style={{ fontSize: 13, color: T.text, lineHeight: 1.5 }}>
+        <strong>{gmLevelName(gm.level)}</strong>
+        {top ? <> · {t("gm.maxReached")}</> : <> → <strong>{gmLevelName(gm.level + 1)}</strong></>}
+      </div>
+      {!top && gm.b3trToUpgrade != null && (
+        <div style={{ fontSize: 12, color: T.textMid, marginTop: 4 }}>{t("gm.toUpgrade", { amount: fmtB3tr(gm.b3trToUpgrade) })}</div>
+      )}
+      {!top && (
+        <a href={GM_PAGE} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 8, fontSize: 12, fontWeight: 700, color: T.green3 }}>{t("gm.upgradeLink")}</a>
+      )}
+    </div>
+  );
+}
+
+function GalaxyMemberBadge({ wallet, T }) {
+  const gm = useGalaxyMember(wallet);
+  const [imgOk, setImgOk] = useState(true);
+  useEffect(() => { setImgOk(true); }, [wallet]);
   const pill = { display: "inline-flex", alignItems: "center", gap: 6, fontSize: 10.5, fontWeight: 800, background: T.bgAlt, color: T.text, border: `1px solid ${T.border}`, borderRadius: 999, padding: "4px 10px", textTransform: "uppercase", letterSpacing: ".6px", textDecoration: "none", maxWidth: "100%" };
   if (gm.status === "loading") return <span style={{ ...pill, color: T.textSoft }} aria-busy="true" title={t("gm.loading")}>🪐 GM NFT…</span>;
   if (gm.status === "error") return <span style={{ ...pill, color: T.textSoft, fontWeight: 700 }} title={t("gm.error")}>🪐 {t("gm.errorShort")}</span>;
   if (gm.status === "none") return <a href={GM_PAGE} target="_blank" rel="noopener noreferrer" style={{ ...pill, color: T.green3 }} title={t("gm.none")}>🪐 {t("gm.getShort")}</a>;
-  const name = gm.level >= 1 && gm.level <= 10 ? t(`gm.lv.${gm.level}`) : "";
+  const name = gm.level >= 1 && gm.level <= 10 ? gmLevelName(gm.level) : "";
   const level = gm.maxLevel >= gm.level && gm.level > 0 ? t("gm.levelOf", { n: gm.level, max: gm.maxLevel }) : t("gm.level", { n: gm.level });
   return (
     <span style={{ ...pill, paddingLeft: 3 }} title={`${t("gm.title")} #${gm.tokenId}`}>

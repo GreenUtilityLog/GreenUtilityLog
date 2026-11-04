@@ -127,6 +127,8 @@ const GM_ANSWERS = {
   [selector("levelOf", ["uint256"])]: "0x" + word(2),
   [selector("tokenURI", ["uint256"])]: "0x" + abiString("ipfs://bafye2egmmeta/metadata/2.json"),
   [selector("MAX_LEVEL", [])]: "0x" + word(10),
+  // 25,000 B3TR (18 decimals) still to go to the next level.
+  [selector("getB3TRtoUpgrade", ["uint256"])]: "0x" + word(25000n * 10n ** 18n),
 };
 // A 1×1 PNG, for the NFT's picture.
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64");
@@ -261,6 +263,11 @@ await step("Home, History and Progress show it", async () => {
   const toGo = /(\d+) more readings to Sprout · (\d+)%/.exec(await text());
   assert.ok(toGo && Number(toGo[1]) >= 1 && Number(toGo[1]) <= 9, `readings to the next level: ${toGo?.[0]}`);
   assert.equal(await page.getByRole("progressbar", { name: "Progress to Sprout" }).getAttribute("aria-valuenow"), toGo[2], "the bar matches");
+  // The GM NFT's next level and what it still costs (from the contract).
+  const gmNext = await page.locator('[data-chart="gm-next"]').innerText();
+  assert.match(gmNext, /Moon → Mercury/, "the next GM level");
+  assert.match(gmNext, /25,000 B3TR still needed to upgrade/, "what it still costs");
+  assert.match(gmNext, /Upgrade on VeBetterDAO/, "where to upgrade");
   // Energy saved this week (the paid reading), and per month with the toggle.
   const per = page.locator('[data-chart="saved-per-period"]');
   const week = /This week: ([\d.]+) kWh saved · ([\d.]+) kWh a day on average \(target 8\)/.exec(await per.innerText());
@@ -384,6 +391,7 @@ await step("Progress with three weeks of readings: outlook and calendar", async 
   assert.ok(await cal.locator('[data-state="paid"]').count() >= 21, "the three weeks in the calendar");
   // 22 readings now: the second level, Sprout.
   assert.match(await text(), /Niveau Spruit/, "the level follows the readings");
+  assert.match(await page.locator('[data-chart="gm-next"]').innerText(), /nog 25\.000 B3TR nodig om te upgraden/, "the GM cost, in Dutch");
 });
 
 // ── result ───────────────────────────────────────────────────────────────────
