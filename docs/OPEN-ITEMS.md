@@ -108,6 +108,15 @@ Laatst bijgewerkt: 2026-11-01.
 - [ ] Roadmap: gas en water, daarna zonnepanelen (staat in de server, uitgeschakeld)
 - [x] Enode verwijderd: nooit ingeschakeld, betaald, en P1/Home Assistant/Powerfox/Tibber dekken het (#165)
 
+## Later, als de app loopt (ideeën uit HangnDry, november)
+- [ ] Klassement met "Deze week / Altijd" en een reeks-kolom (een nieuweling kan dan elke week meedoen)
+- [ ] Live teller "Net uitbetaald +x B3TR · 1 min geleden" uit de chain
+- [ ] Eenmalige B3TR-bonus per niveau (Spruit, Jonge boom, Boom, Bos), met plafond, via de bestaande uitbetaling; bedragen nog kiezen
+- [ ] Reeksbonus per week (bijv. +5–10%), binnen het weekbudget; anti-farming (één wallet per telefoon, meter, foto) moet overeind blijven
+- [ ] Teller "x van y inzendingen deze week" / wachttijd zichtbaar op Home
+- [ ] Mijlpaal-NFT's met eigen artwork (eigen contract + gas): pas na de B3TR-bonus
+- [ ] Beloningsvermenigvuldiger op basis van VOT3-stemmen: eerst bij VeBetterDAO navragen of dat mag
+
 ## Bewust zo gelaten
 - Tijdverschuiving bij automatische standen: geaccepteerd risico (zie `docs/MAINNET.md`)
 - Captcha staat uit
