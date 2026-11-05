@@ -105,7 +105,7 @@ Laatst bijgewerkt: 2026-11-01.
 - [x] Voortgang: bespaarde energie per week/maand (met gemiddeld verbruik per dag t.o.v. de norm), inzendkalender van 12 weken, en een vooruitblik per jaar op basis van de laatste 30 dagen (na minstens een week)
 - [x] Voortgang rekent met de besparing waarop de server uitbetaalde (ook als de telefoon de vorige stand niet kent) (#175)
 - [x] Voortgang: volgend GM-niveau en hoeveel B3TR er nog nodig is (`getB3TRtoUpgrade` uit het GalaxyMember-contract, gecontroleerd tegen de broncode in `@vechain/vebetterdao-contracts`), met een link om op VeBetterDAO te upgraden
-- [ ] Roadmap: gas en water, daarna zonnepanelen (staat in de server, uitgeschakeld)
+- [ ] Roadmap: gas en water, daarna zonnepanelen (staat in de server, uitgeschakeld) — eerst de focus op elektriciteit; bij het toevoegen de niveaus (namen, grenzen, tellen per dag) opnieuw bekijken
 - [x] Enode verwijderd: nooit ingeschakeld, betaald, en P1/Home Assistant/Powerfox/Tibber dekken het (#165)
 
 ## Later, als de app loopt (ideeën uit HangnDry, november)
