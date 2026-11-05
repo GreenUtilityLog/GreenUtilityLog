@@ -762,23 +762,28 @@ export function normDecimal(v) {
 // Shorten a wallet address for display: 0x1234…abcd
 export function shortAddr(a){ return a ? `${a.slice(0,6)}…${a.slice(-4)}` : "—"; }
 
-// The app's own levels, by the number of readings sent in (not by B3TR: the reward
-// per kWh moves with the weekly budget, the effort of reading the meter doesn't).
-// One ladder for every kind of meter the app knows: a drop (water), a spark
-// (electricity), a flame (gas), a sunbeam (solar), up to a green power plant. Readings
-// of any kind count, so gas, water and solar join in once they're switched on.
+// The app's own levels, by the number of DAYS a reading was sent in (not by B3TR:
+// the reward per kWh moves with the weekly budget, the habit doesn't). Days, not
+// readings: someone with four meters (electricity, gas, water, solar) climbs no
+// faster than someone with one. One ladder for every kind of meter: a drop (water),
+// a spark (electricity), a flame (gas), a sunbeam (solar), up to a green power plant.
 // Nothing like the VeBetterDAO GM NFT's planets (the old B3TR tiers had a "Moon" on
-// both). Not quick on purpose: a reading a day is about a month to Spark and a year
-// and a half to the top. A reading counts once it isn't failed: one recorded without
-// a reward was still sent in.
+// both). Hard on purpose: a reading every day is about 7 weeks to Spark and nearly
+// three years to the top. A day counts when a reading that day didn't fail: one
+// recorded without a reward was still sent in.
 const LEVELS = [
   { key: "drop",    icon: "💧", min: 0 },
-  { key: "spark",   icon: "⚡", min: 25 },
-  { key: "flame",   icon: "🔥", min: 100 },
-  { key: "sunbeam", icon: "☀️", min: 250 },
-  { key: "plant",   icon: "🌍", min: 500 },
+  { key: "spark",   icon: "⚡", min: 50 },
+  { key: "flame",   icon: "🔥", min: 200 },
+  { key: "sunbeam", icon: "☀️", min: 500 },
+  { key: "plant",   icon: "🌍", min: 1000 },
 ];
 const countReadings = (subs) => (subs || []).filter((s) => s.type !== "eco" && s.status !== "failed").length;
+// Days with at least one reading that counts, whatever the number of meters.
+const countReadingDays = (subs) => new Set((subs || [])
+  .filter((s) => s.type !== "eco" && s.status !== "failed")
+  .map((s) => s.date || (s.submittedAt ? dayKey(new Date(s.submittedAt)) : ""))
+  .filter(Boolean)).size;
 // { level, next, n, toGo, pct } for this many readings.
 function levelFor(n) {
   let i = 0;
@@ -2597,7 +2602,7 @@ function HomeScreen({ b3tr, walletB3tr, streak, subs, setTab, wallet, onOpenRead
           <div className="hchip"><div className="hchip-val">{streak}</div><div className="hchip-key">{t("home.streak")}</div></div>
           <div className="hchip"><div className="hchip-val">{subs.length}</div><div className="hchip-key">{t("home.subs")}</div></div>
           {/* A name, not a number: smaller, and it wraps rather than being cut off. */}
-          <div className="hchip"><div className="hchip-val" style={{fontSize:15,lineHeight:1.2,overflowWrap:"anywhere"}}>{levelFor(countReadings(subs)).level.icon} {levelName(levelFor(countReadings(subs)).level)}</div><div className="hchip-key">{t("home.level")}</div></div>
+          <div className="hchip"><div className="hchip-val" style={{fontSize:15,lineHeight:1.2,overflowWrap:"anywhere"}}>{levelFor(countReadingDays(subs)).level.icon} {levelName(levelFor(countReadingDays(subs)).level)}</div><div className="hchip-key">{t("home.level")}</div></div>
         </div>
       </div>
 
@@ -3400,7 +3405,7 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
   const label = { fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".8px", color: T.textSoft };
   const card = { background: T.card, border: `1px solid ${T.border}`, borderRadius: 10 };
   const meterReadings = countReadings(subs);
-  const lv = levelFor(meterReadings);
+  const lv = levelFor(countReadingDays(subs));
   const goals = [
     streak < 7
       ? { icon: "🔥", label: t("p.goal.7"), left: t("p.daysToGo", { n: 7 - streak }) }
@@ -3439,7 +3444,7 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
           <div style={{ width: `${lv.pct}%`, height: "100%", background: T.green3, transition: "width .3s" }} />
         </div>
         <div style={{ fontSize: 12, color: T.textMid, marginTop: 8 }}>
-          {lv.next ? t("p.readingsToLevel", { n: lv.toGo, name: levelName(lv.next), pct: lv.pct }) : t("p.topLevel")}
+          {lv.next ? t("p.daysToLevel", { n: lv.toGo, name: levelName(lv.next), pct: lv.pct }) : t("p.topLevel")}
         </div>
         <div style={{ fontSize: 12, color: T.textSoft, marginTop: 2 }}>{t("p.earnedTotal", { amount: b3tr.toFixed(2) })}</div>
       </div>
@@ -3831,7 +3836,7 @@ function ProfileScreen({ b3tr, subs, wallet, walletDomain, pass, setTab, onOpenS
         </div>
         <button type="button" onClick={onOpenSettings} aria-label={t("pr.settings")} className="dark-toggle" style={{width:44,height:44,fontSize:18,background:T.card}}>⚙️</button>
       </div>
-      <ProfileHero wallet={wallet} domain={walletDomain} level={levelFor(countReadings(subs)).level} summary={wallet ? summary : ""} role={pass?.tier || ""} onToast={onToast} T={T} />
+      <ProfileHero wallet={wallet} domain={walletDomain} level={levelFor(countReadingDays(subs)).level} summary={wallet ? summary : ""} role={pass?.tier || ""} onToast={onToast} T={T} />
       <div style={listCard(T)}>
         <RowButton T={T} icon="🧾" label={t("pr.history")} sub={subs.length ? t("pr.history.sub", { n: subs.length }) : t("pr.history.empty")} onClick={() => setTab("history")} />
         <RowButton T={T} icon="❓" label={t("pr.help")} sub={t("pr.help.sub")} onClick={onOpenHelp} />

@@ -279,7 +279,7 @@ const ROWS = [
   ["p.level", "Level {name}", "Niveau {name}", "Stufe {name}", "Niveau {name}", "Nivel {name}"],
   ["p.next", "Next", "Volgende", "Nächste", "Suivant", "Siguiente"],
   ["p.progressTo", "Progress to {level}", "Voortgang naar {level}", "Fortschritt zu {level}", "Progression vers {level}", "Progreso hacia {level}"],
-  ["p.readingsToLevel", "{n} more readings to {name} · {pct}%", "nog {n} standen tot {name} · {pct}%", "noch {n} Zählerstände bis {name} · {pct} %", "encore {n} relevés jusqu'à {name} · {pct} %", "faltan {n} lecturas para {name} · {pct} %"],
+  ["p.daysToLevel", "{n} more days with a reading to {name} · {pct}%", "nog {n} dagen met een stand tot {name} · {pct}%", "noch {n} Tage mit Zählerstand bis {name} · {pct} %", "encore {n} jours avec un relevé jusqu'à {name} · {pct} %", "faltan {n} días con lectura para {name} · {pct} %"],
   ["p.topLevel", "Highest level reached 🎉", "Hoogste niveau bereikt 🎉", "Höchste Stufe erreicht 🎉", "Niveau maximum atteint 🎉", "Nivel máximo alcanzado 🎉"],
   ["p.rank", "Rank #{rank} of {total}", "Plek {rank} van {total}", "Platz {rank} von {total}", "Rang {rank} sur {total}", "Puesto {rank} de {total}"],
   ["p.rankLater", "Rank appears once rewards are on chain", "Je plek verschijnt zodra er beloningen op de chain staan", "Dein Platz erscheint, sobald Belohnungen auf der Chain sind", "Votre rang apparaît dès que des récompenses sont sur la chaîne", "Tu puesto aparece cuando haya recompensas en la cadena"],

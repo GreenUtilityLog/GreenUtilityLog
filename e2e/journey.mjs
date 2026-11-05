@@ -260,8 +260,8 @@ await step("Home, History and Progress show it", async () => {
   assert.ok(saved > 0, `kWh saved on Progress is ${saved}, not more than 0`);
   assert.doesNotMatch(await text(), /\btier\b/i, "no app tier on Progress");
   assert.match(await text(), /Level Drop/, "the level on Progress");
-  const toGo = /(\d+) more readings to Spark · (\d+)%/.exec(await text());
-  assert.ok(toGo && Number(toGo[1]) >= 1 && Number(toGo[1]) <= 24, `readings to the next level: ${toGo?.[0]}`);
+  const toGo = /(\d+) more days with a reading to Spark · (\d+)%/.exec(await text());
+  assert.ok(toGo && Number(toGo[1]) >= 1 && Number(toGo[1]) === 49, `one day so far, 49 to the next level: ${toGo?.[0]}`);
   assert.equal(await page.getByRole("progressbar", { name: "Progress to Spark" }).getAttribute("aria-valuenow"), toGo[2], "the bar matches");
   // The GM NFT's next level and what it still costs (from the contract).
   const gmNext = await page.locator('[data-chart="gm-next"]').innerText();
@@ -389,9 +389,10 @@ await step("Progress with three weeks of readings: outlook and calendar", async 
   assert.match(await page.locator('[data-chart="outlook"]').innerText(), /laatste 21 dagen/, "the days it is based on");
   const cal = page.locator('[data-chart="calendar"]');
   assert.ok(await cal.locator('[data-state="paid"]').count() >= 21, "the three weeks in the calendar");
-  // 20-odd readings now: still the first level, a few short of Spark (25).
-  assert.match(await text(), /Niveau Druppel/, "the level follows the readings");
-  assert.match(await text(), /nog [1-5] standen tot Vonk/, "a few readings to the next level");
+  // 22 days with a reading now (21 earlier ones and today, which has several
+  // readings but counts once): still the first level, 28 days short of Spark (50).
+  assert.match(await text(), /Niveau Druppel/, "the level follows the days");
+  assert.match(await text(), /nog 28 dagen met een stand tot Vonk/, "days, not readings, count");
   assert.match(await page.locator('[data-chart="gm-next"]').innerText(), /nog 25\.000 B3TR nodig om te upgraden/, "the GM cost, in Dutch");
 });
 
