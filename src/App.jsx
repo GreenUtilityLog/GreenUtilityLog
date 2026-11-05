@@ -3611,7 +3611,8 @@ function saveProfile(w, p) {
   try { localStorage.setItem(profileKey(w), JSON.stringify(p)); return true; } catch { return false; }
 }
 
-function ProfileHero({ wallet, domain, summary, role, level, onToast, T }) {
+// A role (tester, user) is the admin's business: it shows on the admin screen, not here.
+function ProfileHero({ wallet, domain, summary, level, onToast, T }) {
   const [profile, setProfile] = useState(() => loadProfile(wallet));
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(profile);
@@ -3697,11 +3698,10 @@ function ProfileHero({ wallet, domain, summary, role, level, onToast, T }) {
             <button onClick={save} style={{flex:2,background:"#2E7D32",border:"none",borderRadius:6,padding:"11px",fontSize:12,fontWeight:800,color:"#fff",cursor:"pointer"}}>{t("prof.save")}</button>
           </div>
         </div>
-      ) : (wallet || role) ? (
+      ) : wallet ? (
         <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",marginTop:12}}>
           {wallet && level && <span style={{fontSize:10.5,fontWeight:800,background:T.bgAlt,color:T.green3,border:`1px solid ${T.border}`,borderRadius:999,padding:"4px 10px",textTransform:"uppercase",letterSpacing:".6px"}}>{level.icon} {t("p.level", { name: levelName(level) })}</span>}
           {wallet && <GalaxyMemberBadge wallet={wallet} T={T} />}
-          {role && <span style={{fontSize:10.5,fontWeight:800,background:T.green5||T.bgAlt,color:T.green3,border:`1px solid ${T.green4||T.border}`,borderRadius:999,padding:"4px 10px",textTransform:"uppercase",letterSpacing:".6px"}}>🎟️ {role}</span>}
         </div>
       ) : null}
     </div>
@@ -3823,7 +3823,7 @@ function GalaxyMemberBadge({ wallet, T }) {
 }
 
 // Profile: you. Settings live one tap away (⚙️), not on this page.
-function ProfileScreen({ b3tr, subs, wallet, walletDomain, pass, setTab, onOpenSettings, onOpenHelp, onOpenFeedback, onToast, T }) {
+function ProfileScreen({ b3tr, subs, wallet, walletDomain, setTab, onOpenSettings, onOpenHelp, onOpenFeedback, onToast, T }) {
   const readings = subs.filter(s => s.type !== "eco").length;
   const first = subs.reduce((m, s) => { const t = s.submittedAt || localDayTs(s.date) || 0; return t && (!m || t < m) ? t : m; }, 0);
   const summary = `${t("pr.summary", { amount: b3tr.toFixed(2), n: readings })}${first ? t("pr.since", { date: new Date(first).toLocaleDateString(getLang(), { month: "short", year: "numeric" }) }) : ""}`;
@@ -3836,7 +3836,7 @@ function ProfileScreen({ b3tr, subs, wallet, walletDomain, pass, setTab, onOpenS
         </div>
         <button type="button" onClick={onOpenSettings} aria-label={t("pr.settings")} className="dark-toggle" style={{width:44,height:44,fontSize:18,background:T.card}}>⚙️</button>
       </div>
-      <ProfileHero wallet={wallet} domain={walletDomain} level={levelFor(countReadingDays(subs)).level} summary={wallet ? summary : ""} role={pass?.tier || ""} onToast={onToast} T={T} />
+      <ProfileHero wallet={wallet} domain={walletDomain} level={levelFor(countReadingDays(subs)).level} summary={wallet ? summary : ""} onToast={onToast} T={T} />
       <div style={listCard(T)}>
         <RowButton T={T} icon="🧾" label={t("pr.history")} sub={subs.length ? t("pr.history.sub", { n: subs.length }) : t("pr.history.empty")} onClick={() => setTab("history")} />
         <RowButton T={T} icon="❓" label={t("pr.help")} sub={t("pr.help.sub")} onClick={onOpenHelp} />
@@ -5416,7 +5416,7 @@ export default function App() {
           {tab==="submit"    && <SubmitScreen startOnReader={startOnReader} onStartedReader={() => setStartOnReader(false)} rewardFactor={rewardFactor} u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} dualTariff={dualTariff} fixBasis={fixBasis} fixBusy={fixBusy} runFixBasis={runFixBasis} dismissFixBasis={() => setFixBasis(null)} setDualTariff={setDualTariff} regLow={regLow} setRegLow={setRegLow} regNormal={regNormal} setRegNormal={setRegNormal} photoRegister={regHint[selUtil] || null} busy={busy} usage={usage} reward={reward} days={daysSinceLast()} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab} onMeterAutoSubmit={handleMeterAutoSubmit} meterAutoBusy={meterAutoBusy} onRegisterMeter={(utils) => openRegistration(utils, true)}/>}
           {tab==="progress"  && <ProgressScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}
-          {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} walletDomain={accountDomain || null} pass={passInfo.pass} setTab={setTab} onOpenSettings={()=>setTab("settings")} onOpenHelp={()=>setShowHelp(true)} onOpenFeedback={()=>setShowFeedback(true)} onToast={showToast} T={T}/>}
+          {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} walletDomain={accountDomain || null} setTab={setTab} onOpenSettings={()=>setTab("settings")} onOpenHelp={()=>setShowHelp(true)} onOpenFeedback={()=>setShowFeedback(true)} onToast={showToast} T={T}/>}
           {tab==="settings"  && <SettingsScreen lang={lang} onLang={changeLang} b3tr={b3tr} subs={subs} wallet={wallet} setShowWallet={openConnectModal} dark={dark} setDark={toggleDark} setOnboarded={setOnboarded} onEditMeters={()=>openRegistration(REQUIRED_UTILS, true)} onEditSolar={()=>openRegistration(SOLAR_UTILS, true)} meters={meters} isAdmin={isAdmin} onOpenAdmin={()=>setShowAdmin(true)} onOpenReader={() => { setStartOnReader(true); setTab("submit"); }} onToast={showToast} onReset={resetApp} onBack={()=>setTab("profile")} T={T}/>}
           </>}
         </div>
