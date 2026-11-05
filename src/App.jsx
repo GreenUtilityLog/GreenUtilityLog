@@ -764,15 +764,16 @@ export function shortAddr(a){ return a ? `${a.slice(0,6)}…${a.slice(-4)}` : "�
 
 // The app's own levels, by the number of readings sent in (not by B3TR: the reward
 // per kWh moves with the weekly budget, the effort of reading the meter doesn't).
-// Plants, so they can't be mixed up with the VeBetterDAO GM NFT's planets — the
-// old B3TR tiers had a "Moon" on both. A reading counts once it isn't failed:
-// one recorded without a reward was still sent in.
+// Energy, from a spark to a green power plant: nothing like the VeBetterDAO GM
+// NFT's planets (the old B3TR tiers had a "Moon" on both). Not quick on purpose:
+// a reading a day is about a month to Bulb and a year and a half to the top. A
+// reading counts once it isn't failed: one recorded without a reward was still sent in.
 const LEVELS = [
-  { key: "seedling", icon: "🌱", min: 0 },
-  { key: "sprout",   icon: "🌿", min: 10 },
-  { key: "sapling",  icon: "🪴", min: 30 },
-  { key: "tree",     icon: "🌳", min: 100 },
-  { key: "forest",   icon: "🌲", min: 250 },
+  { key: "spark", icon: "⚡", min: 0 },
+  { key: "bulb",  icon: "💡", min: 25 },
+  { key: "solar", icon: "☀️", min: 100 },
+  { key: "wind",  icon: "🌬️", min: 250 },
+  { key: "plant", icon: "🔋", min: 500 },
 ];
 const countReadings = (subs) => (subs || []).filter((s) => s.type !== "eco" && s.status !== "failed").length;
 // { level, next, n, toGo, pct } for this many readings.

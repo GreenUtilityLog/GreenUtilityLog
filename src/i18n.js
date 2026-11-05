@@ -269,12 +269,12 @@ const ROWS = [
   ["p.sub", "Your impact, rank and goals", "Je impact, plek en doelen", "Deine Wirkung, Platz und Ziele", "Votre impact, rang et objectifs", "Tu impacto, puesto y metas"],
   ["p.loading", "Loading the leaderboard…", "Klassement laden…", "Rangliste wird geladen…", "Chargement du classement…", "Cargando la clasificación…"],
   ["p.earnedTotal", "{amount} B3TR earned in total", "{amount} B3TR verdiend in totaal", "{amount} B3TR insgesamt verdient", "{amount} B3TR gagnés au total", "{amount} B3TR ganados en total"],
-  // The app's own levels, by readings sent in (plants, not the GM NFT's planets).
-  ["lvl.seedling", "Seedling", "Kiemplant", "Keimling", "Semis", "Plántula"],
-  ["lvl.sprout", "Sprout", "Spruit", "Spross", "Pousse", "Brote"],
-  ["lvl.sapling", "Sapling", "Jonge boom", "Jungbaum", "Arbuste", "Arbolito"],
-  ["lvl.tree", "Tree", "Boom", "Baum", "Arbre", "Árbol"],
-  ["lvl.forest", "Forest", "Bos", "Wald", "Forêt", "Bosque"],
+  // The app's own levels, by readings sent in (energy, not the GM NFT's planets).
+  ["lvl.spark", "Spark", "Vonk", "Funke", "Étincelle", "Chispa"],
+  ["lvl.bulb", "Bulb", "Lampje", "Glühbirne", "Ampoule", "Bombilla"],
+  ["lvl.solar", "Solar panel", "Zonnepaneel", "Solarpanel", "Panneau solaire", "Panel solar"],
+  ["lvl.wind", "Wind turbine", "Windmolen", "Windrad", "Éolienne", "Aerogenerador"],
+  ["lvl.plant", "Green power plant", "Groene centrale", "Grünes Kraftwerk", "Centrale verte", "Central verde"],
   ["p.level", "Level {name}", "Niveau {name}", "Stufe {name}", "Niveau {name}", "Nivel {name}"],
   ["p.next", "Next", "Volgende", "Nächste", "Suivant", "Siguiente"],
   ["p.progressTo", "Progress to {level}", "Voortgang naar {level}", "Fortschritt zu {level}", "Progression vers {level}", "Progreso hacia {level}"],
