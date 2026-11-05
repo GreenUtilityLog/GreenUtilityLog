@@ -45,6 +45,8 @@ const key = "electric:e1000";
 writeFileSync(STATE, JSON.stringify({
   meterOwners: { [key]: ADDR.toLowerCase() }, readings: { [key]: 1000 }, readingAts: { [key]: Date.now() - DAY },
   passesInit: 1,
+  // The test wallet holds a tester role: Profile must not show it (it's for admins).
+  passes: { [ADDR.toLowerCase()]: { no: 1, issuedAt: Date.now(), issuedBy: null, tier: "tester", note: "" } }, passSeq: 1,
 }));
 
 const log = (...a) => console.log("•", ...a);
@@ -290,6 +292,8 @@ await step("Profile shows the wallet's GM NFT", async () => {
   // returns it as shown): level name and level, with the token in its title.
   const hero = page.locator(".profile-hero");
   assert.match(await hero.innerText(), /GM Moon · Level 2 of 10/i, "the GM badge is in the account card");
+  // The wallet's tester role is for admins, not on Profile.
+  assert.doesNotMatch(await hero.innerText(), /tester/i, "no role on Profile");
   assert.equal(await hero.locator('[title="VeBetterDAO GM NFT #7"]').count(), 1, "its token number");
   const img = hero.locator('img[src="https://api.gateway-proxy.vechain.org/ipfs/bafye2egmimg/2.png"]');
   assert.equal(await img.count(), 1, "its picture, from VeChain's IPFS gateway");
