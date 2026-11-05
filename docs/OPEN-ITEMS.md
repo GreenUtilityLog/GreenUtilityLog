@@ -101,7 +101,7 @@ Laatst bijgewerkt: 2026-11-01.
 - [ ] Mainnet-stappen uit `docs/MAINNET.md` (Render-dienst, sleutels, `CERT_DOMAINS`, eerste week `MAX_PAYOUT_PER_SUBMISSION=1`)
 - [ ] Grant-aanvraag VeBetter Grants (x2earn-spoor)
 - [ ] Normen per land (nu één norm van 8 kWh per dag)
-- [x] Eigen app-niveaus terug, op aantal inzendingen (niet op B3TR): Kiemplant 🌱 (0), Spruit 🌿 (10), Jonge boom 🪴 (30), Boom 🌳 (100), Bos 🌲 (250); op Home, Voortgang (met balk naar het volgende niveau) en Profiel
+- [x] Eigen app-niveaus terug, op aantal inzendingen (niet op B3TR): Druppel 💧 (0), Vonk ⚡ (25), Vlam 🔥 (100), Zonnestraal ☀️ (250), Groene centrale 🌍 (500): één ladder met water, stroom, gas en zon, alle soorten standen tellen mee; eerst planten, op verzoek energie en strenger; op Home, Voortgang (met balk naar het volgende niveau) en Profiel
 - [x] Voortgang: bespaarde energie per week/maand (met gemiddeld verbruik per dag t.o.v. de norm), inzendkalender van 12 weken, en een vooruitblik per jaar op basis van de laatste 30 dagen (na minstens een week)
 - [x] Voortgang rekent met de besparing waarop de server uitbetaalde (ook als de telefoon de vorige stand niet kent) (#175)
 - [x] Voortgang: volgend GM-niveau en hoeveel B3TR er nog nodig is (`getB3TRtoUpgrade` uit het GalaxyMember-contract, gecontroleerd tegen de broncode in `@vechain/vebetterdao-contracts`), met een link om op VeBetterDAO te upgraden
@@ -111,7 +111,7 @@ Laatst bijgewerkt: 2026-11-01.
 ## Later, als de app loopt (ideeën uit HangnDry, november)
 - [ ] Klassement met "Deze week / Altijd" en een reeks-kolom (een nieuweling kan dan elke week meedoen)
 - [ ] Live teller "Net uitbetaald +x B3TR · 1 min geleden" uit de chain
-- [ ] Eenmalige B3TR-bonus per niveau (Spruit, Jonge boom, Boom, Bos), met plafond, via de bestaande uitbetaling; bedragen nog kiezen
+- [ ] Eenmalige B3TR-bonus per niveau (Vonk, Vlam, Zonnestraal, Groene centrale), met plafond, via de bestaande uitbetaling; bedragen nog kiezen
 - [ ] Reeksbonus per week (bijv. +5–10%), binnen het weekbudget; anti-farming (één wallet per telefoon, meter, foto) moet overeind blijven
 - [ ] Teller "x van y inzendingen deze week" / wachttijd zichtbaar op Home
 - [ ] Mijlpaal-NFT's met eigen artwork (eigen contract + gas): pas na de B3TR-bonus
