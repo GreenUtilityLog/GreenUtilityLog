@@ -100,6 +100,8 @@ Laatst bijgewerkt: 2026-11-01.
 - [ ] Creator NFT / endorsement afwachten
 - [ ] Mainnet-stappen uit `docs/MAINNET.md` (Render-dienst, sleutels, `CERT_DOMAINS`, eerste week `MAX_PAYOUT_PER_SUBMISSION=1`)
 - [ ] Grant-aanvraag VeBetter Grants (x2earn-spoor)
+- [x] Licentie van MIT naar AGPL-3.0-only: openbaar blijven (HACS, add-on, Pages, CI), maar wie de code als dienst draait moet zijn aanpassingen ook openbaar maken. Versies t/m `85d062e` blijven MIT
+- [ ] Naam "Green Utility Log" als merk vastleggen (BOIP, Benelux) — overwegen; eventueel met een jurist
 - [ ] Normen per land (nu één norm van 8 kWh per dag)
 - [x] Eigen app-niveaus terug, op aantal inzendingen (niet op B3TR): Druppel 💧 (0), Vonk ⚡ (50), Vlam 🔥 (200), Zonnestraal ☀️ (500), Groene centrale 🌍 (1000), geteld in dagen met een stand (meer meters gaat niet sneller); één ladder met water, stroom, gas en zon; eerst planten, op verzoek energie en strenger; op Home, Voortgang (met balk naar het volgende niveau) en Profiel
 - [x] Voortgang: bespaarde energie per week/maand (met gemiddeld verbruik per dag t.o.v. de norm), inzendkalender van 12 weken, en een vooruitblik per jaar op basis van de laatste 30 dagen (na minstens een week)

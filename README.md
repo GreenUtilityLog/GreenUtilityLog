@@ -84,4 +84,11 @@ node --test bridge/test.js               # bridge tests
 
 ## 📄 License
 
-See [`LICENSE`](LICENSE).
+Copyright (C) 2026 Green Utility Log.
+
+Licensed under the **GNU Affero General Public License v3.0** (AGPL-3.0-only); see [`LICENSE`](LICENSE).
+You may use, study, change and share this code, but if you run a changed version as a
+service for others, you must publish your changes under the same license.
+
+Versions up to and including commit `85d062e` (7 November 2026) were released under the MIT
+license, and stay available under it.

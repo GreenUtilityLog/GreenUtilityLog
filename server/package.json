@@ -1,6 +1,7 @@
 {
   "name": "green-utility-log-distributor",
   "version": "1.0.0",
+  "license": "AGPL-3.0-only",
   "private": true,
   "type": "module",
   "description": "Reward-distributor backend for Green Utility Log (VeBetterDAO X2Earn).",
