@@ -3737,6 +3737,40 @@ function NoAccessScreen({ wallet, T, onSwitch, onToast }) {
   );
 }
 
+// The gate when this version is for VeBetterDAO members ("gm" access): a wallet needs
+// a Galaxy Member NFT and a VeBetterDAO Passport that counts it as a person. Shows
+// which of the two is missing, where to get them, and a way to check again (the
+// server remembers "no GM NFT" for 30 seconds, so a fresh mint shows up soon).
+function GmAccessScreen({ gm, T, onSwitch, onRetry }) {
+  const [busy, setBusy] = useState(false);
+  const mark = (v) => (v === true ? "✅" : v === false ? "❌" : "❔");
+  const row = (v, label, id) => (
+    <li data-check={id} data-ok={v === true ? "yes" : v === false ? "no" : "unknown"} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 0",borderTop:`1px solid ${T.border}`,fontSize:13,color:T.text,textAlign:"left"}}>
+      <span aria-hidden="true" style={{fontSize:16}}>{mark(v)}</span>
+      <span style={{flex:1}}>{label}</span>
+      <span style={{fontSize:11,color:T.textSoft}}>{v === true ? t("noacc.gm.has") : v === false ? t("noacc.gm.missing") : t("noacc.gm.unknown")}</span>
+    </li>
+  );
+  const retry = () => { setBusy(true); onRetry?.(); setTimeout(() => setBusy(false), 2500); };
+  return (
+    <div data-gate="gm" style={{margin:"24px 16px",padding:"22px 18px",background:T.card,border:`1px solid ${T.border}`,borderRadius:10,textAlign:"center"}}>
+      <div style={{fontSize:34,lineHeight:1}} aria-hidden="true">🪐</div>
+      <h2 style={{fontSize:17,fontWeight:800,color:T.text,margin:"12px 0 6px"}}>{t("noacc.gm.title")}</h2>
+      <p style={{fontSize:12.5,color:T.textMid,lineHeight:1.6,margin:"0 0 12px"}}>{t("noacc.gm.body")}</p>
+      <ul style={{listStyle:"none",margin:"0 0 12px",padding:0}}>
+        {row(gm?.gm ?? null, t("noacc.gm.nft"), "nft")}
+        {row(gm?.gm === true ? (gm?.person ?? null) : null, t("noacc.gm.passport"), "passport")}
+      </ul>
+      {gm?.gm == null && <p style={{fontSize:11.5,color:T.textSoft,margin:"0 0 10px"}}>{t("noacc.gm.unread")}</p>}
+      <a href={GM_PAGE} target="_blank" rel="noopener noreferrer" style={{display:"inline-block",fontSize:12.5,fontWeight:700,color:T.green3,marginBottom:14}}>{t("noacc.gm.get")}</a>
+      <div style={{display:"flex",gap:8}}>
+        <button type="button" onClick={retry} disabled={busy} style={{flex:1,padding:"11px",fontSize:12,fontWeight:800,color:T === DARK ? T.bg : "#fff",background:T.green2,border:"none",borderRadius:6,cursor:busy?"default":"pointer",opacity:busy?0.7:1}}>{busy ? "…" : t("noacc.gm.retry")}</button>
+        <button type="button" onClick={onSwitch} style={{flex:1,padding:"11px",fontSize:12,fontWeight:700,color:T.textMid,background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,cursor:"pointer"}}>{t("noacc.switch")}</button>
+      </div>
+    </div>
+  );
+}
+
 // A list row that is a real button (keyboard and screen readers reach it).
 function RowButton({ icon, label, sub, right, danger, onClick, T, last }) {
   return (
@@ -4370,7 +4404,9 @@ export default function App() {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (!d || cancelled) return;
-        setPassInfo({ required: !!d.requirePass, has: d.hasPass !== false, pass: d.pass || null, isAdmin: !!d.isAdmin });
+        // "gm" (GM NFT + Passport) and "roles" both lock the app for a wallet without
+        // access; requirePass alone only knows about roles.
+        setPassInfo({ required: d.access ? d.access !== "everyone" : !!d.requirePass, has: d.hasPass !== false, pass: d.pass || null, isAdmin: !!d.isAdmin, access: d.access || "", gmAccess: d.gmAccess || null });
         // When this wallet may submit again, from the server — so the photo zone says
         // "next submission in 6h" BEFORE the photo, the crop and the signature.
         if (d.nextAt && typeof d.nextAt === "object") {
@@ -5409,7 +5445,9 @@ export default function App() {
           {/* "Only with a role": a wallet without one gets this instead of the app.
               The server decides (admins always pass), and refuses payouts as well, so
               this is the honest front of a rule that holds either way. */}
-          {noAccess && <NoAccessScreen wallet={wallet} T={T} onSwitch={openConnectModal} onToast={showToast} />}
+          {noAccess && (passInfo.access === "gm"
+            ? <GmAccessScreen gm={passInfo.gmAccess} T={T} onSwitch={openConnectModal} onRetry={() => setSeenTick(n => n + 1)} />
+            : <NoAccessScreen wallet={wallet} T={T} onSwitch={openConnectModal} onToast={showToast} />)}
 
           {!noAccess && <>
           {tab==="home"      && <HomeScreen b3tr={b3tr} walletB3tr={walletB3tr} streak={streak} subs={subs} setTab={setTab} wallet={wallet} onOpenReader={() => { setStartOnReader(true); setTab("submit"); }} T={T}/>}

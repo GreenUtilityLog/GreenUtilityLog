@@ -193,7 +193,9 @@ export function stateWithBaseline({ wallet = WALLET, meterNo = "E1000", reading 
 // and confirm a transaction. `mode` picks how it misbehaves (see the branches);
 // `postDelayMs` holds every transaction POST that long, and `onPost` is called
 // when one arrives.
-export function fakeNode(mode, { revertSelector = null, postDelayMs = 0, onPost = null } = {}) {
+// `onCall(to, data)`: answers a contract read (POST /accounts/<contract>) with the
+// hex result it returns; null/undefined = no answer (the read comes back empty).
+export function fakeNode(mode, { revertSelector = null, postDelayMs = 0, onPost = null, onCall = null } = {}) {
   const seen = new Set();
   const raws = [];
   let posts = 0;
@@ -212,6 +214,11 @@ export function fakeNode(mode, { revertSelector = null, postDelayMs = 0, onPost 
         const data = (JSON.parse(b || "{}").clauses || [])[0]?.data || "";
         const reverted = !!revertSelector && data.startsWith(revertSelector);
         return send([{ data: "0x", events: [], transfers: [], gasUsed: 30000, reverted, vmError: reverted ? "execution reverted" : "" }]);
+      }
+      if (onCall && req.method === "POST" && /^\/accounts\/0x[0-9a-fA-F]{40}/.test(u)) {
+        const to = u.slice("/accounts/".length, "/accounts/".length + 42).toLowerCase();
+        const out = onCall(to, String(JSON.parse(b || "{}").data || ""));
+        return send({ data: out || "0x", events: [], transfers: [], gasUsed: 0, reverted: false, vmError: "" });
       }
       if (u.startsWith("/accounts/")) return send({ balance: "0x0", energy: "0xffffffffffff", hasCode: false });
       if (req.method === "POST" && u.startsWith("/transactions") && postDelayMs > 0 && !req.delayed) {

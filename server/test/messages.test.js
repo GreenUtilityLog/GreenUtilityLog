@@ -20,7 +20,7 @@ const ENGLISH_ONLY = new Set([
   "refusing to signal an admin wallet", "a reason is required", "provide a meter number or a wallet",
   "old and new meter numbers are required", "the new meter number is the same as the old one",
   "the new meter number is registered to another wallet", "this meter has no owner yet — fill in the wallet it belongs to",
-  "move failed", "could not read the passport contract", "txid is required", "invalid amount", "mode must be roles or everyone",
+  "move failed", "could not read the passport contract", "txid is required", "invalid amount", "mode must be gm, roles or everyone",
   "certificate does not authorise this action", "state not loaded yet", "ocr not configured", "not allowed", "too many requests",
   "request too large", "invalid JSON", "expired", "the photo could not be read",
   // The image classifier's own label, logged and flagged, not shown as a refusal.

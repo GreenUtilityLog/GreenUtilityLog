@@ -20,6 +20,8 @@ const CONTRACTS_BY_NET = {
     VeBetterPassport:  "0x35a267671d8EDD607B2056A9a13E7ba7CF53c8b3",
     XAllocationVoting: "0x89A00Bb0947a30FF95BEeF77a66AEdE3842Fe5B7",
     XAllocationPool:   "0x4191776F05f4bE4848d3f4d587345078B439C7d3",
+    // VeBetterDAO's Galaxy Member (GM) NFT, as in @vechain/vebetterdao-contracts.
+    GalaxyMember:      "0x93B8cD34A7Fc4f53271b9011161F7A2B5fEA9D1F",
   },
   testnet: {
     X2EarnRewardsPool: "0x2d2a2207c68a46fc79325d7718e639d1047b0d8b",
@@ -27,6 +29,7 @@ const CONTRACTS_BY_NET = {
     VeBetterPassport:  "0x592c756df7a5d39de1735030e8b9c18b7417e6c4",
     XAllocationVoting: "0x8800592c463f0b21ae08732559ee8e146db1d7b2",
     XAllocationPool:   "0x6f7b4bc19b4dc99005b473b9c45ce2815bbe7533",
+    GalaxyMember:      "0x38a59fa7fd7039884465a0ff285b8c4b6fe394ca",
   },
 };
 export const CONTRACTS = CONTRACTS_BY_NET[NETWORK] || CONTRACTS_BY_NET.testnet;
@@ -194,6 +197,16 @@ export const isBanned = (addr) => BANNED_ADDRESSES.has(String(addr || "").toLowe
 // a reader or an eco claim, so nobody who was earning is cut off.
 // REQUIRE_PASS=false switches it off.
 export const REQUIRE_PASS = !/^(0|false|no|off)$/i.test(String(process.env.REQUIRE_PASS || "").trim());
+
+// Who may use this version until an admin sets it in the admin panel:
+// "gm" = wallets with a VeBetterDAO Galaxy Member NFT AND a VeBetterDAO Passport that
+// counts them as a person (the owner's rule for mainnet); "roles" = wallets with a
+// role; "everyone". Mainnet starts on "gm", testnet as REQUIRE_PASS says.
+export const ACCESS_MODES = ["gm", "roles", "everyone"];
+export function defaultAccess(network = NETWORK, requirePass = REQUIRE_PASS) {
+  if (network === "mainnet") return "gm";
+  return requirePass ? "roles" : "everyone";
+}
 // A wallet VeBetterDAO's passport considers a person needs no pass: that is the
 // ecosystem's own sybil check, and real VeBetter users get in without waiting.
 // Off by default on mainnet: a passport can be delegated from wallet to wallet, so

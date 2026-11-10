@@ -72,7 +72,7 @@ blueprint (`server/render.yaml`) beschrijft de testnet-service en zou die naam e
 | `ALLOWED_ORIGIN` | `https://greenutilitylog.github.io` |
 | `ANTHROPIC_API_KEY` | **verplicht**: controleert of de foto echt is en of stand + meternummer erop staan — zonder start mainnet niet (anders is de stand gewoon wat iemand intypt). Een **nieuwe** sleutel `greenutilitylog-mainnet` op platform.claude.com. Standaard met het goedkope model `claude-haiku-5-5`: per foto ± 3 aanroepen (vooraf invullen + echtheid + stand), samen een fractie van een cent; hooguit 5 pogingen per wallet per dag en 300 keer vooraf invullen per dag (`OCR_DAILY_MAX`, 15 per IP). Zet bij **Limits** een maandlimiet en een **e-mailwaarschuwing** bij bijna op: is het tegoed op, dan weigert de server elke foto-uitbetaling tot je bijkoopt |
 | `MAX_PAYOUT_PER_SUBMISSION` | `1` voor de eerste week (veilige start), daarna weghalen (= 4) |
-| `REQUIRE_PASS` | niet invullen (staat standaard aan): alleen wallets met een pas worden uitbetaald |
+| `REQUIRE_PASS` | niet invullen. Op mainnet bepaalt de toegangsstand wie erin mag (standaard **GM NFT + Passport**, zie hieronder) |
 | `PASSPORT_GRANTS_ACCESS` | niet invullen: staat op mainnet standaard uit (een passport kan van wallet naar wallet worden doorgegeven) |
 | `ADMIN_WALLETS` | alleen **jouw** wallet-adres (meerdere: met komma's) |
 | `DISTRIBUTOR_ADDRESS` | alleen bij `DISTRIBUTOR_MNEMONIC`: welk adres uit die woorden de distributor is |
@@ -85,8 +85,9 @@ blueprint (`server/render.yaml`) beschrijft de testnet-service en zou die naam e
 Home Assistant, Powerfox, Tibber) kan een tijd te weinig verbruik doorgeven en dat later in
 een paar grote stappen inhalen. Dan krijgt hij in die tijd de hoogste bespaarbonus. De
 30-dagenfoto vangt dat niet, want een foto mag hoger zijn dan wat is uitbetaald. Gekozen is
-dit zo te laten: alleen wallets met een pas van jou kunnen meedoen. Let in het admin-paneel op
-meters met dagen op het maximum gevolgd door grote sprongen; dan de pas intrekken.
+dit zo te laten: alleen wallets met een GM NFT én een Passport dat ze als persoon telt kunnen
+meedoen. Let in het admin-paneel op meters met dagen op het maximum gevolgd door grote
+sprongen; dan de wallet blokkeren.
 
 **Een eigen Upstash-database voor mainnet:** maak in Upstash een **nieuwe** Redis-database
 aan (gratis plan kan) en gebruik die URL en token alleen hier. Let op twee grenzen van
@@ -101,15 +102,18 @@ meer opslaan en **stoppen de uitbetalingen op allebei**. Zet **eviction nooit aa
 deze database: dan gooit Upstash bij een volle database zelf sleutels weg, en daarmee
 ook wie al betaald is en welke readings al geclaimd zijn.
 
-**Alleen jij op mainnet (besloten start):** zo staat mainnet op "Alleen met rol". Wallets
-zonder rol zien een slotscherm en worden niet uitbetaald. Jij komt er als admin altijd in.
-De database voor mainnet begint leeg, dus niemand anders heeft al een rol.
+**Mainnet alleen voor VeBetterDAO-leden (GM NFT + Passport):** zo start mainnet. Een wallet
+komt erin als hij **allebei** heeft: een VeBetterDAO **Galaxy Member (GM) NFT** (elk niveau,
+ook Earth) én een **VeBetterDAO Passport** dat hem als persoon telt. De server controleert dat
+zelf op de blockchain, bij het openen van de app én bij elke uitbetaling. Wie het niet heeft,
+ziet een scherm met wat er ontbreekt, een link naar VeBetterDAO en "Opnieuw controleren".
+Een rol telt in deze stand **niet**. Jij komt er als admin altijd in.
 
-**Rollen en de schakelaar (per versie):** in het adminpaneel staat bovenaan
-**"Who can use this version"**: *Only with a role* of *Everyone*. Elke versie (mainnet en
-`/testnet/`) heeft zijn eigen schakelaar en zijn eigen lijst. Iemand een rol geven: zoek
-zijn wallet in het adminpaneel → **Role** → *Tester* of *User* → geven. Testers geef je
-een rol op de testversie; zo komen zij alleen daar binnen.
+**De schakelaar (per versie):** in het adminpaneel staat bovenaan **"Who can use this
+version"**: *GM NFT + Passport*, *Only with a role* of *Everyone*. Elke versie (mainnet en
+`/testnet/`) heeft zijn eigen schakelaar. Mainnet staat standaard op *GM NFT + Passport*,
+testnet op *Only with a role*. Iemand een rol geven (telt alleen bij *Only with a role*):
+zoek zijn wallet in het adminpaneel → **Role** → *Tester* of *User* → geven.
 
 Stuur mij daarna het **adres** van de nieuwe service (bijv. `https://….onrender.com`).
 Test: open `<adres>/health` en controleer:
@@ -124,7 +128,7 @@ Test: open `<adres>/health` en controleer:
 | `readingCheck` · `aiPhotoCheck` | `strict` · `true` |
 | `distributorAuthorized` · `distributionPaused` | `true` · `false` |
 | `rewardsPoolEnabled` | `false` (als je die in stap 3 uitzette) |
-| `access` | `roles` |
+| `access` | `gm` |
 | `adminWallets` | alleen jouw adres |
 | `certDomains.enforced` | jouw `CERT_DOMAINS` |
 | `rules.maxPayout` | `1` (de veilige eerste week) |
