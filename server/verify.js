@@ -114,7 +114,10 @@ export function validateSubmission(body) {
     noReward: amount > 0 ? null
       : firstReading ? "your first reading sets your starting point — rewards start from your next reading"
       : nearZero ? "almost no usage since your last reading — recorded and held for review, no reward"
-      : `you used ${usage} ${UNITS[utility]} in ${+span.toFixed(1)} day(s), against a target of ${target} ${UNITS[utility]} — recorded, no saving to reward this time`,
+      // Under a day (the span can be as short as an hour) in hours: "0 day(s)" read as nonsense.
+      : span < 1
+        ? `you used ${usage} ${UNITS[utility]} in ${Math.max(1, Math.round(span * 24))} hour(s), against a target of ${target} ${UNITS[utility]} — recorded, no saving to reward this time`
+        : `you used ${usage} ${UNITS[utility]} in ${+span.toFixed(1)} day(s), against a target of ${target} ${UNITS[utility]} — recorded, no saving to reward this time`,
     // For the flag: why this reading was recorded without a reward.
     nearZero: nearZero
       ? `almost no usage: ${usage} ${UNITS[utility]} over ${+span.toFixed(1)} day(s) — recorded without a reward`

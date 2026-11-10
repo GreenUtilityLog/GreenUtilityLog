@@ -344,6 +344,15 @@ function saveSubs(wallet, subs) {
 // after PENDING_GIVE_UP_MS never made it — a VeChain transaction expires within
 // minutes — and is shown as "failed", not as money earned.
 const PENDING_GIVE_UP_MS = 30 * 60 * 1000;
+// The last access answer per wallet (/wallet/seen), so a wallet that was checked
+// before isn't let in, or shown a gate, wrongly while the server is asked again or
+// can't be reached. This build's own copy (mainnet keys get a prefix in network.js).
+const accessKey = (w) => `gul_access_${String(w || "").toLowerCase()}`;
+function loadAccess(w) {
+  try { const v = JSON.parse(localStorage.getItem(accessKey(w)) || "null"); return v && typeof v === "object" ? v : null; } catch { return null; }
+}
+function saveAccess(w, v) { try { localStorage.setItem(accessKey(w), JSON.stringify(v)); } catch {} }
+
 // What the server says a reading saved, and over how many days: the figure the
 // reward is paid on (and that goes on chain). Kept on the row so Progress shows that
 // figure: the app can't always work it out itself, as it may not know the previous
@@ -789,7 +798,8 @@ function levelFor(n) {
   let i = 0;
   while (i + 1 < LEVELS.length && n >= LEVELS[i + 1].min) i++;
   const level = LEVELS[i], next = LEVELS[i + 1] || null;
-  const pct = next ? Math.min(100, Math.round(((n - level.min) / (next.min - level.min)) * 100)) : 100;
+  // Floor, not round: 100% only once the level is actually reached.
+  const pct = next ? Math.min(100, Math.floor(((n - level.min) / (next.min - level.min)) * 100)) : 100;
   return { level, next, n, toGo: next ? next.min - n : 0, pct };
 }
 const levelName = (l) => t(`lvl.${l.key}`);
@@ -3000,7 +3010,8 @@ function ChartsScreen({ subs, T, part }) {
   const [period, setPeriod] = useState("week"); // the saved-energy chart: "week" | "month"
   const mono = "'SF Mono',Menlo,'Courier New',monospace";
   const usageOf = (s) => { const u = parseFloat(s.cur) - parseFloat(s.prev); return Number.isFinite(u) && u > 0 ? +u.toFixed(2) : 0; };
-  const meterSubs = subs.filter(s => s.type !== "eco" && usageOf(s) > 0);
+  // Failed payouts saved nothing on record: they don't count (the cards below leave them out too).
+  const meterSubs = subs.filter(s => s.type !== "eco" && s.status !== "failed" && usageOf(s) > 0);
   const ecoSubs   = subs.filter(s => s.type === "eco");
 
   // ── Headline impact numbers (same model as the on-chain proofs) ────────────
@@ -3018,7 +3029,10 @@ function ChartsScreen({ subs, T, part }) {
       const k = `${s.type}:${String(s.meterNo || "").toLowerCase()}`;
       // The server's span when it gave one (it knows the previous reading even when
       // this phone doesn't); otherwise the time since this meter's previous row here.
-      spanOfSub.set(s, Number(s.days) > 0 ? Number(s.days) : lastOf[k] ? spanDays(subTs(s) - subTs(lastOf[k])) : null);
+      // A row with no earlier row here and no saving is taken as the meter's first
+      // reading (the server once sent days: 1 for those): no span, as before.
+      const serverDays = Number(s.days) > 0 && (lastOf[k] || Number(s.savedKwh) > 0) ? Number(s.days) : 0;
+      spanOfSub.set(s, serverDays || (lastOf[k] ? spanDays(subTs(s) - subTs(lastOf[k])) : null));
       lastOf[k] = s;
     }
   }
@@ -3087,7 +3101,8 @@ function ChartsScreen({ subs, T, part }) {
       if (s.type === "eco" || s.status === "failed") continue;
       const k = s.date || (s.submittedAt ? dayKey(new Date(s.submittedAt)) : "");
       if (!k) continue;
-      byDay[k] = byDay[k] === "paid" || paidAmount(s) > 0 ? "paid" : "recorded";
+      // A payout still on its way counts as paid; "recorded" means no reward.
+      byDay[k] = byDay[k] === "paid" || paidAmount(s) > 0 || (s.status === "pending" && parseFloat(s.b3tr) > 0) ? "paid" : "recorded";
     }
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const first = new Date(today); first.setDate(first.getDate() - ((first.getDay() + 6) % 7) - (CAL_WEEKS - 1) * 7);
@@ -3761,7 +3776,7 @@ function GmAccessScreen({ gm, T, onSwitch, onRetry }) {
         {row(gm?.gm ?? null, t("noacc.gm.nft"), "nft")}
         {row(gm?.gm === true ? (gm?.person ?? null) : null, t("noacc.gm.passport"), "passport")}
       </ul>
-      {gm?.gm == null && <p style={{fontSize:11.5,color:T.textSoft,margin:"0 0 10px"}}>{t("noacc.gm.unread")}</p>}
+      {(gm?.gm == null || (gm.gm === true && gm.person == null)) && <p style={{fontSize:11.5,color:T.textSoft,margin:"0 0 10px"}}>{t("noacc.gm.unread")}</p>}
       <a href={GM_PAGE} target="_blank" rel="noopener noreferrer" style={{display:"inline-block",fontSize:12.5,fontWeight:700,color:T.green3,marginBottom:14}}>{t("noacc.gm.get")}</a>
       <div style={{display:"flex",gap:8}}>
         <button type="button" onClick={retry} disabled={busy} style={{flex:1,padding:"11px",fontSize:12,fontWeight:800,color:T === DARK ? T.bg : "#fff",background:T.green2,border:"none",borderRadius:6,cursor:busy?"default":"pointer",opacity:busy?0.7:1}}>{busy ? "…" : t("noacc.gm.retry")}</button>
@@ -4326,6 +4341,10 @@ export default function App() {
   // The server's answer about THIS wallet; reset when another one connects, so a
   // wallet never shows the previous one's access.
   const noAccess = !!wallet && passInfo.required && !passInfo.has;
+  // A wallet seen for the first time: wait for the server's answer (it reads the
+  // chain in "gm" mode) before showing the app. Not offline: the app works offline.
+  const checkingAccess = !!wallet && !noAccess && passInfo.loaded === false && !passInfo.cached
+    && !(typeof navigator !== "undefined" && navigator.onLine === false);
 
   // Which tariff register the server wants on the next photo, per utility (it
   // checks that the registers take turns — see /reward), refreshed after a payout.
@@ -4377,7 +4396,10 @@ export default function App() {
   // what the server already said about this same wallet. (SERVER_NEXT_AT is reset
   // by setCooldownWallet during render.)
   useEffect(() => {
-    setPassInfo({ required: false, has: true, pass: null, isAdmin: false });
+    // The last answer for this wallet while the server is asked again; none yet =
+    // "checking" (see checkingAccess below), not "open".
+    const cached = wallet ? loadAccess(wallet) : null;
+    setPassInfo(cached ? { ...cached, loaded: false, cached: true } : { required: false, has: true, pass: null, isAdmin: false, loaded: false });
     setRulesVer(v => v + 1);
   }, [wallet]);
   // The last reading the server recorded per meter of this wallet (/wallet/seen).
@@ -4403,10 +4425,15 @@ export default function App() {
       // meter, submit, and only then hit a 403 they can't act on.
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (!d || cancelled) return;
+        if (cancelled) return;
+        // No answer: keep what was known (the last answer, or open), stop "checking".
+        // The server refuses payouts to a wallet without access either way.
+        if (!d) { setPassInfo(p => ({ ...p, loaded: true })); return; }
         // "gm" (GM NFT + Passport) and "roles" both lock the app for a wallet without
         // access; requirePass alone only knows about roles.
-        setPassInfo({ required: d.access ? d.access !== "everyone" : !!d.requirePass, has: d.hasPass !== false, pass: d.pass || null, isAdmin: !!d.isAdmin, access: d.access || "", gmAccess: d.gmAccess || null });
+        const info = { required: d.access ? d.access !== "everyone" : !!d.requirePass, has: d.hasPass !== false, pass: d.pass || null, isAdmin: !!d.isAdmin, access: d.access || "", gmAccess: d.gmAccess || null };
+        setPassInfo({ ...info, loaded: true });
+        saveAccess(wallet, info);
         // When this wallet may submit again, from the server — so the photo zone says
         // "next submission in 6h" BEFORE the photo, the crop and the signature.
         if (d.nextAt && typeof d.nextAt === "object") {
@@ -4415,7 +4442,7 @@ export default function App() {
         }
         if (Array.isArray(d.lastReadings)) setServerLast(d.lastReadings);
       })
-      .catch(() => {});
+      .catch(() => { if (!cancelled) setPassInfo(p => ({ ...p, loaded: true })); });
     return () => { cancelled = true; };
   }, [wallet, meters, seenTick]);
   const { open: openWalletModal } = useWalletModal();
@@ -5449,7 +5476,13 @@ export default function App() {
             ? <GmAccessScreen gm={passInfo.gmAccess} T={T} onSwitch={openConnectModal} onRetry={() => setSeenTick(n => n + 1)} />
             : <NoAccessScreen wallet={wallet} T={T} onSwitch={openConnectModal} onToast={showToast} />)}
 
-          {!noAccess && <>
+          {checkingAccess && (
+            <div role="status" data-gate="checking" style={{margin:"24px 16px",padding:"22px 18px",background:T.card,border:`1px solid ${T.border}`,borderRadius:10,textAlign:"center",fontSize:13,color:T.textMid}}>
+              <div aria-hidden="true" style={{fontSize:26,marginBottom:8}}>🔐</div>{t("noacc.checking")}
+            </div>
+          )}
+
+          {!noAccess && !checkingAccess && <>
           {tab==="home"      && <HomeScreen b3tr={b3tr} walletB3tr={walletB3tr} streak={streak} subs={subs} setTab={setTab} wallet={wallet} onOpenReader={() => { setStartOnReader(true); setTab("submit"); }} T={T}/>}
           {tab==="submit"    && <SubmitScreen startOnReader={startOnReader} onStartedReader={() => setStartOnReader(false)} rewardFactor={rewardFactor} u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} dualTariff={dualTariff} fixBasis={fixBasis} fixBusy={fixBusy} runFixBasis={runFixBasis} dismissFixBasis={() => setFixBasis(null)} setDualTariff={setDualTariff} regLow={regLow} setRegLow={setRegLow} regNormal={regNormal} setRegNormal={setRegNormal} photoRegister={regHint[selUtil] || null} busy={busy} usage={usage} reward={reward} days={daysSinceLast()} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab} onMeterAutoSubmit={handleMeterAutoSubmit} meterAutoBusy={meterAutoBusy} onRegisterMeter={(utils) => openRegistration(utils, true)}/>}
           {tab==="progress"  && <ProgressScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}

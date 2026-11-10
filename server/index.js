@@ -509,17 +509,21 @@ function nearestPrintFromOtherWallet(print, addr, kind) {
 // (a "no" for ten minutes, so a newly qualified wallet isn't kept waiting long).
 // Unreadable counts as "no": only the pass then gets you in.
 const personCache = new Map();
-async function isPerson(addr) {
+// true / false, or null when the passport couldn't be read (not remembered).
+async function personStatus(addr) {
   const a = String(addr || "").toLowerCase();
   const hit = personCache.get(a);
   if (hit && Date.now() - hit.at < (hit.v ? 3600000 : 600000)) return hit.v;
   let v = null;
   try { v = await passportVouches(a); } catch { v = null; }
-  // A read that failed counts as "no" now, but isn't remembered for ten minutes.
-  if (v == null) return false;
+  if (v == null) return null;
   personCache.set(a, { v, at: Date.now() });
   if (personCache.size > 5000) personCache.delete(personCache.keys().next().value);
   return v;
+}
+async function isPerson(addr) {
+  // A read that failed counts as "no" here (it isn't remembered, so the next try reads again).
+  return (await personStatus(addr)) === true;
 }
 // Who may use THIS version (each server — mainnet, testnet — has its own setting):
 // "gm" = wallets with a VeBetterDAO Galaxy Member NFT AND a VeBetterDAO Passport that
@@ -540,7 +544,9 @@ const isAdminWallet = (addr) => ADMIN_USER_WALLETS.includes(String(addr || "").t
 async function gmStatus(addr) {
   const gm = await holdsGalaxyMember(addr);
   // The Passport is only asked once the GM NFT is there: no point otherwise.
-  const person = gm === true ? await isPerson(addr) : null;
+  // null when it couldn't be read, so the wallet is told to try again, not that its
+  // Passport doesn't count it.
+  const person = gm === true ? await personStatus(addr) : null;
   return { gm, person };
 }
 
@@ -560,6 +566,7 @@ async function passBlock(addr) {
     const s = await gmStatus(addr);
     if (s.gm === null) return "couldn't check this wallet's VeBetterDAO GM NFT right now — please try again in a minute";
     if (s.gm === false) return "this version is for VeBetterDAO members: the wallet needs a Galaxy Member (GM) NFT and a VeBetterDAO Passport that counts it as a person";
+    if (s.person === null) return "couldn't check this wallet's VeBetterDAO Passport right now — please try again in a minute";
     return "this wallet has a GM NFT, but its VeBetterDAO Passport doesn't count it as a person yet";
   }
   return PASSPORT_GRANTS_ACCESS
@@ -1317,7 +1324,9 @@ app.post("/reward", async (req, res) => {
     // recorded without one) — it used to show only automatic ones.
     console.log(`[payout:photo] ${shortAddr(req.body.address)} ${recordOnly ? `recorded, no reward (${v.noReward})` : `+${pay.amount} B3TR (${txid})`} · ${v.usage} kWh${reasons.length ? " · flagged" : ""}`);
     if (recordOnly) {
-      return res.json({ txid: null, amount: 0, fullAmount: 0, recorded: true, reason: v.noReward || "recorded, no reward this time", usage: v.usage, ...savingOf({ utility: req.body.utility, usage: v.usage, days: v.days, noImpact: !!(v.firstReading || v.nearZero) }), flagged: reasons.length > 0, pending: false });
+      return res.json({ txid: null, amount: 0, fullAmount: 0, recorded: true, reason: v.noReward || "recorded, no reward this time", usage: v.usage,
+        // Nothing was paid, so nothing counts as saved (also when the wallet check held it to 0).
+        ...savingOf({ utility: req.body.utility, usage: v.usage, days: v.days, noImpact: true, firstReading: !!v.firstReading }), flagged: reasons.length > 0, pending: false });
     }
     res.json({ txid, amount: pay.amount, fullAmount: v.amount, factor: pay.factor, flagged: reasons.length > 0, usage: v.usage, ...savingOf({ utility: req.body.utility, usage: v.usage, days: v.days, noImpact: !!(v.firstReading || v.nearZero) }), pending: payoutPending(txid) });
   } catch (e) {
@@ -1904,7 +1913,7 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
     const cur = link?.token ? store.getMeterLink(link.token) : null;
     if (cur) store.setMeterLink(link.token, { ...cur, autoPaidAt: Date.now(), lastPayout: { amount: pay.amount, txid, at: Date.now(), reading: Number(latest.reading) } });
     await store.flush(); // durable before returning, so a crash can't replay this reading
-    return { ok: true, txid, amount: pay.amount, fullAmount: recordOnly ? 0 : v.amount, factor: pay.factor, usage: v.usage, ...savingOf({ utility, usage: v.usage, days: v.days, noImpact: !!(v.firstReading || v.nearZero) }), reading: Number(latest.reading), source: latest.source || "meter",
+    return { ok: true, txid, amount: pay.amount, fullAmount: recordOnly ? 0 : v.amount, factor: pay.factor, usage: v.usage, ...savingOf({ utility, usage: v.usage, days: v.days, noImpact: recordOnly || !!(v.firstReading || v.nearZero), firstReading: !!v.firstReading }), reading: Number(latest.reading), source: latest.source || "meter",
       pending: txid ? payoutPending(txid) : false, ...(recordOnly ? { recorded: true, reason: v.noReward || "recorded, no reward this time" } : {}) };
   } catch (e) {
     // Once paid, a throw in the bookkeeping after it must not reach the caller as
