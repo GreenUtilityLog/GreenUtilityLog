@@ -62,3 +62,48 @@ describe("an automatic reading: the same two figures", () => {
     assert.ok(near(r.body.savedKwh, TARGET * r.body.days - 5), `savedKwh ${r.body.savedKwh}`);
   });
 });
+
+describe("a meter's first reading: recorded, without a span", () => {
+  let srv;
+  before(async () => {
+    const s = stateWithBaseline();
+    delete s.readings; delete s.readingAts; // registered, but no reading yet
+    srv = await startServer({ state: s, env: { COOLDOWN_MS: "0" } });
+  });
+  after(async () => { await srv.stop(); });
+  test("no days: the app would draw it as one day's use", async () => {
+    const r = await submit(srv, "save-first", 1060);
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.equal(r.body.recorded, true);
+    assert.equal(r.body.savedKwh, 0);
+    assert.equal(r.body.days, undefined, JSON.stringify(r.body));
+  });
+});
+
+describe("held to 0 by the wallet check: nothing saved is reported", () => {
+  let srv;
+  before(async () => {
+    const s = stateWithBaseline();
+    s.walletChecks = { [WALLET.toLowerCase()]: { at: Date.now(), f: null, s: 1 } }; // suspicious
+    srv = await startServer({ state: s, env: { WALLET_CHECK: "base", COOLDOWN_MS: "0" } });
+  });
+  after(async () => { await srv.stop(); });
+  test("amount 0, savedKwh 0", async () => {
+    const r = await submit(srv, "save-capped", 1003);
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.equal(r.body.amount, 0);
+    assert.equal(r.body.savedKwh, 0, JSON.stringify(r.body));
+  });
+});
+
+describe("a span under a day reads in hours, not '0 day(s)'", () => {
+  let srv;
+  before(async () => { srv = await startServer({ state: stateWithBaseline({ agoMs: 3600e3 }), env: { COOLDOWN_MS: "0" } }); });
+  after(async () => { await srv.stop(); });
+  test("1 hour(s)", async () => {
+    const r = await submit(srv, "save-hour", 1002);
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.match(r.body.reason, /in 1 hour\(s\), against a target of/);
+    assert.doesNotMatch(r.body.reason, /0 day/);
+  });
+});

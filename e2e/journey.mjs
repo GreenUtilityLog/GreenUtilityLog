@@ -138,12 +138,15 @@ const GM_ANSWERS = {
 // A 1×1 PNG, for the NFT's picture.
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64");
 
+// The access answer can be held back (the GM step), to see the app wait for it.
+let seenDelayMs = 0;
 // Outside requests: the API goes to the local server, the VeChain node to the
 // stand-in, the rest is dropped (fonts, WalletConnect, …) so the run needs no network.
 const GENESIS = { id: "0x000000000b2bce3c70bc649a02749e8687721b09ed2e15997f466536b20bb127", number: 0, timestamp: 1530014400, gasLimit: 10000000, parentID: "0xffffffff00000000000000000000000000000000000000000000000000000000", size: 170, beneficiary: "0x0000000000000000000000000000000000000000", gasUsed: 0, totalScore: 0, txsRoot: "0x" + "0".repeat(64), txsFeatures: 0, stateRoot: "0x" + "0".repeat(64), receiptsRoot: "0x" + "0".repeat(64), signer: "0x0000000000000000000000000000000000000000", isTrunk: true, transactions: [] };
 await ctx.route((url) => !/^http:\/\/(127\.0\.0\.1|localhost)[:/]/.test(url.href), async (route) => {
   const u = new URL(route.request().url());
   if (u.origin === API) {
+    if (u.pathname === "/wallet/seen" && seenDelayMs) await wait(seenDelayMs);
     const local = route.request().url().replace(API, `http://127.0.0.1:${API_PORT}`);
     try {
       const res = await route.fetch({ url: local });
@@ -430,8 +433,16 @@ await step("mainnet rule: only a GM NFT and a Passport get in", async () => {
     writeFileSync(STATE, JSON.stringify(st));
     server = proc(process.execPath, ["index.js"], { ...SERVER_ENV, NODE_URL: `http://127.0.0.1:${node.address().port}` }, join(ROOT, "server"));
     await up(`http://127.0.0.1:${API_PORT}/health`);
+    // A wallet without a remembered access answer, and a slow server: the app waits
+    // ("checking"), it doesn't open first and lock later.
+    await page.evaluate((k) => localStorage.removeItem(k), `gul_access_${ADDR.toLowerCase()}`);
+    seenDelayMs = 2500;
+    await page.reload({ waitUntil: "domcontentloaded" }); await wait(1200);
+    assert.equal(await page.locator('[data-gate="checking"]').count(), 1, "checking access while the server answers");
+    assert.equal(await page.locator(".hero-amount").count(), 0, "the app isn't open meanwhile");
+    seenDelayMs = 0;
     // No GM NFT: the gate, in Dutch, says what's missing, and the app stays shut.
-    await page.reload({ waitUntil: "networkidle" }); await wait(2000);
+    await wait(3500);
     await shot("12-nl-gm-gate");
     const gate = page.locator('[data-gate="gm"]');
     assert.equal(await gate.count(), 1, "the GM gate shows");

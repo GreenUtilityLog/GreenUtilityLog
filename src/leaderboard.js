@@ -447,8 +447,22 @@ const bigOrNull = (v) => { try { return v == null ? null : BigInt(firstVal(v)); 
 // over time; b3trToUpgrade, in B3TR, is null when it couldn't be read),
 // and { error } when the chain couldn't be read (so the app can tell "none" apart
 // from "couldn't check").
-export async function fetchGalaxyMember({ node, contract, address, signal } = {}) {
+// A signal that aborts with `outer` or after `ms`, whichever comes first, so a node
+// or an IPFS gateway that never answers can't keep the GM badge on "loading".
+function withTimeout(outer, ms) {
+  const c = new AbortController();
+  const t = setTimeout(() => c.abort(), ms);
+  const stop = () => { clearTimeout(t); c.abort(); };
+  if (outer) { if (outer.aborted) stop(); else outer.addEventListener("abort", stop, { once: true }); }
+  return { signal: c.signal, done: () => { clearTimeout(t); outer?.removeEventListener?.("abort", stop); } };
+}
+const GM_CHAIN_MS = 15000;   // all the contract reads together
+const GM_IMAGE_MS = 6000;    // the picture: optional, so a short wait
+
+export async function fetchGalaxyMember({ node, contract, address, signal: outer } = {}) {
   if (!node || !contract || !/^0x[0-9a-fA-F]{40}$/.test(String(address || ""))) return null;
+  const chain = withTimeout(outer, GM_CHAIN_MS);
+  const signal = chain.signal;
   try {
     let tokenId = bigOrNull(await callView(node, contract, GM_FN.getSelectedTokenId, [address], signal));
     if (!tokenId) {
@@ -462,18 +476,25 @@ export async function fetchGalaxyMember({ node, contract, address, signal } = {}
     const maxLevel = Number(bigOrNull(await callView(node, contract, GM_FN.MAX_LEVEL, [], signal).catch(() => null)) || 0n);
     const upWei = bigOrNull(await callView(node, contract, GM_FN.getB3TRtoUpgrade, [tokenId], signal).catch(() => null));
     const b3trToUpgrade = upWei == null ? null : Number(upWei / 10n ** 14n) / 1e4;
+    chain.done();
     let image = "";
+    const pic = withTimeout(outer, GM_IMAGE_MS);
     try {
-      const uri = firstVal(await callView(node, contract, GM_FN.tokenURI, [tokenId], signal));
+      const uri = firstVal(await callView(node, contract, GM_FN.tokenURI, [tokenId], pic.signal));
       const metaUrl = ipfsToHttp(uri);
       if (metaUrl) {
-        const r = await fetch(metaUrl, { signal });
+        const r = await fetch(metaUrl, { signal: pic.signal });
         if (r.ok) image = ipfsToHttp((await r.json().catch(() => ({})))?.image);
       }
-    } catch { /* no picture: the level still shows */ }
+    } catch { /* no picture (or it took too long): the level still shows */ }
+    finally { pic.done(); }
+    if (outer?.aborted) throw Object.assign(new Error("aborted"), { name: "AbortError" });
     return { tokenId: tokenId.toString(), level, maxLevel, name: GM_LEVEL_NAMES[level] || "", image, b3trToUpgrade };
   } catch (e) {
-    if (e?.name === "AbortError") throw e;
+    chain.done();
+    // Aborted by the caller (wallet changed, screen left): pass it on. A timeout of
+    // our own is an error the card can show.
+    if (outer?.aborted) throw e;
     return { error: String(e?.message || e) };
   }
 }

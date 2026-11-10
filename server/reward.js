@@ -201,10 +201,13 @@ const savedBelowBenchmark = (utility, usage, days) => Math.max(0, (USAGE_BENCHMA
 // Progress shows the saving that was paid on (the app can't always work it out: it
 // may not know the previous reading, which only the server holds). For electricity
 // `savedKwh` is kWh; for the other saving utilities it is that meter's own unit.
-export function savingOf({ utility, usage, days = 1, noImpact = false }) {
+// A meter's first reading has no span: it only sets the starting point, so `days`
+// is left out (the app would otherwise draw its whole usage since the typed
+// baseline as one day's use).
+export function savingOf({ utility, usage, days = 1, noImpact = false, firstReading = false }) {
   const u = Math.max(0, Number(usage) || 0);
   return {
-    days: +spanOf(days).toFixed(2),
+    ...(firstReading ? {} : { days: +spanOf(days).toFixed(2) }),
     ...(SAVING_UTILS.has(utility) ? { savedKwh: noImpact ? 0 : +savedBelowBenchmark(utility, u, days).toFixed(3) } : {}),
   };
 }

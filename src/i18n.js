@@ -365,6 +365,7 @@ const ROWS = [
   ["noacc.gm.unread", "The blockchain couldn't be checked just now. Try again in a minute.", "De blockchain kon nu niet gecontroleerd worden. Probeer het over een minuut opnieuw.", "Die Blockchain konnte gerade nicht geprüft werden. Versuch es in einer Minute erneut.", "Impossible de vérifier la blockchain pour l'instant. Réessayez dans une minute.", "No se pudo comprobar la blockchain ahora. Inténtalo de nuevo en un minuto."],
   ["noacc.gm.get", "Get a GM NFT and your Passport on VeBetterDAO ↗", "Haal een GM NFT en je Passport op VeBetterDAO ↗", "GM-NFT und Passport auf VeBetterDAO holen ↗", "Obtenir un NFT GM et votre Passport sur VeBetterDAO ↗", "Consigue un NFT GM y tu Passport en VeBetterDAO ↗"],
   ["noacc.gm.retry", "Check again", "Opnieuw controleren", "Erneut prüfen", "Vérifier à nouveau", "Comprobar de nuevo"],
+  ["noacc.checking", "Checking this wallet's access…", "Toegang van deze wallet controleren…", "Zugang dieser Wallet wird geprüft…", "Vérification de l'accès de ce wallet…", "Comprobando el acceso de esta wallet…"],
   ["noacc.copy", "Copy address", "Adres kopiëren", "Adresse kopieren", "Copier l'adresse", "Copiar dirección"],
   ["noacc.switch", "Use another wallet", "Andere wallet gebruiken", "Andere Wallet verwenden", "Utiliser un autre wallet", "Usar otra wallet"],
   ["noacc.copied", "📋 Address copied", "📋 Adres gekopieerd", "📋 Adresse kopiert", "📋 Adresse copiée", "📋 Dirección copiada"],

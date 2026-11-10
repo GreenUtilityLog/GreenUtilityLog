@@ -23,13 +23,10 @@ const ENGLISH_ONLY = new Set([
   "move failed", "could not read the passport contract", "txid is required", "invalid amount", "mode must be gm, roles or everyone",
   "certificate does not authorise this action", "state not loaded yet", "ocr not configured", "not allowed", "too many requests",
   "request too large", "invalid JSON", "expired", "the photo could not be read",
+  // A contract's own revert reason, shown inside "payout would revert: {reason}".
+  "execution reverted",
   // The image classifier's own label, logged and flagged, not shown as a refusal.
   'image looks like "7" (confidence 7)',
-  // Powerfox's own answers, shown as they come.
-  "Powerfox can't be reached right now — try again later", "Powerfox didn't accept this e-mail and password",
-  "Powerfox gave no meter reading — check that your poweropti is set up in the Powerfox app",
-  "Powerfox refused to share the data — switch on data transfer (Datenfreigabe) in the Powerfox app",
-  "Powerfox sent no meter total for this device — is the main device an electricity meter?",
 ]);
 
 // String literals given as an error or reason, outside the /admin/* routes, with
@@ -42,7 +39,14 @@ function userMessages() {
       // Drop the admin route handlers: from each app.<verb>("/admin/… to the next route.
       src = src.split(/(?=\napp\.(?:get|post)\(")/).filter((part) => !/^\napp\.(?:get|post)\("\/admin\//.test(part)).join("");
     }
-    for (const m of src.matchAll(/(?:error|reason|noReward)\s*[:=]\s*(?:[^"`\n;]*?\?\s*)?"((?:[^"\\\n]|\\.){8,})"/g)) out.add(JSON.parse(`"${m[1]}"`));
+    // `error: "…"`, `error: cond ? "…"` and `error: x || "…"`.
+    for (const m of src.matchAll(/(?:error|reason|noReward)\s*[:=]\s*(?:[^"`\n;]*?(?:\?|\|\|)\s*)?"((?:[^"\\\n]|\\.){8,})"/g)) out.add(JSON.parse(`"${m[1]}"`));
+    // Texts handed to users through helpers: publicError("…") and fail("code", "…").
+    for (const m of src.matchAll(/(?:publicError\(|fail\(\s*"\w+"\s*,)\s*"((?:[^"\\\n]|\\.){8,})"/g)) out.add(JSON.parse(`"${m[1]}"`));
+    for (const m of src.matchAll(/(?:publicError\(|fail\(\s*"\w+"\s*,)\s*`([^`\n]{8,})`/g)) {
+      if (/\$\{[^}]*[?`]/.test(m[1])) continue;
+      out.add(m[1].replace(/\$\{[^}]*\}/g, "7"));
+    }
     // Template literals without nested ones: each ${…} becomes a sample value.
     for (const m of src.matchAll(/(?:error|reason|noReward)\s*[:=]\s*(?:[^"`\n;]*?\?\s*)?`([^`\n]{8,})`/g)) {
       // A part that is itself a choice (a plural, an optional clause) can't be
@@ -57,6 +61,23 @@ function userMessages() {
 test("every message a user can get has a translation", () => {
   const missing = userMessages().filter((m) => !ENGLISH_ONLY.has(m) && translateMessage(m, "nl") === m);
   assert.deepEqual(missing, [], "add these to server/messages.js (or to ENGLISH_ONLY if they really stay English)");
+});
+
+// Returned by helper functions (not as `error:` literals), so the scan above can't see
+// them: the photo-check limits, the one-phone-one-wallet check and the access gate.
+test("refusals returned by helpers have a translation too", () => {
+  for (const m of [
+    "too many photo attempts today — try again tomorrow",
+    "the photo check has reached today's limit — please try again tomorrow",
+    "the app didn't say which phone this is — reload the app and try again",
+    "this phone is already used by 1 other wallet — one person, one wallet",
+    "this phone is already used by 2 other wallets — one person, one wallet",
+    "couldn't check this wallet's VeBetterDAO GM NFT right now — please try again in a minute",
+    "this version is for VeBetterDAO members: the wallet needs a Galaxy Member (GM) NFT and a VeBetterDAO Passport that counts it as a person",
+    "this wallet has a GM NFT, but its VeBetterDAO Passport doesn't count it as a person yet",
+    "couldn't check this wallet's VeBetterDAO Passport right now — please try again in a minute",
+    "you used 2 kWh in 3 hour(s), against a target of 1 kWh — recorded, no saving to reward this time",
+  ]) assert.notEqual(translateMessage(m, "nl"), m, m);
 });
 
 test("every row is complete and keeps its placeholders in all languages", () => {
