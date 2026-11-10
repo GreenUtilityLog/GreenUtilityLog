@@ -7,13 +7,14 @@ import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import express from "express";
 import cors from "cors";
 import { COOLDOWN_MS } from "./config.js";
-import { PORT, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, REQUIRE_PASS, PASSPORT_GRANTS_ACCESS, UNITS, pickUtility, pickAnyUtility, isEnabledUtility, MAX_PAYOUT_PER_SUBMISSION, ENABLED_UTILITIES, REWARD_BASE } from "./config.js";
+import { PORT, ALLOWED_ORIGINS, NETWORK, NODE_URL, APP_ID, OCR_ENABLED, isBanned, REQUIRE_PASS, PASSPORT_GRANTS_ACCESS, ACCESS_MODES, defaultAccess, UNITS, pickUtility, pickAnyUtility, isEnabledUtility, MAX_PAYOUT_PER_SUBMISSION, ENABLED_UTILITIES, REWARD_BASE } from "./config.js";
 import { validateSubmission, validMeterNo } from "./verify.js";
 import { verifyPhoto, checkReadingOnPhoto, readingCheckMode, meterNoOnPhoto, meterNoCheckMode, photoPrint, printDistance } from "./media.js";
 import { store } from "./store.js";
 import { putPhoto, getPhotoDataUrl, deletePhoto, photoStoreEnabled } from "./photostore.js";
 import { distributeReward, savingOf, distributorAddress, chainDiagnostics, moveToRewardsPool, DRY_RUN, hasDistributorKey, payoutPending, pendingPayoutCount, recheckPendingPayouts } from "./reward.js";
 import { signalStatus, passportFor, signalUser, passportVouches } from "./passport.js";
+import { holdsGalaxyMember } from "./galaxy.js";
 import { budgetState, scaledAmount, recordPayout, autoClaimAllocation, autoMoveToRewardsPool } from "./budget.js";
 import { ocrImage, ocrEnabled, ocrProviders } from "./ocr.js";
 import { verifyWalletCertificate, REQUIRE_CERT, CERT_MAX_AGE_MS, certDomainsSeen } from "./auth.js";
@@ -264,9 +265,10 @@ app.get("/health", async (req, res) => {
     device: { maxWallets: DEVICE_MAX_WALLETS, fingerprintFlag: DEVICE_FP_FLAG, known: store.deviceCount() },
     corsLocked: !ALLOWED_ORIGINS.includes("*"),
     // Access passes: whether earning is gated, and how many have been issued.
-    // Who may use this version: "roles" (only wallets with a role) or "everyone".
+    // Who may use this version: "gm" (GM NFT + Passport), "roles" or "everyone".
     access: accessMode(),
     requirePass: rolesRequired(),
+    access: accessMode(),
     passCount: store.passCount(),
     // Submissions whose photo the app couldn't auto-confirm. All were paid — this is
     // a counter, not a queue. Also the cheapest way to tell from outside whether a
@@ -519,26 +521,47 @@ async function isPerson(addr) {
   if (personCache.size > 5000) personCache.delete(personCache.keys().next().value);
   return v;
 }
-// Who may use THIS version (each server — mainnet, testnet — has its own list):
-// "roles" = only wallets with a role (a pass), "everyone" = anyone. An admin flips
-// it in the admin panel; until then REQUIRE_PASS (on by default) decides. Roles are
-// labels for the admin's overview: a tester on the test server, a user on mainnet.
+// Who may use THIS version (each server — mainnet, testnet — has its own setting):
+// "gm" = wallets with a VeBetterDAO Galaxy Member NFT AND a VeBetterDAO Passport that
+// counts them as a person (checked on chain, at connect and at every payout);
+// "roles" = only wallets with a role (a pass); "everyone" = anyone. An admin flips it
+// in the admin panel; until then mainnet is "gm" and testnet follows REQUIRE_PASS.
+// Roles are labels for the admin's overview: a tester on the test server, a user on
+// mainnet. In "gm" mode a role gives no access: the owner wants GM + Passport only.
 const ROLES = ["tester", "user"];
 function accessMode() {
   const m = store.getSetting("access");
-  return m === "everyone" || m === "roles" ? m : (REQUIRE_PASS ? "roles" : "everyone");
+  return ACCESS_MODES.includes(m) ? m : defaultAccess();
 }
 const rolesRequired = () => accessMode() === "roles";
 const isAdminWallet = (addr) => ADMIN_USER_WALLETS.includes(String(addr || "").toLowerCase());
 
+// In "gm" mode: what this wallet has. gm/person: true, false, or null (unreadable).
+async function gmStatus(addr) {
+  const gm = await holdsGalaxyMember(addr);
+  // The Passport is only asked once the GM NFT is there: no point otherwise.
+  const person = gm === true ? await isPerson(addr) : null;
+  return { gm, person };
+}
+
 async function accessOk(addr) {
   // Admins always get in, whatever the switch says — they have to be able to turn
   // it back, and to test the version they run.
-  if (!rolesRequired() || store.hasPass(addr) || isAdminWallet(addr)) return true;
+  if (isAdminWallet(addr)) return true;
+  const mode = accessMode();
+  if (mode === "everyone") return true;
+  if (mode === "gm") { const s = await gmStatus(addr); return s.gm === true && s.person === true; }
+  if (store.hasPass(addr)) return true;
   return PASSPORT_GRANTS_ACCESS ? isPerson(addr) : false;
 }
 async function passBlock(addr) {
   if (await accessOk(addr)) return null;
+  if (accessMode() === "gm") {
+    const s = await gmStatus(addr);
+    if (s.gm === null) return "couldn't check this wallet's VeBetterDAO GM NFT right now — please try again in a minute";
+    if (s.gm === false) return "this version is for VeBetterDAO members: the wallet needs a Galaxy Member (GM) NFT and a VeBetterDAO Passport that counts it as a person";
+    return "this wallet has a GM NFT, but its VeBetterDAO Passport doesn't count it as a person yet";
+  }
   return PASSPORT_GRANTS_ACCESS
     ? "this wallet has no access pass yet — ask an admin for one (a VeBetterDAO passport that counts you as a person also works)"
     : "this wallet has no access pass yet — ask an admin for one";
@@ -784,6 +807,7 @@ app.post("/admin/lookup", async (req, res) => {
     banned: isAddr(target) ? banned(target) : null,
     // Access pass, so the admin sees in one place why a wallet can or can't earn.
     requirePass: rolesRequired(),
+    access: accessMode(),
     pass: isAddr(target) ? store.getPass(target) : null,
     // Every meter registered to this wallet (incl. ones added but not yet submitted).
     meters: isAddr(target) ? store.metersForWallet(target) : [],
@@ -872,19 +896,20 @@ app.post("/admin/pass", async (req, res) => {
     const raw = req.body.tier == null ? "" : String(req.body.tier);
     if (raw && !ROLES.includes(raw)) return res.status(400).json({ error: `role must be one of: ${ROLES.join(", ")}` });
     const pass = store.grantPass(target, { tier: raw || undefined, note: req.body.note, by: a.addr });
-    return res.json({ ok: true, targetWallet: target.toLowerCase(), pass, requirePass: rolesRequired(), passCount: store.passCount() });
+    return res.json({ ok: true, targetWallet: target.toLowerCase(), pass, requirePass: rolesRequired(), access: accessMode(), passCount: store.passCount() });
   }
   const had = store.revokePass(target);
-  res.json({ ok: true, targetWallet: target.toLowerCase(), pass: null, revoked: had, requirePass: rolesRequired(), passCount: store.passCount() });
+  res.json({ ok: true, targetWallet: target.toLowerCase(), pass: null, revoked: had, requirePass: rolesRequired(), access: accessMode(), passCount: store.passCount() });
 });
 
-// Who may use this version: "roles" (only wallets with a role) or "everyone".
+// Who may use this version: "gm" (GM NFT + Passport), "roles" (only wallets with a
+// role) or "everyone".
 // Stored with the rest of this server's state, so it survives a restart.
 app.post("/admin/access", async (req, res) => {
   const a = await verifyAdmin(req, "/admin/access");
   if (!a.ok) return res.status(a.code).json({ error: a.error });
   const mode = String(req.body.mode || "");
-  if (mode !== "roles" && mode !== "everyone") return res.status(400).json({ error: "mode must be roles or everyone" });
+  if (!ACCESS_MODES.includes(mode)) return res.status(400).json({ error: "mode must be gm, roles or everyone" });
   store.setSetting("access", mode);
   await store.flush();
   console.log(`[access] ${shortAddr(a.addr)} set access to ${mode}`);
@@ -1697,6 +1722,8 @@ app.post("/wallet/seen", async (req, res) => {
     access: accessMode(),
     requirePass: rolesRequired(),
     hasPass: await accessOk(address),
+    // In "gm" mode, what this wallet is missing, so the app can say so.
+    ...(accessMode() === "gm" && !isAdminWallet(address) ? { gmAccess: await gmStatus(address) } : {}),
     pass: pass ? { no: pass.no, tier: pass.tier, issuedAt: pass.issuedAt } : null,
     // The last reading recorded for each of this wallet's meters: what the next
     // reading is measured from. A reading recorded without a reward never reaches

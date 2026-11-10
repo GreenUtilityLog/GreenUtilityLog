@@ -86,15 +86,16 @@ function FlaggedPanel({ T, address, onAdminApi }) {
 // Note this is a different thing from the VeBetterDAO passport below: that one is
 // VeBetterDAO's bot check on the whole ecosystem, this one is our own guest list.
 // Who may use THIS version (this server; mainnet and the test copy each have their
-// own): only wallets with a role, or everyone. Admins always get in. Reading the
+// own): wallets with a GM NFT + Passport, only wallets with a role, or everyone.
+// Admins always get in. Reading the
 // current setting needs no signature (/health); changing it does.
 function AccessModePanel({ T, onAdminApi, onToast }) {
-  const [mode, setMode] = useState(null);   // "roles" | "everyone" | null (unknown)
+  const [mode, setMode] = useState(null);   // "gm" | "roles" | "everyone" | null (unknown)
   const [busy, setBusy] = useState("");
   useEffect(() => {
     let stop = false;
     fetchT(`${REWARD_API.replace(/\/$/, "")}/health`).then(r => (r.ok ? r.json() : null))
-      .then(h => { if (!stop && (h?.access === "roles" || h?.access === "everyone")) setMode(h.access); })
+      .then(h => { if (!stop && ["gm", "roles", "everyone"].includes(h?.access)) setMode(h.access); })
       .catch(() => {});
     return () => { stop = true; };
   }, []);
@@ -104,7 +105,8 @@ function AccessModePanel({ T, onAdminApi, onToast }) {
     try {
       const d = await onAdminApi("/admin/access", { mode: m });
       setMode(d.access);
-      onToast?.(d.access === "roles" ? "🔒 Only wallets with a role can use this version now" : "🔓 Everyone can use this version now");
+      onToast?.(d.access === "gm" ? "🪐 Only wallets with a GM NFT and a Passport can use this version now"
+        : d.access === "roles" ? "🔒 Only wallets with a role can use this version now" : "🔓 Everyone can use this version now");
     } catch (e) {
       onToast?.(`❌ ${e?.message || "could not change access"}`);
     } finally { setBusy(""); }
@@ -124,7 +126,8 @@ function AccessModePanel({ T, onAdminApi, onToast }) {
       <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".6px",color:T.textSoft,marginBottom:8}}>
         🔐 Who can use this version · {NETWORK_LABEL}
       </div>
-      <div style={{display:"flex",gap:8}}>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+        {opt("gm", "GM NFT + Passport", "VeBetterDAO members: a Galaxy Member NFT and a Passport that counts them as a person. Roles don't count.")}
         {opt("roles", "Only with a role", "Testers and users you added. Everyone else sees a 'no access' screen.")}
         {opt("everyone", "Everyone", "Any wallet can use the app and earn.")}
       </div>
@@ -150,7 +153,7 @@ function AccessPassPanel({ T, address, onAdminApi, onToast }) {
     setState({ status: "loading" });
     try {
       const d = await onAdminApi("/admin/lookup", { targetWallet: address });
-      setState({ status: "live", pass: d.pass || null, requirePass: !!d.requirePass });
+      setState({ status: "live", pass: d.pass || null, requirePass: !!d.requirePass, access: d.access || "" });
       if (ROLE_OPTIONS.some(r => r.id === d.pass?.tier)) setRole(d.pass.tier);
     } catch (e) {
       setState({ status: "error", error: e?.message || "request failed" });
@@ -161,7 +164,7 @@ function AccessPassPanel({ T, address, onAdminApi, onToast }) {
     setBusy(grant ? "grant" : "revoke");
     try {
       const d = await onAdminApi("/admin/pass", { targetWallet: address, grant, ...(grant ? { tier } : {}), ...(grant && note.trim() ? { note: note.trim() } : {}) });
-      setState((s) => ({ ...s, status: "live", pass: d.pass || null, requirePass: !!d.requirePass }));
+      setState((s) => ({ ...s, status: "live", pass: d.pass || null, requirePass: !!d.requirePass, access: d.access || s.access || "" }));
       onToast?.(grant ? `🎟️ ${d.pass?.tier === "user" ? "User" : "Tester"} role given (pass #${d.pass?.no})` : "🎟️ Role withdrawn");
       setNote("");
     } catch (e) {
@@ -211,7 +214,9 @@ function AccessPassPanel({ T, address, onAdminApi, onToast }) {
         </div>
       ) : (
         <div style={{ fontSize: 11, color: T.textMid, marginBottom: 10, lineHeight: 1.6 }}>
-          No role. {state.requirePass ? <b>This wallet can't use this version.</b> : "This version is open to everyone, so this wallet can still use it."}
+          No role. {state.requirePass ? <b>This wallet can't use this version.</b>
+            : state.access === "gm" ? "This version is on \"GM NFT + Passport\": a role doesn't decide who gets in here."
+            : "This version is open to everyone, so this wallet can still use it."}
         </div>
       )}
 
@@ -241,7 +246,9 @@ function AccessPassPanel({ T, address, onAdminApi, onToast }) {
 
       {!state.requirePass && (
         <div style={{ fontSize:10.5, color: T.textSoft, marginTop: 8, lineHeight: 1.6 }}>
-          This version is open to everyone right now. Switch to "Only with a role" at the top of the admin screen to make roles count.
+          {state.access === "gm"
+            ? "This version is on \"GM NFT + Passport\": only wallets with a GM NFT and a Passport that counts them get in, roles or not. Switch to \"Only with a role\" at the top of the admin screen to make roles count."
+            : "This version is open to everyone right now. Switch to \"Only with a role\" at the top of the admin screen to make roles count."}
         </div>
       )}
     </div>

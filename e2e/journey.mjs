@@ -18,6 +18,7 @@
 // other outside request is dropped.
 
 import { spawn } from "node:child_process";
+import { createServer } from "node:http";
 import { readFileSync, writeFileSync, mkdirSync, rmSync, mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -59,11 +60,13 @@ function proc(cmd, args, env, cwd) {
   let out = ""; p.stdout.on("data", (d) => (out += d)); p.stderr.on("data", (d) => (out += d));
   p.out = () => out; return p;
 }
-const server = proc(process.execPath, ["index.js"], {
+const SERVER_ENV = {
   PORT: String(API_PORT), STATE_FILE: STATE, REQUIRE_CERT: "true", DISTRIBUTOR_DRY_RUN: "true", REQUIRE_PASS: "false",
   WALLET_CHECK: "off", INGEST_MIN_INTERVAL_MS: "0", COOLDOWN_MS: "0", OCR_ENABLED: "false", AUTO_CLAIM_ON_PUSH: "on",
   UPSTASH_REDIS_REST_URL: "", UPSTASH_REDIS_REST_TOKEN: "", NODE_URL: "http://127.0.0.1:9", NETWORK: "testnet",
-}, join(ROOT, "server"));
+};
+// `let`: the last step restarts it in the mainnet access mode.
+let server = proc(process.execPath, ["index.js"], SERVER_ENV, join(ROOT, "server"));
 // On 127.0.0.1 explicitly: vite's default "localhost" can resolve to ::1 only (as in
 // CI's Playwright container), and everything here talks to 127.0.0.1.
 const preview = proc(process.platform === "win32" ? "npx.cmd" : "npx", ["vite", "preview", "--outDir", DIST, "--host", "127.0.0.1", "--port", String(APP_PORT), "--strictPort"], {}, ROOT);
@@ -398,6 +401,56 @@ await step("Progress with three weeks of readings: outlook and calendar", async 
   assert.match(await text(), /Niveau Druppel/, "the level follows the days");
   assert.match(await text(), /nog 28 dagen met een stand tot Vonk/, "days, not readings, count");
   assert.match(await page.locator('[data-chart="gm-next"]').innerText(), /nog 25\.000 B3TR nodig om te upgraden/, "the GM cost, in Dutch");
+});
+
+await step("mainnet rule: only a GM NFT and a Passport get in", async () => {
+  // A chain for the server, answering for the test wallet as `chain` says: the
+  // GalaxyMember contract's balanceOf and the VeBetterDAO Passport's isPerson.
+  const chain = { gm: 0, person: false };
+  const GM_T = "0x38a59fa7fd7039884465a0ff285b8c4b6fe394ca", PASSPORT_T = "0x592c756df7a5d39de1735030e8b9c18b7417e6c4";
+  const BAL = selector("balanceOf", ["address"]), IS_PERSON = selector("isPerson", ["address"]);
+  const node = createServer((req, res) => {
+    let body = ""; req.on("data", (c) => (body += c));
+    req.on("end", () => {
+      const to = (req.url.match(/^\/accounts\/(0x[0-9a-fA-F]{40})/) || [])[1]?.toLowerCase();
+      const data = String((() => { try { return JSON.parse(body || "{}").data || ""; } catch { return ""; } })());
+      let out = "0x";
+      if (req.method === "POST" && to === GM_T && data.startsWith(BAL)) out = "0x" + word(chain.gm);
+      if (req.method === "POST" && to === PASSPORT_T && data.startsWith(IS_PERSON)) out = "0x" + word(chain.person ? 1 : 0) + word(64) + abiString(chain.person ? "User is a Galaxy Member" : "").slice(64);
+      res.setHeader("content-type", "application/json");
+      res.end(JSON.stringify(req.method === "POST" && to ? { data: out, events: [], transfers: [], gasUsed: 0, reverted: false, vmError: "" } : null));
+    });
+  });
+  await new Promise((r) => node.listen(0, "127.0.0.1", r));
+  try {
+    // Restart the server with access "gm" (mainnet's default) and that chain.
+    const old = server; const exited = new Promise((r) => old.on("exit", r));
+    old.kill("SIGTERM"); await exited;
+    const st = JSON.parse(readFileSync(STATE, "utf8")); st.settings = { ...(st.settings || {}), access: "gm" };
+    writeFileSync(STATE, JSON.stringify(st));
+    server = proc(process.execPath, ["index.js"], { ...SERVER_ENV, NODE_URL: `http://127.0.0.1:${node.address().port}` }, join(ROOT, "server"));
+    await up(`http://127.0.0.1:${API_PORT}/health`);
+    // No GM NFT: the gate, in Dutch, says what's missing, and the app stays shut.
+    await page.reload({ waitUntil: "networkidle" }); await wait(2000);
+    await shot("12-nl-gm-gate");
+    const gate = page.locator('[data-gate="gm"]');
+    assert.equal(await gate.count(), 1, "the GM gate shows");
+    assert.match(await gate.innerText(), /Voor leden van VeBetterDAO/);
+    assert.equal(await gate.locator('[data-check="nft"]').getAttribute("data-ok"), "no", "no GM NFT");
+    assert.equal(await gate.locator('a[href="https://governance.vebetterdao.org"]').count(), 1, "where to get one");
+    // The server says no to a payout too, not only the app.
+    const r = await fetch(`http://127.0.0.1:${API_PORT}/wallet/seen`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: ADDR }) });
+    assert.equal((await r.json()).hasPass, false, "the server refuses this wallet");
+    // The wallet gets a GM NFT and its Passport counts it; once the server's 30 s
+    // "no" has passed, "Check again" opens the app.
+    chain.gm = 1; chain.person = true;
+    await wait(31000);
+    await gate.getByRole("button", { name: "Opnieuw controleren" }).click(); await wait(2500);
+    assert.equal(await page.locator('[data-gate="gm"]').count(), 0, "the gate is gone");
+    // Home's own content, not the bottom bar (which also shows next to the gate).
+    await shot("13-nl-gm-open");
+    assert.equal(await page.locator(".hero-amount").count(), 1, "the app is open: Home shows the B3TR total");
+  } finally { node.close(); }
 });
 
 // ── result ───────────────────────────────────────────────────────────────────
