@@ -227,11 +227,21 @@ await page.goto(`http://127.0.0.1:${APP_PORT}/GreenUtilityLog/`, { waitUntil: "n
 await wait(1500);
 
 await step("intro, and registering the meter", async () => {
+  // Through every slide ("Continue"), reading each, then "Get Started".
+  const slides = [];
   for (let i = 0; i < 8; i++) {
+    slides.push(await text());
+    const next = page.getByRole("button", { name: /continue/i }).first();
+    if (await next.count()) { await next.click(); await wait(400); continue; }
     const b = page.getByRole("button", { name: /next|get started|start|let's go|skip/i }).first();
     if (!(await b.count())) break;
     await b.click(); await wait(400);
   }
+  const intro = slides.join(" ");
+  assert.match(intro, /connect a P1 reader, Home Assistant, Powerfox or Tibber/, "the intro mentions automatic readers");
+  assert.match(intro, /The target is 8 kWh a day\. Used 6\? Then you saved 2 kWh/, "the worked example");
+  assert.match(intro, /From 💧 Drop to 🌍 Green power plant/, "the levels");
+  assert.doesNotMatch(intro, /For VeBetterDAO Members/i, "the members slide is for the mainnet build only");
   assert.match(await text(), /Register Your Meters/i, "the registration screen follows the intro");
   const inputs = page.locator("input:visible");
   await inputs.nth(0).fill("E1000");
