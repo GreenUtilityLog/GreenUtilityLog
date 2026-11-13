@@ -92,6 +92,10 @@ Laatst bijgewerkt: 2026-11-01.
 - [x] Server: geen uitbetaling om de GM + Passport-toegang heen (elk pad gecontroleerd); Passport onleesbaar → "probeer opnieuw" i.p.v. "telt je niet"; een stand die niets uitbetaalt meldt 0 kWh bespaard (ook bij de walletcheck); eerste stand zonder `days`; "in 1 uur" i.p.v. "0 dag(en)"; ~25 meldingen vertaald (o.a. foto-daglimiet, telefooncontrole, budget op, Tibber, Powerfox) en de vertaaltest vangt nu ook `publicError`/`fail`
 - [x] App: eerste stand niet meer als enorm dagverbruik; mislukte uitbetaling telt niet mee in kWh/CO₂; GM-badge hangt niet meer op een trage afbeelding; toegang wordt eerst gecontroleerd (met de laatste uitkomst onthouden) i.p.v. eerst open; kalender toont een onderweg zijnde uitbetaling als uitbetaald; niveaubalk pas 100% bij het niveau
 
+## Voor mainnet: uitleg
+- [x] Fototips stonden achter de menubalk (te weinig ruimte onderaan de pagina) (#186)
+- [x] Intro vernieuwd: automatisch uitlezen, rekenvoorbeeld (8 kWh-norm, 6 gebruikt → 2 bespaard), niveaus; mainnet-versie krijgt een 5e dia "Voor leden van VeBetterDAO" (GM NFT + Passport). Tutorial noemt de niveaus. FAQ: drie nieuwe vragen (wie mag de app gebruiken, niveaus, GM-kaart), in 5 talen
+
 ## Kwaliteitsbewaking
 - [x] Volledige browsertest in CI (`e2e/journey.mjs`, workflow "End-to-end"): echte app-build + echte server + ondertekenende nep-wallet; registreren, uitbetaling, Home/Geschiedenis/Voortgang, uitlezer, offline-wachtrij, Nederlands met servermelding. Faalt bij elke mislukte stap, paginafout of CSP-schending — gecontroleerd door de app en de server opzettelijk te breken (#169)
 
