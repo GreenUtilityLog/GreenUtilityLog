@@ -1414,7 +1414,11 @@ html,body{background:${T.bg};font-family:-apple-system,BlinkMacSystemFont,'Segoe
    gate (410) — so on tap it would open hidden behind the gate. Force it on top. */
 vdk-modal{--vdk-modal-z-index:99999 !important;}
 .z1{position:relative;z-index:1;}
-.scr{padding-bottom:85px;}
+/* Room under the content for the fixed menu bar (.bnav: about 92px, plus the phone's
+   gesture-bar area), with some air, so the last thing on a page (the photo tips) is
+   never behind the bar. It was 85px: a few pixels short, more on phones with a
+   gesture bar or larger text. */
+.scr{padding-bottom:calc(120px + env(safe-area-inset-bottom, 0px));}
 
 /* 100dvh (not 100vh) so mobile browser chrome can't push the CTA below the fold;
    overflow-y:auto keeps it usable on very short screens. */
@@ -1594,7 +1598,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .sr-sub{font-size:10px;color:${T.textSoft};margin-top:1px;}
 .sr-right{display:flex;align-items:center;gap:6px;}
 
-.bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:420px;background:${T.navBg};border-top:1px solid ${T.border};display:grid;grid-auto-flow:column;grid-auto-columns:1fr;padding:10px 0 24px;z-index:20;backdrop-filter:blur(20px);}
+.bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:420px;background:${T.navBg};border-top:1px solid ${T.border};display:grid;grid-auto-flow:column;grid-auto-columns:1fr;padding:10px 0 calc(24px + env(safe-area-inset-bottom, 0px));z-index:20;backdrop-filter:blur(20px);}
 .nitem{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;border:none;background:none;color:${T.textSoft};transition:all .18s;padding:6px 2px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;position:relative;}
 .nitem.active{color:${T.green2};}
 .nitem.active::before{content:'';position:absolute;top:-2px;left:50%;transform:translateX(-50%);width:20px;height:2px;background:${T.green3};border-radius:1px;}

@@ -249,6 +249,31 @@ await step("a photo reading a day after the last one pays", async () => {
   assert.ok(b.amount > 0 && b.txid, `paid: ${r.body}`);
 });
 
+await step("Meter: the photo tips open above the menu bar", async () => {
+  await page.locator(".bnav button").nth(1).click(); await wait(800);
+  const btn = page.getByRole("button", { name: /Photo tips/ });
+  await btn.scrollIntoViewIfNeeded(); await btn.click(); await wait(300);
+  // Scrolled all the way down, as far as a user can: the last tip must sit above the
+  // fixed menu bar, not behind it.
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight)); await wait(400);
+  await shot("02b-photo-tips");
+  const last = btn.locator("xpath=following-sibling::ul/li[last()]");
+  assert.equal(await last.count(), 1, "the tips are open");
+  // Whatever comes last on the page (the tips, or the reader link under them), it
+  // must end above the menu bar. Fixed things (the bar itself, toasts) don't count.
+  const m = await page.evaluate(() => {
+    const nav = document.querySelector(".bnav");
+    const fixed = (el) => { for (let e = el; e && e !== document.body; e = e.parentElement) if (getComputedStyle(e).position === "fixed") return true; return false; };
+    let bottom = 0;
+    for (const el of document.querySelectorAll(".scr *")) {
+      const r = el.getBoundingClientRect();
+      if (r.width && r.height && !fixed(el)) bottom = Math.max(bottom, r.bottom);
+    }
+    return { bottom: Math.round(bottom), navTop: Math.round(nav.getBoundingClientRect().top) };
+  });
+  assert.ok(m.bottom <= m.navTop, `the page's last content ends at ${m.bottom}, under the menu bar that starts at ${m.navTop}`);
+});
+
 await step("Home, History and Progress show it", async () => {
   await page.locator(".bnav button").nth(0).click(); await wait(1200); await shot("03-home");
   assert.match(await text(), /\+\d+\.\d\d B3TR/, "today's reward on Home");
