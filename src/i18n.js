@@ -3,8 +3,27 @@
 // current language, falling back to English; {name} in a text is replaced from
 // vars. The language is the one picked in Settings (or in Help), else the
 // phone's, else English. Admin screens stay English: only the owner sees them.
+//
+// Five languages are built in (the table below). Any other language is one file,
+// src/lang/<code>.js, loaded only when someone picks it:
+//   export default { name, texts: { key: text }, help: {…}, helpMainnet: {…} }
+// To add one: write the file and add a line to EXTRA. scripts/check-langs.mjs
+// (run in CI) checks it has every key, the same {placeholders} and links, and a
+// complete Help. A text that is still missing falls back to English.
 
-export const LANGS = { en: "English", nl: "Nederlands", de: "Deutsch", fr: "Français", es: "Español" };
+export const CORE_LANGS = { en: "English", nl: "Nederlands", de: "Deutsch", fr: "Français", es: "Español" };
+const EXTRA = {
+  // code: [name in its own language, loader]
+  it: ["Italiano", () => import("./lang/it.js")],
+  el: ["Ελληνικά", () => import("./lang/el.js")],
+  tr: ["Türkçe", () => import("./lang/tr.js")],
+  sl: ["Slovenščina", () => import("./lang/sl.js")],
+  hr: ["Hrvatski", () => import("./lang/hr.js")],
+  ro: ["Română", () => import("./lang/ro.js")],
+  bg: ["Български", () => import("./lang/bg.js")],
+};
+export const EXTRA_LANGS = Object.keys(EXTRA);
+export const LANGS = { ...CORE_LANGS, ...Object.fromEntries(Object.entries(EXTRA).map(([c, [name]]) => [c, name])) };
 const KEY = "gul_lang";
 const HELP_KEY = "gul_help_lang";   // Help had its own picker first; one choice for both now
 
@@ -17,15 +36,43 @@ export function detectLang() {
   return LANGS[n] ? n : "en";
 }
 
-let current = detectLang();
-export const getLang = () => current;
-export function setLang(lang) {
-  if (!LANGS[lang]) return;
-  current = lang;
-  try { localStorage.setItem(KEY, lang); localStorage.setItem(HELP_KEY, lang); } catch { /* storage blocked */ }
-  try { document.documentElement.lang = lang; } catch { /* no document */ }
+// Loaded extra languages: code → the file's default export.
+const loaded = Object.create(null);
+const loading = Object.create(null);
+// Resolves once `lang` can be shown (at once for a built-in one). A file that
+// can't be fetched (offline, an old cached page) rejects; the caller keeps the
+// language it had.
+export function loadLang(lang) {
+  if (CORE_LANGS[lang] || loaded[lang]) return Promise.resolve();
+  if (!EXTRA[lang]) return Promise.reject(new Error(`unknown language ${lang}`));
+  return (loading[lang] ??= EXTRA[lang][1]()
+    .then((m) => { loaded[lang] = m.default; })
+    .finally(() => { delete loading[lang]; }));
 }
-try { document.documentElement.lang = current; } catch { /* no document */ }
+export const langPack = (lang) => loaded[lang] || null;
+
+let current = "en";
+export const getLang = () => current;
+const listeners = new Set();
+export function onLangChange(fn) { listeners.add(fn); return () => listeners.delete(fn); }
+function apply(lang) {
+  current = lang;
+  try { document.documentElement.lang = lang; } catch { /* no document */ }
+  for (const fn of listeners) fn(lang);
+}
+// Switches once the language's texts are there; resolves true when it did.
+export async function setLang(lang) {
+  if (!LANGS[lang]) return false;
+  try { await loadLang(lang); } catch { return false; }
+  try { localStorage.setItem(KEY, lang); localStorage.setItem(HELP_KEY, lang); } catch { /* storage blocked */ }
+  apply(lang);
+  return true;
+}
+// The language at start: a built-in one at once, an extra one once its file is in
+// (main.jsx waits for this, briefly, before the first render).
+const startLang = detectLang();
+if (CORE_LANGS[startLang]) apply(startLang); else apply("en");
+export const langReady = CORE_LANGS[startLang] ? Promise.resolve() : loadLang(startLang).then(() => apply(startLang), () => {});
 
 // [key, en, nl, de, fr, es]
 const ROWS = [
@@ -45,6 +92,7 @@ const ROWS = [
     "📴 Estás sin conexión. Las lecturas que envíes se guardan en este teléfono y se envían cuando vuelvas a estar en línea."],
   ["testnet.banner", "🧪 TESTNET — test tokens only", "🧪 TESTNET — alleen testtokens", "🧪 TESTNET — nur Test-Token", "🧪 TESTNET — jetons de test uniquement", "🧪 TESTNET — solo tokens de prueba"],
   ["set.language", "Language", "Taal", "Sprache", "Langue", "Idioma"],
+  ["set.langFail", "⚠️ That language couldn't be loaded — check your connection and try again.", "⚠️ Die taal kon niet geladen worden — controleer je verbinding en probeer het opnieuw.", "⚠️ Diese Sprache konnte nicht geladen werden — prüfe deine Verbindung und versuch es erneut.", "⚠️ Impossible de charger cette langue — vérifiez votre connexion et réessayez.", "⚠️ No se pudo cargar ese idioma — comprueba tu conexión e inténtalo de nuevo."],
   ["testnet.realApp", "Go to the real app →", "Naar de echte app →", "Zur echten App →", "Vers la vraie app →", "Ir a la app real →"],
 
   // ── intro ─────────────────────────────────────────────────────────────────
@@ -611,10 +659,12 @@ const ROWS = [
 
 const D = Object.create(null);
 for (const [k, en, nl, de, fr, es] of ROWS) D[k] = { en, nl, de, fr, es };
+// For scripts/check-langs.mjs: every key with its text in each built-in language.
+export const TEXTS = D;
 
 export function t(key, vars) {
   const e = D[key];
-  let s = e ? (e[current] ?? e.en) : key;
+  let s = e ? (e[current] ?? loaded[current]?.texts?.[key] ?? e.en) : key;
   if (vars) s = s.replace(/\{(\w+)\}/g, (_, k) => (vars[k] != null ? String(vars[k]) : ""));
   return s;
 }

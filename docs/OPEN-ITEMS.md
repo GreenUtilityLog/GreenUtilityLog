@@ -128,11 +128,18 @@ Laatst bijgewerkt: 2026-11-01.
 - [ ] Mijlpaal-NFT's met eigen artwork (eigen contract + gas): pas na de B3TR-bonus
 - [ ] Beloningsvermenigvuldiger op basis van VOT3-stemmen: eerst bij VeBetterDAO navragen of dat mag
 
-## Meer landen en meters (uitgezocht in november, nog niets gebouwd)
+## Meer landen en meters (uitgezocht in november)
 Met een foto kan elk land al meedoen. Voor elk nieuw land geldt eerst: een norm per land (8 kWh per dag past bij NL/BE), de taal, en op mainnet GM NFT + Passport.
+- [x] Talen als losse bestanden: een extra taal is één bestand in `src/lang/` (app, Help, FAQ) en één in `server/lang/` (meldingen), alleen geladen als iemand hem kiest; `scripts/check-langs.mjs` (in CI) en de servertest eisen elke tekst, dezelfde {plekken}, links en ⚠️/❌ aan het begin. Help kiest de taal nu met een keuzelijst
+- [x] 7 talen erbij: Italiaans, Grieks, Turks, Sloveens, Kroatisch, Roemeens, Bulgaars (app, Help/FAQ, servermeldingen). Machinaal vertaald en automatisch gecontroleerd; nog niet nagelezen door iemand die de taal spreekt
+- [ ] Vertalingen laten nalezen door een moedertaalspreker (per taal)
+- [ ] Meer talen op dezelfde manier: Zweeds, Deens, Noors, Fins, Hongaars (daar werken meters al), Pools, Portugees, Tsjechisch
+- [ ] De handleiding (`docs/guide.html`) is er in 5 talen, nog niet in de 7 nieuwe
+- [x] FAQ "Welke meters werken?" en de landentabel in de handleiding: Slovenië (P1, nog niet getest), Griekenland, Kroatië, Turkije, Roemenië, Bulgarije en de rest van de Balkan (voorlopig foto's), in 5 talen
 - [ ] Norm per land, vastgesteld door de beheerder of aan de hand van de meter (niet door de gebruiker zelf te kiezen)
-- [ ] 🇸🇮 Slovenië: P1-poort op Iskraemeco-meters (soms versleuteld; niet elke netbeheerder geeft de sleutel) en het portaal MojElektro (kwartierdata, persoonlijke toegangscode). Eerst testen of de bestaande P1/Home Assistant-routes al werken
-- [ ] 🇬🇷 Griekenland: geen klantpoort gevonden; koppeling met het HEDNO-portaal (`apps.deddie.gr/mdp`, toegangscode, data een dag later, alleen bij op afstand uitgelezen meters). Gemiddeld verbruik ± 4.500 kWh per jaar zonder verwarming: de norm is daar te laag
+- [ ] 🇸🇮 Slovenië: P1-poort op Iskraemeco-meters (soms versleuteld; niet elke netbeheerder geeft de sleutel) en het portaal MojElektro (persoonlijke toegangscode). Eerst testen of de bestaande P1/Home Assistant-routes al werken
+- [ ] 🇸🇮 MojElektro-koppeling, uitgeschakeld tot een Sloveense tester hem probeert: `GET https://api.informatika.si/mojelektro/v1/meter-readings` met kop `X-API-TOKEN`, `usagePoint` (EIMM), `startTime`/`endTime` (JJJJ-MM-DD) en `option=ReadingType=32.0.4.1.1.2.12.0.0.0.0.0.0.0.0.3.72.0` (dagstand A+, een totaal dat alleen oploopt). Data een dag later, dus de regel "stand te oud" moet voor deze bron ruimer. Bron: open-source clients (psvent, frlequ); de officiële Swagger (`docs.informatika.si`) was vanaf hier niet bereikbaar, eerst nalezen
+- [ ] 🇬🇷 Griekenland: geen klantpoort gevonden; koppeling met het HEDNO-portaal (`apps.deddie.gr/mdp`, toegangscode, data een dag later, alleen bij op afstand uitgelezen meters). Gemiddeld verbruik ± 4.500 kWh per jaar zonder verwarming: de norm is daar te laag. Niet gebouwd: de API geeft (voor zover te lezen) alleen verbruik per kwartier/uur, geen meterstand, en vraagt het fiscaal nummer (ΑΦΜ) van de gebruiker — dat willen we niet bewaren
 - [ ] 🇭🇷 Kroatië: HEP ODS test meters met P1; nog onbekend of klanten de poort of portaaldata mogen gebruiken
 - [ ] 🇹🇷 Turkije: optische poort mogelijk via een leeskop; eerst met Turkse bronnen nagaan welke meters er hangen en of de poort open staat
 - [ ] 🇷🇸 🇷🇴 🇧🇬 🇲🇰 🇲🇪 🇧🇦 🇦🇱 🇽🇰: geen klantpoort of dienst gevonden; voorlopig foto's

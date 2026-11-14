@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
-import { MESSAGES, translateMessage } from "../messages.js";
+import { MESSAGES, translateMessage, EXTRA, LANGS, pickLang } from "../messages.js";
 import { startServer, stateWithBaseline, WALLET } from "./helpers.mjs";
 
 const DIR = join(fileURLToPath(new URL(".", import.meta.url)), "..");
@@ -92,6 +92,37 @@ test("every row is complete and keeps its placeholders in all languages", () => 
       assert.equal(ph(row[i]), ph(row[0]), `placeholders differ in ${row[0]} (language ${i})`);
     }
   }
+});
+
+const phs = (s) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort().join(",");
+
+test("each extra language file (lang/<code>.js) has every message, with the same placeholders", () => {
+  const english = new Set(MESSAGES.map((r) => r[0]));
+  for (const [code, map] of Object.entries(EXTRA)) {
+    assert.match(code, /^[a-z]{2}$/);
+    for (const k of Object.keys(map)) assert.ok(english.has(k), `${code}: "${k}" is not a message (any more)`);
+    for (const [en] of MESSAGES) {
+      const v = map[en];
+      assert.ok(typeof v === "string" && v.trim(), `${code}: no translation for "${en}"`);
+      assert.equal(phs(v), phs(en), `${code}: placeholders differ in "${en}"`);
+    }
+  }
+});
+
+test("an extra language: exact rows, templates, and a message it lacks stays English", () => {
+  EXTRA.zz = {
+    "invalid wallet address": "zz-wallet",
+    "current reading ({r}) can't be lower than the last recorded reading ({prev})": "zz {prev} > {r}",
+  };
+  LANGS.push("zz");
+  try {
+    assert.equal(pickLang("zz"), "zz");
+    assert.equal(translateMessage("invalid wallet address", "zz"), "zz-wallet");
+    assert.equal(translateMessage("current reading (995) can't be lower than the last recorded reading (1000)", "zz"), "zz 1000 > 995");
+    assert.equal(translateMessage("cooldown active — try again in ~42 min", "zz"), "cooldown active — try again in ~42 min");
+    assert.equal(translateMessage("invalid wallet address", "nl"), "ongeldig wallet-adres", "the built-in languages are unchanged");
+  } finally { delete EXTRA.zz; LANGS.pop(); }
+  assert.equal(pickLang("zz"), null);
 });
 
 test("templates fill in their parts", () => {
