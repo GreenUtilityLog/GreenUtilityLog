@@ -505,7 +505,11 @@ await step("MojElektro (Slovenia): connect in the app; a total older than the la
   const nl = (k) => TEXTS[k].nl;
   const re = (s) => new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
   await page.locator(".bnav button").nth(1).click(); await wait(800);
-  await page.getByText(re(nl("m.readerLink").slice(0, 25))).first().click(); await wait(1500);
+  // Once a reader is paired, Meter has a "⚡ Automatisch" tab instead of the link.
+  const autoTab = page.getByRole("button", { name: /⚡ Automatisch/ }).first();
+  if (await autoTab.count()) await autoTab.click();
+  else await page.getByText(re(nl("m.readerLink").slice(0, 25))).first().click();
+  await wait(1500);
   const setup = page.getByText(re(nl("r.setup").slice(0, 20))).first();
   if (await setup.count()) { await setup.click(); await wait(800); }
   await page.getByRole("button", { name: "MojElektro", exact: true }).click(); await wait(500);
