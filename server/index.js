@@ -23,6 +23,7 @@ import { verifyCaptcha, captchaEnabled } from "./captcha.js";
 import { deviceKeys, DEVICE_MAX_WALLETS, DEVICE_FP_FLAG, REQUIRE_DEVICE } from "./device.js";
 import { powerfoxEnabled, sealCredentials, openCredentials, fetchPowerfoxReading } from "./powerfox.js";
 import { fetchTibberReading } from "./tibber.js";
+import { mojElektroSwitchedOn, fetchMojElektroReading, validUsagePoint, validToken as validMojToken } from "./mojelektro.js";
 import { rateKeyFor } from "./ratekey.js";
 import { pickLang, translateMessage } from "./messages.js";
 import { inspectWallet, judgeWallet } from "./walletcheck.js";
@@ -310,6 +311,8 @@ app.get("/health", async (req, res) => {
     powerfox: { enabled: powerfoxEnabled(), linked: powerfoxEnabled() ? store.allPowerfox().length : 0 },
     // Tibber Pulse: same idea, a personal token instead of a login (tibber.js).
     tibber: { enabled: powerfoxEnabled(), linked: powerfoxEnabled() ? store.allTibber().length : 0 },
+    // MojElektro (Slovenia): off until tested (MOJELEKTRO=on), see mojelektro.js.
+    mojelektro: { enabled: mojElektroEnabled(), linked: mojElektroEnabled() ? store.allMojElektro().length : 0 },
     // Scheduled hands-off auto-submit (Step 3) — on when AUTO_SUBMIT_MS ≥ 60000.
     autoSubmit: Number(process.env.AUTO_SUBMIT_MS || 0) >= 60000,
     // Readers' readings are paid the moment they arrive (no tap in the app).
@@ -1361,7 +1364,8 @@ app.post("/eco-action", (req, res) => {
 //      /meter-ingest with a device token this wallet paired. No file uploads, no
 //      OCR; the reading is machine-read at the meter. Works anywhere such a reader
 //      exists (NL/BE P1, Nordics HAN, or any script that can read the meter).
-//   2) CLOUD — Powerfox and Tibber, fetched by the server (powerfox.js, tibber.js).
+//   2) CLOUD — Powerfox, Tibber and MojElektro, fetched by the server (powerfox.js,
+//      tibber.js, mojelektro.js).
 // Either way the value is surfaced to the app, which submits it through the SAME
 // /reward validation (monotonic vs last reading, bounds, cooldown, reward cap).
 
@@ -1436,6 +1440,7 @@ app.post("/meter/unpair", async (req, res) => {
   // "Delete my meter data" includes a Powerfox login or Tibber token kept for it.
   store.delPowerfox(address);
   store.delTibber(address);
+  store.delMojElektro(address);
   res.json({ ok: true, unpaired: !!existing });
 });
 
@@ -1456,7 +1461,7 @@ function linkAttemptOk(address) {
 // A cloud account linked by a wallet that already had a P1 reader reuses that
 // reader's token. Unlinking the account used to delete the token with it, and the
 // reader at home was refused from then on.
-const CLOUD_SOURCES = new Set(["powerfox", "tibber"]);
+const CLOUD_SOURCES = new Set(["powerfox", "tibber", "mojelektro"]);
 const keepsReader = (link) => !!link && (link.keepsReader || !CLOUD_SOURCES.has(link.source));
 function forgetCloudLink(address, source) {
   const link = store.getLinkByAddress(address);
@@ -1633,6 +1638,82 @@ app.post("/meter/tibber/unlink", async (req, res) => {
   res.json({ ok: true, unlinked: had });
 });
 
+// ── MojElektro (Slovenia): this server fetches the daily meter total ─────────
+// Like Tibber: the wallet signs once, the personal token and the metering point
+// (EIMM) are tried against MojElektro right away, then the token is kept sealed and
+// used only to read the meter. Off until tested: MOJELEKTRO=on (mojelektro.js).
+const mojElektroEnabled = () => mojElektroSwitchedOn() && powerfoxEnabled();
+// Which wallet took a metering point's reservation last, in this process.
+const mojPointTakenBy = new Map();
+app.post("/meter/mojelektro/link", async (req, res) => {
+  if (!mojElektroEnabled()) return res.status(503).json({ error: "the MojElektro connection isn't switched on for this server yet" });
+  if (!store.loaded()) return res.status(503).json({ error: notReadyMessage() });
+  const address = String(req.body.address || "");
+  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
+  if (banned(address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
+  {
+    const c = await requireBoundCert(req, ["Green Utility Log — link MojElektro"]);
+    if (!c.ok) return res.status(c.code).json({ error: c.error });
+  }
+  { const pb = await passBlock(address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
+  if (!linkAttemptOk(address)) return res.status(429).json({ error: "too many attempts — try again in an hour" });
+  const mojToken = String(req.body.mojToken || "").trim();
+  const usagePoint = String(req.body.usagePoint || "").trim();
+  if (!validMojToken(mojToken)) return res.status(400).json({ error: "paste the token you made under Moj profil on mojelektro.si" });
+  if (!validUsagePoint(usagePoint)) return res.status(400).json({ error: "fill in your metering point (EIMM) from Merilna mesta on mojelektro.si" });
+  const meterNo = store.ownedSpelling("electric", String(req.body.meterNo || "").trim(), address);
+  if (!meterNo) return res.status(400).json({ error: "register your meter number first" });
+  const owner = store.meterOwner("electric", meterNo.toLowerCase());
+  if (owner && owner !== address.toLowerCase()) return res.status(403).json({ error: "this meter is registered to another wallet" });
+
+  const r = await fetchMojElektroReading(mojToken, usagePoint);
+  if (!r.ok) return res.status(r.code === "unreachable" ? 503 : 400).json({ error: r.error, code: r.code });
+  // One metering point feeds one wallet, or one meter could pay many; reserved in
+  // shared storage across a deploy, as for a Tibber home.
+  const point = usagePoint.toUpperCase();
+  const linkedElsewhere = () => store.allMojElektro().some((x) => x.usagePoint === point && x.address !== address.toLowerCase());
+  const elsewhere = { error: "this metering point is already connected to another wallet" };
+  if (linkedElsewhere()) return res.status(409).json(elsewhere);
+  const pointKey = `mepoint:${createHash("sha256").update(point).digest("hex").slice(0, 32)}`;
+  const mine = store.allMojElektro().some((x) => x.usagePoint === point && x.address === address.toLowerCase())
+    || mojPointTakenBy.get(pointKey) === address.toLowerCase();
+  const held = mine ? true : await store.takeOnce(pointKey, 120000);
+  if (held !== true) return res.status(held === null ? 503 : 409).json({ error: "this metering point is being connected right now, or was just connected to another wallet — try again in a few minutes" });
+  if (linkedElsewhere()) return res.status(409).json(elsewhere);
+
+  const existing = store.getLinkByAddress(address);
+  const token = existing ? existing.token : randomBytes(24).toString("hex");
+  const carried = existing && String(existing.meterNo || "").toLowerCase() === meterNo.toLowerCase()
+    ? { autoPaidAt: existing.autoPaidAt, rebasedAt: existing.rebasedAt, lastPayout: existing.lastPayout } : {};
+  const link = { ...carried, address: address.toLowerCase(), meterNo, utility: "electric", source: "mojelektro", createdAt: existing?.createdAt || Date.now(),
+    ...(keepsReader(existing) ? { keepsReader: true } : {}) };
+  store.setMeterLink(token, link);
+  store.setMojElektro(address, { cred: sealCredentials("mojelektro", mojToken), usagePoint: point, token, linkedAt: Date.now(), lastPullAt: Date.now(), lastError: null });
+  // meterTime: `at` is when the meter showed it (a day ago or so), and the payout
+  // measures its span to then.
+  store.setLinkReading(address, { reading: r.reading, meterNo, at: r.at, source: "mojelektro", meterTime: true });
+  mojPointTakenBy.set(pointKey, address.toLowerCase());
+  if (mojPointTakenBy.size > 5000) mojPointTakenBy.delete(mojPointTakenBy.keys().next().value);
+  await store.flush();
+  console.log(`[mojelektro] ${shortAddr(address)} linked`);
+  res.json({ ok: true, token, reading: r.reading, at: r.at });
+  if (AUTO_CLAIM_ON_PUSH) setImmediate(() => { autoSettle({ token, ...link }, "mojelektro").catch(() => {}); });
+});
+
+// Forget the MojElektro token: deleted at once.
+app.post("/meter/mojelektro/unlink", async (req, res) => {
+  const address = String(req.body.address || "");
+  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
+  {
+    const c = await requireBoundCert(req, ["Green Utility Log — unlink MojElektro"]);
+    if (!c.ok) return res.status(c.code).json({ error: c.error });
+  }
+  const had = store.delMojElektro(address);
+  forgetCloudLink(address, "mojelektro");
+  await store.flush();
+  res.json({ ok: true, unlinked: had });
+});
+
 // Wake-up call for a server that sleeps between requests (free plan): a scheduled
 // GitHub workflow calls this every hour, and the Powerfox pull runs. No secret is
 // needed — it only starts work the server would do on its own, at most once every
@@ -1646,7 +1727,8 @@ app.get("/cron/tick", async (req, res) => {
   lastCronTick = Date.now();
   const pulled = await powerfoxTick("cron").catch(() => 0);
   const tibber = await tibberTick("cron").catch(() => 0);
-  res.json({ ok: true, powerfox: pulled, tibber });
+  const mojelektro = await mojElektroTick("cron").catch(() => 0);
+  res.json({ ok: true, powerfox: pulled, tibber, mojelektro });
 });
 
 const INGEST_MIN_INTERVAL_MS = Number(process.env.INGEST_MIN_INTERVAL_MS ?? 15000);
@@ -1805,6 +1887,7 @@ app.get("/meter/latest", (req, res) => {
     // A Powerfox account fetched by this server: when, and the last problem if any.
     powerfox: (() => { const pf = store.getPowerfox(address); return pf ? { linked: true, lastPullAt: pf.lastPullAt || null, lastError: pf.lastError || null } : null; })(),
     tibber: (() => { const tb = store.getTibber(address); return tb ? { linked: true, lastPullAt: tb.lastPullAt || null, lastError: tb.lastError || null } : null; })(),
+    mojelektro: (() => { const me = store.getMojElektro(address); return me ? { linked: true, usagePoint: me.usagePoint, lastPullAt: me.lastPullAt || null, lastError: me.lastError || null } : null; })(),
   });
 });
 
@@ -1817,6 +1900,10 @@ app.get("/meter/latest", (req, res) => {
 // can pay automatically. Reuses validateSubmission, so the same cooldown,
 // monotonicity, plausibility bounds and per-payout cap all still apply.
 const METER_MAX_AGE_MS = Number(process.env.METER_MAX_AGE_MS || 48 * 60 * 60 * 1000);
+// A source that reports a day late (MojElektro) carries the meter's own time, and its
+// newest total can be two days old before the next one is published. Its payout is
+// measured to that time, so an older reading isn't overpaid; it gets four days.
+const tooOld = (latest) => Date.now() - (latest.at || 0) > (latest.meterTime ? Math.max(METER_MAX_AGE_MS, 4 * 86400000) : METER_MAX_AGE_MS);
 // An automatic reading is the reader's word. After the first photo a script could
 // push "baseline + a little" every day and be paid the maximum for ever. So a photo
 // is needed every so often to keep automatic payouts going: a photo can't be lower
@@ -1853,7 +1940,7 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
   if (!latest || !Number.isFinite(Number(latest.reading))) {
     return { ok: false, code: 400, error: "no automatic reading yet — pair a device or connect a source first" };
   }
-  if (Date.now() - (latest.at || 0) > METER_MAX_AGE_MS) {
+  if (tooOld(latest)) {
     return { ok: false, code: 400, error: "the automatic reading is stale — refresh your reader/source, then try again" };
   }
   if (AUTO_PHOTO_EVERY_MS > 0) {
@@ -1871,7 +1958,8 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
     return { ok: false, code: 400, error: "submit one photo reading first to set this meter's baseline — then automatic readings pay out" };
   }
 
-  const v = validateSubmission({ utility, reading: Number(latest.reading), meterNo, address: addr });
+  const v = validateSubmission({ utility, reading: Number(latest.reading), meterNo, address: addr },
+    latest.meterTime ? { readAt: Number(latest.at) } : {});
   if (!v.ok) return { ok: false, code: 400, error: v.error };
 
   const lockKey = `${addr.toLowerCase()}:${utility}`;
@@ -1994,7 +2082,7 @@ app.post("/meter/rebaseline", async (req, res) => {
   if (!Number.isFinite(reading)) {
     return res.status(400).json({ error: "no automatic reading yet — start your reader first" });
   }
-  if (Date.now() - (latest.at || 0) > METER_MAX_AGE_MS) {
+  if (tooOld(latest)) {
     return res.status(400).json({ error: "the automatic reading is stale — refresh your reader, then try again" });
   }
 
@@ -2025,7 +2113,7 @@ app.post("/meter/rebaseline", async (req, res) => {
 
   // setLastReading also stamps the time, so the next submission's span is measured
   // from now rather than from a photo that may be weeks old.
-  store.setLastReading(utility, key, reading);
+  store.setLastReading(utility, key, reading, latest.meterTime && Number.isFinite(Number(latest.at)) ? Math.min(Number(latest.at), Date.now()) : Date.now());
   store.markRebased(utility, key, { from: prev, to: reading, by: address.toLowerCase() });
   const { token, ...rest } = link;
   store.setMeterLink(token, { ...rest, rebasedAt: Date.now(), rebasedFrom: prev, rebasedTo: reading });
@@ -2233,8 +2321,34 @@ async function tibberTick(why = "timer") {
   } finally { tibberBusy = false; }
   return n;
 }
-setTimeout(() => { powerfoxTick().catch(() => {}); tibberTick().catch(() => {}); }, 45000).unref();
-setInterval(() => { powerfoxTick().catch(() => {}); tibberTick().catch(() => {}); }, 15 * 60 * 1000).unref();
+// The same for MojElektro accounts (mojelektro.js). A new daily total comes once a
+// day, so every six hours is plenty.
+let mojBusy = false;
+async function mojElektroTick(why = "timer") {
+  if (!mojElektroEnabled() || mojBusy || !store.ready() || shuttingDown) return 0;
+  mojBusy = true;
+  let n = 0;
+  try {
+    for (const acc of store.allMojElektro()) {
+      if (why !== "force" && Date.now() - (acc.lastPullAt || 0) < 6 * 3600 * 1000) continue;
+      const link = acc.token ? store.getMeterLink(acc.token) : null;
+      const creds = openCredentials(acc.cred);
+      if (!link || !creds) {
+        store.setMojElektro(acc.address, { ...acc, lastPullAt: Date.now(), lastError: "reconnect MojElektro in the app" });
+        continue;
+      }
+      const r = await fetchMojElektroReading(creds.pass, acc.usagePoint);
+      store.setMojElektro(acc.address, { cred: acc.cred, usagePoint: acc.usagePoint, token: acc.token, linkedAt: acc.linkedAt, lastPullAt: Date.now(), lastError: r.ok ? null : r.error });
+      if (!r.ok) continue;
+      store.setLinkReading(acc.address, { reading: r.reading, meterNo: link.meterNo || null, at: r.at, source: "mojelektro", meterTime: true });
+      n++;
+      if (AUTO_CLAIM_ON_PUSH) await autoSettle({ token: acc.token, ...link }, "mojelektro").catch(() => {});
+    }
+  } finally { mojBusy = false; }
+  return n;
+}
+setTimeout(() => { powerfoxTick().catch(() => {}); tibberTick().catch(() => {}); mojElektroTick().catch(() => {}); }, 45000).unref();
+setInterval(() => { powerfoxTick().catch(() => {}); tibberTick().catch(() => {}); mojElektroTick().catch(() => {}); }, 15 * 60 * 1000).unref();
 
 async function autoSubmitTick() {
   for (const link of store.allMeterLinks()) await autoSettle(link, "timer");

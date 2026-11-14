@@ -472,7 +472,7 @@ function SubmissionRow({ r, T, onAdminApi, onToast, archiveOn }) {
   // unknown, so the button stays and the message keeps naming both possibilities.
   // Every source without a photo: a pushed reading, and the Powerfox and Tibber
   // clouds the server reads itself ("enode" is in older payouts on chain).
-  const fromReader = ["push", "reader", "powerfox", "tibber", "enode"].includes(r.source);
+  const fromReader = ["push", "reader", "powerfox", "tibber", "mojelektro", "enode"].includes(r.source);
   const canPhoto = archiveOn && !!r.txHash && !fromReader;
   const [photo, setPhoto] = useState({ status: "idle", dataUrl: null }); // idle|loading|shown|none|deleted|busy
 

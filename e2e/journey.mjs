@@ -60,10 +60,23 @@ function proc(cmd, args, env, cwd) {
   let out = ""; p.stdout.on("data", (d) => (out += d)); p.stderr.on("data", (d) => (out += d));
   p.out = () => out; return p;
 }
+// A stand-in for MojElektro (Slovenia's meter portal), with one metering point whose
+// newest daily total is six hours old — older than the photo the journey takes.
+const MOJ = { port: 4392, token: "e2e-moj-token-0123456789abcdef", point: "3-7000001", reading: 1009.25, at: Date.now() - 6 * 3600e3 };
+const mojStamp = (ms) => new Date(ms + 3600e3).toISOString().slice(0, 19) + "+0100";
+const mojApi = createServer((req, res) => {
+  const u = new URL(req.url, "http://x");
+  res.setHeader("content-type", "application/json");
+  if (req.headers["x-api-token"] !== MOJ.token) { res.statusCode = 401; return res.end("{}"); }
+  if (u.searchParams.get("usagePoint") !== MOJ.point) { res.statusCode = 404; return res.end("{}"); }
+  res.end(JSON.stringify({ intervalBlocks: [{ readingType: "32.0.4.1.1.2.12.0.0.0.0.0.0.0.0.3.72.0", intervalReadings: [{ timestamp: mojStamp(MOJ.at), value: String(MOJ.reading) }] }] }));
+}).listen(MOJ.port, "127.0.0.1");
 const SERVER_ENV = {
   PORT: String(API_PORT), STATE_FILE: STATE, REQUIRE_CERT: "true", DISTRIBUTOR_DRY_RUN: "true", REQUIRE_PASS: "false",
   WALLET_CHECK: "off", INGEST_MIN_INTERVAL_MS: "0", COOLDOWN_MS: "0", OCR_ENABLED: "false", AUTO_CLAIM_ON_PUSH: "on",
   UPSTASH_REDIS_REST_URL: "", UPSTASH_REDIS_REST_TOKEN: "", NODE_URL: "http://127.0.0.1:9", NETWORK: "testnet",
+  // MojElektro is off unless switched on; here it is, against the stand-in above.
+  MOJELEKTRO: "on", MOJELEKTRO_API_URL: `http://127.0.0.1:${MOJ.port}/mojelektro/v1`, POWERFOX_SECRET: "e2e-sealing-key-0123456789",
 };
 // `let`: the last step restarts it in the mainnet access mode.
 let server = proc(process.execPath, ["index.js"], SERVER_ENV, join(ROOT, "server"));
@@ -485,6 +498,37 @@ await step("Italian: a language in its own file, fetched when picked and after a
     assert.match(await page.locator(".bnav").innerText(), /VOORTGANG|Voortgang/, "Dutch again");
     await page.locator(".bnav button").nth(0).click(); await wait(500);
   } finally { page.off("response", onResponse); page.off("request", onRequest); }
+});
+
+await step("MojElektro (Slovenia): connect in the app; a total older than the last photo waits", async () => {
+  const { TEXTS } = await import("../src/i18n.js");
+  const nl = (k) => TEXTS[k].nl;
+  const re = (s) => new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+  await page.locator(".bnav button").nth(1).click(); await wait(800);
+  await page.getByText(re(nl("m.readerLink").slice(0, 25))).first().click(); await wait(1500);
+  const setup = page.getByText(re(nl("r.setup").slice(0, 20))).first();
+  if (await setup.count()) { await setup.click(); await wait(800); }
+  await page.getByRole("button", { name: "MojElektro", exact: true }).click(); await wait(500);
+  await shot("13-mojelektro");
+  assert.match(await text(), re(nl("me.s3")), "the steps, in Dutch");
+  await page.locator("#me-token").fill(MOJ.token);
+  await page.locator("#me-point").fill(MOJ.point);
+  await page.getByText(re(nl("me.consent").slice(0, 30))).click();
+  await page.getByRole("button", { name: nl("me.connect") }).click();
+  for (let i = 0; i < 40 && !lastCall("/meter/mojelektro/link"); i++) await wait(250);
+  const r = lastCall("/meter/mojelektro/link");
+  assert.equal(r?.status, 200, r?.body);
+  await wait(1500);
+  await shot("13b-mojelektro-linked");
+  assert.match(await text(), /MojElektro meldt 1009\.25 kWh/, "the total it reported, in Dutch");
+  // The total is from six hours ago, the photo reading (1007) from minutes ago: it
+  // is not paid now, and the photo stays the starting point.
+  await wait(1500);
+  const st = JSON.parse(readFileSync(STATE, "utf8"));
+  assert.equal(st.readings["electric:e1000"], 1007, `baseline ${st.readings["electric:e1000"]}`);
+  assert.ok(st.mojelektro && Object.values(st.mojelektro)[0].cred.startsWith("v1:"), "the token is kept sealed");
+  assert.ok(!JSON.stringify(st).includes(MOJ.token), "the token itself is not in the state");
+  await page.locator(".bnav button").nth(0).click(); await wait(500);
 });
 
 await step("mainnet rule: only a GM NFT and a Passport get in", async () => {

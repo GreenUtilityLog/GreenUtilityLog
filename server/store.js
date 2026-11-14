@@ -28,7 +28,7 @@ const REDIS_KEY = process.env.STATE_KEY || "greenutilitylog:state";
 // `passes` is the access-pass registry (address → pass); `passesInit` records that the
 // one-time grandfathering has run, so turning REQUIRE_PASS on can't silently cut off
 // every existing tester — and can't re-grant a pass an admin has since revoked.
-const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {}, autoPaid: {}, payLog: [], prints: [], payDays: {}, meterRegs: {}, settings: {}, powerfox: {}, tibber: {}, devices: {}, photoAts: {}, walletChecks: {} };
+const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {}, autoPaid: {}, payLog: [], prints: [], payDays: {}, meterRegs: {}, settings: {}, powerfox: {}, tibber: {}, mojelektro: {}, devices: {}, photoAts: {}, walletChecks: {} };
 // A fresh copy each time. Spreading EMPTY copies only its top level: every
 // "empty" state then shared EMPTY's own maps, so writing to one wrote to all of
 // them — and to the next "empty" state read from Redis.
@@ -667,13 +667,16 @@ export const store = {
     state.photoAts[mKey(utility, meterNo)] = at;
     persist();
   },
-  setLastReading: (utility, meterNo, val) => {
+  // `at`: when the meter showed this value. Now, except for a source that reports
+  // its readings late (MojElektro gives yesterday's total), which passes the meter's
+  // own time.
+  setLastReading: (utility, meterNo, val, at = Date.now()) => {
     const k = mKey(utility, meterNo);
     state.readings[k] = val;
     // When this reading was taken, so the next submission knows how many days it
     // covers. Kept in its own map rather than nested in `readings`, so existing
     // stored baselines keep their shape and nothing needs migrating.
-    state.readingAts[k] = Date.now();
+    state.readingAts[k] = at;
     if (mFallback(utility)) { delete state.readings[meterNo]; delete state.readingAts[meterNo]; }
     persist();
   },
@@ -901,6 +904,20 @@ export const store = {
     return false;
   },
   allTibber: () => Object.entries(isMap(state.tibber) ? state.tibber : {}).map(([address, v]) => ({ address, ...v })),
+  // MojElektro accounts (Slovenia), per wallet: { cred (sealed token, see
+  // mojelektro.js), usagePoint, token (the meter link it feeds), linkedAt,
+  // lastPullAt, lastError }.
+  getMojElektro: (addr) => {
+    const k = String(addr || "").toLowerCase();
+    return isMap(state.mojelektro) && Object.prototype.hasOwnProperty.call(state.mojelektro, k) ? state.mojelektro[k] : null;
+  },
+  setMojElektro: (addr, obj) => { if (!isMap(state.mojelektro)) state.mojelektro = {}; state.mojelektro[String(addr).toLowerCase()] = obj; persist(); },
+  delMojElektro: (addr) => {
+    const k = String(addr || "").toLowerCase();
+    if (isMap(state.mojelektro) && Object.prototype.hasOwnProperty.call(state.mojelektro, k)) { delete state.mojelektro[k]; persist(); return true; }
+    return false;
+  },
+  allMojElektro: () => Object.entries(isMap(state.mojelektro) ? state.mojelektro : {}).map(([address, v]) => ({ address, ...v })),
   allPowerfox: () => Object.entries(isMap(state.powerfox) ? state.powerfox : {}).map(([address, v]) => ({ address, ...v })),
   // Own keys only: a token of "__proto__" would otherwise find Object.prototype.
   getMeterLink: (token) => (Object.prototype.hasOwnProperty.call(state.meterLinks, token) ? state.meterLinks[token] : null),
