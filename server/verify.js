@@ -14,8 +14,13 @@ const isAddress = (a) => typeof a === "string" && /^0x[0-9a-fA-F]{40}$/.test(a);
 export const validMeterNo = (m) => (typeof m === "string" || typeof m === "number")
   && /^[^\p{C}]{1,40}$/u.test(String(m).trim());
 
-export function validateSubmission(body) {
+// `opts.readAt` (server code only, never the request body): when the meter showed
+// this value, for a source that reports late. The span is measured to then, and a
+// reading no newer than the last one recorded is refused. Without it: now.
+export function validateSubmission(body, opts = {}) {
   const { utility, reading, prevRead, meterNo, address } = body || {};
+  // Never later than now: a clock ahead would stretch the span.
+  const readAt = Number.isFinite(opts.readAt) ? Math.min(opts.readAt, Date.now()) : null;
 
   if (!isAddress(address)) return { ok: false, error: "invalid wallet address" };
   if (!isEnabledUtility(utility)) return { ok: false, error: "this utility isn't available" };
@@ -59,9 +64,15 @@ export function validateSubmission(body) {
   // two meters on the same utility). Unknown — a first submission, or a meter last
   // read before we recorded timestamps — counts as one day, i.e. the old behaviour.
   const lastAt = store.lastReadingAt(utility, meterKey);
-  const days = lastAt ? spanDays(Date.now() - lastAt) : 1;
+  const at = readAt ?? Date.now();
+  // A late source can hand over a total from before the last recorded reading (a
+  // photo taken since), or the same one again: nothing new to measure yet.
+  if (readAt != null && lastAt && readAt <= lastAt) {
+    return { ok: false, error: "this automatic reading isn't newer than the meter's last recorded reading — it counts once a newer one comes in" };
+  }
+  const days = lastAt ? spanDays(at - lastAt) : 1;
   // The real gap, uncapped, for what counts as plausible (see usageBoundsFor).
-  const gapDays = lastAt ? Math.max(1, (Date.now() - lastAt) / 86400000) : 1;
+  const gapDays = lastAt ? Math.max(1, (at - lastAt) / 86400000) : 1;
 
   const [lo, hi] = usageBoundsFor(utility, gapDays);
   // Almost no usage over the whole span — less than the floor per day (0.1 kWh a day
@@ -128,7 +139,7 @@ export function validateSubmission(body) {
     markPaid: () => {
       store.setCooldown(key, Date.now());
       store.bindMeter(utility, meterKey, addr);
-      store.setLastReading(utility, meterKey, r);
+      store.setLastReading(utility, meterKey, r, at);
     },
   };
 }

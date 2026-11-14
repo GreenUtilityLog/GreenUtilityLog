@@ -149,6 +149,94 @@ function TibberSetup({ T, API, wallet, meterNo, token, latest, health, onLinked,
 // fetch the reading from the Powerfox cloud itself (nothing to keep running at
 // home); or the bridge on your own computer does it; or Home Assistant's own
 // Powerfox integration feeds ours.
+// MojElektro (Slovenia): the server fetches the meter's daily total from the grid
+// operators' portal with the user's own token and metering point (EIMM). Shown only
+// while the server has it switched on (server/mojelektro.js: off until tested).
+// The setups where our server fetches the reading: no command, no shell to pick.
+const CLOUD_DEVICES = new Set(["powerfox", "tibber", "mojelektro"]);
+
+function MojElektroSetup({ T, API, wallet, meterNo, latest, onLinked, requestCertificate }) {
+  const [mojToken, setMojToken] = useState("");
+  const [usagePoint, setUsagePoint] = useState("");
+  const [consent, setConsent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);   // { ok, text }
+  const me = latest?.mojelektro || null;
+  const card = { padding: 12, background: T.bg, border: `1px solid ${T.border || T.waterBorder}`, borderRadius: 10 };
+  const input = { width: "100%", boxSizing: "border-box", padding: "10px 12px", fontSize: 14, color: T.text, background: T.card, border: `1px solid ${T.border}`, borderRadius: 6, outline: "none", fontFamily: "'SF Mono',Menlo,monospace" };
+  const label = { display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".8px", color: T.textSoft, margin: "10px 0 5px" };
+  const primary = { width: "100%", minHeight: 44, marginTop: 10, border: "none", borderRadius: 6, background: T.green2, color: T === DARK ? T.bg : "#fff", fontWeight: 800, fontSize: 13, cursor: "pointer" };
+  const sign = async (content) => {
+    const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } }, { signer: wallet });
+    return { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
+  };
+  const connect = async () => {
+    setMsg(null);
+    if (!meterNo) { setMsg({ ok: false, text: t("r.registerFirst") }); return; }
+    if (mojToken.trim().length < 16) { setMsg({ ok: false, text: t("me.needToken") }); return; }
+    if (usagePoint.trim().length < 6) { setMsg({ ok: false, text: t("me.needPoint") }); return; }
+    if (!consent) { setMsg({ ok: false, text: t("me.needConsent") }); return; }
+    setBusy(true);
+    try {
+      const certificate = await sign(`Green Utility Log — link MojElektro\nWallet: ${wallet}\nNetwork: ${NETWORK}\nTime: ${new Date().toISOString()}`);
+      const r = await fetchT(`${API}/meter/mojelektro/link`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: wallet, meterNo, mojToken: mojToken.trim(), usagePoint: usagePoint.trim(), certificate }) }, 60000);
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `connecting failed (${r.status})`);
+      setMojToken("");
+      setMsg({ ok: true, text: t("r.checkTotal", { who: "MojElektro", n: d.reading }) });
+      onLinked?.(d.token);
+    } catch (e) {
+      setMsg({ ok: false, text: e?.message || t("r.connectFailed") });
+    } finally { setBusy(false); }
+  };
+  const disconnect = async () => {
+    if (!window.confirm(t("me.confirmOff"))) return;
+    setBusy(true);
+    try {
+      const certificate = await sign(`Green Utility Log — unlink MojElektro\nWallet: ${wallet}\nNetwork: ${NETWORK}\nTime: ${new Date().toISOString()}`);
+      const r = await fetchT(`${API}/meter/mojelektro/unlink`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: wallet, certificate }) });
+      if (!r.ok) throw new Error(t("r.disconnectFailed"));
+      setMsg({ ok: true, text: t("me.off") });
+      onLinked?.();
+    } catch (e) { setMsg({ ok: false, text: e?.message || t("r.disconnectFailed") }); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ fontSize: 11, color: T.textMid, lineHeight: 1.6, marginBottom: 8 }}>{t("me.need")}</div>
+      <div data-source="mojelektro" style={card}>
+        {me?.linked ? (<>
+          <div style={{ fontSize: 12.5, fontWeight: 800, color: T.text }}>{t("me.connected")}</div>
+          <div style={{ fontSize: 11, color: T.textSoft, marginTop: 4, lineHeight: 1.5 }}>
+            {t("me.daily", { last: me.lastPullAt ? t("r.lastTime", { when: fmtWhen(me.lastPullAt) }) : "" })}
+          </div>
+          {me.lastError && <div style={{ fontSize: 11, color: T.gas, marginTop: 6, lineHeight: 1.5 }}>⚠️ {me.lastError}</div>}
+          <button type="button" disabled={busy} onClick={disconnect} style={{ marginTop: 10, minHeight: 40, padding: "0 12px", borderRadius: 6, border: `1px solid ${T.border}`, background: "transparent", color: T.textMid, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+            {busy ? "…" : t("me.disconnect")}
+          </button>
+        </>) : (<>
+          <ol style={{ margin: 0, paddingLeft: 18, fontSize: 11.5, color: T.textMid, lineHeight: 1.7 }}>
+            <li>{t("me.s1")}</li>
+            <li>{t("me.s2")}</li>
+            <li>{t("me.s3")}</li>
+            <li>{t("me.s4")}</li>
+          </ol>
+          <label style={label} htmlFor="me-token">{t("me.labelToken")}</label>
+          <input id="me-token" type="password" autoComplete="off" spellCheck={false} value={mojToken} onChange={(e) => setMojToken(e.target.value)} style={input} />
+          <label style={label} htmlFor="me-point">{t("me.labelPoint")}</label>
+          <input id="me-point" type="text" autoComplete="off" spellCheck={false} value={usagePoint} onChange={(e) => setUsagePoint(e.target.value)} style={input} />
+          <label style={{ display: "flex", gap: 8, alignItems: "flex-start", marginTop: 10, fontSize: 11, color: T.textMid, lineHeight: 1.5, cursor: "pointer" }}>
+            <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} style={{ marginTop: 2 }} />
+            <span>{t("me.consent")}</span>
+          </label>
+          <button type="button" disabled={busy} onClick={connect} style={{ ...primary, opacity: busy ? .6 : 1 }}>{busy ? t("r.connecting30") : t("me.connect")}</button>
+        </>)}
+        {msg && <div role="status" style={{ marginTop: 8, fontSize: 11, fontWeight: 700, lineHeight: 1.5, color: msg.ok ? T.green3 : T.gas }}>{msg.text}</div>}
+      </div>
+    </div>
+  );
+}
+
 function PowerfoxSetup({ T, API, wallet, meterNo, token, latest, health, onLinked, requestCertificate, copy, copied, os, setOs, fetchCmd, needNode }) {
   const [route, setRoute] = useState(health?.powerfox?.enabled ? "server" : "computer");
   const [email, setEmail] = useState("");
@@ -470,7 +558,8 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
   const lastPayout = latest?.lastPayout || null;
   const paidThis = !!(lastPayout && rd && Number(lastPayout.reading) === Number(rd.reading));
   // A reading must be under 48 h old to be paid; older means the reader stopped.
-  const readerFresh = !!(rd?.at && Date.now() - rd.at < 48 * 3600e3);
+  // A source that reports a day late (MojElektro) carries the meter's own time: up to four days is normal there.
+  const readerFresh = !!(rd?.at && Date.now() - rd.at < (rd.meterTime ? 96 : 48) * 3600e3);
   // When the next reward can come: the server's own answer when we have it,
   // else the last payout plus the cooldown.
   const nextAt = Object.prototype.hasOwnProperty.call(SERVER_NEXT_AT, "electric")
@@ -520,7 +609,7 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, fontWeight: 800, color: T.text }}>
                   <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: "50%", background: readerFresh ? T.green3 : T.electric, flexShrink: 0 }} />
-                  {rd.source === "powerfox" ? "Powerfox" : rd.source === "tibber" ? "Tibber" : t("r.p1")}
+                  {rd.source === "powerfox" ? "Powerfox" : rd.source === "tibber" ? "Tibber" : rd.source === "mojelektro" ? "MojElektro" : t("r.p1")}
                 </div>
                 <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".6px", padding: "3px 8px", borderRadius: 999, color: readerFresh ? T.green3 : T.electric, background: readerFresh ? (T.green5 || T.bgAlt) : (T.electricBg || T.bgAlt) }}>
                   {readerFresh ? t("today.reader.ok") : t("today.reader.stale")}
@@ -645,6 +734,8 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
                       { id: "homewizard", label: "HomeWizard P1" },
                       { id: "powerfox",   label: "Powerfox" },
                       { id: "tibber",     label: "Tibber" },
+                      // Off until tested; the server says when it is on.
+                      ...(health?.mojelektro?.enabled ? [{ id: "mojelektro", label: "MojElektro" }] : []),
                       { id: "tasmota",    label: "Tasmota / Hichi" },
                       { id: "ha",         label: "Home Assistant" },
                       { id: "curl",       label: t("r.other") },
@@ -763,13 +854,18 @@ ${fetchCmd(`--ask-token --install --url=http://<reader-ip>/api/v1/data${INGEST_F
                             onLinked={(tk) => { if (validDeviceToken(tk) && tk !== token) { setToken(tk); try { localStorage.setItem(tkKey, tk); } catch { /* no storage */ } } refreshLatest(); }}
                             requestCertificate={requestCertificate} copy={copy} copied={copied} os={os} setOs={setOs} fetchCmd={fetchCmd} needNode={needNode} />
                         )}
+                        {device === "mojelektro" && (
+                          <MojElektroSetup T={T} API={API} wallet={wallet} meterNo={meterNo} latest={latest}
+                            onLinked={(tk) => { if (validDeviceToken(tk) && tk !== token) { setToken(tk); try { localStorage.setItem(tkKey, tk); } catch { /* no storage */ } } refreshLatest(); }}
+                            requestCertificate={requestCertificate} />
+                        )}
                         {device === "tibber" && (
                           <TibberSetup T={T} API={API} wallet={wallet} meterNo={meterNo} token={token} latest={latest} health={health}
                             onLinked={(tk) => { if (validDeviceToken(tk) && tk !== token) { setToken(tk); try { localStorage.setItem(tkKey, tk); } catch { /* no storage */ } } refreshLatest(); }}
                             requestCertificate={requestCertificate} copy={copy} copied={copied} />
                         )}
 
-                        {device !== "ha" && device !== "powerfox" && device !== "tibber" && (
+                        {device !== "ha" && !CLOUD_DEVICES.has(device) && (
                           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
                             <span style={{ fontSize:10, color: T.textSoft, fontWeight: 700 }}>{t("r.runningOn")}</span>
                             {[{ id: "win", label: "Windows" }, { id: "unix", label: "Mac · Linux · Pi" }].map((o) => (
@@ -782,7 +878,7 @@ ${fetchCmd(`--ask-token --install --url=http://<reader-ip>/api/v1/data${INGEST_F
                         )}
 
                         {/* Pre-filled, one-tap-copy setup */}
-                        {device !== "powerfox" && device !== "tibber" && <>
+                        {!CLOUD_DEVICES.has(device) && <>
                         <div style={{ position: "relative" }}>
                           <button onClick={() => copy(snip, "snip")} style={{ position: "absolute", top: 6, right: 6, padding: "4px 8px", fontSize:10, fontWeight: 700, border: "none", borderRadius: 6, cursor: "pointer", background: copied === "snip" ? (T.eco || T.green3 || T.electric) : T.textSoft, color: "#fff" }}>
                             {copied === "snip" ? t("r.copied") : t("r.copySetup")}
@@ -813,7 +909,7 @@ ${fetchCmd(`--ask-token --install --url=http://<reader-ip>/api/v1/data${INGEST_F
                         </div>
 
                         {/* One line, not a manual: the detail lives in the guide. */}
-                        {device !== "ha" && device !== "powerfox" && device !== "tibber" && (
+                        {device !== "ha" && !CLOUD_DEVICES.has(device) && (
                           <div style={{ fontSize:10, color: T.textSoft, lineHeight: 1.6, marginTop: 8 }}>
                             {t("r.terminal")}{" "}
                             <a href={GUIDE_URL} target="_blank" rel="noopener noreferrer" style={{ color: T.eco || T.electric, fontWeight: 700 }}>{t("r.showMe")}</a>
