@@ -128,6 +128,18 @@ Laatst bijgewerkt: 2026-11-01.
 - [ ] Mijlpaal-NFT's met eigen artwork (eigen contract + gas): pas na de B3TR-bonus
 - [ ] Beloningsvermenigvuldiger op basis van VOT3-stemmen: eerst bij VeBetterDAO navragen of dat mag
 
+## Meer landen en meters (uitgezocht in november, nog niets gebouwd)
+Met een foto kan elk land al meedoen. Voor elk nieuw land geldt eerst: een norm per land (8 kWh per dag past bij NL/BE), de taal, en op mainnet GM NFT + Passport.
+- [ ] Norm per land, vastgesteld door de beheerder of aan de hand van de meter (niet door de gebruiker zelf te kiezen)
+- [ ] 🇸🇮 Slovenië: P1-poort op Iskraemeco-meters (soms versleuteld; niet elke netbeheerder geeft de sleutel) en het portaal MojElektro (kwartierdata, persoonlijke toegangscode). Eerst testen of de bestaande P1/Home Assistant-routes al werken
+- [ ] 🇬🇷 Griekenland: geen klantpoort gevonden; koppeling met het HEDNO-portaal (`apps.deddie.gr/mdp`, toegangscode, data een dag later, alleen bij op afstand uitgelezen meters). Gemiddeld verbruik ± 4.500 kWh per jaar zonder verwarming: de norm is daar te laag
+- [ ] 🇭🇷 Kroatië: HEP ODS test meters met P1; nog onbekend of klanten de poort of portaaldata mogen gebruiken
+- [ ] 🇹🇷 Turkije: optische poort mogelijk via een leeskop; eerst met Turkse bronnen nagaan welke meters er hangen en of de poort open staat
+- [ ] 🇷🇸 🇷🇴 🇧🇬 🇲🇰 🇲🇪 🇧🇦 🇦🇱 🇽🇰: geen klantpoort of dienst gevonden; voorlopig foto's
+- [ ] Officiële meterdata elders: Octopus Energy (VK, DE), inexogy (DE), Eloverblik (DK), Datadis (ES), Enedis/Linky (FR). Geven meestal verbruik per uur of dag, met vertraging; per dienst eerst uitzoeken
+- [ ] YouLess (NL) als eigen optie in de bridge; eerst de velden van het antwoord nakijken
+- Niet doen: tussenmeters zoals Shelly EM of stroomtangen (meten niet de officiële meter)
+
 ## Bewust zo gelaten
 - Tijdverschuiving bij automatische standen: geaccepteerd risico (zie `docs/MAINNET.md`)
 - Captcha staat uit
