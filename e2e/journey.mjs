@@ -441,6 +441,52 @@ await step("Progress with three weeks of readings: outlook and calendar", async 
   assert.match(await page.locator('[data-chart="gm-next"]').innerText(), /nog 25\.000 B3TR nodig om te upgraden/, "the GM cost, in Dutch");
 });
 
+await step("Italian: a language in its own file, fetched when picked and after a reload", async () => {
+  const IT = (await import("../src/lang/it.js")).default;
+  const IT_SERVER = (await import("../server/lang/it.js")).default;
+  const re = (s) => new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+  const files = [], langHeaders = [];
+  const onResponse = (r) => { if (/\/assets\/it-[\w-]+\.js$/.test(new URL(r.url()).pathname)) files.push(r.url()); };
+  const onRequest = (r) => { if (r.url().startsWith(API)) langHeaders.push(r.headers()["x-gul-lang"]); };
+  page.on("response", onResponse); page.on("request", onRequest);
+  try {
+    await page.locator(".bnav button").nth(3).click(); await wait(600);
+    await page.getByRole("button", { name: /Instellingen/ }).first().click(); await wait(800);
+    assert.equal(files.length, 0, "not fetched before it is picked");
+    await page.getByText("Italiano", { exact: true }).first().click(); await wait(1500);
+    assert.equal(files.length, 1, "the Italian file was fetched once");
+    assert.equal(await page.evaluate(() => document.documentElement.lang), "it");
+    assert.match(await page.locator(".bnav").innerText(), re(IT.texts["nav.progress"]), "the menu is Italian");
+    // After a reload the app opens in Italian straight away (main.jsx waits for the file).
+    await page.reload({ waitUntil: "networkidle" }); await wait(1500);
+    assert.match(await page.locator(".bnav").innerText(), re(IT.texts["nav.progress"]), "still Italian after a reload");
+    assert.equal(await page.evaluate(() => document.documentElement.lang), "it");
+    await shot("12-it-home");
+    // Help and FAQ in Italian.
+    await page.getByRole("button", { name: IT.texts["hdr.help"] }).first().click(); await wait(800);
+    const help = await text();
+    assert.match(help, re(IT.help.faqs[0].q), "the FAQ is Italian");
+    assert.match(help, re(IT.help.steps[0].t), "the quick start is Italian");
+    assert.equal(await page.locator("select[aria-label]").first().inputValue(), "it", "Help's picker shows Italiano");
+    await shot("12b-it-help");
+    await page.getByRole("button", { name: IT.help.close }).first().click(); await wait(500);
+    // The app asks the server in Italian, and the server answers in Italian.
+    assert.ok(langHeaders.includes("it"), `the app sent X-GUL-Lang: it (${[...new Set(langHeaders)].join(",")})`);
+    const dup = "this reading was already submitted — send it again once the meter has moved on";
+    assert.ok(IT_SERVER[dup] && IT_SERVER[dup] !== dup, "the server file has it");
+    const pair = await fetch(`http://127.0.0.1:${API_PORT}/meter/pair`, { method: "POST", headers: { "Content-Type": "application/json", "X-GUL-Lang": "it" }, body: JSON.stringify({ address: "nope" }) });
+    const pb = await pair.json();
+    assert.equal(pb.error, IT_SERVER["invalid wallet address"], "a server message in Italian");
+    assert.equal(pb.errorEn, "invalid wallet address");
+    // Back to Dutch for the rest of the journey: a built-in language again, at once.
+    await page.locator(".bnav button").nth(3).click(); await wait(600);
+    await page.getByRole("button", { name: re(IT.texts["pr.settings"]) }).first().click(); await wait(800);
+    await page.getByText("Nederlands", { exact: true }).first().click(); await wait(800);
+    assert.match(await page.locator(".bnav").innerText(), /VOORTGANG|Voortgang/, "Dutch again");
+    await page.locator(".bnav button").nth(0).click(); await wait(500);
+  } finally { page.off("response", onResponse); page.off("request", onRequest); }
+});
+
 await step("mainnet rule: only a GM NFT and a Passport get in", async () => {
   // A chain for the server, answering for the test wallet as `chain` says: the
   // GalaxyMember contract's balanceOf and the VeBetterDAO Passport's isPerson.

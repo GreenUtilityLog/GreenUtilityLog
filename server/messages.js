@@ -9,8 +9,20 @@
 //
 // Rows: [english, nl, de, fr, es]. Admin-only messages stay English (the admin
 // screen is English), as do provider texts passed through (Powerfox, the AI check).
+//
+// Any other language is one file, lang/<code>.js, read at start:
+//   export default { "<english text, as in a row below>": "<translation>", … }
+// The test checks such a file has every row, with the same {placeholders}.
 
-export const LANGS = ["nl", "de", "fr", "es"];
+import { readdirSync } from "node:fs";
+
+export const CORE_LANGS = ["nl", "de", "fr", "es"];
+export const EXTRA = Object.create(null);
+for (const f of readdirSync(new URL("./lang/", import.meta.url)).sort()) {
+  const m = /^([a-z]{2})\.js$/.exec(f);
+  if (m) EXTRA[m[1]] = (await import(new URL(`./lang/${f}`, import.meta.url))).default;
+}
+export const LANGS = [...CORE_LANGS, ...Object.keys(EXTRA)];
 
 export const MESSAGES = [
   // ── general ──
@@ -187,17 +199,25 @@ export function pickLang(header) {
 }
 
 // The message in `lang`, or the English text unchanged when there is no row for it.
+// A row's text in `lang`: a built-in column, or the language file's entry for its
+// English text; null when that file doesn't have it yet.
+function inLang(row, lang) {
+  const i = CORE_LANGS.indexOf(lang);
+  return i >= 0 ? row[i + 1] : (EXTRA[lang]?.[row[0]] ?? null);
+}
+
 export function translateMessage(text, lang) {
-  const i = LANGS.indexOf(lang);
-  if (i < 0 || typeof text !== "string" || !text) return text;
+  if (!LANGS.includes(lang) || typeof text !== "string" || !text) return text;
   const exact = EXACT.get(text);
-  if (exact) return exact[i + 1];
+  if (exact) return inLang(exact, lang) ?? text;
   for (const c of COMPILED) {
     if (!c.re) continue;
     const m = c.re.exec(text);
     if (!m) continue;
+    const out = inLang(c.row, lang);
+    if (out == null) return text;
     const vals = Object.fromEntries(c.names.map((n, k) => [n, m[k + 1]]));
-    return c.row[i + 1].replace(/\{(\w+)\}/g, (_, n) => (n in vals ? vals[n] : `{${n}}`));
+    return out.replace(/\{(\w+)\}/g, (_, n) => (n in vals ? vals[n] : `{${n}}`));
   }
   return text;
 }

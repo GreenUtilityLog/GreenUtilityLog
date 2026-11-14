@@ -4,7 +4,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { DAppKitProvider } from '@vechain/dapp-kit-react'
 import App, { ACTIVE_NODE, TestnetBanner } from './App.jsx'
-import { getLang } from './i18n.js'
+import { getLang, langReady } from './i18n.js'
 
 // ════════════════════════════════════════════════════════════════════════════
 // WALLETCONNECT PROJECT ID  (free, from https://cloud.reown.com)
@@ -79,53 +79,58 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-try {
-  ReactDOM.createRoot(document.getElementById('root')).render(
-    <ErrorBoundary>
-      <DAppKitProvider
-        // VeChain node — testnet or mainnet, driven by NETWORK in App.jsx.
-        node={ACTIVE_NODE}
-        // Wallets offered in the connect dialog. 'wallet-connect' = mobile QR.
-        // Sync2 deliberately omitted: it's a legacy desktop wallet that adds a third
-        // option (and its own quirks) for a path almost nobody takes — VeWorld covers
-        // desktop, WalletConnect covers mobile.
-        allowedWallets={['veworld', 'wallet-connect']}
-        // Remember the connection between page loads.
-        usePersistence
-        // Don't force an identity certificate just to connect; the user signs
-        // when they actually submit a transaction.
-        requireCertificate={false}
-        // Required prop: dapp-kit reads v2Api.enabled internally. Keep the
-        // default (false) for the widest wallet compatibility.
-        v2Api={{ enabled: false }}
-        walletConnectOptions={{
-          projectId: WALLETCONNECT_PROJECT_ID,
-          metadata: {
-            name: 'Green Utility Log',
-            description: 'Track utilities and earn B3TR on VeChain',
-            url: APP_ORIGIN,
-            icons: ['https://greenutilitylog.github.io/GreenUtilityLog/icon.png'],
-          },
-        }}
-        // The wallet dialog in the app's language where dapp-kit has it (no Dutch).
-        language={['de', 'fr', 'es'].includes(getLang()) ? getLang() : 'en'}
-      >
-        <App />
-        <TestnetBanner />
-      </DAppKitProvider>
-    </ErrorBoundary>,
-  )
-  // Once the app is on screen, a late error (a refused clipboard copy, a storage
-  // write a private window blocks) must not replace it with the startup-error page:
-  // mark the root as mounted at the first paint, not four seconds later.
-  const markMounted = () => {
-    const root = document.getElementById('root')
-    if (root && root.children.length > 0) { root.dataset.appMounted = '1'; return true }
-    return false
+// A language in its own file (src/lang/) is fetched before the first render, so
+// the app doesn't open in English and then switch — but never waits long for it.
+function start() {
+  try {
+    ReactDOM.createRoot(document.getElementById('root')).render(
+      <ErrorBoundary>
+        <DAppKitProvider
+          // VeChain node — testnet or mainnet, driven by NETWORK in App.jsx.
+          node={ACTIVE_NODE}
+          // Wallets offered in the connect dialog. 'wallet-connect' = mobile QR.
+          // Sync2 deliberately omitted: it's a legacy desktop wallet that adds a third
+          // option (and its own quirks) for a path almost nobody takes — VeWorld covers
+          // desktop, WalletConnect covers mobile.
+          allowedWallets={['veworld', 'wallet-connect']}
+          // Remember the connection between page loads.
+          usePersistence
+          // Don't force an identity certificate just to connect; the user signs
+          // when they actually submit a transaction.
+          requireCertificate={false}
+          // Required prop: dapp-kit reads v2Api.enabled internally. Keep the
+          // default (false) for the widest wallet compatibility.
+          v2Api={{ enabled: false }}
+          walletConnectOptions={{
+            projectId: WALLETCONNECT_PROJECT_ID,
+            metadata: {
+              name: 'Green Utility Log',
+              description: 'Track utilities and earn B3TR on VeChain',
+              url: APP_ORIGIN,
+              icons: ['https://greenutilitylog.github.io/GreenUtilityLog/icon.png'],
+            },
+          }}
+          // The wallet dialog in the app's language where dapp-kit has it (no Dutch).
+          language={['de', 'fr', 'es'].includes(getLang()) ? getLang() : 'en'}
+        >
+          <App />
+          <TestnetBanner />
+        </DAppKitProvider>
+      </ErrorBoundary>,
+    )
+    // Once the app is on screen, a late error (a refused clipboard copy, a storage
+    // write a private window blocks) must not replace it with the startup-error page:
+    // mark the root as mounted at the first paint, not four seconds later.
+    const markMounted = () => {
+      const root = document.getElementById('root')
+      if (root && root.children.length > 0) { root.dataset.appMounted = '1'; return true }
+      return false
+    }
+    const poll = () => { if (!markMounted()) requestAnimationFrame(poll) }
+    requestAnimationFrame(poll)
+    setTimeout(markMounted, 4000)
+  } catch (err) {
+    showError('Crash during startup (createRoot/render):', err)
   }
-  const poll = () => { if (!markMounted()) requestAnimationFrame(poll) }
-  requestAnimationFrame(poll)
-  setTimeout(markMounted, 4000)
-} catch (err) {
-  showError('Crash during startup (createRoot/render):', err)
 }
+Promise.race([langReady, new Promise((r) => setTimeout(r, 2500))]).then(start, start)

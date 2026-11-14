@@ -55,6 +55,8 @@ jobs:
       # Lint-only tools, not app dependencies (eslint.config.mjs).
       - run: npm install --no-save eslint@9.39.1 globals@15.15.0 eslint-plugin-react@7.37.5 eslint-plugin-react-hooks@5.2.0
       - run: npx eslint src
+      # Every language complete: keys, {placeholders}, links, the ⚠️ a warning starts with, Help.
+      - run: node scripts/check-langs.mjs
       - run: npm run build
 
   # The bridge is downloaded as one loose gul.js and run on whatever Node the user
