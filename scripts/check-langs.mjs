@@ -39,8 +39,8 @@ function checkHelp(code, L, mainnet) {
   E.faqs.forEach((f, i) => { compare(`${code} help question ${i + 1}`, f.q, L.faqs?.[i]?.q); compare(`${code} help answer ${i + 1} ("${f.q}")`, f.a, L.faqs?.[i]?.a); });
   // The mainnet build swaps the parts that mention testnet, by position (App.jsx).
   if (code !== "en" && L.steps && L.faqs) {
-    if (CORE_LANGS[code] && atTestnet(L.steps, "d") !== atTestnet(E.steps, "d")) bad(`${code} help: the testnet steps sit elsewhere than in English`);
-    if (CORE_LANGS[code] && atTestnet(L.faqs, "a") !== atTestnet(E.faqs, "a")) bad(`${code} help: the testnet answers sit elsewhere than in English`);
+    if (atTestnet(L.steps, "d") !== atTestnet(E.steps, "d")) bad(`${code} help: the testnet steps sit elsewhere than in English`);
+    if (atTestnet(L.faqs, "a") !== atTestnet(E.faqs, "a")) bad(`${code} help: the testnet answers sit elsewhere than in English`);
   }
   if (!mainnet) return bad(`${code} helpMainnet: missing`);
   for (const f of MAINNET_FIELDS) compare(`${code} helpMainnet.${f}`, HELP_MAINNET.en[f], mainnet[f]);
