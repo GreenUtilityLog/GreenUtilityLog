@@ -1,8 +1,7 @@
 // ── Languages ────────────────────────────────────────────────────────────────
 // The app was English apart from Help. t(key, vars) returns the text in the
 // current language, falling back to English; {name} in a text is replaced from
-// vars. The language is the one picked in Settings (or in Help), else the
-// phone's, else English. Admin screens stay English: only the owner sees them.
+// vars. The language is the one picked in Settings (or in Help), else English. Admin screens stay English: only the owner sees them.
 //
 // Five languages are built in (the table below). Any other language is one file,
 // src/lang/<code>.js, loaded only when someone picks it:
@@ -40,10 +39,9 @@ export function detectLang() {
     const saved = localStorage.getItem(KEY) || localStorage.getItem(HELP_KEY);
     if (LANGS[saved]) return saved;
   } catch { /* storage blocked */ }
-  const n = (typeof navigator !== "undefined" ? navigator.language || "" : "").slice(0, 2).toLowerCase();
-  // Norwegian phones say nb, nn or no; the app has Bokmål (nb).
-  const code = n === "no" || n === "nn" ? "nb" : n;
-  return LANGS[code] ? code : "en";
+  // The first time it is English, whatever the phone's language (the owner's
+  // choice, 2026-11-15); the picker in Settings and Help changes it.
+  return "en";
 }
 
 // Loaded extra languages: code → the file's default export.

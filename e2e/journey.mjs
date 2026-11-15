@@ -102,7 +102,8 @@ log("server and app are up");
 
 // ── browser ──────────────────────────────────────────────────────────────────
 browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
-const ctx = await browser.newContext({ ...devices["iPhone 13"] });
+// A Dutch phone: the app still opens in English the first time (src/i18n.js).
+const ctx = await browser.newContext({ ...devices["iPhone 13"], locale: "nl-NL" });
 
 // VeWorld stand-in: dapp-kit's "veworld" source asks window.vechain for a signer;
 // this one signs certificates with the test wallet's key, in Node.
@@ -240,6 +241,8 @@ await page.goto(`http://127.0.0.1:${APP_PORT}/GreenUtilityLog/`, { waitUntil: "n
 await wait(1500);
 
 await step("intro, and registering the meter", async () => {
+  assert.equal(await page.evaluate(() => navigator.language), "nl-NL", "the phone is Dutch");
+  assert.equal(await page.evaluate(() => document.documentElement.lang), "en", "the app opens in English");
   // Through every slide ("Continue"), reading each, then "Get Started".
   const slides = [];
   for (let i = 0; i < 8; i++) {
