@@ -79,6 +79,23 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+// The phone's gesture-bar area at the bottom, for the menu bar (--gul-safe-bottom,
+// see .bnav in App.jsx). An iPhone's home indicator is up to 34px. VeWorld on
+// Android reports about 60px while its system buttons already sit below the page,
+// which left a band of empty space under the menu; a value that large is ignored.
+function setSafeBottom() {
+  try {
+    const probe = document.createElement('div')
+    probe.style.cssText = 'position:fixed;bottom:0;left:0;width:1px;height:env(safe-area-inset-bottom, 0px);visibility:hidden;pointer-events:none'
+    document.body.appendChild(probe)
+    const v = probe.getBoundingClientRect().height
+    probe.remove()
+    document.documentElement.style.setProperty('--gul-safe-bottom', `${v > 0 && v <= 40 ? v : 0}px`)
+  } catch { /* no layout yet: the default, 0 */ }
+}
+setSafeBottom()
+window.addEventListener('orientationchange', () => setTimeout(setSafeBottom, 300))
+
 // A language in its own file (src/lang/) is fetched before the first render, so
 // the app doesn't open in English and then switch — but never waits long for it.
 function start() {

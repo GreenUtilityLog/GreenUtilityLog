@@ -1415,11 +1415,13 @@ html,body{background:${T.bg};font-family:-apple-system,BlinkMacSystemFont,'Segoe
    gate (410) — so on tap it would open hidden behind the gate. Force it on top. */
 vdk-modal{--vdk-modal-z-index:99999 !important;}
 .z1{position:relative;z-index:1;}
-/* Room under the content for the fixed menu bar (.bnav: about 92px, plus the phone's
+/* Room under the content for the fixed menu bar (.bnav: about 70px, plus the phone's
    gesture-bar area), with some air, so the last thing on a page (the photo tips) is
-   never behind the bar. It was 85px: a few pixels short, more on phones with a
-   gesture bar or larger text. */
-.scr{padding-bottom:calc(120px + env(safe-area-inset-bottom, 0px));}
+   never behind the bar. The gesture-bar area is --gul-safe-bottom (main.jsx): the
+   phone's own, up to 40px (an iPhone's home indicator). VeWorld on Android reports
+   about 60px while its system buttons already sit below the page, and the bar had a
+   band of empty space under it (owner's screenshot, 2026-11-15). */
+.scr{padding-bottom:calc(100px + var(--gul-safe-bottom, 0px));}
 
 /* 100dvh (not 100vh) so mobile browser chrome can't push the CTA below the fold;
    overflow-y:auto keeps it usable on very short screens. */
@@ -1599,7 +1601,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 .sr-sub{font-size:10px;color:${T.textSoft};margin-top:1px;}
 .sr-right{display:flex;align-items:center;gap:6px;}
 
-.bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:420px;background:${T.navBg};border-top:1px solid ${T.border};display:grid;grid-auto-flow:column;grid-auto-columns:1fr;padding:10px 0 calc(24px + env(safe-area-inset-bottom, 0px));z-index:20;backdrop-filter:blur(20px);}
+.bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:420px;background:${T.navBg};border-top:1px solid ${T.border};display:grid;grid-auto-flow:column;grid-auto-columns:1fr;padding:10px 0 max(10px, var(--gul-safe-bottom, 0px));z-index:20;backdrop-filter:blur(20px);}
 .nitem{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;border:none;background:none;color:${T.textSoft};transition:all .18s;padding:6px 2px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;position:relative;}
 .nitem.active{color:${T.green2};}
 .nitem.active::before{content:'';position:absolute;top:-2px;left:50%;transform:translateX(-50%);width:20px;height:2px;background:${T.green3};border-radius:1px;}
@@ -1609,7 +1611,7 @@ vdk-modal{--vdk-modal-z-index:99999 !important;}
 /* 400, above the admin screen's 320: at 200 every message the admin panel
    produced rendered UNDER it, so signing an action showed nothing at all.
    Any new full-screen overlay must stay below this. */
-.toast{position:fixed;bottom:calc(96px + env(safe-area-inset-bottom, 0px));left:50%;transform:translateX(-50%);background:${T.text};border-radius:8px;padding:10px 16px;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.25);font-weight:700;letter-spacing:.3px;color:${T.bg};z-index:400;width:max-content;max-width:min(88vw,420px);white-space:normal;overflow-wrap:anywhere;text-align:center;line-height:1.4;animation:toastin .18s ease;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
+.toast{position:fixed;bottom:calc(84px + var(--gul-safe-bottom, 0px));left:50%;transform:translateX(-50%);background:${T.text};border-radius:8px;padding:10px 16px;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.25);font-weight:700;letter-spacing:.3px;color:${T.bg};z-index:400;width:max-content;max-width:min(88vw,420px);white-space:normal;overflow-wrap:anywhere;text-align:center;line-height:1.4;animation:toastin .18s ease;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
 @keyframes toastin{from{opacity:0;transform:translateX(-50%) translateY(-5px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);z-index:100;display:flex;align-items:flex-end;justify-content:center;}

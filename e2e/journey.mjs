@@ -276,6 +276,9 @@ await step("a photo reading a day after the last one pays", async () => {
 });
 
 await step("Meter: the photo tips open above the menu bar", async () => {
+  // The bar itself: its labels and a little air, no empty band under them.
+  const bar = await page.locator(".bnav").boundingBox();
+  assert.ok(bar.height <= 80, `menu bar ${Math.round(bar.height)}px high`);
   await page.locator(".bnav button").nth(1).click(); await wait(800);
   const btn = page.getByRole("button", { name: /Photo tips/ });
   await btn.scrollIntoViewIfNeeded(); await btn.click(); await wait(300);
