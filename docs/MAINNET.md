@@ -19,6 +19,14 @@ Registreren op mainnet kan alleen vanuit een wallet met een **X2Earn Creator NFT
 Check eerst in VeWorld (op **Mainnet**) of de wallet waarmee je registreert hem al heeft.
 
 ## Stap 2 — App registreren op VeBetterDAO mainnet (jij)
+Dezelfde wallets als op testnet (keuze eigenaar, november 2026):
+
+| Rol | Adres |
+|---|---|
+| Beheer (admin) | `0xedd7e5e1be4066cdc892a059f586b9d7e8e4b0c7` |
+| Schatkist (treasury / team wallet) | `0x1390b2cac3b73419bbac32342e9b9ff22df0d7c2` |
+| Reward distributor | dezelfde als op testnet (de server-wallet; staat alleen in Render) |
+
 Naam precies **`Green Utility Log`** → dan is de app-ID gelijk aan testnet
 (`0x489c6c12…f71e`) en hoeft er in de code niets te veranderen. Andere naam (of is
 deze al bezet)? Geef mij de nieuwe app-ID: dan krijgt de app een eigen ID per
