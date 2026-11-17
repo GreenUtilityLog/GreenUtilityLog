@@ -26,7 +26,7 @@ export default {
     "intro.4.t": "Fejlődj velünk",
     "intro.4.s": "A 💧 Csepptől a 🌍 Zöld erőműig: minden nap, amikor mérőállást küldesz, előrébb visz. Közben nő a sorozatod, és ott a ranglista is.",
     "intro.5.t": "VeBetterDAO-tagoknak",
-    "intro.5.s": "Szükséged van egy GM NFT-re és egy VeBetterDAO Passportra, amely személyként számol veled. Az app megmutatja, mi hiányzik még.",
+    "intro.5.s2": "Szükséged van egy GM NFT-re (2-es vagy magasabb szint), amellyel a legutóbbi VeBetterDAO-fordulóban szavaztál, és egy Passportra, amely személyként számol veled. Az app megmutatja, mi hiányzik még.",
     "intro.start": "🚀 Kezdjük",
     "intro.next": "Tovább →",
     "intro.skip": "Kihagyás →",
@@ -311,8 +311,13 @@ export default {
     "noacc.bodyTest": "Csak azok a tárcák használhatják, amelyeknek a csapat tesztelői szerepet adott.",
     "noacc.ask": "Hozzáférésért küldd el a csapatnak ezt a címet:",
     "noacc.gm.title": "VeBetterDAO-tagoknak",
-    "noacc.gm.body": "A Green Utility Log azoknak a tárcáknak érhető el, amelyekhez tartozik egy VeBetterDAO Galaxy Member (GM) NFT és egy VeBetterDAO Passport, amely személyként számol velük.",
-    "noacc.gm.nft": "Galaxy Member (GM) NFT",
+    "noacc.gm.body2": "A Green Utility Log a részt vevő VeBetterDAO-tagoknak érhető el: egy GM NFT, amellyel a legutóbbi fordulóban szavaztál, egy tiszta Passport, és személyenként egy tárca.",
+    "noacc.gm.hasNft": "Galaxy Member (GM) NFT",
+    "noacc.gm.main": "A Passport fő tárcája, nem egy csatolt tárca",
+    "noacc.gm.clean": "Nincs jelzés a Passportban",
+    "noacc.gm.voted": "Szavazás a legutóbbi VeBetterDAO-fordulóban",
+    "noacc.gm.level": "Szavazás legalább 2-es szintű (Hold) GM NFT-vel, amely még ebben a tárcában van",
+    "noacc.gm.levelIs": "annak a GM NFT-nek a szintje, amellyel szavaztál: {level}",
     "noacc.gm.passport": "VeBetterDAO Passport: személyként számol",
     "noacc.gm.has": "megvan",
     "noacc.gm.missing": "hiányzik",
@@ -626,7 +631,7 @@ export default {
       },
       {
         "q": "Ki használhatja az appot?",
-        "a": "A mainneten a Green Utility Log VeBetterDAO-tagoknak szól: a tárcádhoz kell egy Galaxy Member (GM) NFT (bármilyen szintű) és egy VeBetterDAO Passport, amely személyként számol veled. A Passportot nem lehet megvenni: a VeBetterDAO akkor számol veled személyként, ha például a kiválasztott GM NFT-d elég magas szintű, vagy a VeBetterDAO-appok használatából származó részvételi pontszámod elég magas. Ha valami hiányzik, az app megmutatja, mi az, egy VeBetterDAO-linkkel és egy „Újraellenőrzés” gombbal. A tesztverzió azoknak a tesztelőknek szól, akiknek a csapat szerepet adott."
+        "a": "A mainneten a Green Utility Log a részt vevő VeBetterDAO-tagoknak szól. A tárcádhoz kell: egy legalább 2-es szintű (Hold) Galaxy Member (GM) NFT, amellyel a legutóbbi VeBetterDAO-fordulóban szavaztál, és amely még nálad van; hogy ne legyen jelzés a Passportodban; hogy a tárca a Passportod fő tárcája legyen, ne egy csatolt (személyenként egy tárca); és egy VeBetterDAO Passport, amely személyként számol veled. Szavazz minden fordulóban, hogy továbbra is jutalmat kapj. A Passportot nem lehet megvenni: a VeBetterDAO akkor számol veled személyként, ha például a kiválasztott GM NFT-d elég magas szintű, vagy a VeBetterDAO-appok használatából származó részvételi pontszámod elég magas. Ha valami hiányzik, az app megmutatja, mi az, egy VeBetterDAO-linkkel és egy „Újraellenőrzés” gombbal. A tesztverzió azoknak a tesztelőknek szól, akiknek a csapat szerepet adott."
       },
       {
         "q": "Hogyan működnek a szintek?",
