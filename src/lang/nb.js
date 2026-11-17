@@ -26,7 +26,7 @@ export default {
     "intro.4.t": "Voks underveis",
     "intro.4.s": "Fra 💧 Dråpe til 🌍 Grønt kraftverk: hver dag med en målerstand tar deg videre. I tillegg får du dager på rad og topplisten.",
     "intro.5.t": "For VeBetterDAO-medlemmer",
-    "intro.5.s": "Du trenger en GM NFT og et VeBetterDAO Passport som regner deg som en person. Appen viser hva som mangler.",
+    "intro.5.s2": "Du trenger en GM NFT (nivå 2 eller høyere) som du stemte med i den siste VeBetterDAO-runden, og et Passport som regner deg som en person. Appen viser hva som mangler.",
     "intro.start": "🚀 Kom i gang",
     "intro.next": "Fortsett →",
     "intro.skip": "Hopp over →",
@@ -311,8 +311,13 @@ export default {
     "noacc.bodyTest": "Bare lommebøker som teamet har gitt en testerrolle, kan bruke den.",
     "noacc.ask": "Send denne adressen til teamet for å be om tilgang:",
     "noacc.gm.title": "For VeBetterDAO-medlemmer",
-    "noacc.gm.body": "Green Utility Log er åpent for lommebøker med en VeBetterDAO Galaxy Member (GM) NFT og et VeBetterDAO Passport som regner dem som en person.",
-    "noacc.gm.nft": "Galaxy Member (GM) NFT",
+    "noacc.gm.body2": "Green Utility Log er åpent for VeBetterDAO-medlemmer som deltar: en GM NFT du stemte med i siste runde, et rent Passport og én lommebok per person.",
+    "noacc.gm.hasNft": "Galaxy Member (GM) NFT",
+    "noacc.gm.main": "Hovedlommeboken til Passport, ikke en tilknyttet",
+    "noacc.gm.clean": "Ingen signaleringer i Passport",
+    "noacc.gm.voted": "Stemt i den siste VeBetterDAO-runden",
+    "noacc.gm.level": "Stemt med en GM NFT på nivå 2 (Månen) eller høyere, fortsatt i denne lommeboken",
+    "noacc.gm.levelIs": "GM NFT-en du stemte med, er på nivå {level}",
     "noacc.gm.passport": "VeBetterDAO Passport: regnet som en person",
     "noacc.gm.has": "ja",
     "noacc.gm.missing": "mangler",
@@ -626,7 +631,7 @@ export default {
       },
       {
         "q": "Hvem kan bruke appen?",
-        "a": "På mainnet er Green Utility Log for VeBetterDAO-medlemmer: lommeboken din trenger en Galaxy Member (GM) NFT (hvilket som helst nivå) og et VeBetterDAO Passport som regner deg som en person. Passport er ikke noe du kjøper: VeBetterDAO regner deg som en person når for eksempel den valgte GM NFT-en din har høyt nok nivå, eller når deltakerpoengene dine fra bruk av VeBetterDAO-apper er høye nok. Mangler noe, viser appen hva, med en lenke til VeBetterDAO og en «Sjekk igjen»-knapp. Testversjonen er for testere som teamet har gitt en rolle."
+        "a": "På mainnet er Green Utility Log for VeBetterDAO-medlemmer som deltar. Lommeboken din må: ha en Galaxy Member (GM) NFT på nivå 2 (Månen) eller høyere som du stemte med i den siste VeBetterDAO-runden og fortsatt har; ikke ha signaleringer i ditt Passport; være hovedlommeboken til ditt Passport, ikke en tilknyttet (én lommebok per person); og ha et VeBetterDAO Passport som regner deg som en person. Stem hver runde for å fortsette å tjene. Passport er ikke noe du kjøper: VeBetterDAO regner deg som en person når for eksempel den valgte GM NFT-en din har høyt nok nivå, eller når deltakerpoengene dine fra bruk av VeBetterDAO-apper er høye nok. Mangler noe, viser appen hva, med en lenke til VeBetterDAO og en «Sjekk igjen»-knapp. Testversjonen er for testere som teamet har gitt en rolle."
       },
       {
         "q": "Hvordan fungerer nivåene?",

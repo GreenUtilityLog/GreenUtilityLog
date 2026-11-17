@@ -26,7 +26,7 @@ export default {
     "intro.4.t": "Rasti z nami",
     "intro.4.s": "Od 💧 Kapljice do 🌍 Zelene elektrarne: vsak dan z odčitkom te pripelje dlje. Poleg tega še tvoj niz zaporednih dni in lestvica.",
     "intro.5.t": "Za člane VeBetterDAO",
-    "intro.5.s": "Potrebuješ GM NFT in VeBetterDAO Passport, ki te šteje kot osebo. Aplikacija ti pokaže, kaj še manjka.",
+    "intro.5.s2": "Potrebuješ GM NFT (raven 2 ali višja), s katerim si glasoval v zadnjem krogu VeBetterDAO, in Passport, ki te šteje kot osebo. Aplikacija ti pokaže, kaj še manjka.",
     "intro.start": "🚀 Začni",
     "intro.next": "Naprej →",
     "intro.skip": "Preskoči →",
@@ -311,8 +311,13 @@ export default {
     "noacc.bodyTest": "Uporabljajo jo lahko samo denarnice, ki jim je ekipa dodelila vlogo preizkuševalca.",
     "noacc.ask": "Za dostop pošlji ekipi ta naslov:",
     "noacc.gm.title": "Za člane VeBetterDAO",
-    "noacc.gm.body": "Green Utility Log je odprt za denarnice z VeBetterDAO Galaxy Member (GM) NFT in VeBetterDAO Passportom, ki jih šteje kot osebo.",
-    "noacc.gm.nft": "Galaxy Member (GM) NFT",
+    "noacc.gm.body2": "Green Utility Log je odprt za člane VeBetterDAO, ki sodelujejo: GM NFT, s katerim si glasoval v zadnjem krogu, čist Passport in ena denarnica na osebo.",
+    "noacc.gm.hasNft": "Galaxy Member (GM) NFT",
+    "noacc.gm.main": "Glavna denarnica Passporta, ne povezana",
+    "noacc.gm.clean": "Brez prijav v Passportu",
+    "noacc.gm.voted": "Glasovanje v zadnjem krogu VeBetterDAO",
+    "noacc.gm.level": "Glasovanje z GM NFT ravni 2 (Luna) ali višje, ki je še v tej denarnici",
+    "noacc.gm.levelIs": "GM NFT, s katerim si glasoval, je na ravni {level}",
     "noacc.gm.passport": "VeBetterDAO Passport: šteje kot oseba",
     "noacc.gm.has": "da",
     "noacc.gm.missing": "manjka",
@@ -626,7 +631,7 @@ export default {
       },
       {
         "q": "Kdo lahko uporablja aplikacijo?",
-        "a": "Na Mainnetu je Green Utility Log namenjen članom VeBetterDAO: tvoja denarnica potrebuje Galaxy Member (GM) NFT (katere koli ravni) in VeBetterDAO Passport, ki te šteje kot osebo. Passporta ne kupiš: VeBetterDAO te šteje kot osebo, ko je na primer tvoj izbrani GM NFT na dovolj visoki ravni ali ko je tvoja ocena sodelovanja iz uporabe aplikacij VeBetterDAO dovolj visoka. Če kaj manjka, ti aplikacija pokaže kaj, skupaj s povezavo na VeBetterDAO in gumbom »Preveri znova«. Testna različica je za preizkuševalce, ki jim je ekipa dodelila vlogo."
+        "a": "Na Mainnetu je Green Utility Log namenjen članom VeBetterDAO, ki sodelujejo. Tvoja denarnica potrebuje: Galaxy Member (GM) NFT ravni 2 (Luna) ali višje, s katerim si glasoval v zadnjem krogu VeBetterDAO in ga še imaš; nobenih prijav v tvojem Passportu; biti mora glavna denarnica tvojega Passporta, ne povezana (ena denarnica na osebo); in VeBetterDAO Passport, ki te šteje kot osebo. Glasuj v vsakem krogu, da boš še naprej služil. Passporta ne kupiš: VeBetterDAO te šteje kot osebo, ko je na primer tvoj izbrani GM NFT na dovolj visoki ravni ali ko je tvoja ocena sodelovanja iz uporabe aplikacij VeBetterDAO dovolj visoka. Če kaj manjka, ti aplikacija pokaže kaj, skupaj s povezavo na VeBetterDAO in gumbom »Preveri znova«. Testna različica je za preizkuševalce, ki jim je ekipa dodelila vlogo."
       },
       {
         "q": "Kako delujejo ravni?",

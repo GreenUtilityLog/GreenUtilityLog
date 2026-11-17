@@ -26,7 +26,7 @@ export default {
     "intro.4.t": "Cresci con noi",
     "intro.4.s": "Da 💧 Goccia a 🌍 Centrale verde: ogni giorno con una lettura ti fa salire. In più la tua serie di giorni e la classifica.",
     "intro.5.t": "Per i membri VeBetterDAO",
-    "intro.5.s": "Ti servono un GM NFT e un VeBetterDAO Passport che ti riconosca come persona. L'app ti mostra cosa manca ancora.",
+    "intro.5.s2": "Ti serve un GM NFT (livello 2 o superiore) con cui hai votato nell'ultimo round di VeBetterDAO, e un Passport che ti riconosca come persona. L'app ti mostra cosa manca ancora.",
     "intro.start": "🚀 Inizia",
     "intro.next": "Avanti →",
     "intro.skip": "Salta →",
@@ -311,8 +311,13 @@ export default {
     "noacc.bodyTest": "Possono usarla solo i wallet a cui il team ha dato il ruolo di tester.",
     "noacc.ask": "Per chiedere l'accesso, invia al team questo indirizzo:",
     "noacc.gm.title": "Per i membri VeBetterDAO",
-    "noacc.gm.body": "Green Utility Log è aperta ai wallet con un Galaxy Member (GM) NFT di VeBetterDAO e un VeBetterDAO Passport che li riconosca come persona.",
-    "noacc.gm.nft": "Galaxy Member (GM) NFT",
+    "noacc.gm.body2": "Green Utility Log è aperta ai membri VeBetterDAO che partecipano: un GM NFT con cui hai votato nell'ultimo round, un Passport senza segnalazioni e un wallet per persona.",
+    "noacc.gm.hasNft": "Galaxy Member (GM) NFT",
+    "noacc.gm.main": "Il wallet principale del Passport, non uno collegato",
+    "noacc.gm.clean": "Nessuna segnalazione nel Passport",
+    "noacc.gm.voted": "Ha votato nell'ultimo round di VeBetterDAO",
+    "noacc.gm.level": "Ha votato con un GM NFT di livello 2 (Luna) o superiore, ancora in questo wallet",
+    "noacc.gm.levelIs": "il GM NFT con cui hai votato è di livello {level}",
     "noacc.gm.passport": "VeBetterDAO Passport: riconosciuto come persona",
     "noacc.gm.has": "sì",
     "noacc.gm.missing": "manca",
@@ -626,7 +631,7 @@ export default {
       },
       {
         "q": "Chi può usare l'app?",
-        "a": "Su Mainnet, Green Utility Log è per i membri VeBetterDAO: il tuo wallet deve avere un Galaxy Member (GM) NFT (di qualsiasi livello) e un VeBetterDAO Passport che ti riconosca come persona. Il Passport non si compra: VeBetterDAO ti riconosce come persona quando, per esempio, il GM NFT che hai selezionato ha un livello abbastanza alto, oppure il tuo punteggio di partecipazione, ottenuto usando le app di VeBetterDAO, è abbastanza alto. Se manca qualcosa, l'app ti mostra cosa, con un link a VeBetterDAO e un pulsante \"Controlla di nuovo\". La versione di prova è per i tester a cui il team ha dato un ruolo."
+        "a": "Su Mainnet, Green Utility Log è per i membri VeBetterDAO che partecipano. Il tuo wallet deve: avere un Galaxy Member (GM) NFT di livello 2 (Luna) o superiore con cui hai votato nell'ultimo round di VeBetterDAO e che hai ancora; non avere segnalazioni nel tuo Passport; essere il wallet principale del tuo Passport, non uno collegato (un wallet per persona); e avere un VeBetterDAO Passport che ti riconosca come persona. Vota a ogni round per continuare a guadagnare. Il Passport non si compra: VeBetterDAO ti riconosce come persona quando, per esempio, il GM NFT che hai selezionato ha un livello abbastanza alto, oppure il tuo punteggio di partecipazione, ottenuto usando le app di VeBetterDAO, è abbastanza alto. Se manca qualcosa, l'app ti mostra cosa, con un link a VeBetterDAO e un pulsante \"Controlla di nuovo\". La versione di prova è per i tester a cui il team ha dato un ruolo."
       },
       {
         "q": "Come funzionano i livelli?",

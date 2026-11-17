@@ -26,7 +26,7 @@ export default {
     "intro.4.t": "Birlikte Büyü",
     "intro.4.s": "Okuma yaptığın her gün seni 💧 Damla'dan 🌍 Yeşil Santral'e doğru bir adım ileri taşır. Üstelik serin ve sıralama da var.",
     "intro.5.t": "VeBetterDAO Üyeleri İçin",
-    "intro.5.s": "Bir GM NFT'ye ve seni gerçek kişi olarak sayan bir VeBetterDAO Passport'a ihtiyacın var. Neyin eksik olduğunu uygulama gösterir.",
+    "intro.5.s2": "Son VeBetterDAO turunda oy verdiğin bir GM NFT'ye (seviye 2 veya üstü) ve seni gerçek kişi olarak sayan bir Passport'a ihtiyacın var. Neyin hâlâ eksik olduğunu uygulama gösterir.",
     "intro.start": "🚀 Hadi Başlayalım",
     "intro.next": "Devam →",
     "intro.skip": "Geç →",
@@ -311,8 +311,13 @@ export default {
     "noacc.bodyTest": "Yalnızca ekibin test kullanıcısı rolü verdiği cüzdanlar kullanabilir.",
     "noacc.ask": "Erişim istemek için ekibe bu adresi gönder:",
     "noacc.gm.title": "VeBetterDAO üyeleri için",
-    "noacc.gm.body": "Green Utility Log, VeBetterDAO Galaxy Member (GM) NFT'si olan ve VeBetterDAO Passport'u onu gerçek kişi olarak sayan cüzdanlara açıktır.",
-    "noacc.gm.nft": "Galaxy Member (GM) NFT",
+    "noacc.gm.body2": "Green Utility Log, katılım gösteren VeBetterDAO üyelerine açıktır: son turda oy verdiğin bir GM NFT, temiz bir Passport ve kişi başına bir cüzdan.",
+    "noacc.gm.hasNft": "Galaxy Member (GM) NFT",
+    "noacc.gm.main": "Passport'un ana cüzdanı, bağlı bir cüzdan değil",
+    "noacc.gm.clean": "Passport'ta işaretleme yok",
+    "noacc.gm.voted": "Son VeBetterDAO turunda oy verildi",
+    "noacc.gm.level": "Seviye 2 (Ay) veya üstü bir GM NFT ile oy verildi, NFT hâlâ bu cüzdanda",
+    "noacc.gm.levelIs": "oy verdiğin GM NFT {level}. seviyede",
     "noacc.gm.passport": "VeBetterDAO Passport: kişi olarak sayılıyor",
     "noacc.gm.has": "var",
     "noacc.gm.missing": "eksik",
@@ -626,7 +631,7 @@ export default {
       },
       {
         "q": "Uygulamayı kimler kullanabilir?",
-        "a": "Mainnet'te Green Utility Log, VeBetterDAO üyeleri içindir: cüzdanında bir Galaxy Member (GM) NFT (herhangi bir seviye) ve seni gerçek kişi olarak sayan bir VeBetterDAO Passport olmalı. Passport satın alınan bir şey değil: örneğin seçtiğin GM NFT yeterince yüksek seviyedeyse ya da VeBetterDAO uygulamalarını kullanarak topladığın katılım puanın yeterince yüksekse, VeBetterDAO seni gerçek kişi olarak sayar. Bir şey eksikse uygulama neyin eksik olduğunu, VeBetterDAO bağlantısı ve \"Tekrar kontrol et\" düğmesiyle birlikte gösterir. Test sürümü, ekibin rol verdiği test kullanıcıları içindir."
+        "a": "Mainnet'te Green Utility Log, katılım gösteren VeBetterDAO üyeleri içindir. Cüzdanında şunlar olmalı: son VeBetterDAO turunda oy verdiğin ve hâlâ elinde tuttuğun, seviye 2 (Ay) veya üstü bir Galaxy Member (GM) NFT; Passport'unda hiçbir işaretleme olmaması; cüzdanın Passport'unun ana cüzdanı olması, bağlı bir cüzdan değil (kişi başına bir cüzdan); ve seni gerçek kişi olarak sayan bir VeBetterDAO Passport. Kazanmaya devam etmek için her turda oy ver. Passport satın alınan bir şey değil: örneğin seçtiğin GM NFT yeterince yüksek seviyedeyse ya da VeBetterDAO uygulamalarını kullanarak topladığın katılım puanın yeterince yüksekse, VeBetterDAO seni gerçek kişi olarak sayar. Bir şey eksikse uygulama neyin eksik olduğunu, VeBetterDAO bağlantısı ve \"Tekrar kontrol et\" düğmesiyle birlikte gösterir. Test sürümü, ekibin rol verdiği test kullanıcıları içindir."
       },
       {
         "q": "Seviyeler nasıl çalışır?",
