@@ -41,39 +41,40 @@ Green Utility Log
 
 **Tagline / korte slogan**
 ```
-Log your meters, earn B3TR for saving energy.
+Use less electricity, earn B3TR.
 ```
 
 **Short description**
 ```
-Green Utility Log turns everyday energy habits into on-chain rewards. Snap your
-electricity meter reading (or connect a P1 reader), verify it, and earn B3TR on
-VeChain for tracking — and reducing — your consumption.
+Green Utility Log rewards households for using less electricity. Snap your meter
+or connect a smart reader; every kWh you stay below the daily target of 8 kWh
+earns B3TR on VeChain.
 ```
 
 **Full description**
 ```
-Green Utility Log is a sustainability app that rewards people for monitoring and
-lowering their household electricity usage. Users photograph their electricity
-meter, or send the reading automatically from a P1 reader; each reading is verified and logged on VeChain, building
-a transparent history of consumption over time.
+Green Utility Log rewards people for actually saving electricity, not for
+logging it. Users photograph their electricity meter, or send the reading
+automatically from a P1 reader, Home Assistant, Powerfox or Tibber. The server
+checks each reading (photo checks, meter ownership, plausible usage) and pays
+B3TR for every kWh used below a target of 8 kWh a day. A reading without savings
+is recorded but not rewarded.
 
-Every verified submission earns B3TR through VeBetterDAO's X2Earn program,
-turning small, repeatable green actions — checking your meters, spotting waste,
-cutting usage — into real rewards. Features include AI-assisted meter
-verification, daily streaks, a global leaderboard, charts of your consumption
-trends, offline logging with later sync, and an exportable monthly PDF report.
+Rewards come from the app's weekly VeBetterDAO allocation and are spread over
+the week, so the pot never runs dry. On mainnet the app is open to VeBetterDAO
+members with a Galaxy Member NFT and a Passport.
 
-By making utility tracking effortless and rewarding, Green Utility Log nudges
-households toward measurable energy savings.
+Features: automatic meter readers, savings charts and a calendar, levels by days
+with a reading, a yearly outlook, a leaderboard, offline logging with later
+sync, a PDF report, and the app in 20 languages.
 ```
 
 **Sustainability impact** (vaak gevraagd)
 ```
-Encourages households to reduce electricity consumption through habit
-tracking, streaks and rewards. Produces
-verifiable, time-stamped consumption data on-chain, making personal energy
-savings measurable and rewardable.
+Pays only for measured savings: kWh below a fixed daily target, read from the
+household's own electricity meter. Each payout records the reading, the period
+and the kWh saved on VeChain, so the saving is verifiable and adds up across
+users.
 ```
 
 **Categories / tags** (kies wat het formulier aanbiedt)
