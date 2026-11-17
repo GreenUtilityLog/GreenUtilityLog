@@ -22,6 +22,8 @@ const CONTRACTS_BY_NET = {
     XAllocationPool:   "0x4191776F05f4bE4848d3f4d587345078B439C7d3",
     // VeBetterDAO's Galaxy Member (GM) NFT, as in @vechain/vebetterdao-contracts.
     GalaxyMember:      "0x93B8cD34A7Fc4f53271b9011161F7A2B5fEA9D1F",
+    // Records which GM NFT voted in which round (from @vechain/vechain-kit's config).
+    VoterRewards:      "0x838A33AF756a6366f93e201423E1425f67eC0Fa7",
   },
   testnet: {
     X2EarnRewardsPool: "0x2d2a2207c68a46fc79325d7718e639d1047b0d8b",
@@ -30,6 +32,7 @@ const CONTRACTS_BY_NET = {
     XAllocationVoting: "0x8800592c463f0b21ae08732559ee8e146db1d7b2",
     XAllocationPool:   "0x6f7b4bc19b4dc99005b473b9c45ce2815bbe7533",
     GalaxyMember:      "0x38a59fa7fd7039884465a0ff285b8c4b6fe394ca",
+    VoterRewards:      "0x851ef91801899a4e7e4a3174a9300b3e20c957e8",
   },
 };
 export const CONTRACTS = CONTRACTS_BY_NET[NETWORK] || CONTRACTS_BY_NET.testnet;

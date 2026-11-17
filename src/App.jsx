@@ -1754,7 +1754,7 @@ function IntroScreen({ onStart }) {
     { icon: '🌍', title: t("intro.4.t"), sub: t("intro.4.s") },
     // Mainnet is for VeBetterDAO members (access "gm" on the server): say so before
     // connecting, so nobody first meets it as a locked screen.
-    ...(NETWORK === "mainnet" ? [{ icon: '🪐', title: t("intro.5.t"), sub: t("intro.5.s") }] : []),
+    ...(NETWORK === "mainnet" ? [{ icon: '🪐', title: t("intro.5.t"), sub: t("intro.5.s2") }] : []),
   ];
   
   const [slide, setSlide] = useState(0);
@@ -3781,12 +3781,18 @@ function GmAccessScreen({ gm, T, onSwitch, onRetry }) {
     <div data-gate="gm" style={{margin:"24px 16px",padding:"22px 18px",background:T.card,border:`1px solid ${T.border}`,borderRadius:10,textAlign:"center"}}>
       <div style={{fontSize:34,lineHeight:1}} aria-hidden="true">🪐</div>
       <h2 style={{fontSize:17,fontWeight:800,color:T.text,margin:"12px 0 6px"}}>{t("noacc.gm.title")}</h2>
-      <p style={{fontSize:12.5,color:T.textMid,lineHeight:1.6,margin:"0 0 12px"}}>{t("noacc.gm.body")}</p>
+      <p style={{fontSize:12.5,color:T.textMid,lineHeight:1.6,margin:"0 0 12px"}}>{t("noacc.gm.body2")}</p>
       <ul style={{listStyle:"none",margin:"0 0 12px",padding:0}}>
-        {row(gm?.gm ?? null, t("noacc.gm.nft"), "nft")}
-        {row(gm?.gm === true ? (gm?.person ?? null) : null, t("noacc.gm.passport"), "passport")}
+        {/* VeBetterDAO's rule for app rewards, then the Passport (server: gmStatus). */}
+        {row(gm?.has ?? null, t("noacc.gm.hasNft"), "nft")}
+        {row(gm?.main ?? null, t("noacc.gm.main"), "main")}
+        {row(gm?.clean ?? null, t("noacc.gm.clean"), "clean")}
+        {row(gm?.voted ?? null, t("noacc.gm.voted"), "voted")}
+        {row(gm?.gm ?? null, t("noacc.gm.level"), "level")}
+        {row(gm?.has === true ? (gm?.person ?? null) : null, t("noacc.gm.passport"), "passport")}
       </ul>
-      {(gm?.gm == null || (gm.gm === true && gm.person == null)) && <p style={{fontSize:11.5,color:T.textSoft,margin:"0 0 10px"}}>{t("noacc.gm.unread")}</p>}
+      {gm?.gm === false && Number(gm?.level) > 0 && <p data-gm-level style={{fontSize:11.5,color:T.textSoft,margin:"0 0 10px"}}>{t("noacc.gm.levelIs", { level: gm.level })}</p>}
+      {gm && ["has", "main", "clean", "voted", "gm"].some((k) => gm[k] === null) && <p style={{fontSize:11.5,color:T.textSoft,margin:"0 0 10px"}}>{t("noacc.gm.unread")}</p>}
       <a href={GM_PAGE} target="_blank" rel="noopener noreferrer" style={{display:"inline-block",fontSize:12.5,fontWeight:700,color:T.green3,marginBottom:14}}>{t("noacc.gm.get")}</a>
       <div style={{display:"flex",gap:8}}>
         <button type="button" onClick={retry} disabled={busy} style={{flex:1,padding:"11px",fontSize:12,fontWeight:800,color:T === DARK ? T.bg : "#fff",background:T.green2,border:"none",borderRadius:6,cursor:busy?"default":"pointer",opacity:busy?0.7:1}}>{busy ? "…" : t("noacc.gm.retry")}</button>

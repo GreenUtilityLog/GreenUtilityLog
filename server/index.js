@@ -14,7 +14,7 @@ import { store } from "./store.js";
 import { putPhoto, getPhotoDataUrl, deletePhoto, photoStoreEnabled } from "./photostore.js";
 import { distributeReward, savingOf, distributorAddress, chainDiagnostics, moveToRewardsPool, DRY_RUN, hasDistributorKey, payoutPending, pendingPayoutCount, recheckPendingPayouts } from "./reward.js";
 import { signalStatus, passportFor, signalUser, passportVouches } from "./passport.js";
-import { holdsGalaxyMember } from "./galaxy.js";
+import { holdsGalaxyMember, memberCheck } from "./galaxy.js";
 import { budgetState, scaledAmount, recordPayout, autoClaimAllocation, autoMoveToRewardsPool } from "./budget.js";
 import { ocrImage, ocrEnabled, ocrProviders } from "./ocr.js";
 import { verifyWalletCertificate, REQUIRE_CERT, CERT_MAX_AGE_MS, certDomainsSeen } from "./auth.js";
@@ -543,15 +543,22 @@ function accessMode() {
 const rolesRequired = () => accessMode() === "roles";
 const isAdminWallet = (addr) => ADMIN_USER_WALLETS.includes(String(addr || "").toLowerCase());
 
-// In "gm" mode: what this wallet has. gm/person: true, false, or null (unreadable).
+// In "gm" mode: what this wallet has, each true, false, or null (unreadable):
+//   has    — any GM NFT at all;
+//   main   — the Passport wallet itself, not a wallet linked to another Passport;
+//   clean  — no signals in the VeBetterDAO Passport;
+//   voted  — voted in the last allocation round;
+//   gm     — the GM NFT it voted with is still its own and level 2 (Moon) or higher;
+//   person — the Passport counts it as a person.
+// The first five are VeBetterDAO's rule for app rewards (galaxy.js memberCheck);
+// the Passport check is the owner's, kept on top. null means "try again", never "no".
 async function gmStatus(addr) {
-  const gm = await holdsGalaxyMember(addr);
-  // The Passport is only asked once the GM NFT is there: no point otherwise.
-  // null when it couldn't be read, so the wallet is told to try again, not that its
-  // Passport doesn't count it.
-  const person = gm === true ? await personStatus(addr) : null;
-  return { gm, person };
+  const [has, m] = await Promise.all([holdsGalaxyMember(addr), memberCheck(addr)]);
+  // The Passport is only asked once there is a GM NFT: no point otherwise.
+  const person = has === true ? await personStatus(addr) : null;
+  return { has, main: m.main, clean: m.clean, voted: m.voted, gm: has === false ? false : m.gm, level: m.level, person };
 }
+const gmPasses = (s) => s.has === true && s.main === true && s.clean === true && s.voted === true && s.gm === true && s.person === true;
 
 async function accessOk(addr) {
   // Admins always get in, whatever the switch says — they have to be able to turn
@@ -559,7 +566,7 @@ async function accessOk(addr) {
   if (isAdminWallet(addr)) return true;
   const mode = accessMode();
   if (mode === "everyone") return true;
-  if (mode === "gm") { const s = await gmStatus(addr); return s.gm === true && s.person === true; }
+  if (mode === "gm") return gmPasses(await gmStatus(addr));
   if (store.hasPass(addr)) return true;
   return PASSPORT_GRANTS_ACCESS ? isPerson(addr) : false;
 }
@@ -567,8 +574,15 @@ async function passBlock(addr) {
   if (await accessOk(addr)) return null;
   if (accessMode() === "gm") {
     const s = await gmStatus(addr);
-    if (s.gm === null) return "couldn't check this wallet's VeBetterDAO GM NFT right now — please try again in a minute";
-    if (s.gm === false) return "this version is for VeBetterDAO members: the wallet needs a Galaxy Member (GM) NFT and a VeBetterDAO Passport that counts it as a person";
+    // In order: the first check that says no (or couldn't be read) is the one told.
+    const tryAgain = "couldn't check this wallet on VeBetterDAO right now — please try again in a minute";
+    if (s.has === null) return "couldn't check this wallet's VeBetterDAO GM NFT right now — please try again in a minute";
+    if (s.has === false) return "this version is for VeBetterDAO members: the wallet needs a Galaxy Member (GM) NFT and a VeBetterDAO Passport that counts it as a person";
+    if (s.main === null || s.clean === null || s.voted === null || s.gm === null) return tryAgain;
+    if (s.main === false) return "this wallet is linked to another VeBetterDAO Passport — use the Passport's main wallet here (one wallet per person)";
+    if (s.clean === false) return "this wallet has been signaled in its VeBetterDAO Passport, so it can't earn here";
+    if (s.voted === false) return "this version needs a vote in the last VeBetterDAO allocation round — vote with your GM NFT this round, and you're in from the next one";
+    if (s.gm === false) return "the GM NFT you voted with last round has to be level 2 (Moon) or higher and still in this wallet";
     if (s.person === null) return "couldn't check this wallet's VeBetterDAO Passport right now — please try again in a minute";
     return "this wallet has a GM NFT, but its VeBetterDAO Passport doesn't count it as a person yet";
   }
