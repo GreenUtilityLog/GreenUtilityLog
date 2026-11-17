@@ -24,8 +24,11 @@ Dezelfde wallets als op testnet (keuze eigenaar, november 2026):
 | Rol | Adres |
 |---|---|
 | Beheer (admin) | `0xedd7e5e1be4066cdc892a059f586b9d7e8e4b0c7` |
-| Schatkist (treasury / team wallet) | `0x1390b2cac3b73419bbac32342e9b9ff22df0d7c2` |
-| Reward distributor | dezelfde als op testnet (de server-wallet; staat alleen in Render) |
+| Schatkist (treasury / team wallet) | `0xedd7e5e1be4066cdc892a059f586b9d7e8e4b0c7` (dezelfde als beheer) |
+| Reward distributor | `0x1390b2cac3b73419bbac32342e9b9ff22df0d7c2` — de server-wallet, als op testnet; de sleutel staat alleen in Render |
+
+Staat in de aanvraag nog `0x1390…` als schatkist: wijzig dat met de beheerwallet in de
+app-instellingen op VeBetterDAO. De sleutel van de schatkist hoort niet op een server.
 
 Naam precies **`Green Utility Log`** → dan is de app-ID gelijk aan testnet
 (`0x489c6c12…f71e`) en hoeft er in de code niets te veranderen. Andere naam (of is
