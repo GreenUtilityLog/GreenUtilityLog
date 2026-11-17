@@ -67,7 +67,8 @@ const world = {
   [W.LEVEL1]: base(16),
   [W.SOLD]: base(17),
   [W.TOKEN_NOT_VOTED]: base(18),
-  // Selected NFT 19 at the round's start, switched to 20 and voted with that one.
+  // Selected NFT 19 at the round's start, switched to 20 and voted with that one:
+  // only the NFT at the round's start counts (owner's choice), so out.
   [W.SWITCHED]: { ...base(19), now: 20 },
   [W.VOTE_UNREAD]: { ...base(21), voted: null },
 };
@@ -166,10 +167,10 @@ describe("access mode gm", () => {
     assert.equal((await seen(W.LEVEL1)).body.gmAccess.level, 1);
   });
 
-  test("switched GM NFT mid-round: the one it voted with counts", async () => {
+  test("switched GM NFT mid-round: the one selected at the round's start counts, and it didn't vote", async () => {
     const r = await seen(W.SWITCHED);
-    assert.equal(r.body.hasPass, true, JSON.stringify(r.body));
-    assert.equal(r.body.gmAccess.level, 3);
+    assert.equal(r.body.hasPass, false, JSON.stringify(r.body));
+    assert.equal(r.body.gmAccess.gm, false);
   });
 
   test("everything but the Passport: out, and told why", async () => {
