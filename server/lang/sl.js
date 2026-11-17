@@ -16,7 +16,7 @@ export default {
   "this wallet is linked to another VeBetterDAO Passport — use the Passport's main wallet here (one wallet per person)": "ta denarnica je povezana z drugim VeBetterDAO Passportom — tukaj uporabi glavno denarnico Passporta (ena denarnica na osebo)",
   "this wallet has been signaled in its VeBetterDAO Passport, so it can't earn here": "ta denarnica je bila prijavljena v svojem VeBetterDAO Passportu, zato tukaj ne more služiti",
   "this version needs a vote in the last VeBetterDAO allocation round — vote with your GM NFT this round, and you're in from the next one": "ta različica zahteva glas v zadnjem krogu dodeljevanja VeBetterDAO — v tem krogu glasuj s svojim GM NFT in sodeluješ od naslednjega naprej",
-  "the GM NFT you voted with last round has to be level 2 (Moon) or higher and still in this wallet": "GM NFT, s katerim si glasoval v zadnjem krogu, mora biti na ravni 2 (Luna) ali višji in še vedno v tej denarnici",
+  "the GM NFT you voted with last round has to be level 2 (Moon) or higher and still in this wallet": "GM NFT, s katerim je bil oddan glas v zadnjem krogu, mora biti na ravni 2 (Luna) ali višji in še vedno v tej denarnici",
   "this wallet has a GM NFT, but its VeBetterDAO Passport doesn't count it as a person yet": "ta denarnica ima GM NFT, vendar je njen VeBetterDAO Passport še ne šteje kot osebo",
   "too many photo attempts today — try again tomorrow": "danes je bilo preveč poskusov s fotografijo — poskusi znova jutri",
   "the photo check has reached today's limit — please try again tomorrow": "preverjanje fotografij je doseglo današnjo omejitev — poskusi znova jutri",
