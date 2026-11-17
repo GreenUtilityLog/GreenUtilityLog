@@ -51,10 +51,10 @@ export async function holdsGalaxyMember(address) {
 // Passport (an "entity") doesn't earn — the Passport wallet itself does. That also
 // covers "a linked account whose main account is signaled".
 //
-// Which GM NFT: VoterRewards takes the one selected when the vote is cast
-// (getSelectedTokenId at that moment); the rule above names the one selected at
-// the round's start (getSelectedTokenIdAtBlock). Both are tried, so switching NFTs
-// mid-round neither shuts someone out nor lets an unvoted NFT through.
+// Which GM NFT: the one selected at the round's start (getSelectedTokenIdAtBlock at
+// roundSnapshot), as the rule says — the owner's choice (2026-11-17). Someone who
+// switched NFTs during the round and voted with the other one doesn't pass. Its
+// level is today's: GalaxyMember keeps no level per block (levelOf only).
 //
 // Every value is true / false, or null when the chain couldn't be read. The whole
 // answer is cached like holdsGalaxyMember's: 10 minutes when it passes, 30 seconds
@@ -122,12 +122,9 @@ export async function memberCheck(address) {
     voted = has === undefined ? null : has === true;
     if (voted === false) gm = false;
     else if (voted === true) {
-      const [atStart, now] = await Promise.all([
-        read(G, MEMBER_ABI.getSelectedTokenIdAtBlock, [w, round.start]),
-        read(G, MEMBER_ABI.getSelectedTokenId, [w]),
-      ]);
-      const ids = [...new Set([atStart, now].filter((x) => x !== undefined && BigInt(x) > 0n).map((x) => BigInt(x)))];
-      if (!ids.length) gm = atStart === undefined || now === undefined ? null : false;
+      const atStart = await read(G, MEMBER_ABI.getSelectedTokenIdAtBlock, [w, round.start]);
+      const ids = atStart !== undefined && BigInt(atStart) > 0n ? [BigInt(atStart)] : [];
+      if (!ids.length) gm = atStart === undefined ? null : false;
       else {
         let unread = false;
         gm = false;

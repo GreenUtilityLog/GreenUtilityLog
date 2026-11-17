@@ -121,8 +121,10 @@ komt erin als alles klopt (de regel van VeBetterDAO voor app-beloningen, via mor
 2. de **hoofdwallet** van zijn Passport, geen gekoppelde wallet (één wallet per persoon);
 3. **geen signaleringen** in het Passport (`signaledCounter` = 0);
 4. **gestemd in de vorige ronde** (`XAllocationVoting.hasVoted`);
-5. de GM NFT **waarmee** hij stemde (`VoterRewards.hasTokenVoted`, met het startblok van die
-   ronde) is nog van hem en minimaal **niveau 2 (Moon)**;
+5. de GM NFT die **aan het begin van die ronde geselecteerd** was (`getSelectedTokenIdAtBlock`)
+   heeft gestemd (`VoterRewards.hasTokenVoted`, met het startblok van die ronde), is nog van
+   hem en is minimaal **niveau 2 (Moon)**. Het niveau is dat van nu: het contract bewaart geen
+   niveau per moment. Wie tijdens de ronde van GM NFT wisselt en met de andere stemt, telt niet;
 6. een **VeBetterDAO Passport** dat hem als persoon telt.
 Wie elke ronde stemt, blijft verdienen; wie een ronde overslaat, doet de week erna niet mee.
 De server controleert dat
