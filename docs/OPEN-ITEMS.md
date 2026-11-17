@@ -108,7 +108,10 @@ Laatst bijgewerkt: 2026-11-01.
 - [ ] Creator NFT / endorsement afwachten
 - [ ] Mainnet-stappen uit `docs/MAINNET.md` (Render-dienst, sleutels, `CERT_DOMAINS`, eerste week `MAX_PAYOUT_PER_SUBMISSION=1`)
 - [ ] Grant-aanvraag VeBetter Grants (x2earn-spoor)
-- [x] Mainnet alleen voor wallets met een GM NFT (elk niveau) én een VeBetterDAO Passport dat ze als persoon telt; de server controleert het op de blockchain bij openen en bij elke uitbetaling; admins altijd; een rol telt dan niet. Derde stand in het adminpaneel (*GM NFT + Passport*), standaard op mainnet
+- [x] Toegang mainnet volgens de regel van VeBetterDAO (morbidejs, 17-11-2026): hoofdwallet van het Passport (geen gekoppelde), geen signaleringen, gestemd in de vorige ronde met een GM NFT van niveau 2+ die nog in de wallet staat, plus Passport "is persoon". Elke regel apart getest; de app toont per regel wat ontbreekt (20 talen)
+- [ ] Wallets met KYC waarvan het signaal door de Foundation is teruggezet ook blokkeren: eerst bij morbidejs navragen hoe je die op de blockchain herkent
+- [ ] Extra beloning voor X-node-houders: later (keuze eigenaar)
+- [x] (eerder) Mainnet alleen voor wallets met een GM NFT (elk niveau) én een VeBetterDAO Passport dat ze als persoon telt; de server controleert het op de blockchain bij openen en bij elke uitbetaling; admins altijd; een rol telt dan niet. Derde stand in het adminpaneel (*GM NFT + Passport*), standaard op mainnet
 - [x] Licentie van MIT naar AGPL-3.0-only: openbaar blijven (HACS, add-on, Pages, CI), maar wie de code als dienst draait moet zijn aanpassingen ook openbaar maken. Versies t/m `85d062e` blijven MIT
 - [ ] Naam "Green Utility Log" als merk vastleggen (BOIP, Benelux) — overwegen; eventueel met een jurist
 - [ ] Normen per land (nu één norm van 8 kWh per dag)

@@ -26,7 +26,7 @@ export default {
     "intro.4.t": "Rosti s námi",
     "intro.4.s": "Od 💧 Kapky po 🌍 Zelenou elektrárnu: každý den s odečtem tě posune dál. K tomu tvoje série a žebříček.",
     "intro.5.t": "Pro členy VeBetterDAO",
-    "intro.5.s": "Potřebuješ GM NFT a VeBetterDAO Passport, který tě počítá jako osobu. Aplikace ukáže, co ještě chybí.",
+    "intro.5.s2": "Potřebuješ GM NFT (úroveň 2 nebo vyšší) použité k hlasování v posledním kole VeBetterDAO a Passport, který tě počítá jako osobu. Aplikace ukáže, co ještě chybí.",
     "intro.start": "🚀 Začít",
     "intro.next": "Pokračovat →",
     "intro.skip": "Přeskočit →",
@@ -311,8 +311,13 @@ export default {
     "noacc.bodyTest": "Používat ji můžou jen peněženky, kterým tým přidělil roli testera.",
     "noacc.ask": "Pošli týmu tuto adresu a požádej o přístup:",
     "noacc.gm.title": "Pro členy VeBetterDAO",
-    "noacc.gm.body": "Green Utility Log je otevřený peněženkám s VeBetterDAO Galaxy Member (GM) NFT a VeBetterDAO Passport, který je počítá jako osobu.",
-    "noacc.gm.nft": "Galaxy Member (GM) NFT",
+    "noacc.gm.body2": "Green Utility Log je otevřený členům VeBetterDAO, kteří se zapojují: GM NFT použité k hlasování v posledním kole, čistý Passport a jedna peněženka na osobu.",
+    "noacc.gm.hasNft": "Galaxy Member (GM) NFT",
+    "noacc.gm.main": "Hlavní peněženka Passportu, ne propojená",
+    "noacc.gm.clean": "Žádná nahlášení v Passportu",
+    "noacc.gm.voted": "Hlas v posledním kole VeBetterDAO",
+    "noacc.gm.level": "Hlas s GM NFT úrovně 2 (Měsíc) nebo vyšší, stále v této peněžence",
+    "noacc.gm.levelIs": "GM NFT použité k hlasování má úroveň {level}",
     "noacc.gm.passport": "VeBetterDAO Passport: počítán jako osoba",
     "noacc.gm.has": "ano",
     "noacc.gm.missing": "chybí",
@@ -626,7 +631,7 @@ export default {
       },
       {
         "q": "Kdo může aplikaci používat?",
-        "a": "Na mainnetu je Green Utility Log pro členy VeBetterDAO: tvoje peněženka potřebuje Galaxy Member (GM) NFT (libovolné úrovně) a VeBetterDAO Passport, který tě počítá jako osobu. Passport se nekupuje: VeBetterDAO tě počítá jako osobu například tehdy, když má tvoje vybrané GM NFT dost vysokou úroveň, nebo když máš dost vysoké skóre účasti z používání aplikací VeBetterDAO. Pokud něco chybí, aplikace ukáže co, s odkazem na VeBetterDAO a tlačítkem „Zkontrolovat znovu“. Testovací verze je pro testery, kterým tým přidělil roli."
+        "a": "Na mainnetu je Green Utility Log pro členy VeBetterDAO, kteří se zapojují. Tvoje peněženka potřebuje: Galaxy Member (GM) NFT úrovně 2 (Měsíc) nebo vyšší, použité k hlasování v posledním kole VeBetterDAO, které stále máš; žádná nahlášení v tvém Passportu; být hlavní peněženkou tvého Passportu, ne propojenou (jedna peněženka na osobu); a VeBetterDAO Passport, který tě počítá jako osobu. Hlasuj v každém kole, ať ti odměny chodí dál. Passport se nekupuje: VeBetterDAO tě počítá jako osobu například tehdy, když má tvoje vybrané GM NFT dost vysokou úroveň, nebo když máš dost vysoké skóre účasti z používání aplikací VeBetterDAO. Pokud něco chybí, aplikace ukáže co, s odkazem na VeBetterDAO a tlačítkem „Zkontrolovat znovu“. Testovací verze je pro testery, kterým tým přidělil roli."
       },
       {
         "q": "Jak fungují úrovně?",

@@ -26,7 +26,7 @@ export default {
     "intro.4.t": "Kasva mukana",
     "intro.4.s": "Matka 💧 Pisarasta 🌍 Vihreäksi voimalaksi: jokainen lukemapäivä vie sinua eteenpäin. Lisäksi putkesi ja tulostaulukko.",
     "intro.5.t": "VeBetterDAO-jäsenille",
-    "intro.5.s": "Tarvitset GM NFT:n ja VeBetterDAO Passportin, joka tunnistaa sinut ihmiseksi. Sovellus näyttää, mitä vielä puuttuu.",
+    "intro.5.s2": "Tarvitset GM NFT:n (taso 2 tai korkeampi), jolla äänestit edellisellä VeBetterDAO-kierroksella, ja Passportin, joka tunnistaa sinut ihmiseksi. Sovellus näyttää, mitä vielä puuttuu.",
     "intro.start": "🚀 Aloita",
     "intro.next": "Jatka →",
     "intro.skip": "Ohita →",
@@ -311,8 +311,13 @@ export default {
     "noacc.bodyTest": "Vain lompakot, joille tiimi on antanut testaajan roolin, voivat käyttää sitä.",
     "noacc.ask": "Lähetä tiimille tämä osoite ja pyydä pääsyä:",
     "noacc.gm.title": "VeBetterDAO-jäsenille",
-    "noacc.gm.body": "Green Utility Log on avoinna lompakoille, joilla on VeBetterDAO Galaxy Member (GM) NFT ja VeBetterDAO Passport, joka tunnistaa ne ihmiseksi.",
-    "noacc.gm.nft": "Galaxy Member (GM) NFT",
+    "noacc.gm.body2": "Green Utility Log on avoinna osallistuville VeBetterDAO-jäsenille: GM NFT, jolla äänestit edellisellä kierroksella, puhdas Passport ja yksi lompakko ihmistä kohden.",
+    "noacc.gm.hasNft": "Galaxy Member (GM) NFT",
+    "noacc.gm.main": "Passportin päälompakko, ei linkitetty lompakko",
+    "noacc.gm.clean": "Passportissa ei merkintöjä",
+    "noacc.gm.voted": "Äänestetty edellisellä VeBetterDAO-kierroksella",
+    "noacc.gm.level": "Äänestetty GM NFT:llä, jonka taso on 2 (Kuu) tai korkeampi ja joka on yhä tässä lompakossa",
+    "noacc.gm.levelIs": "GM NFT, jolla äänestit, on tasolla {level}",
     "noacc.gm.passport": "VeBetterDAO Passport: tunnistettu ihmiseksi",
     "noacc.gm.has": "kyllä",
     "noacc.gm.missing": "puuttuu",
@@ -626,7 +631,7 @@ export default {
       },
       {
         "q": "Kuka voi käyttää sovellusta?",
-        "a": "Mainnetissä Green Utility Log on VeBetterDAO-jäsenille: lompakossasi on oltava Galaxy Member (GM) NFT (mikä tahansa taso) ja VeBetterDAO Passport, joka tunnistaa sinut ihmiseksi. Passportia ei osteta: VeBetterDAO tunnistaa sinut ihmiseksi esimerkiksi silloin, kun valitsemasi GM NFT on riittävän korkealla tasolla tai VeBetterDAO-sovellusten käytöstä kertynyt osallistumispisteesi on tarpeeksi korkea. Jos jotain puuttuu, sovellus näyttää mitä, ja tarjoaa linkin VeBetterDAOon sekä \"Tarkista uudelleen\" -painikkeen. Testiversio on testaajille, joille tiimi on antanut roolin."
+        "a": "Mainnetissä Green Utility Log on osallistuville VeBetterDAO-jäsenille. Lompakkosi vaatimukset: Galaxy Member (GM) NFT, jonka taso on 2 (Kuu) tai korkeampi, jolla äänestit edellisellä VeBetterDAO-kierroksella ja joka on yhä hallussasi; Passportissasi ei ole merkintöjä; lompakko on Passportisi päälompakko, ei linkitetty (yksi lompakko ihmistä kohden); ja VeBetterDAO Passport tunnistaa sinut ihmiseksi. Äänestä joka kierroksella, niin ansaitset jatkossakin. Passportia ei osteta: VeBetterDAO tunnistaa sinut ihmiseksi esimerkiksi silloin, kun valitsemasi GM NFT on riittävän korkealla tasolla tai VeBetterDAO-sovellusten käytöstä kertynyt osallistumispisteesi on tarpeeksi korkea. Jos jotain puuttuu, sovellus näyttää mitä, ja tarjoaa linkin VeBetterDAOon sekä \"Tarkista uudelleen\" -painikkeen. Testiversio on testaajille, joille tiimi on antanut roolin."
       },
       {
         "q": "Miten tasot toimivat?",
