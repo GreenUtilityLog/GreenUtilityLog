@@ -541,12 +541,26 @@ await step("MojElektro (Slovenia): connect in the app; a total older than the la
   await page.locator(".bnav button").nth(0).click(); await wait(500);
 });
 
-await step("mainnet rule: only a GM NFT and a Passport get in", async () => {
-  // A chain for the server, answering for the test wallet as `chain` says: the
-  // GalaxyMember contract's balanceOf and the VeBetterDAO Passport's isPerson.
-  const chain = { gm: 0, person: false };
+await step("mainnet rule: VeBetterDAO's member check and the Passport", async () => {
+  // A chain for the server, answering for the test wallet as `chain` says: its GM
+  // NFT (#7, level `level`), the Passport (isPerson, isEntity, signaledCounter), and
+  // last round's vote (XAllocationVoting.hasVoted, VoterRewards.hasTokenVoted).
+  const chain = { gm: 0, person: false, voted: false, level: 2 };
   const GM_T = "0x38a59fa7fd7039884465a0ff285b8c4b6fe394ca", PASSPORT_T = "0x592c756df7a5d39de1735030e8b9c18b7417e6c4";
+  const VOTING_T = "0x8800592c463f0b21ae08732559ee8e146db1d7b2", REWARDS_T = "0x851ef91801899a4e7e4a3174a9300b3e20c957e8";
   const BAL = selector("balanceOf", ["address"]), IS_PERSON = selector("isPerson", ["address"]);
+  const ANSWER = {
+    [`${PASSPORT_T}${selector("isEntity", ["address"])}`]: () => word(0),
+    [`${PASSPORT_T}${selector("signaledCounter", ["address"])}`]: () => word(0),
+    [`${VOTING_T}${selector("currentRoundId", [])}`]: () => word(50),
+    [`${VOTING_T}${selector("roundSnapshot", ["uint256"])}`]: () => word(1000),
+    [`${VOTING_T}${selector("hasVoted", ["uint256", "address"])}`]: () => word(chain.voted ? 1 : 0),
+    [`${GM_T}${selector("getSelectedTokenId", ["address"])}`]: () => word(chain.gm ? 7 : 0),
+    [`${GM_T}${selector("getSelectedTokenIdAtBlock", ["address", "uint48"])}`]: () => word(chain.gm ? 7 : 0),
+    [`${REWARDS_T}${selector("hasTokenVoted", ["uint256", "uint256"])}`]: () => word(chain.voted ? 1 : 0),
+    [`${GM_T}${selector("ownerOf", ["uint256"])}`]: () => ADDR.toLowerCase().slice(2).padStart(64, "0"),
+    [`${GM_T}${selector("levelOf", ["uint256"])}`]: () => word(chain.level),
+  };
   const node = createServer((req, res) => {
     let body = ""; req.on("data", (c) => (body += c));
     req.on("end", () => {
@@ -555,6 +569,8 @@ await step("mainnet rule: only a GM NFT and a Passport get in", async () => {
       let out = "0x";
       if (req.method === "POST" && to === GM_T && data.startsWith(BAL)) out = "0x" + word(chain.gm);
       if (req.method === "POST" && to === PASSPORT_T && data.startsWith(IS_PERSON)) out = "0x" + word(chain.person ? 1 : 0) + word(64) + abiString(chain.person ? "User is a Galaxy Member" : "").slice(64);
+      const f = ANSWER[`${to}${data.slice(0, 10)}`];
+      if (req.method === "POST" && f) out = "0x" + f();
       res.setHeader("content-type", "application/json");
       res.end(JSON.stringify(req.method === "POST" && to ? { data: out, events: [], transfers: [], gasUsed: 0, reverted: false, vmError: "" } : null));
     });
@@ -587,9 +603,20 @@ await step("mainnet rule: only a GM NFT and a Passport get in", async () => {
     // The server says no to a payout too, not only the app.
     const r = await fetch(`http://127.0.0.1:${API_PORT}/wallet/seen`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: ADDR }) });
     assert.equal((await r.json()).hasPass, false, "the server refuses this wallet");
-    // The wallet gets a GM NFT and its Passport counts it; once the server's 30 s
-    // "no" has passed, "Check again" opens the app.
+    // The wallet gets a GM NFT and its Passport counts it, but it didn't vote last
+    // round: still shut, and the gate says that is what's missing. (The server
+    // remembers a "no" for 30 s.)
     chain.gm = 1; chain.person = true;
+    await wait(31000);
+    await gate.getByRole("button", { name: "Opnieuw controleren" }).click(); await wait(2500);
+    assert.equal(await page.locator('[data-gate="gm"]').count(), 1, "still shut without last round's vote");
+    for (const [id, want] of [["nft", "yes"], ["main", "yes"], ["clean", "yes"], ["voted", "no"], ["level", "no"], ["passport", "yes"]]) {
+      assert.equal(await gate.locator(`[data-check="${id}"]`).getAttribute("data-ok"), want, `check ${id}`);
+    }
+    assert.match(await gate.innerText(), /Gestemd in de vorige ronde van VeBetterDAO/);
+    await shot("12b-nl-gm-gate-novote");
+    // It voted with that GM NFT (level 2): "Check again" opens the app.
+    chain.voted = true;
     await wait(31000);
     await gate.getByRole("button", { name: "Opnieuw controleren" }).click(); await wait(2500);
     assert.equal(await page.locator('[data-gate="gm"]').count(), 0, "the gate is gone");

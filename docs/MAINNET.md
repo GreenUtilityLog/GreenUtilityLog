@@ -115,8 +115,17 @@ deze database: dan gooit Upstash bij een volle database zelf sleutels weg, en da
 ook wie al betaald is en welke readings al geclaimd zijn.
 
 **Mainnet alleen voor VeBetterDAO-leden (GM NFT + Passport):** zo start mainnet. Een wallet
-komt erin als hij **allebei** heeft: een VeBetterDAO **Galaxy Member (GM) NFT** (elk niveau,
-ook Earth) én een **VeBetterDAO Passport** dat hem als persoon telt. De server controleert dat
+komt erin als alles klopt (de regel van VeBetterDAO voor app-beloningen, via morbidejs,
+17-11-2026, plus het Passport):
+1. een **GM NFT**;
+2. de **hoofdwallet** van zijn Passport, geen gekoppelde wallet (één wallet per persoon);
+3. **geen signaleringen** in het Passport (`signaledCounter` = 0);
+4. **gestemd in de vorige ronde** (`XAllocationVoting.hasVoted`);
+5. de GM NFT **waarmee** hij stemde (`VoterRewards.hasTokenVoted`, met het startblok van die
+   ronde) is nog van hem en minimaal **niveau 2 (Moon)**;
+6. een **VeBetterDAO Passport** dat hem als persoon telt.
+Wie elke ronde stemt, blijft verdienen; wie een ronde overslaat, doet de week erna niet mee.
+De server controleert dat
 zelf op de blockchain, bij het openen van de app én bij elke uitbetaling. Wie het niet heeft,
 ziet een scherm met wat er ontbreekt, een link naar VeBetterDAO en "Opnieuw controleren".
 Een rol telt in deze stand **niet**. Jij komt er als admin altijd in.
