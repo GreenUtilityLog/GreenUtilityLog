@@ -319,7 +319,7 @@ ${fetchCmd(`--ask-token --powerfox=YOUR_POWERFOX_EMAIL --install${INGEST_FLAG}`)
           {pf?.linked ? (<>
             <div style={{ fontSize: 12.5, fontWeight: 800, color: T.text }}>{t("pf.connected")}</div>
             <div style={{ fontSize: 11, color: T.textSoft, marginTop: 4, lineHeight: 1.5 }}>
-              We fetch your reading every hour{pf.lastPullAt ? ` — last time ${fmtWhen(pf.lastPullAt)}` : ""}. Payouts follow automatically — after your first photo submission, which sets the starting point (until then, automatic readings are not paid).
+              {t("r.everyHour", { last: pf.lastPullAt ? t("r.lastTime", { when: fmtWhen(pf.lastPullAt) }) : "" })}
             </div>
             {pf.lastError && <div style={{ fontSize: 11, color: T.gas, marginTop: 6, lineHeight: 1.5 }}>⚠️ {pf.lastError}</div>}
             <button type="button" disabled={busy} onClick={disconnect} style={{ marginTop: 10, minHeight: 40, padding: "0 12px", borderRadius: 6, border: `1px solid ${T.border}`, background: "transparent", color: T.textMid, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
@@ -565,12 +565,16 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
   const nextAt = Object.prototype.hasOwnProperty.call(SERVER_NEXT_AT, "electric")
     ? (Number(SERVER_NEXT_AT.electric) || 0)
     : (lastPayout?.at ? lastPayout.at + RULES.cooldownMs : 0);
+  // Automatic payouts wait for a photo (the server's AUTO_PHOTO rule): the timeline
+  // says so, and there is nothing to claim until then.
+  const photoPaused = Number(latest?.photoDueAt) > 0 && Date.now() > Number(latest.photoDueAt);
   const timeline = (() => {
     const steps = [];
     if (rd?.at) steps.push({ at: rd.at, ...dayTime(rd.at), title: t("r.received"), sub: t("r.received.sub", { n: rd.reading }), done: true });
-    if (lastPayout?.at) steps.push({ at: lastPayout.at, ...dayTime(lastPayout.at), title: `Paid +${Number(lastPayout.amount).toFixed(2)} B3TR`, sub: "automatically, on VeChain", done: true });
+    if (lastPayout?.at) steps.push({ at: lastPayout.at, ...dayTime(lastPayout.at), title: t("r.paid", { amount: Number(lastPayout.amount).toFixed(2) }), sub: t("r.paid.sub"), done: true });
     steps.sort((a, b) => a.at - b.at);
-    steps.push(nextAt > Date.now()
+    if (photoPaused) steps.push({ day: "", time: t("today.now"), title: t("r.photoFirst.t"), sub: t("r.photoFirst.s"), done: false });
+    else steps.push(nextAt > Date.now()
       ? { ...dayTime(nextAt), title: t("r.nextReward"), sub: t("r.sendsAfter"), done: false }
       : { day: "", time: t("today.now"), title: t("r.nextReward"), sub: paidThis || !rd ? t("r.paidNext") : t("r.canPay"), done: false });
     return steps;
@@ -630,7 +634,7 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
                 <span style={{ fontSize: 11, fontWeight: 700, color: T.textSoft }}>kWh</span>
               </div>
               <div style={{ fontSize: 10.5, color: T.textSoft, marginTop: 2 }}>
-                received {rd.at ? fmtWhen(rd.at) : "—"}{readerFresh ? "" : " — check that the computer with the script (or Home Assistant) is on"}
+                {t("r.receivedAt", { when: rd.at ? fmtWhen(rd.at) : "—" })}{readerFresh ? "" : t("r.staleHint")}
               </div>
             </div>
 
@@ -652,16 +656,16 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
                   </div>
                 </div>
               ))}
-              {!paidThis && (
+              {!paidThis && !photoPaused && (
                 <button disabled={busyAny} onClick={() => onAutoSubmit?.()} style={{ ...btn(T.eco || T.electric), width: "100%", marginTop: 10, opacity: busyAny ? .6 : 1 }}>
                   {busyAny ? t("r.submitting") : latest?.autoClaimOnPush ? t("r.claim") : t("r.submitNoPhoto")}
                 </button>
               )}
             </div>
 
-            {nextAt > Date.now() && (
+            {nextAt > Date.now() && !photoPaused && (
               <div style={{ marginTop: 8, padding: "10px 12px", fontSize: 11, color: T.text, lineHeight: 1.55, background: T.green5 || T.bgAlt, border: `1px solid ${T.green4 || T.border}`, borderRadius: 10 }}>
-                🖥️ Keep the computer with the script (or Home Assistant) on around <b>{fmtWhen(nextAt)}</b>. If it's off then, the reading goes out within the hour after you switch it on.
+                {t("r.keepOn", { when: fmtWhen(nextAt) })}
               </div>
             )}
             {/* Shown only when the gap is larger than ANY span could ever pay, which
@@ -682,7 +686,7 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
                   {busy === "rebase" ? t("r.updating") : t("r.useAsStart")}
                 </button>
                 <div style={{ fontSize: 10, color: T.textSoft, marginTop: 6, lineHeight: 1.5 }}>
-                  Pays nothing — it only sets where counting begins. You can do this until your first automatic payout.
+                  {t("r.rebase.note")}
                 </div>
               </div>
             )}
@@ -902,8 +906,8 @@ ${fetchCmd(`--ask-token --install --url=http://<reader-ip>/api/v1/data${INGEST_F
                           {relinked && (
                             <div style={{ marginTop: 7, fontSize: 10.5, fontWeight: 700, color: relinked === "new" ? (T.eco || T.electric) : T.textSoft }}>
                               {relinked === "new"
-                                ? "✅ Your saved token was out of date. Copy the setup above again — the old one will never work."
-                                : "✓ Already linked — the server has this exact token, so the problem is elsewhere."}
+                                ? t("r.relinked.new")
+                                : t("r.relinked.same")}
                             </div>
                           )}
                         </div>
