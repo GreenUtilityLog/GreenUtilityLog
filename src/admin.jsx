@@ -153,7 +153,7 @@ function AccessPassPanel({ T, address, onAdminApi, onToast }) {
     setState({ status: "loading" });
     try {
       const d = await onAdminApi("/admin/lookup", { targetWallet: address });
-      setState({ status: "live", pass: d.pass || null, requirePass: !!d.requirePass, access: d.access || "" });
+      setState({ status: "live", pass: d.pass || null, requirePass: !!d.requirePass, access: d.access || "", kycReset: d.kycReset ?? null });
       if (ROLE_OPTIONS.some(r => r.id === d.pass?.tier)) setRole(d.pass.tier);
     } catch (e) {
       setState({ status: "error", error: e?.message || "request failed" });
@@ -220,6 +220,12 @@ function AccessPassPanel({ T, address, onAdminApi, onToast }) {
         </div>
       )}
 
+      {/* Signals reset by the VeBetterDAO Foundation after KYC: allowed in, shown here. */}
+      {state.kycReset?.reset && (
+        <div data-kyc-reset style={{ fontSize: 11, color: T.textMid, background: T.gasBg, borderRadius: 6, padding: "7px 9px", marginBottom: 10, lineHeight: 1.5 }}>
+          ⚠️ Signals reset by the VeBetterDAO Foundation after KYC{state.kycReset.at ? ` on ${new Date(state.kycReset.at).toISOString().slice(0, 10)}` : ""}. This wallet was signaled before; it is allowed in. Block it here if needed.
+        </div>
+      )}
       <div role="radiogroup" aria-label="Role" style={{ display: "flex", gap: 6, marginBottom: 8 }}>
         {ROLE_OPTIONS.map(r => {
           const on = role === r.id;

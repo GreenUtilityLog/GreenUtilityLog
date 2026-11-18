@@ -14,7 +14,7 @@ import { store } from "./store.js";
 import { putPhoto, getPhotoDataUrl, deletePhoto, photoStoreEnabled } from "./photostore.js";
 import { distributeReward, savingOf, distributorAddress, chainDiagnostics, moveToRewardsPool, DRY_RUN, hasDistributorKey, payoutPending, pendingPayoutCount, recheckPendingPayouts } from "./reward.js";
 import { signalStatus, passportFor, signalUser, passportVouches } from "./passport.js";
-import { holdsGalaxyMember, memberCheck } from "./galaxy.js";
+import { holdsGalaxyMember, memberCheck, kycSignalReset } from "./galaxy.js";
 import { budgetState, scaledAmount, recordPayout, autoClaimAllocation, autoMoveToRewardsPool } from "./budget.js";
 import { ocrImage, ocrEnabled, ocrProviders } from "./ocr.js";
 import { verifyWalletCertificate, REQUIRE_CERT, CERT_MAX_AGE_MS, certDomainsSeen } from "./auth.js";
@@ -833,6 +833,9 @@ app.post("/admin/lookup", async (req, res) => {
     requirePass: rolesRequired(),
     access: accessMode(),
     pass: isAddr(target) ? store.getPass(target) : null,
+    // Signals reset by the VeBetterDAO Foundation after KYC (galaxy.js): allowed in,
+    // shown to the admin. null when the chain couldn't be read.
+    kycReset: isAddr(target) ? await kycSignalReset(target) : null,
     // Every meter registered to this wallet (incl. ones added but not yet submitted).
     meters: isAddr(target) ? store.metersForWallet(target) : [],
     // A fresh wallet check (history on chain, who funded it, the passport) — only
@@ -1807,6 +1810,16 @@ app.post("/wallet/seen", async (req, res) => {
   const address = String(req.body?.address || "");
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
   store.seenWallet(address, req.body?.meters);
+  // A wallet whose signals the Foundation reset after KYC gets in, but the admin
+  // sees it among the flags — once, after the answer (not slowing it down).
+  if (accessMode() === "gm") {
+    const flagKey = `kyc-reset:${address.toLowerCase()}`;
+    if (!store.listFlags().some((f) => f.txid === flagKey)) {
+      setImmediate(() => kycSignalReset(address).then((k) => {
+        if (k?.reset) store.addFlag(flagKey, address, `signals reset by the VeBetterDAO Foundation after KYC${k.txid ? ` (tx ${k.txid})` : ""} — allowed in, review if needed`);
+      }).catch(() => {}));
+    }
+  }
   // The app calls this on connect anyway, so it's the natural place to tell it whether
   // it holds a pass — no extra round-trip, and no separate endpoint that would leak
   // the whole pass list. Only ever reports on the wallet that asked.
