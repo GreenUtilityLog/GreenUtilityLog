@@ -2,7 +2,7 @@
 // Tibber and Powerfox. Split out of App.jsx and loaded on demand (React.lazy).
 import { useState, useEffect } from "react";
 import { useWallet } from "@vechain/dapp-kit-react";
-import { t } from "./i18n.js";
+import { t, getLang } from "./i18n.js";
 import { NETWORK, REWARD_API, INGEST_FLAG } from "./network.js";
 import { DARK, GUIDE_URL, BRIDGE_JS_URL, USAGE_RANGES, RULES, MAX_SPAN_DAYS, SERVER_NEXT_AT, fetchT, fmtDay, fmtWhen, validDeviceToken } from "./App.jsx";
 
@@ -552,8 +552,10 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
   const busyAny = !!autoBusy;
   // Split for the timeline: the day on one line, the time under it.
   const dayTime = (ts) => {
-    const w = fmtWhen(ts), t = new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    return { day: w.slice(0, w.length - t.length).trim(), time: t };
+    // The same locale as fmtWhen, or the time doesn't match the end of its text (a
+    // 12-hour "06:42 PM" against a 24-hour "18:42" gave "TODAY 06: / 18:42").
+    const w = fmtWhen(ts), tm = new Date(ts).toLocaleTimeString(getLang(), { hour: "2-digit", minute: "2-digit" });
+    return w.endsWith(tm) ? { day: w.slice(0, w.length - tm.length).trim(), time: tm } : { day: w, time: "" };
   };
   const lastPayout = latest?.lastPayout || null;
   const paidThis = !!(lastPayout && rd && Number(lastPayout.reading) === Number(rd.reading));
@@ -571,7 +573,11 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
   const timeline = (() => {
     const steps = [];
     if (rd?.at) steps.push({ at: rd.at, ...dayTime(rd.at), title: t("r.received"), sub: t("r.received.sub", { n: rd.reading }), done: true });
-    if (lastPayout?.at) steps.push({ at: lastPayout.at, ...dayTime(lastPayout.at), title: t("r.paid", { amount: Number(lastPayout.amount).toFixed(2) }), sub: t("r.paid.sub"), done: true });
+    // A reading that saved nothing is recorded, not paid, and isn't on chain.
+    if (lastPayout?.at) steps.push({ at: lastPayout.at, ...dayTime(lastPayout.at), done: true,
+      ...(Number(lastPayout.amount) > 0
+        ? { title: t("r.paid", { amount: Number(lastPayout.amount).toFixed(2) }), sub: t("r.paid.sub") }
+        : { title: t("r.recordedOnly"), sub: "" }) });
     steps.sort((a, b) => a.at - b.at);
     if (photoPaused) steps.push({ day: "", time: t("today.now"), title: t("r.photoFirst.t"), sub: t("r.photoFirst.s"), done: false });
     else steps.push(nextAt > Date.now()

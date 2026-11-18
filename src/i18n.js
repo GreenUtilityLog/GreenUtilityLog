@@ -637,6 +637,7 @@ const ROWS = [
   ["r.connectFailed", "connecting failed", "verbinden mislukt", "Verbinden fehlgeschlagen", "échec de connexion", "falló la conexión"],
   ["r.disconnectFailed", "couldn't disconnect", "ontkoppelen mislukt", "Trennen fehlgeschlagen", "déconnexion impossible", "no se pudo desconectar"],
   ["r.paid", "Paid +{amount} B3TR", "Uitbetaald +{amount} B3TR", "Ausgezahlt +{amount} B3TR", "Payé +{amount} B3TR", "Pagado +{amount} B3TR"],
+  ["r.recordedOnly", "Recorded — no saving", "Vastgelegd — geen besparing", "Erfasst — keine Einsparung", "Enregistré — pas d'économie", "Registrado — sin ahorro"],
   ["r.paid.sub", "automatically, on VeChain", "automatisch, op VeChain", "automatisch, auf VeChain", "automatiquement, sur VeChain", "automáticamente, en VeChain"],
   ["r.receivedAt", "received {when}", "ontvangen {when}", "empfangen {when}", "reçu {when}", "recibido {when}"],
   ["r.staleHint", " — check that the computer with the script (or Home Assistant) is on", " — controleer of de computer met het script (of Home Assistant) aan staat", " — prüfe, ob der Rechner mit dem Skript (oder Home Assistant) läuft", " — vérifiez que l'ordinateur avec le script (ou Home Assistant) est allumé", " — comprueba que el ordenador con el script (o Home Assistant) esté encendido"],

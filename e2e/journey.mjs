@@ -401,6 +401,10 @@ await step("a reader whose payouts wait for a photo: the timeline says so, nothi
     assert.match(t, /automatic payouts wait for one photo/);
     assert.equal(await page.getByRole("button", { name: /^(Claim now|Submit)/ }).count(), 0, "no claim button while paused");
     assert.doesNotMatch(t, /Next reward possible/, "no 'next reward' promise while paused");
+    // A reading that saved nothing isn't "Paid +0.00"; and the time isn't split
+    // mid-way ("TODAY 06: | 18:42") when the clock is 12-hour.
+    assert.doesNotMatch(t, /Paid \+0\.00/, "no 'Paid +0.00 B3TR'");
+    assert.doesNotMatch(t, /\d: \| \d/, "the timeline's time is whole");
   } finally { photoOverdue = false; }
   await wait(17000);
   assert.doesNotMatch(await text(), /First a photo of your meter/, "back to normal once a photo isn't due");
