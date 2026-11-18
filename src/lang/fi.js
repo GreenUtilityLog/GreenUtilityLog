@@ -630,7 +630,7 @@ export default {
       },
       {
         "q": "Tarvitsenko aina kuvan?",
-        "a": "Käsin syötetty lukema vaatii kuvan. Yhdistetty P1-lukija voi lähettää ilman kuvaa, koska sen laitetoken sitoo lukeman lompakkoosi. Yksi kuva 30 päivän välein pitää automaattiset maksut käynnissä; sovellus muistuttaa sinua viikkoa etukäteen."
+        "a": "Käsin syötetty lukema vaatii kuvan. Yhdistetty P1-lukija voi lähettää ilman kuvaa, koska sen laitetoken sitoo lukeman lompakkoosi. Yksi kuva 30 päivän välein pitää automaattiset maksut käynnissä; sovellus muistuttaa sinua viikkoa etukäteen. Powerfox-, Tibber- tai MojElektro-yhteys ei tarvitse toistuvaa kuvaa: lukemat tulevat suoraan yhtiöltä."
       },
       {
         "q": "Onko tämä oikeaa rahaa?",

@@ -630,7 +630,7 @@ export default {
       },
       {
         "q": "Skal jeg altid bruge et billede?",
-        "a": "Et billede er påkrævet for en aflæsning, du indtaster selv. En forbundet P1-aflæser kan indsende uden billede, fordi dens enhedstoken knytter aflæsningen til din wallet. Ét billede hver 30. dag holder de automatiske udbetalinger i gang; appen giver dig besked en uge før."
+        "a": "Et billede er påkrævet for en aflæsning, du indtaster selv. En forbundet P1-aflæser kan indsende uden billede, fordi dens enhedstoken knytter aflæsningen til din wallet. Ét billede hver 30. dag holder de automatiske udbetalinger i gang; appen giver dig besked en uge før. En forbindelse til Powerfox, Tibber eller MojElektro kræver intet gentaget foto: de aflæsninger kommer fra selve virksomheden."
       },
       {
         "q": "Er det rigtige penge?",

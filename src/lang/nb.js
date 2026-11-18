@@ -630,7 +630,7 @@ export default {
       },
       {
         "q": "Trenger jeg alltid et bilde?",
-        "a": "Et bilde kreves for en målerstand du skriver inn selv. En tilkoblet P1-avleser kan sende inn uten bilde, fordi enhetstokenet knytter målerstanden til lommeboken din. Ett bilde hver 30. dag holder de automatiske utbetalingene i gang; appen sier fra en uke i forveien."
+        "a": "Et bilde kreves for en målerstand du skriver inn selv. En tilkoblet P1-avleser kan sende inn uten bilde, fordi enhetstokenet knytter målerstanden til lommeboken din. Ett bilde hver 30. dag holder de automatiske utbetalingene i gang; appen sier fra en uke i forveien. En tilkobling til Powerfox, Tibber eller MojElektro trenger ikke nytt bilde: de avlesningene kommer fra selskapet selv."
       },
       {
         "q": "Er dette ekte penger?",

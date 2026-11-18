@@ -630,7 +630,7 @@ export default {
       },
       {
         "q": "Her zaman fotoğraf gerekir mi?",
-        "a": "Elle girilen bir okuma için fotoğraf zorunludur. Bağlı bir P1 okuyucu fotoğrafsız gönderebilir, çünkü cihaz token'ı okumayı cüzdanına bağlar. Otomatik ödemelerin sürmesi için 30 günde bir fotoğraf yeterli; uygulama sana bir hafta önceden haber verir."
+        "a": "Elle girilen bir okuma için fotoğraf zorunludur. Bağlı bir P1 okuyucu fotoğrafsız gönderebilir, çünkü cihaz token'ı okumayı cüzdanına bağlar. Otomatik ödemelerin sürmesi için 30 günde bir fotoğraf yeterli; uygulama sana bir hafta önceden haber verir. Powerfox, Tibber veya MojElektro bağlantısı tekrar fotoğraf gerektirmez: bu okumalar doğrudan şirketten gelir."
       },
       {
         "q": "Bu gerçek para mı?",

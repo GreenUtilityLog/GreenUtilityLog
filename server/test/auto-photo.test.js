@@ -6,10 +6,10 @@ import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { startServer, stateWithBaseline, WALLET } from "./helpers.mjs";
 
-function state({ photoDaysAgo }) {
+function state({ photoDaysAgo, source = "reader" }) {
   const s = stateWithBaseline({ agoMs: 25 * 3600e3 });
   s.meterLinks = { ["a".repeat(48)]: { address: WALLET.toLowerCase(), meterNo: "E1000", utility: "electric", createdAt: Date.now() } };
-  s.linkReadings = { [WALLET.toLowerCase()]: { reading: 1005, meterNo: "E1000", at: Date.now(), source: "reader" } };
+  s.linkReadings = { [WALLET.toLowerCase()]: { reading: 1005, meterNo: "E1000", at: Date.now(), source } };
   if (photoDaysAgo != null) s.photoAts = { "electric:e1000": Date.now() - photoDaysAgo * 86400000 };
   return s;
 }
@@ -50,5 +50,35 @@ describe("a meter from before this rule: its clock starts now", () => {
     assert.equal(r.status, 200, JSON.stringify(r.body));
     const st = await srv.waitForState((s) => s.photoAts && s.photoAts["electric:e1000"]);
     assert.ok(Date.now() - st.photoAts["electric:e1000"] < 60000);
+  });
+});
+
+// Readings from a company's own system (Powerfox, Tibber, MojElektro) need no repeat
+// photo; a reader that pushes its own numbers (P1, Home Assistant, a script) does
+// (owner's choice, 2026-11-18).
+for (const source of ["powerfox", "tibber", "mojelektro"]) {
+  describe(`${source}, last photo 31 days ago: still paid, no photo due`, () => {
+    let srv;
+    before(async () => { srv = await startServer({ state: state({ photoDaysAgo: 31, source }), env: { COOLDOWN_MS: "0", AUTO_CLAIM_ON_PUSH: "off" } }); });
+    after(async () => { await srv.stop(); });
+    test("paid", async () => {
+      const r = await claim(srv);
+      assert.equal(r.status, 200, JSON.stringify(r.body));
+    });
+    test("the app isn't told a photo is due", async () => {
+      const r = await srv.get(`/meter/latest?address=${WALLET}`, { "x-device-token": "a".repeat(48) });
+      assert.equal(r.body.photoDueAt, null);
+    });
+  });
+}
+
+describe("a P1 reader (push), last photo 31 days ago: paused until a photo", () => {
+  let srv;
+  before(async () => { srv = await startServer({ state: state({ photoDaysAgo: 31, source: "push" }), env: { COOLDOWN_MS: "0", AUTO_CLAIM_ON_PUSH: "off" } }); });
+  after(async () => { await srv.stop(); });
+  test("refused", async () => {
+    const r = await claim(srv);
+    assert.equal(r.status, 400);
+    assert.equal(r.body.needsPhoto, true);
   });
 });

@@ -630,7 +630,7 @@ export default {
       },
       {
         "q": "Preciso sempre de uma foto?",
-        "a": "Uma leitura introduzida à mão precisa sempre de uma foto. Um leitor P1 ligado pode enviar sem foto, porque o token do dispositivo associa a leitura à tua carteira. Uma foto a cada 30 dias mantém os pagamentos automáticos; a app avisa-te com uma semana de antecedência."
+        "a": "Uma leitura introduzida à mão precisa sempre de uma foto. Um leitor P1 ligado pode enviar sem foto, porque o token do dispositivo associa a leitura à tua carteira. Uma foto a cada 30 dias mantém os pagamentos automáticos; a app avisa-te com uma semana de antecedência. Uma ligação Powerfox, Tibber ou MojElektro não precisa de foto repetida: essas leituras vêm da própria empresa."
       },
       {
         "q": "Isto é dinheiro a sério?",

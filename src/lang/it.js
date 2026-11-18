@@ -630,7 +630,7 @@ export default {
       },
       {
         "q": "Serve sempre una foto?",
-        "a": "Per una lettura inserita a mano la foto è obbligatoria. Un lettore P1 collegato può inviare senza foto, perché il suo token del dispositivo lega la lettura al tuo wallet. Una foto ogni 30 giorni mantiene attivi i pagamenti automatici; l'app ti avvisa una settimana prima."
+        "a": "Per una lettura inserita a mano la foto è obbligatoria. Un lettore P1 collegato può inviare senza foto, perché il suo token del dispositivo lega la lettura al tuo wallet. Una foto ogni 30 giorni mantiene attivi i pagamenti automatici; l'app ti avvisa una settimana prima. Un collegamento con Powerfox, Tibber o MojElektro non richiede la foto periodica: quelle letture arrivano direttamente dall'azienda."
       },
       {
         "q": "Sono soldi veri?",

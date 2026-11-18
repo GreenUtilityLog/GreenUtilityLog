@@ -630,7 +630,7 @@ export default {
       },
       {
         "q": "Mindig kell fotó?",
-        "a": "Kézzel beírt mérőálláshoz kötelező a fotó. Egy csatlakoztatott P1-olvasó fotó nélkül is beküldhet, mert az eszköztokenje a tárcádhoz köti a mérőállást. 30 naponta egy fotó szükséges ahhoz, hogy az automatikus kifizetések folytatódjanak; az app egy héttel előtte szól."
+        "a": "Kézzel beírt mérőálláshoz kötelező a fotó. Egy csatlakoztatott P1-olvasó fotó nélkül is beküldhet, mert az eszköztokenje a tárcádhoz köti a mérőállást. 30 naponta egy fotó szükséges ahhoz, hogy az automatikus kifizetések folytatódjanak; az app egy héttel előtte szól. A Powerfox-, Tibber- vagy MojElektro-kapcsolathoz nem kell ismételt fotó: ezek a mérőállások magától a cégtől jönnek."
       },
       {
         "q": "Ez valódi pénz?",

@@ -630,7 +630,7 @@ export default {
       },
       {
         "q": "Behöver jag alltid ett foto?",
-        "a": "Ett foto krävs för en mätarställning du skriver in själv. En ansluten P1-avläsare kan skicka in utan foto, eftersom dess enhetstoken knyter avläsningen till din plånbok. Ett foto var 30:e dag håller de automatiska utbetalningarna igång; appen påminner dig en vecka innan."
+        "a": "Ett foto krävs för en mätarställning du skriver in själv. En ansluten P1-avläsare kan skicka in utan foto, eftersom dess enhetstoken knyter avläsningen till din plånbok. Ett foto var 30:e dag håller de automatiska utbetalningarna igång; appen påminner dig en vecka innan. En koppling till Powerfox, Tibber eller MojElektro behöver inget nytt foto: de avläsningarna kommer från företaget självt."
       },
       {
         "q": "Är det här riktiga pengar?",

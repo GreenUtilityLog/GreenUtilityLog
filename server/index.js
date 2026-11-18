@@ -1907,7 +1907,7 @@ app.get("/meter/latest", (req, res) => {
     // When automatic payouts pause until the next photo (null: no limit, or no
     // photo-proven reading yet).
     photoDueAt: (() => {
-      if (!(AUTO_PHOTO_EVERY_MS > 0) || !link?.meterNo) return null;
+      if (!photoRuleApplies(r?.source || link?.source) || !link?.meterNo) return null;
       const shot = store.photoAt(utility, String(link.meterNo).toLowerCase());
       return shot == null ? null : shot + AUTO_PHOTO_EVERY_MS;
     })(),
@@ -1937,6 +1937,12 @@ const tooOld = (latest) => Date.now() - (latest.at || 0) > (latest.meterTime ? M
 // than what was paid, so pushed numbers that ran ahead of the real meter are caught
 // the moment the photo is taken. 0 switches it off.
 const AUTO_PHOTO_EVERY_MS = Number(process.env.AUTO_PHOTO_EVERY_DAYS || 30) * 86400000;
+// The repeat photo is for readers that push their own numbers (a P1 reader, Home
+// Assistant, a script): only a token stands behind them. Powerfox, Tibber and
+// MojElektro readings come from those companies' own systems, so they need no
+// repeat photo (owner's choice, 2026-11-18). The first photo, which sets the
+// meter's starting point, is still needed for every source.
+const photoRuleApplies = (source) => AUTO_PHOTO_EVERY_MS > 0 && !CLOUD_SOURCES.has(String(source || ""));
 
 // Core settle logic shared by the manual endpoint (Step 2) and the scheduled
 // auto-submit (Step 3). Returns { ok, ... } or { ok:false, code, error }; it does
@@ -1970,7 +1976,7 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
   if (tooOld(latest)) {
     return { ok: false, code: 400, error: "the automatic reading is stale — refresh your reader/source, then try again" };
   }
-  if (AUTO_PHOTO_EVERY_MS > 0) {
+  if (photoRuleApplies(latest.source)) {
     const mk = meterNo.toLowerCase();
     const shot = store.photoAt(utility, mk);
     // Meters paid before this rule existed start their clock now.

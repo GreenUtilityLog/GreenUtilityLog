@@ -630,7 +630,7 @@ export default {
       },
       {
         "q": "Trebam li uvijek fotografiju?",
-        "a": "Za ručno upisano očitanje fotografija je obavezna. Povezani P1 čitač može slati i bez fotografije, jer njegov token uređaja veže očitanje uz tvoj novčanik. Jedna fotografija svakih 30 dana održava automatske isplate; aplikacija te na to upozorava tjedan dana unaprijed."
+        "a": "Za ručno upisano očitanje fotografija je obavezna. Povezani P1 čitač može slati i bez fotografije, jer njegov token uređaja veže očitanje uz tvoj novčanik. Jedna fotografija svakih 30 dana održava automatske isplate; aplikacija te na to upozorava tjedan dana unaprijed. Veza s Powerfox, Tibber ili MojElektro ne treba ponovnu fotografiju: ta očitanja dolaze izravno od tvrtke."
       },
       {
         "q": "Je li ovo pravi novac?",

@@ -630,7 +630,7 @@ export default {
       },
       {
         "q": "Potřebuju vždycky fotku?",
-        "a": "U ručně zadaného stavu je fotka povinná. Připojená čtečka P1 může odesílat bez fotky, protože její token zařízení váže stav k tvé peněžence. Jedna fotka každých 30 dní udrží automatické výplaty v chodu; aplikace ti to připomene týden předem."
+        "a": "U ručně zadaného stavu je fotka povinná. Připojená čtečka P1 může odesílat bez fotky, protože její token zařízení váže stav k tvé peněžence. Jedna fotka každých 30 dní udrží automatické výplaty v chodu; aplikace ti to připomene týden předem. Propojení s Powerfox, Tibber nebo MojElektro nepotřebuje opakovanou fotku: tyto odečty přicházejí přímo od firmy."
       },
       {
         "q": "Jsou to skutečné peníze?",

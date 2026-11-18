@@ -630,7 +630,7 @@ export default {
       },
       {
         "q": "Czy zawsze potrzebuję zdjęcia?",
-        "a": "Zdjęcie jest wymagane przy odczycie wpisanym ręcznie. Połączony czytnik P1 może wysyłać bez zdjęcia, bo jego token urządzenia wiąże odczyt z twoim portfelem. Jedno zdjęcie co 30 dni podtrzymuje automatyczne wypłaty; aplikacja przypomni ci o tym tydzień wcześniej."
+        "a": "Zdjęcie jest wymagane przy odczycie wpisanym ręcznie. Połączony czytnik P1 może wysyłać bez zdjęcia, bo jego token urządzenia wiąże odczyt z twoim portfelem. Jedno zdjęcie co 30 dni podtrzymuje automatyczne wypłaty; aplikacja przypomni ci o tym tydzień wcześniej. Połączenie z Powerfox, Tibber lub MojElektro nie wymaga powtórnego zdjęcia: te odczyty pochodzą bezpośrednio od firmy."
       },
       {
         "q": "Czy to prawdziwe pieniądze?",
