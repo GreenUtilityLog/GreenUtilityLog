@@ -1936,7 +1936,7 @@ const tooOld = (latest) => Date.now() - (latest.at || 0) > (latest.meterTime ? M
 // is needed every so often to keep automatic payouts going: a photo can't be lower
 // than what was paid, so pushed numbers that ran ahead of the real meter are caught
 // the moment the photo is taken. 0 switches it off.
-const AUTO_PHOTO_EVERY_MS = Number(process.env.AUTO_PHOTO_EVERY_DAYS || 30) * 86400000;
+const AUTO_PHOTO_EVERY_MS = Number(process.env.AUTO_PHOTO_EVERY_DAYS || 90) * 86400000; // owner's choice, 2026-11-18 (was 30)
 // The repeat photo is for readers that push their own numbers (a P1 reader, Home
 // Assistant, a script): only a token stands behind them. Powerfox, Tibber and
 // MojElektro readings come from those companies' own systems, so they need no

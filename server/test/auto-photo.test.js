@@ -15,9 +15,9 @@ function state({ photoDaysAgo, source = "reader" }) {
 }
 const claim = (srv) => srv.post("/reward-from-meter", { address: WALLET, utility: "electric", meterNo: "E1000" });
 
-describe("a photo in the last 30 days: automatic payouts go on", () => {
+describe("a photo in the last 90 days: automatic payouts go on", () => {
   let srv;
-  before(async () => { srv = await startServer({ state: state({ photoDaysAgo: 10 }), env: { COOLDOWN_MS: "0", AUTO_CLAIM_ON_PUSH: "off" } }); });
+  before(async () => { srv = await startServer({ state: state({ photoDaysAgo: 80 }), env: { COOLDOWN_MS: "0", AUTO_CLAIM_ON_PUSH: "off" } }); });
   after(async () => { await srv.stop(); });
   test("paid", async () => {
     const r = await claim(srv);
@@ -25,9 +25,9 @@ describe("a photo in the last 30 days: automatic payouts go on", () => {
   });
 });
 
-describe("the last photo is older than 30 days: paused until a photo", () => {
+describe("the last photo is older than 90 days: paused until a photo", () => {
   let srv;
-  before(async () => { srv = await startServer({ state: state({ photoDaysAgo: 31 }), env: { COOLDOWN_MS: "0", AUTO_CLAIM_ON_PUSH: "off" } }); });
+  before(async () => { srv = await startServer({ state: state({ photoDaysAgo: 91 }), env: { COOLDOWN_MS: "0", AUTO_CLAIM_ON_PUSH: "off" } }); });
   after(async () => { await srv.stop(); });
   test("refused, and says why", async () => {
     const r = await claim(srv);
@@ -57,9 +57,9 @@ describe("a meter from before this rule: its clock starts now", () => {
 // photo; a reader that pushes its own numbers (P1, Home Assistant, a script) does
 // (owner's choice, 2026-11-18).
 for (const source of ["powerfox", "tibber", "mojelektro"]) {
-  describe(`${source}, last photo 31 days ago: still paid, no photo due`, () => {
+  describe(`${source}, last photo 91 days ago: still paid, no photo due`, () => {
     let srv;
-    before(async () => { srv = await startServer({ state: state({ photoDaysAgo: 31, source }), env: { COOLDOWN_MS: "0", AUTO_CLAIM_ON_PUSH: "off" } }); });
+    before(async () => { srv = await startServer({ state: state({ photoDaysAgo: 91, source }), env: { COOLDOWN_MS: "0", AUTO_CLAIM_ON_PUSH: "off" } }); });
     after(async () => { await srv.stop(); });
     test("paid", async () => {
       const r = await claim(srv);
@@ -72,9 +72,9 @@ for (const source of ["powerfox", "tibber", "mojelektro"]) {
   });
 }
 
-describe("a P1 reader (push), last photo 31 days ago: paused until a photo", () => {
+describe("a P1 reader (push), last photo 91 days ago: paused until a photo", () => {
   let srv;
-  before(async () => { srv = await startServer({ state: state({ photoDaysAgo: 31, source: "push" }), env: { COOLDOWN_MS: "0", AUTO_CLAIM_ON_PUSH: "off" } }); });
+  before(async () => { srv = await startServer({ state: state({ photoDaysAgo: 91, source: "push" }), env: { COOLDOWN_MS: "0", AUTO_CLAIM_ON_PUSH: "off" } }); });
   after(async () => { await srv.stop(); });
   test("refused", async () => {
     const r = await claim(srv);

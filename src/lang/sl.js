@@ -630,7 +630,7 @@ export default {
       },
       {
         "q": "Ali vedno potrebujem fotografijo?",
-        "a": "Za ročno vpisan odčitek je fotografija obvezna. Povezan čitalnik P1 lahko odda brez fotografije, ker žeton naprave odčitek poveže s tvojo denarnico. Ena fotografija vsakih 30 dni ohranja samodejna izplačila; aplikacija te na to opozori teden dni prej. Povezava s Powerfox, Tibber ali MojElektro ne potrebuje ponovne fotografije: ti odčitki prihajajo neposredno od podjetja."
+        "a": "Za ročno vpisan odčitek je fotografija obvezna. Povezan čitalnik P1 lahko odda brez fotografije, ker žeton naprave odčitek poveže s tvojo denarnico. Ena fotografija vsakih 90 dni ohranja samodejna izplačila; aplikacija te na to opozori teden dni prej. Povezava s Powerfox, Tibber ali MojElektro ne potrebuje ponovne fotografije: ti odčitki prihajajo neposredno od podjetja."
       },
       {
         "q": "Je to pravi denar?",

@@ -630,7 +630,7 @@ export default {
       },
       {
         "q": "Am nevoie mereu de o poză?",
-        "a": "Pentru o citire introdusă de mână, poza e obligatorie. Un cititor P1 conectat poate trimite fără poză, pentru că tokenul dispozitivului leagă citirea de portofelul tău. O poză la fiecare 30 de zile ține plățile automate în funcțiune; aplicația îți spune cu o săptămână înainte. O conexiune Powerfox, Tibber sau MojElektro nu are nevoie de fotografie repetată: acele citiri vin direct de la companie."
+        "a": "Pentru o citire introdusă de mână, poza e obligatorie. Un cititor P1 conectat poate trimite fără poză, pentru că tokenul dispozitivului leagă citirea de portofelul tău. O poză la fiecare 90 de zile ține plățile automate în funcțiune; aplicația îți spune cu o săptămână înainte. O conexiune Powerfox, Tibber sau MojElektro nu are nevoie de fotografie repetată: acele citiri vin direct de la companie."
       },
       {
         "q": "Sunt bani adevărați?",
