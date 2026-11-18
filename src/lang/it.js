@@ -526,6 +526,17 @@ export default {
     "r.connecting30": "Connessione… (fino a 30 s)",
     "r.connectFailed": "connessione non riuscita",
     "r.disconnectFailed": "impossibile disconnettere",
+    "r.paid": "Pagati +{amount} B3TR",
+    "r.recordedOnly": "Registrata — nessun risparmio",
+    "r.paid.sub": "in automatico, su VeChain",
+    "r.receivedAt": "ricevuta {when}",
+    "r.staleHint": " — controlla che il computer con lo script (o Home Assistant) sia acceso",
+    "r.keepOn": "🖥️ Tieni acceso il computer con lo script (o Home Assistant) verso le {when}. Se in quel momento è spento, la lettura parte entro un'ora da quando lo riaccendi.",
+    "r.rebase.note": "Non paga nulla — fissa solo il punto da cui si inizia a contare. Puoi farlo fino al tuo primo pagamento automatico.",
+    "r.relinked.new": "✅ Il tuo token salvato era scaduto. Copia di nuovo la configurazione qui sopra — quella vecchia non funzionerà più.",
+    "r.relinked.same": "✓ Già collegato — il server ha esattamente questo token, quindi il problema è altrove.",
+    "r.photoFirst.t": "Prima una foto del contatore",
+    "r.photoFirst.s": "i pagamenti automatici aspettano una foto (scheda Foto) — poi ripartono da soli",
     "r.everyHour": "Recuperiamo la tua lettura ogni ora{last}. I pagamenti seguono in automatico — dopo il tuo primo invio con foto, che fissa il punto di partenza (fino ad allora le letture automatiche non vengono pagate).",
     "r.lastTime": " — l'ultima volta {when}",
     "r.checkTotal": "Connesso — {who} riporta {n} kWh. Controlla che corrisponda al totale del tuo contatore.",
@@ -619,7 +630,7 @@ export default {
       },
       {
         "q": "Serve sempre una foto?",
-        "a": "Per una lettura inserita a mano la foto è obbligatoria. Un lettore P1 collegato può inviare senza foto, perché il suo token del dispositivo lega la lettura al tuo wallet. Una foto ogni 30 giorni mantiene attivi i pagamenti automatici; l'app ti avvisa una settimana prima."
+        "a": "Per una lettura inserita a mano la foto è obbligatoria. Un lettore P1 collegato può inviare senza foto, perché il suo token del dispositivo lega la lettura al tuo wallet. Una foto ogni 90 giorni mantiene attivi i pagamenti automatici; l'app ti avvisa una settimana prima. Un collegamento con Powerfox, Tibber o MojElektro non richiede la foto periodica: quelle letture arrivano direttamente dall'azienda."
       },
       {
         "q": "Sono soldi veri?",

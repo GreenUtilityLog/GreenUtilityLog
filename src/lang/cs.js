@@ -526,6 +526,17 @@ export default {
     "r.connecting30": "Připojuji… (až 30 s)",
     "r.connectFailed": "připojení selhalo",
     "r.disconnectFailed": "odpojení se nezdařilo",
+    "r.paid": "Vyplaceno +{amount} B3TR",
+    "r.recordedOnly": "Zaznamenáno — bez úspory",
+    "r.paid.sub": "automaticky, v síti VeChain",
+    "r.receivedAt": "přijato {when}",
+    "r.staleHint": " — zkontroluj, že je počítač se skriptem (nebo Home Assistant) zapnutý",
+    "r.keepOn": "🖥️ Nech počítač se skriptem (nebo Home Assistant) kolem {when} zapnutý. Pokud bude zrovna vypnutý, stav odejde do hodiny po zapnutí.",
+    "r.rebase.note": "Nic nevyplácí — jen určuje, odkud se začne počítat. Jde to až do tvé první automatické výplaty.",
+    "r.relinked.new": "✅ Tvůj uložený token byl zastaralý. Zkopíruj nastavení výše znovu — to staré už nikdy fungovat nebude.",
+    "r.relinked.same": "✓ Už propojeno — server má přesně tento token, takže problém je jinde.",
+    "r.photoFirst.t": "Nejdřív fotka elektroměru",
+    "r.photoFirst.s": "automatické výplaty čekají na jednu fotku (karta Fotka) — pak už běží samy",
     "r.everyHour": "Tvůj stav stahujeme každou hodinu{last}. Výplaty pak běží automaticky — po tvém prvním odeslání s fotkou, které nastaví výchozí stav (do té doby se automatické stavy nevyplácejí).",
     "r.lastTime": " — naposledy {when}",
     "r.checkTotal": "Připojeno — {who} hlásí {n} kWh. Zkontroluj, že to odpovídá celkovému stavu tvého elektroměru.",
@@ -619,7 +630,7 @@ export default {
       },
       {
         "q": "Potřebuju vždycky fotku?",
-        "a": "U ručně zadaného stavu je fotka povinná. Připojená čtečka P1 může odesílat bez fotky, protože její token zařízení váže stav k tvé peněžence. Jedna fotka každých 30 dní udrží automatické výplaty v chodu; aplikace ti to připomene týden předem."
+        "a": "U ručně zadaného stavu je fotka povinná. Připojená čtečka P1 může odesílat bez fotky, protože její token zařízení váže stav k tvé peněžence. Jedna fotka každých 90 dní udrží automatické výplaty v chodu; aplikace ti to připomene týden předem. Propojení s Powerfox, Tibber nebo MojElektro nepotřebuje opakovanou fotku: tyto odečty přicházejí přímo od firmy."
       },
       {
         "q": "Jsou to skutečné peníze?",

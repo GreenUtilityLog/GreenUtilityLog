@@ -526,6 +526,17 @@ export default {
     "r.connecting30": "Povezujem… (do 30 s)",
     "r.connectFailed": "povezivanje nije uspjelo",
     "r.disconnectFailed": "odspajanje nije uspjelo",
+    "r.paid": "Isplaćeno +{amount} B3TR",
+    "r.recordedOnly": "Zabilježeno — bez uštede",
+    "r.paid.sub": "automatski, na mreži VeChain",
+    "r.receivedAt": "primljeno {when}",
+    "r.staleHint": " — provjeri je li računalo sa skriptom (ili Home Assistant) uključeno",
+    "r.keepOn": "🖥️ Neka računalo sa skriptom (ili Home Assistant) bude uključeno oko {when}. Ako je tada isključeno, očitanje odlazi unutar sat vremena nakon što ga uključiš.",
+    "r.rebase.note": "Ne donosi ništa — samo određuje odakle počinje brojanje. To možeš do prve automatske isplate.",
+    "r.relinked.new": "✅ Tvoj spremljeni token bio je zastario. Ponovno kopiraj postavke iznad — stare više nikad neće raditi.",
+    "r.relinked.same": "✓ Već povezano — poslužitelj ima upravo ovaj token, pa je problem negdje drugdje.",
+    "r.photoFirst.t": "Najprije fotografija brojila",
+    "r.photoFirst.s": "automatske isplate čekaju jednu fotografiju (kartica Fotografija) — zatim same nastavljaju",
     "r.everyHour": "Tvoje očitanje dohvaćamo svaki sat{last}. Isplate slijede automatski — nakon tvog prvog slanja fotografije, koje postavlja početno stanje (do tada se automatska očitanja ne isplaćuju).",
     "r.lastTime": " — zadnji put {when}",
     "r.checkTotal": "Povezano — {who} javlja {n} kWh. Provjeri odgovara li to ukupnom stanju tvog brojila.",
@@ -619,7 +630,7 @@ export default {
       },
       {
         "q": "Trebam li uvijek fotografiju?",
-        "a": "Za ručno upisano očitanje fotografija je obavezna. Povezani P1 čitač može slati i bez fotografije, jer njegov token uređaja veže očitanje uz tvoj novčanik. Jedna fotografija svakih 30 dana održava automatske isplate; aplikacija te na to upozorava tjedan dana unaprijed."
+        "a": "Za ručno upisano očitanje fotografija je obavezna. Povezani P1 čitač može slati i bez fotografije, jer njegov token uređaja veže očitanje uz tvoj novčanik. Jedna fotografija svakih 90 dana održava automatske isplate; aplikacija te na to upozorava tjedan dana unaprijed. Veza s Powerfox, Tibber ili MojElektro ne treba ponovnu fotografiju: ta očitanja dolaze izravno od tvrtke."
       },
       {
         "q": "Je li ovo pravi novac?",

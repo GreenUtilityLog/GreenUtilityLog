@@ -526,6 +526,17 @@ export default {
     "r.connecting30": "Povezujem… (do 30 s)",
     "r.connectFailed": "povezava ni uspela",
     "r.disconnectFailed": "prekinitev povezave ni uspela",
+    "r.paid": "Izplačano +{amount} B3TR",
+    "r.recordedOnly": "Zabeleženo — brez prihranka",
+    "r.paid.sub": "samodejno, v omrežju VeChain",
+    "r.receivedAt": "prejeto {when}",
+    "r.staleHint": " — preveri, ali je računalnik s skripto (ali Home Assistant) vklopljen",
+    "r.keepOn": "🖥️ Računalnik s skripto (ali Home Assistant) naj bo okoli {when} vklopljen. Če je takrat izklopljen, gre odčitek ven v eni uri po vklopu.",
+    "r.rebase.note": "Ne prinese nič — le določi, od kod se začne štetje. To gre do prvega samodejnega izplačila.",
+    "r.relinked.new": "✅ Tvoj shranjeni žeton je bil zastarel. Znova kopiraj nastavitev zgoraj — stara ne bo nikoli več delovala.",
+    "r.relinked.same": "✓ Že povezano — strežnik ima natanko ta žeton, zato je težava drugje.",
+    "r.photoFirst.t": "Najprej fotografija števca",
+    "r.photoFirst.s": "samodejna izplačila čakajo na eno fotografijo (zavihek Fotografija) — potem tečejo naprej sama",
     "r.everyHour": "Tvoj odčitek pridobimo vsako uro{last}. Izplačila sledijo samodejno — po tvoji prvi oddaji s fotografijo, ki določi izhodišče (do takrat samodejni odčitki niso izplačani).",
     "r.lastTime": " — nazadnje {when}",
     "r.checkTotal": "Povezano — {who} sporoča {n} kWh. Preveri, ali se to ujema s skupnim stanjem na tvojem števcu.",
@@ -619,7 +630,7 @@ export default {
       },
       {
         "q": "Ali vedno potrebujem fotografijo?",
-        "a": "Za ročno vpisan odčitek je fotografija obvezna. Povezan čitalnik P1 lahko odda brez fotografije, ker žeton naprave odčitek poveže s tvojo denarnico. Ena fotografija vsakih 30 dni ohranja samodejna izplačila; aplikacija te na to opozori teden dni prej."
+        "a": "Za ročno vpisan odčitek je fotografija obvezna. Povezan čitalnik P1 lahko odda brez fotografije, ker žeton naprave odčitek poveže s tvojo denarnico. Ena fotografija vsakih 90 dni ohranja samodejna izplačila; aplikacija te na to opozori teden dni prej. Povezava s Powerfox, Tibber ali MojElektro ne potrebuje ponovne fotografije: ti odčitki prihajajo neposredno od podjetja."
       },
       {
         "q": "Je to pravi denar?",

@@ -526,6 +526,17 @@ export default {
     "r.connecting30": "Csatlakozás… (legfeljebb 30 mp)",
     "r.connectFailed": "a csatlakozás nem sikerült",
     "r.disconnectFailed": "nem sikerült leválasztani",
+    "r.paid": "Kifizetve +{amount} B3TR",
+    "r.recordedOnly": "Rögzítve — nincs megtakarítás",
+    "r.paid.sub": "automatikusan, a VeChain hálózaton",
+    "r.receivedAt": "beérkezett: {when}",
+    "r.staleHint": " — ellenőrizd, hogy be van-e kapcsolva a szkriptet futtató számítógép (vagy a Home Assistant)",
+    "r.keepOn": "🖥️ Hagyd bekapcsolva {when} körül a szkriptet futtató számítógépet (vagy a Home Assistant eszközt). Ha akkor ki van kapcsolva, a mérőállás a bekapcsolás után egy órán belül elmegy.",
+    "r.rebase.note": "Nem jár kifizetéssel — csak azt rögzíti, honnan indul a számolás. Ezt az első automatikus kifizetésedig teheted meg.",
+    "r.relinked.new": "✅ A mentett tokened elavult volt. Másold ki újra a fenti beállítást — a régi soha többé nem fog működni.",
+    "r.relinked.same": "✓ Már párosítva — a szerveren pontosan ez a token van, tehát máshol van a hiba.",
+    "r.photoFirst.t": "Először egy fotó a mérődről",
+    "r.photoFirst.s": "az automatikus kifizetések egy fotóra várnak (Fotó fül) — utána maguktól folytatódnak",
     "r.everyHour": "Óránként lekérjük a mérőállásodat{last}. A kifizetések automatikusan követik — az első fotós beküldésed után, amely beállítja a kiindulási értéket (addig az automatikus mérőállásokért nincs kifizetés).",
     "r.lastTime": " — legutóbb: {when}",
     "r.checkTotal": "Csatlakoztatva — forrás: {who}, jelentett érték: {n} kWh. Ellenőrizd, hogy ez egyezik-e a mérőd összesített állásával.",
@@ -619,7 +630,7 @@ export default {
       },
       {
         "q": "Mindig kell fotó?",
-        "a": "Kézzel beírt mérőálláshoz kötelező a fotó. Egy csatlakoztatott P1-olvasó fotó nélkül is beküldhet, mert az eszköztokenje a tárcádhoz köti a mérőállást. 30 naponta egy fotó szükséges ahhoz, hogy az automatikus kifizetések folytatódjanak; az app egy héttel előtte szól."
+        "a": "Kézzel beírt mérőálláshoz kötelező a fotó. Egy csatlakoztatott P1-olvasó fotó nélkül is beküldhet, mert az eszköztokenje a tárcádhoz köti a mérőállást. 90 naponta egy fotó szükséges ahhoz, hogy az automatikus kifizetések folytatódjanak; az app egy héttel előtte szól. A Powerfox-, Tibber- vagy MojElektro-kapcsolathoz nem kell ismételt fotó: ezek a mérőállások magától a cégtől jönnek."
       },
       {
         "q": "Ez valódi pénz?",

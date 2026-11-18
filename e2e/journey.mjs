@@ -154,6 +154,8 @@ const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR
 
 // The access answer can be held back (the GM step), to see the app wait for it.
 let seenDelayMs = 0;
+// When set, /meter/latest says automatic payouts wait for a photo (the 30-day rule).
+let photoOverdue = false;
 // Outside requests: the API goes to the local server, the VeChain node to the
 // stand-in, the rest is dropped (fonts, WalletConnect, …) so the run needs no network.
 const GENESIS = { id: "0x000000000b2bce3c70bc649a02749e8687721b09ed2e15997f466536b20bb127", number: 0, timestamp: 1530014400, gasLimit: 10000000, parentID: "0xffffffff00000000000000000000000000000000000000000000000000000000", size: 170, beneficiary: "0x0000000000000000000000000000000000000000", gasUsed: 0, totalScore: 0, txsRoot: "0x" + "0".repeat(64), txsFeatures: 0, stateRoot: "0x" + "0".repeat(64), receiptsRoot: "0x" + "0".repeat(64), signer: "0x0000000000000000000000000000000000000000", isTrunk: true, transactions: [] };
@@ -164,6 +166,10 @@ await ctx.route((url) => !/^http:\/\/(127\.0\.0\.1|localhost)[:/]/.test(url.href
     const local = route.request().url().replace(API, `http://127.0.0.1:${API_PORT}`);
     try {
       const res = await route.fetch({ url: local });
+      if (photoOverdue && u.pathname === "/meter/latest") {
+        const j = await res.json();
+        return route.fulfill({ status: res.status(), contentType: "application/json", body: JSON.stringify({ ...j, photoDueAt: Date.now() - 86400000 }) });
+      }
       if (!/^\/(health|wallet\/seen|meter\/latest|meter\/registered)/.test(u.pathname)) {
         let body = ""; try { body = await res.text(); } catch {}
         api.push({ method: route.request().method(), path: u.pathname, status: res.status(), body });
@@ -383,6 +389,25 @@ await step("a reader: pair, push, and its reading appears", async () => {
   await wait(17000); // the card polls every 15 s
   await shot("07-reader");
   assert.match(await text(), /1005\.5/, "the pushed reading shows in the app");
+});
+
+await step("a reader whose payouts wait for a photo: the timeline says so, nothing to claim", async () => {
+  photoOverdue = true;
+  try {
+    await wait(17000); // the card polls every 15 s
+    await shot("07b-reader-photo-due");
+    const t = await text();
+    assert.match(t, /First a photo of your meter/, "the timeline's next step is a photo");
+    assert.match(t, /automatic payouts wait for one photo/);
+    assert.equal(await page.getByRole("button", { name: /^(Claim now|Submit)/ }).count(), 0, "no claim button while paused");
+    assert.doesNotMatch(t, /Next reward possible/, "no 'next reward' promise while paused");
+    // A reading that saved nothing isn't "Paid +0.00"; and the time isn't split
+    // mid-way ("TODAY 06: | 18:42") when the clock is 12-hour.
+    assert.doesNotMatch(t, /Paid \+0\.00/, "no 'Paid +0.00 B3TR'");
+    assert.doesNotMatch(t, /\d: \| \d/, "the timeline's time is whole");
+  } finally { photoOverdue = false; }
+  await wait(17000);
+  assert.doesNotMatch(await text(), /First a photo of your meter/, "back to normal once a photo isn't due");
 });
 
 await step("offline: a reading is queued, and sent when back online", async () => {

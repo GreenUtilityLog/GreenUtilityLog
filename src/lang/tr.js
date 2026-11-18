@@ -526,6 +526,17 @@ export default {
     "r.connecting30": "Bağlanıyor… (30 sn'ye kadar)",
     "r.connectFailed": "bağlantı başarısız",
     "r.disconnectFailed": "bağlantı kesilemedi",
+    "r.paid": "+{amount} B3TR ödendi",
+    "r.recordedOnly": "Kaydedildi — tasarruf yok",
+    "r.paid.sub": "otomatik olarak, VeChain üzerinde",
+    "r.receivedAt": "{when} alındı",
+    "r.staleHint": " — betiğin çalıştığı bilgisayarın (veya Home Assistant'ın) açık olduğunu kontrol et",
+    "r.keepOn": "🖥️ Betiğin çalıştığı bilgisayarı (veya Home Assistant'ı) {when} civarında açık tut. O sırada kapalıysa okuma, açtıktan sonraki bir saat içinde gönderilir.",
+    "r.rebase.note": "Ödeme getirmez — yalnızca saymanın nereden başlayacağını belirler. Bunu ilk otomatik ödemene kadar yapabilirsin.",
+    "r.relinked.new": "✅ Kayıtlı token'ın eskimiş. Yukarıdaki kurulumu yeniden kopyala — eskisi bir daha asla çalışmaz.",
+    "r.relinked.same": "✓ Zaten bağlı — sunucuda tam olarak bu token var, yani sorun başka bir yerde.",
+    "r.photoFirst.t": "Önce sayacının bir fotoğrafı",
+    "r.photoFirst.s": "otomatik ödemeler bir fotoğraf bekliyor (Fotoğraf sekmesi) — sonra kendiliğinden devam eder",
     "r.everyHour": "Okumanı her saat alıyoruz{last}. Ödemeler otomatik olarak gelir — başlangıç noktasını belirleyen ilk fotoğraflı gönderiminden sonra (o zamana kadar otomatik okumalar ödenmez).",
     "r.lastTime": " — son kez {when}",
     "r.checkTotal": "Bağlandı — {who} {n} kWh bildiriyor. Bunun sayacındaki toplam değerle uyuştuğunu kontrol et.",
@@ -619,7 +630,7 @@ export default {
       },
       {
         "q": "Her zaman fotoğraf gerekir mi?",
-        "a": "Elle girilen bir okuma için fotoğraf zorunludur. Bağlı bir P1 okuyucu fotoğrafsız gönderebilir, çünkü cihaz token'ı okumayı cüzdanına bağlar. Otomatik ödemelerin sürmesi için 30 günde bir fotoğraf yeterli; uygulama sana bir hafta önceden haber verir."
+        "a": "Elle girilen bir okuma için fotoğraf zorunludur. Bağlı bir P1 okuyucu fotoğrafsız gönderebilir, çünkü cihaz token'ı okumayı cüzdanına bağlar. Otomatik ödemelerin sürmesi için 90 günde bir fotoğraf yeterli; uygulama sana bir hafta önceden haber verir. Powerfox, Tibber veya MojElektro bağlantısı tekrar fotoğraf gerektirmez: bu okumalar doğrudan şirketten gelir."
       },
       {
         "q": "Bu gerçek para mı?",

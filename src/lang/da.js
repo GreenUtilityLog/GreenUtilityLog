@@ -526,6 +526,17 @@ export default {
     "r.connecting30": "Forbinder… (op til 30 s)",
     "r.connectFailed": "forbindelsen mislykkedes",
     "r.disconnectFailed": "kunne ikke afbryde forbindelsen",
+    "r.paid": "Udbetalt +{amount} B3TR",
+    "r.recordedOnly": "Registreret — ingen besparelse",
+    "r.paid.sub": "automatisk, på VeChain",
+    "r.receivedAt": "modtaget {when}",
+    "r.staleHint": " — tjek, at computeren med scriptet (eller Home Assistant) er tændt",
+    "r.keepOn": "🖥️ Lad computeren med scriptet (eller Home Assistant) være tændt omkring {when}. Er den slukket da, sendes aflæsningen inden for en time, efter du tænder den.",
+    "r.rebase.note": "Giver ingen udbetaling — det fastlægger kun, hvor optællingen begynder. Det kan du gøre indtil din første automatiske udbetaling.",
+    "r.relinked.new": "✅ Dit gemte token var forældet. Kopiér opsætningen ovenfor igen — den gamle virker aldrig mere.",
+    "r.relinked.same": "✓ Allerede forbundet — serveren har præcis dette token, så problemet ligger et andet sted.",
+    "r.photoFirst.t": "Først et billede af din måler",
+    "r.photoFirst.s": "automatiske udbetalinger venter på ét billede (fanen Billede) — derefter kører de videre af sig selv",
     "r.everyHour": "Vi henter din aflæsning hver time{last}. Udbetalingerne følger automatisk — efter din første indsendelse med billede, som sætter startpunktet (indtil da udbetales automatiske aflæsninger ikke).",
     "r.lastTime": " — senest {when}",
     "r.checkTotal": "Forbundet — {who} melder {n} kWh. Tjek, at det passer med din målers total.",
@@ -619,7 +630,7 @@ export default {
       },
       {
         "q": "Skal jeg altid bruge et billede?",
-        "a": "Et billede er påkrævet for en aflæsning, du indtaster selv. En forbundet P1-aflæser kan indsende uden billede, fordi dens enhedstoken knytter aflæsningen til din wallet. Ét billede hver 30. dag holder de automatiske udbetalinger i gang; appen giver dig besked en uge før."
+        "a": "Et billede er påkrævet for en aflæsning, du indtaster selv. En forbundet P1-aflæser kan indsende uden billede, fordi dens enhedstoken knytter aflæsningen til din wallet. Ét billede hver 90. dag holder de automatiske udbetalinger i gang; appen giver dig besked en uge før. En forbindelse til Powerfox, Tibber eller MojElektro kræver intet gentaget foto: de aflæsninger kommer fra selve virksomheden."
       },
       {
         "q": "Er det rigtige penge?",

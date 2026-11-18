@@ -526,6 +526,17 @@ export default {
     "r.connecting30": "Yhdistetään… (enintään 30 s)",
     "r.connectFailed": "yhdistäminen epäonnistui",
     "r.disconnectFailed": "yhteyttä ei voitu katkaista",
+    "r.paid": "Maksettu +{amount} B3TR",
+    "r.recordedOnly": "Kirjattu — ei säästöä",
+    "r.paid.sub": "automaattisesti, VeChain-verkossa",
+    "r.receivedAt": "vastaanotettu {when}",
+    "r.staleHint": " — tarkista, että skriptiä ajava tietokone (tai Home Assistant) on päällä",
+    "r.keepOn": "🖥️ Pidä skriptiä ajava tietokone (tai Home Assistant) päällä {when} tienoilla. Jos se on silloin pois päältä, lukema lähtee tunnin sisällä siitä, kun käynnistät sen.",
+    "r.rebase.note": "Ei tuota maksua — se vain asettaa, mistä laskenta alkaa. Voit tehdä tämän ensimmäiseen automaattiseen maksuusi asti.",
+    "r.relinked.new": "✅ Tallennettu tokenisi oli vanhentunut. Kopioi yllä oleva asetus uudelleen — vanha ei toimi enää koskaan.",
+    "r.relinked.same": "✓ Jo linkitetty — palvelimella on juuri tämä token, joten vika on muualla.",
+    "r.photoFirst.t": "Ensin kuva mittaristasi",
+    "r.photoFirst.s": "automaattiset maksut odottavat yhtä kuvaa (Kuva-välilehti) — sitten ne jatkuvat itsestään",
     "r.everyHour": "Haemme lukemasi tunnin välein{last}. Maksut tulevat automaattisesti — ensimmäisen kuvalähetyksesi jälkeen, joka asettaa lähtölukeman (siihen asti automaattisia lukemia ei makseta).",
     "r.lastTime": " — viimeksi {when}",
     "r.checkTotal": "Yhdistetty — {who} ilmoittaa {n} kWh. Tarkista, että tämä vastaa mittarisi kokonaislukemaa.",
@@ -619,7 +630,7 @@ export default {
       },
       {
         "q": "Tarvitsenko aina kuvan?",
-        "a": "Käsin syötetty lukema vaatii kuvan. Yhdistetty P1-lukija voi lähettää ilman kuvaa, koska sen laitetoken sitoo lukeman lompakkoosi. Yksi kuva 30 päivän välein pitää automaattiset maksut käynnissä; sovellus muistuttaa sinua viikkoa etukäteen."
+        "a": "Käsin syötetty lukema vaatii kuvan. Yhdistetty P1-lukija voi lähettää ilman kuvaa, koska sen laitetoken sitoo lukeman lompakkoosi. Yksi kuva 90 päivän välein pitää automaattiset maksut käynnissä; sovellus muistuttaa sinua viikkoa etukäteen. Powerfox-, Tibber- tai MojElektro-yhteys ei tarvitse toistuvaa kuvaa: lukemat tulevat suoraan yhtiöltä."
       },
       {
         "q": "Onko tämä oikeaa rahaa?",

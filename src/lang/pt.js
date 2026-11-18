@@ -526,6 +526,17 @@ export default {
     "r.connecting30": "A ligar… (até 30 s)",
     "r.connectFailed": "a ligação falhou",
     "r.disconnectFailed": "não foi possível desligar",
+    "r.paid": "Pago +{amount} B3TR",
+    "r.recordedOnly": "Registada — sem poupança",
+    "r.paid.sub": "automaticamente, na VeChain",
+    "r.receivedAt": "recebida {when}",
+    "r.staleHint": " — verifica se o computador com o script (ou o Home Assistant) está ligado",
+    "r.keepOn": "🖥️ Deixa o computador com o script (ou o Home Assistant) ligado por volta de {when}. Se estiver desligado nessa altura, a leitura segue até uma hora depois de o ligares.",
+    "r.rebase.note": "Não paga nada — só define onde começa a contagem. Podes fazer isto até ao teu primeiro pagamento automático.",
+    "r.relinked.new": "✅ O teu token guardado estava desatualizado. Copia outra vez a configuração acima — a antiga nunca vai funcionar.",
+    "r.relinked.same": "✓ Já associado — o servidor tem exatamente este token, por isso o problema está noutro lado.",
+    "r.photoFirst.t": "Primeiro uma foto do teu contador",
+    "r.photoFirst.s": "os pagamentos automáticos esperam por uma foto (separador Foto) — depois continuam sozinhos",
     "r.everyHour": "Vamos buscar a tua leitura de hora a hora{last}. Os pagamentos seguem automaticamente — depois do teu primeiro envio com foto, que define o ponto de partida (até lá, as leituras automáticas não são pagas).",
     "r.lastTime": " — última vez {when}",
     "r.checkTotal": "Ligado — {who} indica {n} kWh. Confirma que isto coincide com o total do teu contador.",
@@ -619,7 +630,7 @@ export default {
       },
       {
         "q": "Preciso sempre de uma foto?",
-        "a": "Uma leitura introduzida à mão precisa sempre de uma foto. Um leitor P1 ligado pode enviar sem foto, porque o token do dispositivo associa a leitura à tua carteira. Uma foto a cada 30 dias mantém os pagamentos automáticos; a app avisa-te com uma semana de antecedência."
+        "a": "Uma leitura introduzida à mão precisa sempre de uma foto. Um leitor P1 ligado pode enviar sem foto, porque o token do dispositivo associa a leitura à tua carteira. Uma foto a cada 90 dias mantém os pagamentos automáticos; a app avisa-te com uma semana de antecedência. Uma ligação Powerfox, Tibber ou MojElektro não precisa de foto repetida: essas leituras vêm da própria empresa."
       },
       {
         "q": "Isto é dinheiro a sério?",
