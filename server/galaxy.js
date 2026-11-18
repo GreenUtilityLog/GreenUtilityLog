@@ -7,7 +7,8 @@
 // may have just minted one and pressed "Check again"). A read that failed is null and not cached, so a node hiccup
 // never locks someone out for long, and never lets anyone in.
 
-import { CONTRACTS } from "./config.js";
+import { ABIEvent } from "@vechain/sdk-core";
+import { CONTRACTS, NODE_URL } from "./config.js";
 import { callView } from "./reward.js";
 
 const BALANCE_OF = {
@@ -153,4 +154,58 @@ export async function memberCheck(address) {
     if (memberCache.size > 5000) memberCache.delete(memberCache.keys().next().value);
   }
   return out;
+}
+
+// ── Signals reset by the VeBetterDAO Foundation after KYC ─────────────────────
+// A wallet that was signaled and then proved who it is (KYC) has its signals reset
+// by the Foundation: VeBetterPassport.resetUserSignalsWithReason, sent by the
+// Foundation wallet with the reason below (as VeBetterDAO's morbidejs described,
+// 2026-11-18; example tx 0x671bef27…7abe7). It has 0 signals after that, so it passes
+// the member check. The owner's choice: let it earn, but show it to the admin.
+//
+// The event (UserSignalsReset(address indexed user, string reason)) doesn't name
+// who reset; the transaction does (meta.txOrigin in the node's log answer).
+// → { reset: true, at, txid } / { reset: false }, or null when the logs couldn't
+// be read. A "yes" is kept for a day, a "no" for an hour.
+
+
+export const KYC_RESETTER = "0x12a7f82621d518aed6bbadc7f9d6d2814934b259";
+export const KYC_REASON = "Resetting signal counter for KYC'ed wallet";
+const RESET_EVENT = new ABIEvent({
+  type: "event", name: "UserSignalsReset", anonymous: false,
+  inputs: [{ name: "user", type: "address", indexed: true }, { name: "reason", type: "string", indexed: false }],
+});
+const kycCache = new Map();
+
+export async function kycSignalReset(address) {
+  const w = String(address || "").toLowerCase();
+  if (!/^0x[0-9a-f]{40}$/.test(w) || !CONTRACTS.VeBetterPassport) return { reset: false };
+  const hit = kycCache.get(w);
+  if (hit && Date.now() - hit.at < (hit.v.reset ? 86400000 : 3600000)) return hit.v;
+  let logs;
+  try {
+    const res = await fetch(`${NODE_URL}/logs/event`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        criteriaSet: [{ address: CONTRACTS.VeBetterPassport, topic0: RESET_EVENT.signatureHash, topic1: "0x" + w.slice(2).padStart(64, "0") }],
+        options: { offset: 0, limit: 100 }, order: "desc",
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return null;
+    logs = await res.json();
+    if (!Array.isArray(logs)) return null;
+  } catch { return null; }
+  let v = { reset: false };
+  for (const log of logs) {
+    if (String(log?.meta?.txOrigin || "").toLowerCase() !== KYC_RESETTER) continue;
+    let reason = "";
+    try { reason = String(RESET_EVENT.decodeEventLog({ topics: log.topics, data: log.data }).args?.reason ?? ""); } catch { continue; }
+    if (reason !== KYC_REASON) continue;
+    v = { reset: true, at: (Number(log.meta.blockTimestamp) || 0) * 1000 || null, txid: log.meta.txID || null };
+    break;
+  }
+  kycCache.set(w, { v, at: Date.now() });
+  if (kycCache.size > 5000) kycCache.delete(kycCache.keys().next().value);
+  return v;
 }

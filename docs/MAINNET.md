@@ -127,6 +127,8 @@ komt erin als alles klopt (de regel van VeBetterDAO voor app-beloningen, via mor
    niveau per moment. Wie tijdens de ronde van GM NFT wisselt en met de andere stemt, telt niet;
 6. een **VeBetterDAO Passport** dat hem als persoon telt.
 Wie elke ronde stemt, blijft verdienen; wie een ronde overslaat, doet de week erna niet mee.
+Een wallet waarvan de Foundation de signaleringen na KYC heeft teruggezet, komt erin maar wordt
+gemarkeerd voor de admin (rollenpaneel en markeringen); blokkeren kan met de hand.
 De server controleert dat
 zelf op de blockchain, bij het openen van de app én bij elke uitbetaling. Wie het niet heeft,
 ziet een scherm met wat er ontbreekt, een link naar VeBetterDAO en "Opnieuw controleren".
