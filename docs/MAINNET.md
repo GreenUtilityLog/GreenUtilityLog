@@ -27,6 +27,13 @@ Dezelfde wallets als op testnet (keuze eigenaar, november 2026):
 | Schatkist (treasury / team wallet) | `0x1390b2cac3b73419bbac32342e9b9ff22df0d7c2` |
 | Reward distributor | `0x1390b2cac3b73419bbac32342e9b9ff22df0d7c2` — de server-wallet; de sleutel staat alleen in Render |
 
+**Teamdeel (team allocation percentage): 10–15%** (keuze eigenaar, 19-11-2026), in te stellen
+met de beheerwallet bij de app-instellingen op VeBetterDAO. Standaard staat het op 0%: dan gaat
+alles naar de beloningspot. Het teamdeel gaat naar de schatkist en dekt de kosten, vooral de
+VTHO (gas) voor elke uitbetaling. Bij het ophalen van een ronde (de server doet dat zelf,
+`budget.js`) stuurt het contract het teamdeel rechtstreeks naar de schatkist; de server rekent
+alleen met wat in de beloningspot komt.
+
 Zoals op testnet: schatkist en distributor zijn één wallet (keuze eigenaar). Daardoor staat
 de sleutel van de schatkist op de server; lekt hij, trek dan met de beheerwallet de
 distributor-rol in en verander het schatkistadres (zie **Noodstop**).
