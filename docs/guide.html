@@ -210,6 +210,7 @@
 <option value="hu">Magyar</option>
 <option value="pl">Polski</option>
 <option value="pt">Português</option>
+<option value="cs">Čeština</option>
 </select></nav>
 <section class="lang active" id="lang-en">
   <header class="hero"><span class="kicker">Tester guide</span><h1>Earn without photographing your meter</h1><p class="lede">Normally you photograph your meter to earn B3TR. If something in your home can already read the meter, it can send the reading for you — and you never photograph again. Start by finding your setup below.</p></header>
@@ -588,7 +589,7 @@
       </li>
       <li><p class="steptitle">Klaar — je computer mag uit</p>
       <p>Onze server haalt ongeveer elk uur je meterstand op bij Powerfox en betaalt die uit zoals elke stand. Stoppen? <strong>Powerfox ontkoppelen</strong> wist je inlog meteen.</p>
-      <div class="see"><b>Controleren of het werkt</b>Bovenaan staat <span class="k">✅ Connected — … kWh received</span>.</div>
+      <div class="see"><b>Controleren of het werkt</b>Bovenaan staat <span class="k">✅ Verbonden — … kWh ontvangen</span>.</div>
       </li>
       </ol>
   <h3 class="sub">Optie 2 — Op je eigen computer</h3>
@@ -627,7 +628,7 @@
       </li>
       <li><p class="steptitle">Plak hem in de app</p>
       <p>In de app: <span class="k">Meter → ⚡ Heb je een uitlezer (P1, Home Assistant…)? → ⚙️ Automatisch instellen → Tibber → “Wij halen het voor je op”</span>. Plak de token, vink het vakje aan en druk op <strong>Tibber koppelen</strong>. Dat kan tot 30 seconden duren. Staat het er niet? Dan biedt deze versie het nog niet aan — gebruik optie 2.</p>
-      <div class="see"><b>Controleren of het werkt</b>De app toont <span class="k">Connected — Tibber reports … kWh</span>. Kijk of dat klopt met de stand op je meter.</div>
+      <div class="see"><b>Controleren of het werkt</b>De app toont <span class="k">Verbonden — Tibber meldt … kWh</span>. Kijk of dat klopt met de stand op je meter.</div>
       </li>
       </ol>
   <h3 class="sub">Optie 2 — Met Home Assistant</h3>
@@ -643,10 +644,10 @@
   <h2 id="nl-9">Tot slot: het betaalt vanzelf uit</h2>
   <ol class="steps">
       <li><p class="steptitle">Je stand verschijnt vanzelf</p>
-      <p>Ga in de app naar <strong>Meter</strong>. Het paneel <strong>⚡ Automatic reading</strong> meldt <span class="k">Connected — … kWh received</span>, met je meterstand en hoe laat die binnenkwam.</p>
+      <p>Ga in de app naar <strong>Meter</strong>. Het paneel <strong>⚡ Automatisch uitlezen</strong> meldt <span class="k">Verbonden — … kWh ontvangen</span>, met je meterstand en hoe laat die binnenkwam.</p>
       </li>
       <li><p class="steptitle">Hij wordt vanzelf uitbetaald</p>
-      <p>Niets te tikken: elke stand wordt automatisch uitbetaald zodra hij binnenkomt, hooguit één keer per dag, en de <strong>Timeline</strong> in dat paneel toont <span class="k">Paid +… B3TR</span>. Geen zin om te wachten? <strong>Claim now</strong> doet hetzelfde.</p>
+      <p>Niets te tikken: elke stand wordt automatisch uitbetaald zodra hij binnenkomt, hooguit één keer per dag, en de <strong>Tijdlijn</strong> in dat paneel toont <span class="k">Uitbetaald +… B3TR</span>. Geen zin om te wachten? <strong>Nu claimen</strong> doet hetzelfde.</p>
       </li>
       </ol>
   <div class="note flag"><b>🇧🇪 België (Fluvius-meters)</b>De P1-poort op Belgische meters staat standaard uit. Bij Fluvius zet je hem gratis aan in hun online portaal; bij een andere netbeheerder vraag je het hen. Daarna werkt alles hetzelfde.</div>
@@ -659,11 +660,11 @@
     <tr><td>couldn&#x27;t find a kWh number at …</td><td>De JSON van je reader gebruikt geen naam die de helper kent. Zet er <span class="k">--field=</span> bij met het pad naar de waarde, bijvoorbeeld <span class="k">--field=electricity.import_kwh</span>.</td></tr>
     <tr><td>server said 401</td><td>De token klopt niet of is onvolledig. Kopieer hem opnieuw uit de app en draai één keer <span class="k">node gul.js --ask-token --install</span> om de opgeslagen token te vervangen.</td></tr>
     <tr><td>submit one photo reading first</td><td>Je meter heeft nog geen startpunt. Doe één gewone foto-inzending in de app — automatische standen zetten nooit de eerste waarde, zodat een apparaat zijn eigen beginstand niet kan verzinnen. Daarna betaalt het uit.</td></tr>
-    <tr><td>usage … is outside the plausible range</td><td>Bijna altijd een <strong>dubbeltariefmeter</strong>: je display houdt twee registers bij (<span class="k">1.8.1</span> en <span class="k">1.8.2</span>) en je foto ving er één, terwijl je reader de som van allebei doorgeeft — startpunt en reader staan dus op een andere schaal. Gebruik in de app in het paneel <span class="k">⚡ Automatic reading</span> de knop <strong>&ldquo;Use this reading as my starting point&rdquo;</strong>. Die betaalt niets uit en zet alleen waar het tellen begint. Kan tot je eerste automatische uitbetaling.</td></tr>
+    <tr><td>usage … is outside the plausible range</td><td>Bijna altijd een <strong>dubbeltariefmeter</strong>: je display houdt twee registers bij (<span class="k">1.8.1</span> en <span class="k">1.8.2</span>) en je foto ving er één, terwijl je reader de som van allebei doorgeeft — startpunt en reader staan dus op een andere schaal. Gebruik in de app in het paneel <span class="k">⚡ Automatisch uitlezen</span> de knop <strong>&ldquo;Gebruik deze stand als mijn startpunt&rdquo;</strong>. Die betaalt niets uit en zet alleen waar het tellen begint. Kan tot je eerste automatische uitbetaling.</td></tr>
     <tr><td>this time photograph tariff register 2</td><td>Je meter toont twee telwerken om de beurt, en je foto’s wisselen ook af: fotografeer elke keer het telwerk dat je vorige foto níet liet zien. Wacht tot het display het telwerk toont dat de app noemt (<span class="k">1.8.1</span> of <span class="k">1.8.2</span>) en maak dan de foto.</td></tr>
     <tr><td>tariff register 1 went down</td><td>Een telwerk telt alleen op. Controleer of laag en normaal tarief elk in hun eigen vak staan, in dezelfde volgorde als de vorige keer.</td></tr>
     <tr><td>the automatic reading is stale</td><td>Een stand moet jonger dan 48 uur zijn op het moment dat je claimt. Het schema probeert het elk uur — kijk in <span class="k">.gul-bridge.log</span> naast <span class="k">gul.js</span> waarom het misging, of draai <span class="k">node gul.js --install</span> opnieuw. Hij wordt betaald zodra daar <span class="k">pushed … ✓</span> staat.</td></tr>
-    <tr><td>Geen stand in “⚡ Automatic reading”</td><td>De helper heeft nog niets succesvol doorgestuurd. Kijk in zijn venster, of open <span class="k">.gul-bridge.log</span> in dezelfde map als gul.js: elke ronde schrijft óf <span class="k">pushed … ✓</span> óf de reden waarom het niet lukte.</td></tr>
+    <tr><td>Geen stand in “⚡ Automatisch uitlezen”</td><td>De helper heeft nog niets succesvol doorgestuurd. Kijk in zijn venster, of open <span class="k">.gul-bridge.log</span> in dezelfde map als gul.js: elke ronde schrijft óf <span class="k">pushed … ✓</span> óf de reden waarom het niet lukte.</td></tr>
     <tr><td>Weet je niet zeker of hij is ingepland?</td><td>Windows: typ in PowerShell <span class="k">schtasks /Query /TN GreenUtilityLog</span> — zie je een regel met <em>GreenUtilityLog</em> en een volgende starttijd, dan staat hij erin. Mac / Linux / Pi: <span class="k">crontab -l</span> hoort een regel te tonen die eindigt op <em># GreenUtilityLog</em>. Niets te zien? Plak de installatieregel nog één keer.</td></tr>
     <tr><td>Je stelde dit in vóór 24 september</td><td>Plak dezelfde regel nog één keer. De nieuwe helper wacht op een server die nog wakker wordt in plaats van op te geven, schrijft elke ronde naar <span class="k">.gul-bridge.log</span> en draait op Windows ook op de accu.</td></tr>
     <tr><td>Powerfox didn&#x27;t accept the e-mail and password</td><td>Gebruik precies het e-mailadres en wachtwoord van de Powerfox-app (let op tikfouten of een spatie). Powerfox-wachtwoord veranderd? Optie 1: druk opnieuw op <strong>Powerfox koppelen</strong> met het nieuwe. Optie 2: plak de installatieregel nog een keer — hij vraagt dan om het wachtwoord.</td></tr>
@@ -672,9 +673,9 @@
     <tr><td>Tibber didn&#x27;t accept this token</td><td>Kopieer de token opnieuw van developer.tibber.com, zonder spaties. Heb je daar een nieuwe token gemaakt? Dan werkt de oude niet meer: koppel opnieuw met de nieuwe.</td></tr>
     <tr><td>no Tibber Pulse found on this account</td><td>De Pulse moet in de Tibber-app zijn ingesteld, op hetzelfde account als de token.</td></tr>
     <tr><td>your Pulse sends live data but no meter total</td><td>Niet elke meter geeft zijn totaal door via de HAN-poort. Gebruik dan foto's, of een andere reader.</td></tr>
-    <tr><td>this phone is already used by 1 other wallet</td><td>Eén persoon, één wallet: op een telefoon kan één wallet verdienen. De wallet die als eerste op deze telefoon is uitbetaald, blijft werken. Ben je definitief overgestapt op een nieuwe wallet? Vraag het een admin via Send Feedback in de app.</td></tr>
+    <tr><td>this phone is already used by 1 other wallet</td><td>Eén persoon, één wallet: op een telefoon kan één wallet verdienen. De wallet die als eerste op deze telefoon is uitbetaald, blijft werken. Ben je definitief overgestapt op een nieuwe wallet? Vraag het een admin via Feedback sturen in de app.</td></tr>
     <tr><td>automatic payouts are paused until you take one photo</td><td>Een uitlezer die zelf standen stuurt (P1, Home Assistant, dit script) heeft elke 90 dagen één foto van je meter nodig; Powerfox, Tibber en MojElektro niet. Dezelfde pauze komt één keer nadat het startpunt zonder foto is gecorrigeerd. Maak er een in het tabblad Meter en ze gaan weer door. De app herinnert je een week van tevoren.</td></tr>
-    <tr><td>already been corrected once</td><td>Het startpunt van een meter kan één keer worden gecorrigeerd — elke correctie wist het verbruik sinds de laatste uitbetaling. Klopt het weer niet, vraag het een admin via Send Feedback in de app.</td></tr>
+    <tr><td>already been corrected once</td><td>Het startpunt van een meter kan één keer worden gecorrigeerd — elke correctie wist het verbruik sinds de laatste uitbetaling. Klopt het weer niet, vraag het een admin via Feedback sturen in de app.</td></tr>
   </table></div>
   <div class="note">Kom je er niet uit? Stuur een berichtje met wat er in het Log-tabblad (of de terminal) staat — daar staat meestal precies wat er mist.</div>
   <footer>GreenUtilityLog · Testershandleiding · Testnet-beta — test-tokens, nog geen echte waarde.</footer>
@@ -822,7 +823,7 @@
       </li>
       <li><p class="steptitle">Fertig — dein Computer darf aus bleiben</p>
       <p>Unser Server holt etwa stündlich deinen Zählerstand bei Powerfox ab und zahlt ihn aus wie jeden anderen Stand. Aufhören? <strong>Powerfox trennen</strong> löscht deine Anmeldedaten sofort.</p>
-      <div class="see"><b>Prüfen, ob es klappt</b>Oben steht <span class="k">✅ Connected — … kWh received</span>.</div>
+      <div class="see"><b>Prüfen, ob es klappt</b>Oben steht <span class="k">✅ Verbunden — … kWh empfangen</span>.</div>
       </li>
       </ol>
   <h3 class="sub">Option 2 — Auf deinem eigenen Computer</h3>
@@ -861,7 +862,7 @@
       </li>
       <li><p class="steptitle">In der App einfügen</p>
       <p>In der App: <span class="k">Zähler → ⚡ Hast du ein Lesegerät (P1, Home Assistant…)? → ⚙️ Automatische Einrichtung → Tibber → „Wir holen es für dich ab“</span>. Token einfügen, Häkchen setzen und auf <strong>Tibber verbinden</strong> tippen. Das kann bis zu 30 Sekunden dauern. Nicht da? Dann bietet diese Version es noch nicht an — nimm Option 2.</p>
-      <div class="see"><b>Prüfen, ob es klappt</b>Die App zeigt <span class="k">Connected — Tibber reports … kWh</span>. Prüf, ob das zum Zählerstand passt.</div>
+      <div class="see"><b>Prüfen, ob es klappt</b>Die App zeigt <span class="k">Verbunden — Tibber meldet … kWh</span>. Prüf, ob das zum Zählerstand passt.</div>
       </li>
       </ol>
   <h3 class="sub">Option 2 — Mit Home Assistant</h3>
@@ -877,10 +878,10 @@
   <h2 id="de-9">Zum Schluss: es zahlt sich von selbst aus</h2>
   <ol class="steps">
       <li><p class="steptitle">Dein Stand erscheint von selbst</p>
-      <p>Geh in der App auf <strong>Meter</strong>. Das Feld <strong>⚡ Automatic reading</strong> meldet <span class="k">Connected — … kWh received</span>, mit deinem Zählerstand und wann er ankam.</p>
+      <p>Geh in der App auf <strong>Meter</strong>. Das Feld <strong>⚡ Automatisches Auslesen</strong> meldet <span class="k">Verbunden — … kWh empfangen</span>, mit deinem Zählerstand und wann er ankam.</p>
       </li>
       <li><p class="steptitle">Er wird von selbst ausgezahlt</p>
-      <p>Nichts zu tippen: jeder Stand wird automatisch ausgezahlt, sobald er ankommt, höchstens einmal am Tag, und die <strong>Timeline</strong> darin zeigt <span class="k">Paid +… B3TR</span>. Keine Lust zu warten? <strong>Claim now</strong> macht dasselbe.</p>
+      <p>Nichts zu tippen: jeder Stand wird automatisch ausgezahlt, sobald er ankommt, höchstens einmal am Tag, und die <strong>Zeitleiste</strong> darin zeigt <span class="k">Ausgezahlt +… B3TR</span>. Keine Lust zu warten? <strong>Jetzt einfordern</strong> macht dasselbe.</p>
       </li>
       </ol>
   <div class="note flag"><b>🇧🇪 Belgien (Fluvius-Zähler)</b>Der P1-Port belgischer Zähler ist standardmäßig aus. Bei Fluvius schaltest du ihn kostenlos im Online-Portal ein; bei einem anderen Netzbetreiber frag dort. Danach läuft alles gleich.</div>
@@ -893,11 +894,11 @@
     <tr><td>couldn&#x27;t find a kWh number at …</td><td>Das JSON deines Readers benutzt keinen Namen, den das Hilfsprogramm kennt. Ergänze <span class="k">--field=</span> mit dem Pfad zum Wert, z. B. <span class="k">--field=electricity.import_kwh</span>.</td></tr>
     <tr><td>server said 401</td><td>Das Token stimmt nicht oder ist unvollständig. Kopier es erneut aus der App und führ einmal <span class="k">node gul.js --ask-token --install</span> aus, um das gespeicherte zu ersetzen.</td></tr>
     <tr><td>submit one photo reading first</td><td>Dein Zähler hat noch keinen Startpunkt. Mach eine normale Foto-Einreichung in der App — automatische Stände setzen nie den ersten Wert, damit ein Gerät sich seinen Anfangsstand nicht ausdenken kann. Danach wird ausgezahlt.</td></tr>
-    <tr><td>usage … is outside the plausible range</td><td>Fast immer ein <strong>Doppeltarifzähler</strong>: das Display führt zwei Register (<span class="k">1.8.1</span> und <span class="k">1.8.2</span>) und dein Foto hat eines davon erwischt, während dein Reader die Summe beider meldet — Startpunkt und Reader liegen also auf verschiedenen Skalen. Drück in der App im Feld <span class="k">⚡ Automatic reading</span> auf <strong>&ldquo;Use this reading as my starting point&rdquo;</strong>. Das zahlt nichts aus und setzt nur, wo gezählt wird. Möglich bis zur ersten automatischen Auszahlung.</td></tr>
+    <tr><td>usage … is outside the plausible range</td><td>Fast immer ein <strong>Doppeltarifzähler</strong>: das Display führt zwei Register (<span class="k">1.8.1</span> und <span class="k">1.8.2</span>) und dein Foto hat eines davon erwischt, während dein Reader die Summe beider meldet — Startpunkt und Reader liegen also auf verschiedenen Skalen. Drück in der App im Feld <span class="k">⚡ Automatisches Auslesen</span> auf <strong>&ldquo;Diesen Stand als Startpunkt nehmen&rdquo;</strong>. Das zahlt nichts aus und setzt nur, wo gezählt wird. Möglich bis zur ersten automatischen Auszahlung.</td></tr>
     <tr><td>this time photograph tariff register 2</td><td>Dein Zähler zeigt zwei Register im Wechsel, und deine Fotos wechseln auch: fotografier jedes Mal das Register, das dein letztes Foto nicht zeigte. Warte, bis das Display das Register zeigt, das die App nennt (<span class="k">1.8.1</span> oder <span class="k">1.8.2</span>), dann mach das Foto.</td></tr>
     <tr><td>tariff register 1 went down</td><td>Ein Register zählt nur aufwärts. Prüf, ob Niedrig- und Normaltarif jeweils im eigenen Feld stehen, in derselben Reihenfolge wie beim letzten Mal.</td></tr>
     <tr><td>the automatic reading is stale</td><td>Ein Stand muss beim Claimen jünger als 48 Stunden sein. Der Zeitplan versucht es jede Stunde — schau in <span class="k">.gul-bridge.log</span> neben <span class="k">gul.js</span>, warum es scheiterte, oder führ <span class="k">node gul.js --install</span> erneut aus. Ausgezahlt wird, sobald dort <span class="k">pushed … ✓</span> erscheint.</td></tr>
-    <tr><td>Kein Stand in „⚡ Automatic reading“</td><td>Das Hilfsprogramm hat noch nichts erfolgreich gesendet. Schau in sein Fenster oder öffne <span class="k">.gul-bridge.log</span> im selben Ordner wie gul.js: jede Runde schreibt entweder <span class="k">pushed … ✓</span> oder den Grund für den Fehlschlag.</td></tr>
+    <tr><td>Kein Stand in „⚡ Automatisches Auslesen“</td><td>Das Hilfsprogramm hat noch nichts erfolgreich gesendet. Schau in sein Fenster oder öffne <span class="k">.gul-bridge.log</span> im selben Ordner wie gul.js: jede Runde schreibt entweder <span class="k">pushed … ✓</span> oder den Grund für den Fehlschlag.</td></tr>
     <tr><td>Nicht sicher, ob es eingeplant ist?</td><td>Windows: in PowerShell <span class="k">schtasks /Query /TN GreenUtilityLog</span> eingeben — eine Zeile mit <em>GreenUtilityLog</em> und einer nächsten Laufzeit heißt, es ist eingeplant. Mac / Linux / Pi: <span class="k">crontab -l</span> sollte eine Zeile zeigen, die auf <em># GreenUtilityLog</em> endet. Nichts da? Füge die Einrichtungszeile noch einmal ein.</td></tr>
     <tr><td>Vor dem 24. September eingerichtet</td><td>Füge dieselbe Zeile noch einmal ein. Das neue Hilfsprogramm wartet auf einen Server, der noch aufwacht, statt aufzugeben, schreibt jede Runde in <span class="k">.gul-bridge.log</span> und läuft unter Windows auch im Akkubetrieb.</td></tr>
     <tr><td>Powerfox didn&#x27;t accept the e-mail and password</td><td>Nimm genau die E-Mail-Adresse und das Passwort der Powerfox-App (auf Tippfehler oder Leerzeichen achten). Powerfox-Passwort geändert? Option 1: noch einmal <strong>Powerfox verbinden</strong> mit dem neuen. Option 2: die Einrichtungszeile noch einmal einfügen — sie fragt dann nach dem Passwort.</td></tr>
@@ -906,9 +907,9 @@
     <tr><td>Tibber didn&#x27;t accept this token</td><td>Kopier den Token noch einmal von developer.tibber.com, ohne Leerzeichen. Dort einen neuen Token erstellt? Dann gilt der alte nicht mehr: mit dem neuen erneut verbinden.</td></tr>
     <tr><td>no Tibber Pulse found on this account</td><td>Der Pulse muss in der Tibber-App eingerichtet sein, im selben Konto wie der Token.</td></tr>
     <tr><td>your Pulse sends live data but no meter total</td><td>Nicht jeder Zähler meldet seinen Gesamtstand über die HAN-Schnittstelle. Dann Fotos verwenden, oder einen anderen Reader.</td></tr>
-    <tr><td>this phone is already used by 1 other wallet</td><td>Eine Person, eine Wallet: Auf einem Handy kann eine Wallet verdienen. Die Wallet, die auf diesem Handy zuerst ausgezahlt wurde, funktioniert weiter. Endgültig auf eine neue Wallet umgestiegen? Frag einen Admin über Send Feedback in der App.</td></tr>
+    <tr><td>this phone is already used by 1 other wallet</td><td>Eine Person, eine Wallet: Auf einem Handy kann eine Wallet verdienen. Die Wallet, die auf diesem Handy zuerst ausgezahlt wurde, funktioniert weiter. Endgültig auf eine neue Wallet umgestiegen? Frag einen Admin über Feedback senden in der App.</td></tr>
     <tr><td>automatic payouts are paused until you take one photo</td><td>Ein Leser, der seine Stände selbst sendet (P1, Home Assistant, dieses Skript), braucht alle 90 Tage ein Foto deines Zählers; Powerfox, Tibber und MojElektro nicht. Dieselbe Pause kommt einmal, nachdem der Startpunkt ohne Foto korrigiert wurde. Mach eins im Tab Meter, dann geht es weiter. Die App erinnert dich eine Woche vorher.</td></tr>
-    <tr><td>already been corrected once</td><td>Der Startwert eines Zählers kann einmal korrigiert werden — jede Korrektur löscht den Verbrauch seit der letzten Auszahlung. Stimmt er wieder nicht, frag einen Admin über Send Feedback in der App.</td></tr>
+    <tr><td>already been corrected once</td><td>Der Startwert eines Zählers kann einmal korrigiert werden — jede Korrektur löscht den Verbrauch seit der letzten Auszahlung. Stimmt er wieder nicht, frag einen Admin über Feedback senden in der App.</td></tr>
   </table></div>
   <div class="note">Kommst du nicht weiter? Schick eine Nachricht mit dem Inhalt des Protokoll-Tabs (oder Terminals) — dort steht meist genau, was fehlt.</div>
   <footer>GreenUtilityLog · Tester-Anleitung · Testnet-Beta — Test-Token, noch kein realer Wert.</footer>
@@ -1056,7 +1057,7 @@
       </li>
       <li><p class="steptitle">C'est fait — votre ordinateur peut rester éteint</p>
       <p>Notre serveur récupère votre relevé chez Powerfox environ toutes les heures et le paie comme tout autre relevé. Arrêter ? <strong>Déconnecter Powerfox</strong> efface vos identifiants aussitôt.</p>
-      <div class="see"><b>Vérifier</b>En haut s'affiche <span class="k">✅ Connected — … kWh received</span>.</div>
+      <div class="see"><b>Vérifier</b>En haut s'affiche <span class="k">✅ Connecté — … kWh reçus</span>.</div>
       </li>
       </ol>
   <h3 class="sub">Option 2 — Sur votre propre ordinateur</h3>
@@ -1095,7 +1096,7 @@
       </li>
       <li><p class="steptitle">Collez-le dans l'app</p>
       <p>Dans l'app : <span class="k">Compteur → ⚡ Vous avez un lecteur (P1, Home Assistant…) ? → ⚙️ Configuration automatique → Tibber → « Nous le récupérons pour vous »</span>. Collez le jeton, cochez la case et appuyez sur <strong>Connecter Tibber</strong>. Cela peut prendre jusqu'à 30 secondes. Absent ? Cette version ne le propose pas encore — prenez l'option 2.</p>
-      <div class="see"><b>Vérifier</b>L'app affiche <span class="k">Connected — Tibber reports … kWh</span>. Vérifiez que cela correspond à votre compteur.</div>
+      <div class="see"><b>Vérifier</b>L'app affiche <span class="k">Connecté — Tibber indique … kWh</span>. Vérifiez que cela correspond à votre compteur.</div>
       </li>
       </ol>
   <h3 class="sub">Option 2 — Avec Home Assistant</h3>
@@ -1111,10 +1112,10 @@
   <h2 id="fr-9">Enfin : le paiement se fait tout seul</h2>
   <ol class="steps">
       <li><p class="steptitle">Votre relevé apparaît tout seul</p>
-      <p>Dans l'app, allez sur <strong>Meter</strong>. Le panneau <strong>⚡ Automatic reading</strong> affiche <span class="k">Connected — … kWh received</span>, avec votre relevé et l'heure d'arrivée.</p>
+      <p>Dans l'app, allez sur <strong>Meter</strong>. Le panneau <strong>⚡ Relevé automatique</strong> affiche <span class="k">Connecté — … kWh reçus</span>, avec votre relevé et l'heure d'arrivée.</p>
       </li>
       <li><p class="steptitle">Il est payé tout seul</p>
-      <p>Rien à toucher : chaque relevé est payé automatiquement à son arrivée, au plus une fois par jour, et la <strong>Timeline</strong> du panneau affiche <span class="k">Paid +… B3TR</span>. Pas envie d'attendre ? <strong>Claim now</strong> fait la même chose.</p>
+      <p>Rien à toucher : chaque relevé est payé automatiquement à son arrivée, au plus une fois par jour, et la <strong>Chronologie</strong> du panneau affiche <span class="k">Payé +… B3TR</span>. Pas envie d'attendre ? <strong>Réclamer maintenant</strong> fait la même chose.</p>
       </li>
       </ol>
   <div class="note flag"><b>🇧🇪 Belgique (compteurs Fluvius)</b>Le port P1 des compteurs belges est désactivé par défaut. Avec Fluvius, vous l'activez gratuitement dans leur portail en ligne ; avec un autre gestionnaire de réseau, demandez-lui. Ensuite tout fonctionne pareil.</div>
@@ -1127,11 +1128,11 @@
     <tr><td>couldn&#x27;t find a kWh number at …</td><td>Le JSON de votre lecteur n’utilise pas un nom connu de l’utilitaire. Ajoutez <span class="k">--field=</span> avec le chemin vers la valeur, p. ex. <span class="k">--field=electricity.import_kwh</span>.</td></tr>
     <tr><td>server said 401</td><td>Le jeton est incorrect ou incomplet. Recopiez-le depuis l’app et lancez une fois <span class="k">node gul.js --ask-token --install</span> pour remplacer celui qui est enregistré.</td></tr>
     <tr><td>submit one photo reading first</td><td>Votre compteur n’a pas encore de point de départ. Faites une soumission photo normale dans l’app — les relevés automatiques ne fixent jamais la première valeur, pour qu’un appareil ne puisse pas inventer son propre point de départ. Ensuite, ça paie.</td></tr>
-    <tr><td>usage … is outside the plausible range</td><td>Presque toujours un <strong>compteur bi-horaire</strong> : l’afficheur tient deux registres (<span class="k">1.8.1</span> et <span class="k">1.8.2</span>) et votre photo en a saisi un seul, alors que votre lecteur rapporte le total des deux — le point de départ et le lecteur ne sont donc pas à la même échelle. Dans l’app, dans le panneau <span class="k">⚡ Automatic reading</span>, appuyez sur <strong>&ldquo;Use this reading as my starting point&rdquo;</strong>. Cela ne paie rien et ne fait que fixer où commence le comptage. Possible jusqu’à votre premier versement automatique.</td></tr>
+    <tr><td>usage … is outside the plausible range</td><td>Presque toujours un <strong>compteur bi-horaire</strong> : l’afficheur tient deux registres (<span class="k">1.8.1</span> et <span class="k">1.8.2</span>) et votre photo en a saisi un seul, alors que votre lecteur rapporte le total des deux — le point de départ et le lecteur ne sont donc pas à la même échelle. Dans l’app, dans le panneau <span class="k">⚡ Relevé automatique</span>, appuyez sur <strong>&ldquo;Utiliser ce relevé comme point de départ&rdquo;</strong>. Cela ne paie rien et ne fait que fixer où commence le comptage. Possible jusqu’à votre premier versement automatique.</td></tr>
     <tr><td>this time photograph tariff register 2</td><td>Votre compteur affiche deux registres à tour de rôle, et vos photos alternent aussi : photographiez chaque fois le registre que votre photo précédente ne montrait pas. Attendez que l’afficheur montre le registre indiqué par l’app (<span class="k">1.8.1</span> ou <span class="k">1.8.2</span>), puis prenez la photo.</td></tr>
     <tr><td>tariff register 1 went down</td><td>Un registre ne fait que monter. Vérifiez que le tarif bas et le tarif normal sont chacun dans leur propre case, dans le même ordre que la dernière fois.</td></tr>
     <tr><td>the automatic reading is stale</td><td>Un relevé doit avoir moins de 48 heures au moment où vous le réclamez. Le planning réessaie toutes les heures — regardez dans <span class="k">.gul-bridge.log</span> à côté de <span class="k">gul.js</span> pourquoi cela a échoué, ou relancez <span class="k">node gul.js --install</span>. Le paiement suit dès qu’il affiche <span class="k">pushed … ✓</span>.</td></tr>
-    <tr><td>Aucun relevé dans « ⚡ Automatic reading »</td><td>L’utilitaire n’a encore rien envoyé avec succès. Regardez sa fenêtre, ou ouvrez <span class="k">.gul-bridge.log</span> dans le même dossier que gul.js : chaque cycle écrit soit <span class="k">pushed … ✓</span>, soit la raison de l’échec.</td></tr>
+    <tr><td>Aucun relevé dans « ⚡ Relevé automatique »</td><td>L’utilitaire n’a encore rien envoyé avec succès. Regardez sa fenêtre, ou ouvrez <span class="k">.gul-bridge.log</span> dans le même dossier que gul.js : chaque cycle écrit soit <span class="k">pushed … ✓</span>, soit la raison de l’échec.</td></tr>
     <tr><td>Pas sûr qu’il soit planifié ?</td><td>Windows : dans PowerShell, tapez <span class="k">schtasks /Query /TN GreenUtilityLog</span> — une ligne avec <em>GreenUtilityLog</em> et une prochaine exécution signifie que c’est bon. Mac / Linux / Pi : <span class="k">crontab -l</span> doit afficher une ligne se terminant par <em># GreenUtilityLog</em>. Rien ? Collez la ligne d’installation une fois de plus.</td></tr>
     <tr><td>Installé avant le 24 septembre</td><td>Collez la même ligne une fois de plus. Le nouvel utilitaire attend un serveur qui se réveille au lieu d’abandonner, écrit chaque cycle dans <span class="k">.gul-bridge.log</span> et, sous Windows, fonctionne aussi sur batterie.</td></tr>
     <tr><td>Powerfox didn&#x27;t accept the e-mail and password</td><td>Utilisez exactement l'e-mail et le mot de passe de l'app Powerfox (attention aux fautes de frappe et aux espaces). Mot de passe Powerfox changé ? Option 1 : <strong>Connecter Powerfox</strong> à nouveau avec le nouveau. Option 2 : recollez la ligne d'installation — elle redemande le mot de passe.</td></tr>
@@ -1140,9 +1141,9 @@
     <tr><td>Tibber didn&#x27;t accept this token</td><td>Recopiez le jeton depuis developer.tibber.com, sans espaces. Vous y avez créé un nouveau jeton ? L'ancien ne marche plus : reconnectez-vous avec le nouveau.</td></tr>
     <tr><td>no Tibber Pulse found on this account</td><td>Le Pulse doit être configuré dans l'app Tibber, sur le même compte que le jeton.</td></tr>
     <tr><td>your Pulse sends live data but no meter total</td><td>Tous les compteurs n'envoient pas leur total par le port HAN. Utilisez alors des photos, ou un autre lecteur.</td></tr>
-    <tr><td>this phone is already used by 1 other wallet</td><td>Une personne, un wallet : sur un téléphone, un seul wallet peut gagner. Le wallet payé en premier sur ce téléphone continue de marcher. Vous êtes passé définitivement à un nouveau wallet ? Demandez à un admin via Send Feedback dans l'app.</td></tr>
+    <tr><td>this phone is already used by 1 other wallet</td><td>Une personne, un wallet : sur un téléphone, un seul wallet peut gagner. Le wallet payé en premier sur ce téléphone continue de marcher. Vous êtes passé définitivement à un nouveau wallet ? Demandez à un admin via Envoyer un avis dans l'app.</td></tr>
     <tr><td>automatic payouts are paused until you take one photo</td><td>Un lecteur qui envoie lui-même ses relevés (P1, Home Assistant, ce script) demande une photo du compteur tous les 90 jours ; Powerfox, Tibber et MojElektro non. La même pause arrive une fois après une correction du point de départ sans photo. Prenez-en une dans l'onglet Meter et ils reprennent. L'app vous prévient une semaine avant.</td></tr>
-    <tr><td>already been corrected once</td><td>Le point de départ d’un compteur ne peut être corrigé qu’une fois — chaque correction efface la consommation depuis le dernier paiement. S’il est de nouveau faux, demandez à un admin via Send Feedback dans l’app.</td></tr>
+    <tr><td>already been corrected once</td><td>Le point de départ d’un compteur ne peut être corrigé qu’une fois — chaque correction efface la consommation depuis le dernier paiement. S’il est de nouveau faux, demandez à un admin via Envoyer un avis dans l’app.</td></tr>
   </table></div>
   <div class="note">Toujours bloqué ? Envoyez un message avec le contenu de l'onglet Journal (ou du terminal) — il dit généralement exactement ce qui manque.</div>
   <footer>GreenUtilityLog · Guide testeur · Bêta testnet — jetons de test, sans valeur réelle.</footer>
@@ -1290,7 +1291,7 @@
       </li>
       <li><p class="steptitle">Listo — tu ordenador puede estar apagado</p>
       <p>Nuestro servidor recoge tu lectura de Powerfox más o menos cada hora y la paga como cualquier otra lectura. ¿Quieres parar? <strong>Desconectar Powerfox</strong> borra tus datos de acceso al instante.</p>
-      <div class="see"><b>Comprueba que funciona</b>Arriba pone <span class="k">✅ Connected — … kWh received</span>.</div>
+      <div class="see"><b>Comprueba que funciona</b>Arriba pone <span class="k">✅ Conectado — … kWh recibidos</span>.</div>
       </li>
       </ol>
   <h3 class="sub">Opción 2 — En tu propio ordenador</h3>
@@ -1329,7 +1330,7 @@
       </li>
       <li><p class="steptitle">Pégalo en la app</p>
       <p>En la app: <span class="k">Contador → ⚡ ¿Tienes un lector (P1, Home Assistant…)? → ⚙️ Configuración automática → Tibber → «Lo recogemos por ti»</span>. Pega el token, marca la casilla y pulsa <strong>Conectar Tibber</strong>. Puede tardar hasta 30 segundos. ¿No aparece? Esta versión aún no lo ofrece — usa la opción 2.</p>
-      <div class="see"><b>Comprueba que funciona</b>La app muestra <span class="k">Connected — Tibber reports … kWh</span>. Comprueba que coincide con tu contador.</div>
+      <div class="see"><b>Comprueba que funciona</b>La app muestra <span class="k">Conectado — Tibber indica … kWh</span>. Comprueba que coincide con tu contador.</div>
       </li>
       </ol>
   <h3 class="sub">Opción 2 — Con Home Assistant</h3>
@@ -1345,10 +1346,10 @@
   <h2 id="es-9">Por último: se paga solo</h2>
   <ol class="steps">
       <li><p class="steptitle">Tu lectura aparece sola</p>
-      <p>En la app abre <strong>Meter</strong>. El panel <strong>⚡ Automatic reading</strong> muestra <span class="k">Connected — … kWh received</span>, con tu lectura y cuándo llegó.</p>
+      <p>En la app abre <strong>Meter</strong>. El panel <strong>⚡ Lectura automática</strong> muestra <span class="k">Conectado — … kWh recibidos</span>, con tu lectura y cuándo llegó.</p>
       </li>
       <li><p class="steptitle">Se paga solo</p>
-      <p>Nada que tocar: cada lectura se paga automáticamente en cuanto llega, como mucho una vez al día, y la <strong>Timeline</strong> del panel muestra <span class="k">Paid +… B3TR</span>. ¿No quieres esperar? <strong>Claim now</strong> hace lo mismo.</p>
+      <p>Nada que tocar: cada lectura se paga automáticamente en cuanto llega, como mucho una vez al día, y la <strong>Cronología</strong> del panel muestra <span class="k">Pagado +… B3TR</span>. ¿No quieres esperar? <strong>Reclamar ahora</strong> hace lo mismo.</p>
       </li>
       </ol>
   <div class="note flag"><b>🇧🇪 Bélgica (contadores Fluvius)</b>El puerto P1 de los contadores belgas está desactivado por defecto. Con Fluvius lo activas gratis en su portal en línea; con otra distribuidora, pregúntale. Después todo funciona igual.</div>
@@ -1361,11 +1362,11 @@
     <tr><td>couldn&#x27;t find a kWh number at …</td><td>El JSON de tu lector no usa un nombre que el programa conozca. Añade <span class="k">--field=</span> con la ruta al valor, p. ej. <span class="k">--field=electricity.import_kwh</span>.</td></tr>
     <tr><td>server said 401</td><td>El token es incorrecto o está incompleto. Cópialo de nuevo desde la app y ejecuta una vez <span class="k">node gul.js --ask-token --install</span> para reemplazar el guardado.</td></tr>
     <tr><td>submit one photo reading first</td><td>Tu contador aún no tiene punto de partida. Haz un envío con foto normal en la app — las lecturas automáticas nunca fijan el primer valor, para que un dispositivo no pueda inventarse su propio punto de partida. Después sí paga.</td></tr>
-    <tr><td>usage … is outside the plausible range</td><td>Casi siempre un <strong>contador de doble tarifa</strong>: la pantalla lleva dos registros (<span class="k">1.8.1</span> y <span class="k">1.8.2</span>) y tu foto capturó uno de ellos, mientras que tu lector informa la suma de ambos — el punto de partida y el lector están en escalas distintas. En la app, en el panel <span class="k">⚡ Automatic reading</span>, pulsa <strong>&ldquo;Use this reading as my starting point&rdquo;</strong>. No paga nada y solo fija dónde empieza el conteo. Posible hasta tu primer pago automático.</td></tr>
+    <tr><td>usage … is outside the plausible range</td><td>Casi siempre un <strong>contador de doble tarifa</strong>: la pantalla lleva dos registros (<span class="k">1.8.1</span> y <span class="k">1.8.2</span>) y tu foto capturó uno de ellos, mientras que tu lector informa la suma de ambos — el punto de partida y el lector están en escalas distintas. En la app, en el panel <span class="k">⚡ Lectura automática</span>, pulsa <strong>&ldquo;Usar esta lectura como punto de partida&rdquo;</strong>. No paga nada y solo fija dónde empieza el conteo. Posible hasta tu primer pago automático.</td></tr>
     <tr><td>this time photograph tariff register 2</td><td>Tu contador muestra dos registros por turnos, y tus fotos también se alternan: fotografía cada vez el registro que tu foto anterior no mostraba. Espera a que la pantalla muestre el registro que indica la app (<span class="k">1.8.1</span> o <span class="k">1.8.2</span>) y entonces haz la foto.</td></tr>
     <tr><td>tariff register 1 went down</td><td>Un registro solo sube. Comprueba que la tarifa baja y la normal están cada una en su propia casilla, en el mismo orden que la vez anterior.</td></tr>
     <tr><td>the automatic reading is stale</td><td>Una lectura debe tener menos de 48 horas en el momento de reclamarla. La programación lo intenta cada hora — mira en <span class="k">.gul-bridge.log</span> junto a <span class="k">gul.js</span> por qué falló, o ejecuta <span class="k">node gul.js --install</span> de nuevo. Se paga en cuanto muestre <span class="k">pushed … ✓</span>.</td></tr>
-    <tr><td>Ninguna lectura en “⚡ Automatic reading”</td><td>El programa aún no ha enviado nada con éxito. Mira su ventana, o abre <span class="k">.gul-bridge.log</span> en la misma carpeta que gul.js: cada ciclo escribe o bien <span class="k">pushed … ✓</span> o el motivo del fallo.</td></tr>
+    <tr><td>Ninguna lectura en “⚡ Lectura automática”</td><td>El programa aún no ha enviado nada con éxito. Mira su ventana, o abre <span class="k">.gul-bridge.log</span> en la misma carpeta que gul.js: cada ciclo escribe o bien <span class="k">pushed … ✓</span> o el motivo del fallo.</td></tr>
     <tr><td>¿No estás seguro de que esté programado?</td><td>Windows: en PowerShell escribe <span class="k">schtasks /Query /TN GreenUtilityLog</span> — una línea con <em>GreenUtilityLog</em> y una próxima ejecución significa que sí. Mac / Linux / Pi: <span class="k">crontab -l</span> debe mostrar una línea que termina en <em># GreenUtilityLog</em>. ¿No hay nada? Pega la línea de instalación una vez más.</td></tr>
     <tr><td>Lo configuraste antes del 24 de septiembre</td><td>Pega la misma línea una vez más. El nuevo programa espera a un servidor que aún se está despertando en lugar de rendirse, escribe cada ciclo en <span class="k">.gul-bridge.log</span> y en Windows también funciona con batería.</td></tr>
     <tr><td>Powerfox didn&#x27;t accept the e-mail and password</td><td>Usa exactamente el correo y la contraseña de la app de Powerfox (cuidado con erratas o espacios). ¿Cambiaste la contraseña de Powerfox? Opción 1: pulsa otra vez <strong>Conectar Powerfox</strong> con la nueva. Opción 2: vuelve a pegar la línea de instalación — te pedirá la contraseña.</td></tr>
@@ -1374,9 +1375,9 @@
     <tr><td>Tibber didn&#x27;t accept this token</td><td>Vuelve a copiar el token de developer.tibber.com, sin espacios. ¿Creaste allí un token nuevo? El antiguo deja de funcionar: vuelve a conectar con el nuevo.</td></tr>
     <tr><td>no Tibber Pulse found on this account</td><td>El Pulse tiene que estar configurado en la app de Tibber, en la misma cuenta que el token.</td></tr>
     <tr><td>your Pulse sends live data but no meter total</td><td>No todos los contadores envían su total por el puerto HAN. Usa entonces fotos, u otro lector.</td></tr>
-    <tr><td>this phone is already used by 1 other wallet</td><td>Una persona, un wallet: en un teléfono solo un wallet puede ganar. El wallet que cobró primero en este teléfono sigue funcionando. ¿Te cambiaste a un wallet nuevo para siempre? Pide ayuda a un admin con Send Feedback en la app.</td></tr>
+    <tr><td>this phone is already used by 1 other wallet</td><td>Una persona, un wallet: en un teléfono solo un wallet puede ganar. El wallet que cobró primero en este teléfono sigue funcionando. ¿Te cambiaste a un wallet nuevo para siempre? Pide ayuda a un admin con Enviar comentarios en la app.</td></tr>
     <tr><td>automatic payouts are paused until you take one photo</td><td>Un lector que envía sus propias lecturas (P1, Home Assistant, este script) necesita una foto del contador cada 90 días; Powerfox, Tibber y MojElektro no. La misma pausa llega una vez tras corregir el punto de partida sin foto. Haz una en la pestaña Meter y vuelven a pagarse. La app te avisa una semana antes.</td></tr>
-    <tr><td>already been corrected once</td><td>El punto de partida de un contador solo se puede corregir una vez — cada corrección borra el consumo desde el último pago. Si vuelve a estar mal, pide ayuda a un admin con Send Feedback en la app.</td></tr>
+    <tr><td>already been corrected once</td><td>El punto de partida de un contador solo se puede corregir una vez — cada corrección borra el consumo desde el último pago. Si vuelve a estar mal, pide ayuda a un admin con Enviar comentarios en la app.</td></tr>
   </table></div>
   <div class="note">¿Sigues atascado? Envía un mensaje con lo que muestra la pestaña Registro (o la terminal) — suele decir exactamente qué falta.</div>
   <footer>GreenUtilityLog · Guía para testers · Beta en testnet — tokens de prueba, sin valor real.</footer>
@@ -3696,15 +3697,15 @@
   <div class="scroll"><table class="stack"><tr><th>Du ser</th><th>Dette gjør du</th></tr>
     <tr><td>&#x27;node&#x27; is not recognized</td><td>Node.js er ikke installert, eller vinduet var allerede åpent da du installerte det. På Windows: <span class="k">winget install OpenJS.NodeJS.LTS</span>. Ellers: nodejs.org. Åpne deretter en <strong>ny</strong> terminal og lim inn linjen igjen. Du trenger ikke git.</td></tr>
     <tr><td>Ingenting i det hele tatt – ingen utdata, rett tilbake til ledeteksten</td><td>En gammel kopi av skriptet, fra før 19. september. Den hadde en feil som gjorde at den avsluttet på Windows uten å skrive ut noe. Last den ned på nytt med linjen ovenfor; den nye ber om tokenet ditt.</td></tr>
-    <tr><td>no HomeWizard found on the network</td><td>Your network blocks auto-discovery — common on guest Wi-Fi and with VLANs. Look up your P1’s IP in the HomeWizard app and run <span class="k">node gul.js --install --ip=192.168.1.50</span>. On the Home Assistant add-on, fill in <span class="k">hw_ip</span> instead.</td></tr>
+    <tr><td>no HomeWizard found on the network</td><td>Nettverket ditt blokkerer automatisk søk – vanlig på gjestenett og med VLAN. Finn IP-adressen til P1-en din i HomeWizard-appen og kjør <span class="k">node gul.js --install --ip=192.168.1.50</span>. I Home Assistant-tillegget fyller du i stedet inn <span class="k">hw_ip</span>.</td></tr>
     <tr><td>couldn&#x27;t find a total import kWh</td><td>Den nådde enheten, men fikk ikke noe brukbart tilbake: <strong>Local API er fortsatt av</strong> i HomeWizard-appen, eller dette er ikke en P1-måler. For en avleser av et annet merke bruker du <span class="k">--url=</span>.</td></tr>
     <tr><td>couldn&#x27;t find a kWh number at …</td><td>JSON-en fra avleseren din bruker ikke et navn skriptet kjenner. Legg til <span class="k">--field=</span> med punktstien til verdien, f.eks. <span class="k">--field=electricity.import_kwh</span>.</td></tr>
-    <tr><td>server said 401</td><td>The token is wrong or incomplete. Copy it again from the app and run <span class="k">node gul.js --ask-token --install</span> once to replace the saved one.</td></tr>
+    <tr><td>server said 401</td><td>Tokenet er feil eller ufullstendig. Kopier det på nytt fra appen og kjør <span class="k">node gul.js --ask-token --install</span> én gang for å erstatte det lagrede.</td></tr>
     <tr><td>submit one photo reading first</td><td>Måleren din har ikke noe startpunkt ennå. Send inn én vanlig målerstand med bilde i appen – automatiske målerstander setter aldri den første verdien, slik at en enhet ikke kan finne på sitt eget startpunkt. Etter det blir det utbetaling.</td></tr>
     <tr><td>usage … is outside the plausible range</td><td>Nesten alltid en <strong>måler med to tariffer</strong>: displayet har to telleverk (<span class="k">1.8.1</span> og <span class="k">1.8.2</span>) og bildet ditt fanget det ene, mens avleseren rapporterer summen av begge – så startpunktet og avleseren er på hver sin skala. Trykk på <strong>&laquo;Bruk denne målerstanden som startpunkt&raquo;</strong> i panelet <span class="k">⚡ Automatisk avlesning</span> i appen. Det gir ingen utbetaling og bestemmer bare hvor tellingen starter. Mulig fram til den første automatiske utbetalingen.</td></tr>
     <tr><td>this time photograph tariff register 2</td><td>Måleren din viser to telleverk etter tur, og bildene dine bytter også på: ta hver gang bilde av det telleverket forrige bilde ikke viste. Vent til displayet viser telleverket appen nevner (<span class="k">1.8.1</span> eller <span class="k">1.8.2</span>), og ta så bildet.</td></tr>
     <tr><td>tariff register 1 went down</td><td>Hvert telleverk teller bare oppover. Sjekk at lav- og normaltariff står i hvert sitt felt, i samme rekkefølge som forrige gang.</td></tr>
-    <tr><td>the automatic reading is stale</td><td>A reading has to be under 48 hours old at the moment you claim it. The schedule tries every hour — look in <span class="k">.gul-bridge.log</span> next to <span class="k">gul.js</span> for why it failed, or run <span class="k">node gul.js --install</span> again. It is paid as soon as the log says <span class="k">pushed … ✓</span>.</td></tr>
+    <tr><td>the automatic reading is stale</td><td>En målerstand må være under 48 timer gammel når du henter den. Planleggingen prøver hver time – se i <span class="k">.gul-bridge.log</span> ved siden av <span class="k">gul.js</span> hvorfor det mislyktes, eller kjør <span class="k">node gul.js --install</span> på nytt. Den utbetales så snart loggen viser <span class="k">pushed … ✓</span>.</td></tr>
     <tr><td>Ingen målerstand i «⚡ Automatisk avlesning»</td><td>Skriptet har ikke klart å sende noe ennå. Se i vinduet, eller åpne <span class="k">.gul-bridge.log</span> i samme mappe som gul.js: hver kjøring skriver enten <span class="k">pushed … ✓</span> eller grunnen til at det mislyktes.</td></tr>
     <tr><td>Usikker på om den er planlagt?</td><td>Windows: kjør <span class="k">schtasks /Query /TN GreenUtilityLog</span> i PowerShell – en linje med <em>GreenUtilityLog</em> og et tidspunkt for neste kjøring betyr at den er det. Mac / Linux / Pi: <span class="k">crontab -l</span> skal vise en linje som slutter på <em># GreenUtilityLog</em>. Ingenting der? Lim inn oppsettlinjen én gang til.</td></tr>
     <tr><td>Du satte dette opp før 24. september</td><td>Lim inn den samme linjen én gang til. Det nye skriptet venter på en server som fortsatt våkner, i stedet for å gi opp, skriver hver kjøring til <span class="k">.gul-bridge.log</span> og kjører på Windows også på batteri.</td></tr>
@@ -3930,15 +3931,15 @@
   <div class="scroll"><table class="stack"><tr><th>Näet</th><th>Mitä tehdä</th></tr>
     <tr><td>&#x27;node&#x27; is not recognized</td><td>Node.js ei ole asennettuna, tai ikkuna oli jo auki, kun asensit sen. Windowsissa: <span class="k">winget install OpenJS.NodeJS.LTS</span>. Muualla: nodejs.org. Avaa sitten <strong>uusi</strong> pääte ja liitä rivi uudelleen. Gitiä et tarvitse.</td></tr>
     <tr><td>Ei yhtään mitään — ei tulostetta, suoraan takaisin kehotteeseen</td><td>Vanha kopio skriptistä, ajalta ennen 19. syyskuuta. Siinä oli virhe, jonka takia se sulkeutui Windowsissa tulostamatta mitään. Lataa se uudelleen yllä olevalla rivillä; uusi versio kysyy tokeniasi.</td></tr>
-    <tr><td>no HomeWizard found on the network</td><td>Your network blocks auto-discovery — common on guest Wi-Fi and with VLANs. Look up your P1’s IP in the HomeWizard app and run <span class="k">node gul.js --install --ip=192.168.1.50</span>. On the Home Assistant add-on, fill in <span class="k">hw_ip</span> instead.</td></tr>
+    <tr><td>no HomeWizard found on the network</td><td>Verkkosi estää automaattisen haun — yleistä vierasverkoissa ja VLANien kanssa. Katso P1-laitteesi IP-osoite HomeWizard-sovelluksesta ja aja <span class="k">node gul.js --install --ip=192.168.1.50</span>. Home Assistant -lisäosassa täytä sen sijaan <span class="k">hw_ip</span>.</td></tr>
     <tr><td>couldn&#x27;t find a total import kWh</td><td>Skripti tavoitti laitteen, mutta ei saanut takaisin mitään käyttökelpoista: <strong>Local API on yhä pois päältä</strong> HomeWizard-sovelluksessa, tai kyseessä ei ole P1-mittari. Toisen merkin lukijalle käytä <span class="k">--url=</span>.</td></tr>
     <tr><td>couldn&#x27;t find a kWh number at …</td><td>Lukijasi JSON ei käytä nimeä, jonka skripti tuntee. Lisää <span class="k">--field=</span> ja pistein erotettu polku arvoon, esim. <span class="k">--field=electricity.import_kwh</span>.</td></tr>
-    <tr><td>server said 401</td><td>The token is wrong or incomplete. Copy it again from the app and run <span class="k">node gul.js --ask-token --install</span> once to replace the saved one.</td></tr>
+    <tr><td>server said 401</td><td>Token on väärä tai puutteellinen. Kopioi se uudelleen sovelluksesta ja aja kerran <span class="k">node gul.js --ask-token --install</span>, niin tallennettu token korvataan.</td></tr>
     <tr><td>submit one photo reading first</td><td>Mittarillasi ei ole vielä lähtölukemaa. Tee sovelluksessa yksi tavallinen lähetys kuvan kanssa — automaattiset lukemat eivät koskaan aseta ensimmäistä arvoa, jottei laite voi keksiä omaa lähtölukemaansa. Sen jälkeen maksut alkavat.</td></tr>
     <tr><td>usage … is outside the plausible range</td><td>Lähes aina kyse on <strong>kaksiaikamittarista</strong>: näytössä on kaksi rekisteriä (<span class="k">1.8.1</span> ja <span class="k">1.8.2</span>) ja kuvasi tallensi niistä toisen, kun taas lukijasi ilmoittaa molempien summan — lähtölukemasi ja lukijasi ovat siis eri asteikolla. Paina sovelluksen <span class="k">⚡ Automaattinen luenta</span> -paneelissa <strong>&rdquo;Käytä tätä lukemaa lähtölukemanani&rdquo;</strong>. Se ei maksa mitään, vaan asettaa vain, mistä laskenta alkaa. Mahdollista ensimmäiseen automaattiseen maksuusi asti.</td></tr>
     <tr><td>this time photograph tariff register 2</td><td>Mittarisi näyttää kahta rekisteriä vuorotellen, ja kuvasi vuorottelevat myös: kuvaa joka kerta se rekisteri, jota edellinen kuvasi ei näyttänyt. Odota, kunnes näytössä on sovelluksen mainitsema rekisteri (<span class="k">1.8.1</span> tai <span class="k">1.8.2</span>), ja ota sitten kuva.</td></tr>
     <tr><td>tariff register 1 went down</td><td>Kumpikin rekisteri vain kasvaa. Tarkista, että yö- ja päiväsähkö ovat kumpikin omassa kentässään, samassa järjestyksessä kuin viime kerralla.</td></tr>
-    <tr><td>the automatic reading is stale</td><td>A reading has to be under 48 hours old at the moment you claim it. The schedule tries every hour — look in <span class="k">.gul-bridge.log</span> next to <span class="k">gul.js</span> for why it failed, or run <span class="k">node gul.js --install</span> again. It is paid as soon as the log says <span class="k">pushed … ✓</span>.</td></tr>
+    <tr><td>the automatic reading is stale</td><td>Lukeman on oltava alle 48 tuntia vanha silloin, kun lunastat sen. Ajastus yrittää joka tunti — katso tiedostosta <span class="k">.gul-bridge.log</span> tiedoston <span class="k">gul.js</span> vierestä, miksi se epäonnistui, tai aja <span class="k">node gul.js --install</span> uudelleen. Lukema maksetaan heti, kun lokissa lukee <span class="k">pushed … ✓</span>.</td></tr>
     <tr><td>Ei lukemaa kohdassa ”⚡ Automaattinen luenta”</td><td>Skripti ei ole vielä onnistunut lähettämään mitään. Katso sen ikkunaa tai avaa <span class="k">.gul-bridge.log</span> samasta kansiosta, jossa gul.js on: jokainen ajokerta kirjoittaa joko <span class="k">pushed … ✓</span> tai syyn epäonnistumiseen.</td></tr>
     <tr><td>Etkö ole varma, onko se ajastettu?</td><td>Windows: aja PowerShellissä <span class="k">schtasks /Query /TN GreenUtilityLog</span> — jos näet rivin, jossa on <em>GreenUtilityLog</em> ja seuraava ajoaika, ajastus on kunnossa. Mac / Linux / Pi: <span class="k">crontab -l</span> näyttää rivin, joka päättyy <em># GreenUtilityLog</em>. Eikö siellä ole mitään? Liitä käyttöönottorivi vielä kerran.</td></tr>
     <tr><td>Otit tämän käyttöön ennen 24. syyskuuta</td><td>Liitä sama rivi vielä kerran. Uusi skripti odottaa vielä heräävää palvelinta luovuttamisen sijaan, kirjaa jokaisen ajokerran tiedostoon <span class="k">.gul-bridge.log</span> ja toimii Windowsissa myös akkuvirralla.</td></tr>
@@ -4164,15 +4165,15 @@
   <div class="scroll"><table class="stack"><tr><th>Ezt látod</th><th>Mit tegyél</th></tr>
     <tr><td>&#x27;node&#x27; is not recognized</td><td>A Node.js nincs telepítve, vagy az ablak már nyitva volt, amikor telepítetted. Windowson: <span class="k">winget install OpenJS.NodeJS.LTS</span>. Máshol: nodejs.org. Utána nyiss egy <strong>új</strong> terminált, és illeszd be újra a sort. Git nem kell hozzá.</td></tr>
     <tr><td>Semmi sem történik — nincs kimenet, rögtön visszajön a parancssor</td><td>A szkript egy régi, szeptember 19. előtti példánya. Volt benne egy hiba, amely miatt Windowson semmit sem írt ki, és kilépett. Töltsd le újra a fenti sorral; az új verzió elkéri a tokenedet.</td></tr>
-    <tr><td>no HomeWizard found on the network</td><td>Your network blocks auto-discovery — common on guest Wi-Fi and with VLANs. Look up your P1’s IP in the HomeWizard app and run <span class="k">node gul.js --install --ip=192.168.1.50</span>. On the Home Assistant add-on, fill in <span class="k">hw_ip</span> instead.</td></tr>
+    <tr><td>no HomeWizard found on the network</td><td>A hálózatod blokkolja az automatikus keresést — vendég Wi-Fin és VLAN-ok esetén gyakori. Nézd meg a P1-ed IP-címét a HomeWizard appban, és futtasd ezt: <span class="k">node gul.js --install --ip=192.168.1.50</span>. A Home Assistant bővítményben ehelyett a <span class="k">hw_ip</span> mezőt töltsd ki.</td></tr>
     <tr><td>couldn&#x27;t find a total import kWh</td><td>Elérte az eszközt, de semmi használhatót nem kapott vissza: a HomeWizard appban <strong>a Local API még ki van kapcsolva</strong>, vagy ez nem P1-mérő. Más gyártmányú leolvasóhoz használd a <span class="k">--url=</span> kapcsolót.</td></tr>
     <tr><td>couldn&#x27;t find a kWh number at …</td><td>A leolvasód JSON-ja olyan nevet használ, amelyet a szkript nem ismer. Add hozzá a <span class="k">--field=</span> kapcsolót az értékhez vezető, pontokkal tagolt útvonallal, pl. <span class="k">--field=electricity.import_kwh</span>.</td></tr>
-    <tr><td>server said 401</td><td>The token is wrong or incomplete. Copy it again from the app and run <span class="k">node gul.js --ask-token --install</span> once to replace the saved one.</td></tr>
+    <tr><td>server said 401</td><td>A token hibás vagy hiányos. Másold ki újra az appból, és futtasd egyszer ezt: <span class="k">node gul.js --ask-token --install</span>, hogy lecseréld a mentettet.</td></tr>
     <tr><td>submit one photo reading first</td><td>A mérődnek még nincs kiindulási értéke. Küldj be az appban egy szokásos fotós mérőállást — az automatikus mérőállások soha nem állítják be az első értéket, hogy egy eszköz ne találhassa ki a saját kiindulási értékét. Ezután jön a kifizetés.</td></tr>
     <tr><td>usage … is outside the plausible range</td><td>Szinte mindig <strong>kéttarifás mérőről</strong> van szó: a kijelző két regisztert vezet (<span class="k">1.8.1</span> és <span class="k">1.8.2</span>), és a fotód az egyiket rögzítette, a leolvasód viszont a kettő összegét jelenti — így a kiindulási érték és a leolvasó más skálán van. Az appban, az <span class="k">⚡ Automatikus leolvasás</span> panelen nyomd meg ezt: <strong>&bdquo;Legyen ez a mérőállás a kiindulási értékem&rdquo;</strong>. Ez nem jár kifizetéssel, csak azt rögzíti, honnan indul a számolás. Az első automatikus kifizetésedig teheted meg.</td></tr>
     <tr><td>this time photograph tariff register 2</td><td>A mérőd felváltva mutat két regisztert, és a fotóid is felváltva követik egymást: mindig azt fotózd le, amelyiket az előző fotód nem mutatta. Várd meg, amíg a kijelző az app által megnevezett regisztert mutatja (<span class="k">1.8.1</span> vagy <span class="k">1.8.2</span>), és akkor készítsd el a fotót.</td></tr>
     <tr><td>tariff register 1 went down</td><td>Mindegyik regiszter csak felfelé számol. Ellenőrizd, hogy az alacsony és a normál tarifa külön mezőben van-e, ugyanabban a sorrendben, mint legutóbb.</td></tr>
-    <tr><td>the automatic reading is stale</td><td>A reading has to be under 48 hours old at the moment you claim it. The schedule tries every hour — look in <span class="k">.gul-bridge.log</span> next to <span class="k">gul.js</span> for why it failed, or run <span class="k">node gul.js --install</span> again. It is paid as soon as the log says <span class="k">pushed … ✓</span>.</td></tr>
+    <tr><td>the automatic reading is stale</td><td>A mérőállás az igényléskor legfeljebb 48 órás lehet. Az ütemezés óránként próbálkozik — a <span class="k">gul.js</span> melletti <span class="k">.gul-bridge.log</span> fájlban nézd meg, miért nem sikerült, vagy futtasd újra ezt: <span class="k">node gul.js --install</span>. A kifizetés megtörténik, amint a naplóban megjelenik: <span class="k">pushed … ✓</span>.</td></tr>
     <tr><td>Nincs mérőállás az „⚡ Automatikus leolvasás” panelen</td><td>A szkript még nem tudott sikeresen küldeni. Nézd meg az ablakát, vagy nyisd meg a <span class="k">.gul-bridge.log</span> fájlt a gul.js mappájában: minden futás vagy azt írja, hogy <span class="k">pushed … ✓</span>, vagy a hiba okát.</td></tr>
     <tr><td>Nem vagy biztos benne, hogy be van ütemezve?</td><td>Windows: futtasd a PowerShellben: <span class="k">schtasks /Query /TN GreenUtilityLog</span> — ha látsz egy sort <em>GreenUtilityLog</em> névvel és a következő futás idejével, akkor be van ütemezve. Mac / Linux / Pi: a <span class="k">crontab -l</span> parancsnak egy <em># GreenUtilityLog</em> végű sort kell mutatnia. Nincs ott semmi? Illeszd be még egyszer a beállító sort.</td></tr>
     <tr><td>Szeptember 24. előtt állítottad be</td><td>Illeszd be még egyszer ugyanazt a sort. Az új szkript megvárja a még ébredő szervert ahelyett, hogy feladná, minden futást beír a <span class="k">.gul-bridge.log</span> fájlba, és Windowson akkumulátorról is fut.</td></tr>
@@ -4398,15 +4399,15 @@
   <div class="scroll"><table class="stack"><tr><th>Widzisz</th><th>Co zrobić</th></tr>
     <tr><td>&#x27;node&#x27; is not recognized</td><td>Node.js nie jest zainstalowany albo to okno było już otwarte podczas instalacji. Na Windowsie: <span class="k">winget install OpenJS.NodeJS.LTS</span>. Gdzie indziej: nodejs.org. Potem otwórz <strong>nowy</strong> terminal i wklej linijkę ponownie. Git nie jest potrzebny.</td></tr>
     <tr><td>Zupełnie nic — brak komunikatu, od razu powrót do wiersza poleceń</td><td>Stara kopia skryptu, sprzed 19 września. Miała błąd, przez który na Windowsie kończyła działanie bez żadnego komunikatu. Pobierz skrypt ponownie linijką powyżej; nowa wersja zapyta o twój token.</td></tr>
-    <tr><td>no HomeWizard found on the network</td><td>Your network blocks auto-discovery — common on guest Wi-Fi and with VLANs. Look up your P1’s IP in the HomeWizard app and run <span class="k">node gul.js --install --ip=192.168.1.50</span>. On the Home Assistant add-on, fill in <span class="k">hw_ip</span> instead.</td></tr>
+    <tr><td>no HomeWizard found on the network</td><td>Twoja sieć blokuje automatyczne wykrywanie — to częste w sieciach Wi-Fi dla gości i przy VLAN-ach. Sprawdź adres IP swojego P1 w aplikacji HomeWizard i uruchom <span class="k">node gul.js --install --ip=192.168.1.50</span>. W dodatku do Home Assistant wpisz zamiast tego <span class="k">hw_ip</span>.</td></tr>
     <tr><td>couldn&#x27;t find a total import kWh</td><td>Skrypt połączył się z urządzeniem, ale nie dostał nic przydatnego: <strong>Local API jest nadal wyłączone</strong> w aplikacji HomeWizard albo to nie jest licznik P1. Dla czytnika innej marki użyj <span class="k">--url=</span>.</td></tr>
     <tr><td>couldn&#x27;t find a kWh number at …</td><td>JSON twojego czytnika nie używa nazwy, którą skrypt zna. Dodaj <span class="k">--field=</span> ze ścieżką do wartości, np. <span class="k">--field=electricity.import_kwh</span>.</td></tr>
-    <tr><td>server said 401</td><td>The token is wrong or incomplete. Copy it again from the app and run <span class="k">node gul.js --ask-token --install</span> once to replace the saved one.</td></tr>
+    <tr><td>server said 401</td><td>Token jest błędny lub niepełny. Skopiuj go ponownie z aplikacji i uruchom raz <span class="k">node gul.js --ask-token --install</span>, aby zastąpić zapisany.</td></tr>
     <tr><td>submit one photo reading first</td><td>Twój licznik nie ma jeszcze punktu startowego. Wyślij w aplikacji jedno zwykłe zgłoszenie ze zdjęciem — automatyczne odczyty nigdy nie ustalają pierwszej wartości, żeby urządzenie nie mogło samo wymyślić sobie stanu początkowego. Potem wypłaty ruszą.</td></tr>
     <tr><td>usage … is outside the plausible range</td><td>Prawie zawsze to <strong>licznik dwutaryfowy</strong>: wyświetlacz prowadzi dwa rejestry (<span class="k">1.8.1</span> i <span class="k">1.8.2</span>), a twoje zdjęcie objęło jeden z nich, podczas gdy czytnik podaje sumę obu — punkt startowy i czytnik są więc w różnych skalach. W aplikacji, w panelu <span class="k">⚡ Automatyczny odczyt</span>, naciśnij <strong>&bdquo;Użyj tego odczytu jako punktu startowego&rdquo;</strong>. Nic to nie wypłaca, ustala tylko, od czego zaczyna się liczenie. Można to zrobić do pierwszej automatycznej wypłaty.</td></tr>
     <tr><td>this time photograph tariff register 2</td><td>Twój licznik pokazuje na zmianę dwa rejestry i twoje zdjęcia też się zmieniają: za każdym razem sfotografuj ten, którego nie było na ostatnim zdjęciu. Poczekaj, aż wyświetlacz przełączy się na rejestr wskazany przez aplikację (<span class="k">1.8.1</span> lub <span class="k">1.8.2</span>), i wtedy zrób zdjęcie.</td></tr>
     <tr><td>tariff register 1 went down</td><td>Każdy rejestr liczy tylko w górę. Sprawdź, czy taryfa nocna i dzienna są każda we własnym polu, w tej samej kolejności co ostatnio.</td></tr>
-    <tr><td>the automatic reading is stale</td><td>A reading has to be under 48 hours old at the moment you claim it. The schedule tries every hour — look in <span class="k">.gul-bridge.log</span> next to <span class="k">gul.js</span> for why it failed, or run <span class="k">node gul.js --install</span> again. It is paid as soon as the log says <span class="k">pushed … ✓</span>.</td></tr>
+    <tr><td>the automatic reading is stale</td><td>W chwili odbioru odczyt musi mieć mniej niż 48 godzin. Harmonogram próbuje co godzinę — zajrzyj do <span class="k">.gul-bridge.log</span> obok <span class="k">gul.js</span>, żeby zobaczyć, dlaczego się nie udało, albo uruchom ponownie <span class="k">node gul.js --install</span>. Wypłata nastąpi, gdy tylko w logu pojawi się <span class="k">pushed … ✓</span>.</td></tr>
     <tr><td>Brak odczytu w „⚡ Automatyczny odczyt”</td><td>Skrypt nie wysłał jeszcze niczego z powodzeniem. Zajrzyj do jego okna albo otwórz <span class="k">.gul-bridge.log</span> w tym samym folderze co gul.js: każde uruchomienie zapisuje albo <span class="k">pushed … ✓</span>, albo powód niepowodzenia.</td></tr>
     <tr><td>Nie wiesz, czy skrypt jest w harmonogramie?</td><td>Windows: w PowerShell uruchom <span class="k">schtasks /Query /TN GreenUtilityLog</span> — wiersz z <em>GreenUtilityLog</em> i godziną następnego uruchomienia oznacza, że tak. Mac / Linux / Pi: <span class="k">crontab -l</span> powinno pokazać wiersz kończący się na <em># GreenUtilityLog</em>. Nic tam nie ma? Wklej linijkę konfiguracyjną jeszcze raz.</td></tr>
     <tr><td>Konfiguracja sprzed 24 września</td><td>Wklej jeszcze raz tę samą linijkę. Nowy skrypt czeka na serwer, który dopiero się budzi, zamiast się poddawać, zapisuje każde uruchomienie w <span class="k">.gul-bridge.log</span>, a na Windowsie działa też na zasilaniu z baterii.</td></tr>
@@ -4632,15 +4633,15 @@
   <div class="scroll"><table class="stack"><tr><th>Vês</th><th>O que fazer</th></tr>
     <tr><td>&#x27;node&#x27; is not recognized</td><td>O Node.js não está instalado, ou essa janela já estava aberta quando o instalaste. No Windows: <span class="k">winget install OpenJS.NodeJS.LTS</span>. Noutros sistemas: nodejs.org. Depois abre um terminal <strong>novo</strong> e cola a linha outra vez. Não precisas do git.</td></tr>
     <tr><td>Nada de nada — nenhuma mensagem, volta logo à linha de comandos</td><td>Uma cópia antiga do script, de antes de 19 de setembro. Tinha um erro que a fazia terminar no Windows sem mostrar nada. Transfere-o de novo com a linha acima; o novo pede-te o token.</td></tr>
-    <tr><td>no HomeWizard found on the network</td><td>Your network blocks auto-discovery — common on guest Wi-Fi and with VLANs. Look up your P1’s IP in the HomeWizard app and run <span class="k">node gul.js --install --ip=192.168.1.50</span>. On the Home Assistant add-on, fill in <span class="k">hw_ip</span> instead.</td></tr>
+    <tr><td>no HomeWizard found on the network</td><td>A tua rede bloqueia a deteção automática — é comum em Wi-Fi de convidados e com VLANs. Procura o IP do teu P1 na app HomeWizard e executa <span class="k">node gul.js --install --ip=192.168.1.50</span>. No add-on do Home Assistant, preenche antes <span class="k">hw_ip</span>.</td></tr>
     <tr><td>couldn&#x27;t find a total import kWh</td><td>Chegou ao dispositivo, mas não recebeu nada utilizável: a <strong>Local API ainda está desligada</strong> na app HomeWizard, ou isto não é um contador P1. Para um leitor de outra marca, usa <span class="k">--url=</span>.</td></tr>
     <tr><td>couldn&#x27;t find a kWh number at …</td><td>O JSON do teu leitor não usa um nome que o script conheça. Junta <span class="k">--field=</span> com o caminho até ao valor, p. ex. <span class="k">--field=electricity.import_kwh</span>.</td></tr>
-    <tr><td>server said 401</td><td>The token is wrong or incomplete. Copy it again from the app and run <span class="k">node gul.js --ask-token --install</span> once to replace the saved one.</td></tr>
+    <tr><td>server said 401</td><td>O token está errado ou incompleto. Copia-o outra vez da app e executa uma vez <span class="k">node gul.js --ask-token --install</span> para substituir o que está guardado.</td></tr>
     <tr><td>submit one photo reading first</td><td>O teu contador ainda não tem ponto de partida. Faz um envio normal com foto na app — as leituras automáticas nunca definem o primeiro valor, para que um dispositivo não possa inventar o seu próprio ponto de partida. A partir daí, há pagamento.</td></tr>
     <tr><td>usage … is outside the plausible range</td><td>Quase sempre é um <strong>contador bi-horário</strong>: o ecrã tem dois registos (<span class="k">1.8.1</span> e <span class="k">1.8.2</span>) e a tua foto apanhou um deles, enquanto o teu leitor indica a soma dos dois — por isso o ponto de partida e o leitor estão em escalas diferentes. Na app, no painel <span class="k">⚡ Leitura automática</span>, carrega em <strong>&laquo;Usar esta leitura como o meu ponto de partida&raquo;</strong>. Não paga nada e só define onde começa a contagem. Podes fazê-lo até ao teu primeiro pagamento automático.</td></tr>
     <tr><td>this time photograph tariff register 2</td><td>O teu contador mostra dois registos alternadamente e as tuas fotos também alternam: de cada vez, fotografa o que a tua última foto não mostrou. Espera até o ecrã passar para o registo que a app indica (<span class="k">1.8.1</span> ou <span class="k">1.8.2</span>) e só depois tira a foto.</td></tr>
     <tr><td>tariff register 1 went down</td><td>Cada registo só conta para cima. Confirma que o vazio e o fora de vazio estão cada um na sua caixa, pela mesma ordem da última vez.</td></tr>
-    <tr><td>the automatic reading is stale</td><td>A reading has to be under 48 hours old at the moment you claim it. The schedule tries every hour — look in <span class="k">.gul-bridge.log</span> next to <span class="k">gul.js</span> for why it failed, or run <span class="k">node gul.js --install</span> again. It is paid as soon as the log says <span class="k">pushed … ✓</span>.</td></tr>
+    <tr><td>the automatic reading is stale</td><td>Uma leitura tem de ter menos de 48 horas no momento em que a recebes. O agendamento tenta de hora a hora — vê em <span class="k">.gul-bridge.log</span>, ao lado de <span class="k">gul.js</span>, porque falhou, ou executa de novo <span class="k">node gul.js --install</span>. O pagamento é feito assim que o registo disser <span class="k">pushed … ✓</span>.</td></tr>
     <tr><td>Nenhuma leitura em «⚡ Leitura automática»</td><td>O script ainda não conseguiu enviar nada. Vê a janela dele, ou abre <span class="k">.gul-bridge.log</span> na mesma pasta que o gul.js: cada execução escreve <span class="k">pushed … ✓</span> ou o motivo da falha.</td></tr>
     <tr><td>Não tens a certeza de que está agendado?</td><td>Windows: no PowerShell, executa <span class="k">schtasks /Query /TN GreenUtilityLog</span> — uma linha com <em>GreenUtilityLog</em> e uma próxima hora de execução significa que está. Mac / Linux / Pi: <span class="k">crontab -l</span> deve mostrar uma linha que termina em <em># GreenUtilityLog</em>. Não aparece nada? Cola a linha de configuração mais uma vez.</td></tr>
     <tr><td>Configuraste isto antes de 24 de setembro</td><td>Cola a mesma linha mais uma vez. O novo script espera por um servidor que ainda está a acordar em vez de desistir, regista cada execução em <span class="k">.gul-bridge.log</span> e, no Windows, também funciona com bateria.</td></tr>
@@ -4657,6 +4658,240 @@
   <div class="note">Continuas sem conseguir? Envia uma mensagem com o que o registo (ou o terminal) mostra — normalmente diz exatamente o que falta.</div>
   <footer>GreenUtilityLog · Guia para testadores · Beta na Testnet — tokens de teste, ainda sem valor real.</footer>
 </section>
+<section class="lang" id="lang-cs">
+  <header class="hero"><span class="kicker">Návod pro testery</span><h1>Vydělávej bez focení elektroměru</h1><p class="lede">Normálně fotíš elektroměr a dostáváš za to B3TR. Pokud už něco u tebe doma umí elektroměr odečítat, může stav posílat za tebe — a už nikdy nemusíš fotit. Začni tím, že níže najdeš své zařízení.</p></header>
+  <nav class="toc" aria-label="Na této stránce"><b>Na této stránce</b><ol><li><a href="#cs-1">Co máš doma?</a></li><li><a href="#cs-2">Funguje to tam, kde bydlíš?</a></li><li><a href="#cs-3">Všechny automatické cesty: získej svůj token</a></li><li><a href="#cs-4">Cesta A — Home Assistant (jakýkoli elektroměr)</a></li><li><a href="#cs-5">Cesta B — HomeWizard P1, bez Home Assistant</a></li><li><a href="#cs-6">Cesta C — Jiná čtečka (čtečka P1, čtecí hlava Tasmota)</a></li><li><a href="#cs-7">Cesta D — Powerfox (poweropti)</a></li><li><a href="#cs-8">Cesta E — Tibber Pulse</a></li><li><a href="#cs-9">Nakonec: výplata přijde sama</a></li><li><a href="#cs-10">Když něco nefunguje</a></li></ol></nav>
+  <h2 id="cs-1">Co máš doma?</h2>
+  <div class="routes">
+    <div class="route pick"><div><h3>Používám Home Assistant</h3><p>Funguje s téměř každým elektroměrem, který HA už čte. Nainstaluj naši integraci, nebo vlož pár řádků YAML.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Nejjednodušší</span></div></div>
+    <div class="route"><div><h3>Mám HomeWizard P1</h3><p>Home Assistant není potřeba. Funguje v 🇳🇱 🇧🇪 🇱🇺 🇩🇰 🇸🇪 🇭🇺 — malý skript si elektroměr v síti najde sám.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Trochu techniky</span></div></div>
+    <div class="route"><div><h3>Mám jinou čtečku</h3><p>P1 Monitor, čtecí hlava s Tasmota (Hichi) nebo jakákoli čtečka, která ve tvé síti poskytuje celkový stav elektroměru v kWh jako JSON.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span><span>Technické</span></div></div>
+    <div class="route pick"><div><h3>Mám Powerfox (poweropti)</h3><p>Běžný v Německu. Stav můžeme stahovat z cloudu Powerfox — nic se neinstaluje, nic nemusí zůstat zapnuté.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Nejjednodušší</span></div></div>
+    <div class="route pick"><div><h3>Mám Tibber Pulse</h3><p>Běžný ve Švédsku, Norsku, Dánsku a Finsku. Stav stahujeme z Tibberu pomocí tvého osobního tokenu — nic se neinstaluje.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Nejjednodušší</span></div></div>
+    <div class="route"><div><h3>Nic z toho</h3><p>Pak dál foť elektroměr. Funguje to stejně dobře a vynáší přesně totéž. Není co nastavovat.</p></div><div class="meter"><span>Bez nastavení</span></div></div>
+  </div>
+  <div class="note"><b>Nejdřív, jen jednou: nastav výchozí stav</b>Ať zvolíš kteroukoli cestu, nejdřív v aplikaci <strong>jednou normálně odešli stav s fotkou</strong>. Tím aplikace zjistí, odkud tvůj elektroměr začínal — bez toho nejde automatické stavy vyplatit.</div>
+  <h2 id="cs-2">Funguje to tam, kde bydlíš?</h2>
+  <p class="lede" style="font-size:15.5px">Rozhraní na elektroměru se liší podle země, takže ne každá čtečka funguje všude. Co funguje vždycky: <strong>pokud Home Assistant už ukazuje celkový stav tvého elektroměru, funguje cesta A</strong> — v jakékoli zemi.</p>
+  <div class="scroll"><table><tr><th>Země</th><th>Tvůj elektroměr má</th><th>Co použít</th></tr>
+    <tr><td>🇳🇱 Nizozemsko</td><td>Port P1 (RJ12)</td><td>Jakákoli cesta. HomeWizard funguje hned.</td></tr>
+    <tr><td>🇧🇪 Belgie</td><td>Port P1 (RJ12, ve výchozím stavu vypnutý)</td><td>Jakákoli cesta, jakmile je port zapnutý: zapneš ho zdarma na portálu Fluvius (u jiných provozovatelů sítě se zeptej toho svého).</td></tr>
+    <tr><td>🇱🇺 Lucembursko</td><td>Port P1 (Smarty, šifrovaný)</td><td>HomeWizard P1: jednou si vyžádej klíč P1 od provozovatele sítě. Nebo Home Assistant.</td></tr>
+    <tr><td>🇸🇪 Švédsko · 🇫🇮 Finsko</td><td>Port HAN (RJ12)</td><td>🇸🇪 HomeWizard P1 (cesta B) — provozovatel sítě možná musí port nejdřív zapnout. Tibber Pulse: cesta E. Jinak čtečka P1/HAN, nebo Home Assistant.</td></tr>
+    <tr><td>🇩🇰 Dánsko</td><td>P1 (ve výchozím stavu vypnutý) nebo HAN</td><td>HomeWizard P1 (cesta B), jakmile provozovatel sítě zapne port P1 — port HAN potřebuje převodník. Tibber Pulse: cesta E. Jinak čtečka se správným konektorem, nebo Home Assistant.</td></tr>
+    <tr><td>🇭🇺 Maďarsko</td><td>Port P1 (záleží na provozovateli sítě)</td><td>HomeWizard P1 s některými elektroměry — nejdřív zkontroluj seznam HomeWizard. Nebo Home Assistant, nebo fotky.</td></tr>
+    <tr><td>🇳🇴 Norsko</td><td>HAN (RJ45, M-BUS)</td><td>Tibber Pulse: cesta E. Jinak norská čtečka HAN + Home Assistant.</td></tr>
+    <tr><td>🇩🇪 Německo</td><td>Smart-Meter-Gateway / optická hlava</td><td>Powerfox poweropti: cesta D. Čtecí hlava s Tasmota (Hichi): cesta C. Jinak Home Assistant.</td></tr>
+    <tr><td>🇸🇮 Slovinsko</td><td>Port P1 na mnoha elektroměrech (někdy šifrovaný)</td><td>Nejspíš Home Assistant se čtečkou P1 — zatím neotestováno.</td></tr>
+    <tr><td>🇬🇷 Řecko · 🇭🇷 Chorvatsko · 🇹🇷 Turecko</td><td>Zatím jsme nenašli žádný zákaznický port</td><td>Zatím fotky.</td></tr>
+    <tr><td>🇷🇴 Rumunsko · 🇧🇬 Bulharsko · zbytek Balkánu</td><td>Zatím jsme nenašli žádný zákaznický port</td><td>Zatím fotky.</td></tr>
+    <tr><td>🇦🇹 Rakousko</td><td>Zákaznické rozhraní (M-Bus) / optický port</td><td>Tibber Pulse: cesta E. Čtecí hlava s Tasmota (Hichi): cesta C. Jinak Home Assistant.</td></tr>
+    <tr><td>🇨🇭 Švýcarsko</td><td>Zákaznické rozhraní / optický port</td><td>Čtecí hlava s Tasmota (Hichi): cesta C. Jinak Home Assistant.</td></tr>
+    <tr><td>🇫🇷 Francie</td><td>Linky: port TIC</td><td>Žádný port P1, takže zatím jen Home Assistant (např. se ZLinky). Nebo fotky.</td></tr>
+    <tr><td>🇬🇧 Spojené království</td><td>SMETS2: žádný port (Zigbee)</td><td>Žádný port P1, takže zatím jen Home Assistant (např. s Hildebrand Glow). Nebo fotky.</td></tr>
+    <tr><td>🇪🇸 Španělsko</td><td>Žádný port</td><td>Žádný port P1, takže zatím jen Home Assistant (např. s Datadis). Nebo fotky.</td></tr>
+    <tr><td>🇮🇹 Itálie</td><td>Chain 2 (potřebuje zařízení, např. Sinapsi Alfa)</td><td>Žádný port P1, takže zatím jen Home Assistant. Nebo fotky.</td></tr>
+    <tr><td>🇺🇸 🇨🇦 USA a Kanada</td><td>Žádný port P1 (Zigbee, jen pokud ho dodavatel energie zapne)</td><td>Fotky, pokud displej ukazuje celkový stav v kWh. Home Assistant s Rainforest EAGLE tam, kde to dodavatel energie dovolí. Québec (Hydro-Québec): jen fotky.</td></tr>
+    <tr><td>Jinde</td><td>Různé</td><td>Pokud Home Assistant čte tvůj elektroměr, funguje cesta A.</td></tr>
+  </table></div>
+  <div class="note">Nevíš jistě? Otevři Home Assistant a najdi svůj elektroměr v Developer tools → States. Pokud tam je hodnota v kWh, která roste, máš hotovo. HomeWizard P1? Zkontroluj svůj elektroměr v <a href="https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter">seznamu HomeWizard</a>.</div>
+  <h2 id="cs-3">Všechny automatické cesty: získej svůj token</h2>
+  <ol class="steps">
+      <li><p class="steptitle">Zkopíruj token zařízení</p>
+      <p>V aplikaci: <span class="k">Elektroměr → ⚡ Máš čtečku elektroměru (P1, Home Assistant…)? → ⚙️ Automatické nastavení → „Získat token zařízení“</span>. Zkopíruj ho.</p><div class="see"><b>Co to je</b>Dlouhý kód, který říká „tyhle stavy patří k mé peněžence“. Nikomu ho nedávej — kdokoli ho má, může posílat stavy tvým jménem.</div></li>
+      </ol>
+  <h2 id="cs-4">Cesta A — Home Assistant (jakýkoli elektroměr)</h2>
+  <p class="lede" style="font-size:15.5px">Jsou dva způsoby. Naše integrace je nejjednodušší a funguje s <em>jakýmkoli</em> elektroměrem, který ti Home Assistant už ukazuje; YAML udělá totéž ručně, pokud nechceš nic instalovat.</p>
+  <h3 class="sub">S naší integrací (doporučeno)</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Přidej nás do HACS</p>
+      <p>V Home Assistant: <span class="k">HACS → ⋮ (vpravo nahoře) → Custom repositories</span>. Vlož adresu níže, zvol typ <strong>Integration</strong> a stiskni Add.</p>
+      <div class="code"><span class="cap">Adresa repozitáře</span><button class="copy">Kopírovat</button><pre>https://github.com/GreenUtilityLog/GreenUtilityLog</pre></div>
+      </li>
+      <li><p class="steptitle">Nainstaluj a restartuj</p>
+      <p>V seznamu HACS otevři <strong>GreenUtilityLog</strong>, stiskni <strong>Download</strong> a pak restartuj Home Assistant.</p>
+      </li>
+      <li><p class="steptitle">Přidej integraci</p>
+      <p>Jdi do <span class="k">Settings → Devices &amp; services → Add integration</span> a vyhledej <strong>GreenUtilityLog</strong>. Vlož svůj token, vyber senzor s <strong>kumulativním stavem v kWh</strong> a zvol, jak často se má posílat.</p>
+      <div class="see"><b>Ověř, že to funguje</b>Objeví se senzor <span class="k">Last sent reading</span> s celkovým stavem tvého elektroměru. Jeho atributy ukazují čas odeslání a případnou chybu.</div>
+      </li>
+      </ol>
+  <h3 class="sub">S vlastním senzorem (jakýkoli elektroměr)</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Najdi senzor elektroměru</p>
+      <p>V Home Assistant: <span class="k">Developer tools → States</span>. Vyfiltruj <em>import</em> a vyber entitu v kWh, jejíž hodnota pořád roste — to je tvůj celkový stav. ID entit se liší instalaci od instalace, takže použij to svoje.</p>
+      </li>
+      <li><p class="steptitle">Přidej tyto řádky</p>
+      <p>Vlož to do <span class="k">configuration.yaml</span>, nahraď entitu a svůj token a restartuj Home Assistant.</p>
+      <div class="code"><span class="cap">configuration.yaml + automations.yaml</span><button class="copy">Kopírovat</button><pre>rest_command:
+  gul_push:
+    url: &quot;https://greenutilitylog-rewards.onrender.com/meter-ingest&quot;
+    method: POST
+    content_type: &quot;application/json&quot;
+    timeout: 90  # sekundy: probuzení serveru může trvat minutu
+    payload: &#x27;{&quot;token&quot;:&quot;YOUR_TOKEN&quot;,&quot;reading&quot;:{{ states(&quot;sensor.YOUR_ENTITY&quot;) | float }}}&#x27;
+
+# automations.yaml — dvakrát denně (vyzvednout jde jednou za 20 h)
+- alias: Push meter to GreenUtilityLog
+  trigger: { platform: time_pattern, hours: &quot;/12&quot; }
+  # jen skutečný stav v kWh: ne 0 po restartu, ne unavailable
+  condition:
+    - condition: template
+      value_template: &#x27;{{ is_number(states(&quot;sensor.YOUR_ENTITY&quot;)) and states(&quot;sensor.YOUR_ENTITY&quot;) | float &gt; 0 and state_attr(&quot;sensor.YOUR_ENTITY&quot;, &quot;unit_of_measurement&quot;) == &quot;kWh&quot; }}&#x27;
+  action: { service: rest_command.gul_push }</pre></div>
+      </li>
+      </ol>
+  <h2 id="cs-5">Cesta B — HomeWizard P1, bez Home Assistant</h2>
+  <ol class="steps">
+      <li><p class="steptitle">Zapni Local API</p>
+      <p>V aplikaci <strong>HomeWizard Energy</strong>: <span class="k">Settings → Meters → tvůj P1 → Local API → ON</span>. Díky tomu může elektroměr číst tvoje vlastní síť.</p>
+      </li>
+      <li><p class="steptitle">Otevři PowerShell (nebo terminál)</p>
+      <p><strong>Windows:</strong> stiskni Start, napiš <em>PowerShell</em> a stiskni Enter. <strong>Mac:</strong> otevři <em>Terminal</em>. <strong>Raspberry Pi / NAS:</strong> jeho vlastní terminál, nebo přes SSH. Všechno níže se píše do tohoto okna. Na Macu zůstaň v domovské složce, ve které se Terminal otevře (viz krok 5).</p>
+      </li>
+      <li><p class="steptitle">Zjisti, jestli už máš Node</p>
+      <p>Napiš tohle a stiskni Enter. Číslo verze od <span class="k">v22</span> výš znamená, že je vše připravené a další krok můžeš přeskočit (starší verze: udělej i další krok, protože už nedostává bezpečnostní aktualizace). Pokud se místo toho objeví chyba, Node ještě není nainstalovaný.</p>
+      <div class="code"><span class="cap">Windows · Mac · Linux</span><button class="copy">Kopírovat</button><pre>node -v</pre></div>
+      </li>
+      <li><p class="steptitle">Nainstaluj Node.js, pokud se objevila chyba</p>
+      <p><strong>Windows:</strong> vlož řádek níže; pokud se zeptá na souhlas s podmínkami zdroje, stiskni <span class="k">Y</span>. <strong>Mac:</strong> instalátor LTS z nodejs.org, nebo <span class="k">brew install node</span>. <strong>Raspberry Pi / Debian:</strong> <span class="k">sudo apt install nodejs</span> (je potřeba Node 22 nebo novější — starší verze už nedostávají bezpečnostní aktualizace; Debian/Ubuntu často obsahují starší — pak použij instalátor z nodesource.com). Potom <strong>to okno zavři a otevři nové</strong> — okno, které už bylo otevřené, si drží starou PATH, takže by se <span class="k">node</span> pořád nenašel. Znovu ověř pomocí <span class="k">node -v</span>.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopírovat</button><pre>winget install OpenJS.NodeJS.LTS</pre></div>
+      </li>
+      <li><p class="steptitle">Vlož jeden řádek a stiskni Enter</p>
+      <p>Stáhne skript a odešle tvůj první stav. Navíc se sám naplánuje, aby stav hlásil dvakrát denně (Windows: Plánovač úloh · Mac / Linux / Pi: cron), takže pak můžeš okno zavřít a dál to poběží, i po restartu. Spouštíš ho jen tentokrát. <strong>Mac:</strong> vlož ho do čerstvě otevřeného Terminalu, v domovské složce — nepřecházej předtím pomocí <span class="k">cd</span> do Plochy, Dokumentů ani Stažených souborů: macOS tam plánovači (cron) nedovolí číst soubory, takže by se nikdy nespustil.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopírovat</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopírovat</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
+      </li>
+      <li><p class="steptitle">Až se zeptá, vlož svůj token</p>
+      <p>Zeptá se jednou a zapamatuje si ho; plánovač pak používá uložený token. Potom nastaví plánování, najde elektroměr a odešle první stav.</p>
+      <div class="see"><b>Co se objeví, v tomto pořadí</b><span class="k">Paste your device token…</span> → <span class="k">Scheduled…</span> → <span class="k">found HomeWizard at 192.168.…</span> → <span class="k">pushed 8421.3 kWh ✓</span></div>
+      </li>
+      </ol>
+  <h2 id="cs-6">Cesta C — Jiná čtečka (čtečka P1, čtecí hlava Tasmota)</h2>
+  <p class="lede" style="font-size:15.5px">Stejný skript přečte jakékoli zařízení ve tvé síti, které poskytuje celkový stav elektroměru v kWh jako JSON přes HTTP, bez přihlášení — jen mu řekneš kde. Ne každá čtečka to umí: API dsmr-reader vyžaduje klíč a Shelly počítá vlastní energii, ne registr elektroměru. Nejdřív udělej kroky 2–4 z cesty B (terminál a Node); jiný je jen příkaz níže.</p>
+  <ol class="steps">
+      <li><p class="steptitle">Najdi URL s daty své čtečky</p>
+      <p>Otevři webovou stránku své čtečky a hledej adresu, která vrací čistý JSON (často něco jako <span class="k">/api/v1/data</span> nebo <span class="k">/api/v2/sm/actual</span>). Přesné cesty se liší podle značky — podívej se do dokumentace své čtečky.</p>
+      </li>
+      <li><p class="steptitle">Spusť skript s touto URL</p>
+      <p>Místo ukázkové adresy dej svou vlastní; o token si skript řekne sám. Pokud se stav nenajde automaticky, přidej <span class="k">--field=</span> s cestou (oddělenou tečkami) k hodnotě kWh v tom JSONu. Jen dva tarifní registry a žádný součet (třeba u P1 Monitor)? Spoj obě cesty znakem <span class="k">+</span> a skript pošle jejich součet, např. <span class="k">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopírovat</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopírovat</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      </li>
+      <li><p class="steptitle">Čtecí hlava s Tasmota (Hichi)?</p>
+      <p>Použij <span class="k">--tasmota=</span> s její IP adresou místo <span class="k">--url=</span>. Skript si celkový stav elektroměru (<span class="k">Total_in</span>) přečte sám. Běžné u elektroměrů v Německu, Rakousku a Švýcarsku.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopírovat</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopírovat</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      </li>
+      <li><p class="steptitle">Ověř, že to funguje</p>
+      <p>Skript vypíše, co odeslal.</p>
+      <div class="see"><b>Očekávaný výstup</b><span class="k">pushed 8421.3 kWh ✓</span></div>
+      </li>
+      </ol>
+  <h2 id="cs-7">Cesta D — Powerfox (poweropti)</h2>
+  <p class="lede" style="font-size:15.5px">Poweropti čte tvůj elektroměr a posílá celkový stav do cloudu Powerfox. Níže jsou tři způsoby, jak ho dostat k nám — <strong>stačí ti jeden</strong>. Nevíš? Vezmi možnost 1.</p>
+  <div class="note"><b>Nejdřív v aplikaci Powerfox</b>Zapni <strong>sdílení dat</strong> (Datenfreigabe). Bez něj Powerfox tvoje stavy nesdílí s nikým — ani s námi, ani s Home Assistant.</div>
+  <h3 class="sub">Možnost 1 — Stáhneme to za tebe (nejjednodušší)</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Otevři Powerfox v aplikaci</p>
+      <p>V aplikaci: <span class="k">Elektroměr → ⚡ Máš čtečku elektroměru (P1, Home Assistant…)? → ⚙️ Automatické nastavení → Powerfox</span> a zvol <strong>„Stáhneme to za tebe“</strong>. Není tam? Pak to tato verze ještě nenabízí — použij možnost 2 nebo 3.</p>
+      </li>
+      <li><p class="steptitle">Přihlas se účtem Powerfox</p>
+      <p>Vyplň e-mail a heslo, které používáš v aplikaci Powerfox, zaškrtni políčko a stiskni <strong>Připojit Powerfox</strong>. Přihlašovací údaje se ukládají šifrovaně a slouží jen ke čtení tvého elektroměru. Tip: použij heslo, které nepoužíváš nikde jinde.</p>
+      </li>
+      <li><p class="steptitle">Hotovo — počítač může zůstat vypnutý</p>
+      <p>Náš server zhruba každou hodinu stáhne z Powerfox celkový stav tvého elektroměru a vyplatí ho jako každý jiný stav. Chceš skončit? <strong>Odpojit Powerfox</strong> tvoje přihlašovací údaje hned smaže.</p>
+      <div class="see"><b>Ověř, že to funguje</b>Stav nahoře ukazuje <span class="k">✅ Připojeno — … kWh přijato</span>.</div>
+      </li>
+      </ol>
+  <h3 class="sub">Možnost 2 — Na vlastním počítači</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Připrav terminál a Node.js</p>
+      <p>Nejdřív udělej kroky 2–4 z cesty B: otevři PowerShell nebo terminál a ověř, že máš nainstalovaný Node.js 22 nebo novější.</p>
+      </li>
+      <li><p class="steptitle">Vlož jeden řádek se svým e-mailem Powerfox</p>
+      <p>Místo <span class="k">YOUR_POWERFOX_EMAIL</span> dej e-mail svého účtu Powerfox. Skript se jednou zeptá na tvůj token a heslo k Powerfox (heslo se při psaní nezobrazuje) a obojí uloží do soukromého souboru vedle gul.js. Pak se sám naplánuje, stejně jako u cesty B. Počítač musí být zapnutý aspoň jednou denně.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopírovat</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopírovat</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      </li>
+      <li><p class="steptitle">Ověř, že to funguje</p>
+      <p>Skript vypíše, co odeslal.</p>
+      <div class="see"><b>Očekávaný výstup</b><span class="k">pushed 8421.3 kWh ✓</span></div>
+      </li>
+      </ol>
+  <h3 class="sub">Možnost 3 — S Home Assistant</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Přidej Powerfox do Home Assistant</p>
+      <p>V Home Assistant: <span class="k">Settings → Devices &amp; services → Add integration → Powerfox</span>. Přihlas se svým účtem Powerfox.</p>
+      </li>
+      <li><p class="steptitle">Přidej naši integraci</p>
+      <p>Postupuj podle cesty A, <em>„S naší integrací“</em>: přidej nás do HACS, nainstaluj, restartuj a vlož svůj token.</p>
+      </li>
+      <li><p class="steptitle">Vyber senzor elektroměru z Powerfox</p>
+      <p>Jako senzor vyber senzor Powerfox <strong>Energy usage</strong> (kWh). Dvoutarifní elektroměr, u kterého zůstává prázdný? Vytvoř pomocníka, který sečte senzory vysokého a nízkého tarifu (<span class="k">Settings → Devices &amp; services → Helpers → Create helper → Group → Sensor group</span>, typ <strong>Sum</strong>; ne „Combine the state of several sensors“, to naše integrace jako celkový stav elektroměru nepřijme), a vyber ten.</p>
+      </li>
+      </ol>
+  <h2 id="cs-8">Cesta E — Tibber Pulse</h2>
+  <p class="lede" style="font-size:15.5px">Tibber Pulse čte port HAN nebo P1 tvého elektroměru a posílá celkový stav do Tibberu. Jsou dva způsoby, jak ho dostat k nám — <strong>stačí ti jeden</strong>.</p>
+  <h3 class="sub">Možnost 1 — Stáhneme to za tebe (nejjednodušší)</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Zkopíruj svůj token Tibber</p>
+      <p>Otevři <span class="k">developer.tibber.com</span>, přihlas se účtem Tibber, otevři <strong>Access token</strong> a zkopíruj svůj osobní token.</p>
+      </li>
+      <li><p class="steptitle">Vlož ho do aplikace</p>
+      <p>V aplikaci: <span class="k">Elektroměr → ⚡ Máš čtečku elektroměru (P1, Home Assistant…)? → ⚙️ Automatické nastavení → Tibber → „Stáhneme to za tebe“</span>. Vlož token, zaškrtni políčko a stiskni <strong>Připojit Tibber</strong>. Může to trvat až 30 sekund. Není tam? Pak to tato verze ještě nenabízí — použij možnost 2.</p>
+      <div class="see"><b>Ověř, že to funguje</b>Aplikace ukáže <span class="k">Připojeno — Tibber hlásí … kWh</span>. Zkontroluj, že to odpovídá celkovému stavu tvého elektroměru.</div>
+      </li>
+      </ol>
+  <h3 class="sub">Možnost 2 — S Home Assistant</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Přidej Tibber do Home Assistant</p>
+      <p><span class="k">Settings → Devices &amp; services → Add integration → Tibber</span>. Vlož svůj token Tibber.</p>
+      </li>
+      <li><p class="steptitle">Přidej naši integraci a vyber senzor</p>
+      <p>Postupuj podle cesty A, <em>„S naší integrací“</em>, a jako senzor vyber senzor Tibber <strong>Last meter consumption</strong> (kWh) — vlastní celkový stav elektroměru.</p>
+      </li>
+      </ol>
+  <div class="note"><b>Nemáš zařízení, které je pořád zapnuté?</b>Není potřeba. Byl počítač v naplánovanou dobu vypnutý? Stav se odešle, jakmile se počítač znovu zapne — stačí tedy notebook, který občas otevřeš. Vyplatí se, jakmile dorazí, nejvýš jednou denně.</div>
+  <h2 id="cs-9">Nakonec: výplata přijde sama</h2>
+  <ol class="steps">
+      <li><p class="steptitle">Stav se objeví sám</p>
+      <p>V aplikaci otevři <strong>Elektroměr</strong>. Panel <strong>⚡ Automatický odečet</strong> ukazuje <span class="k">Připojeno — … kWh přijato</span>, s celkovým stavem elektroměru a časem, kdy dorazil.</p>
+      </li>
+      <li><p class="steptitle">Výplata přijde sama</p>
+      <p>Nemusíš na nic klepat: každý stav se vyplatí automaticky, jakmile dorazí, nejvýš jednou denně, a <strong>Časová osa</strong> v panelu ukáže <span class="k">Vyplaceno +… B3TR</span>. Nechceš čekat? <strong>Vyzvednout</strong> udělá totéž.</p>
+      </li>
+      </ol>
+  <div class="note flag"><b>🇧🇪 Belgie (elektroměry Fluvius)</b>Port P1 na belgických elektroměrech je ve výchozím stavu vypnutý. U Fluvius ho zapneš zdarma na jejich online portálu; u jiného provozovatele sítě se zeptej přímo jich. Pak už všechno funguje stejně.</div>
+  <h2 id="cs-10">Když něco nefunguje</h2>
+  <div class="scroll"><table class="stack"><tr><th>Vidíš</th><th>Co dělat</th></tr>
+    <tr><td>&#x27;node&#x27; is not recognized</td><td>Node.js není nainstalovaný, nebo bylo to okno při instalaci už otevřené. Na Windows: <span class="k">winget install OpenJS.NodeJS.LTS</span>. Jinde: nodejs.org. Pak otevři <strong>nový</strong> terminál a vlož řádek znovu. Git nepotřebuješ.</td></tr>
+    <tr><td>Vůbec nic — žádný výstup, hned zpátky na příkazový řádek</td><td>Stará kopie skriptu, z doby před 19. zářím. Měla chybu, kvůli které se na Windows ukončila, aniž by cokoli vypsala. Stáhni ji znovu řádkem výše; nová verze se zeptá na tvůj token.</td></tr>
+    <tr><td>no HomeWizard found on the network</td><td>Tvoje síť blokuje automatické vyhledávání — to je běžné u Wi-Fi pro hosty a s VLAN. Najdi IP adresu svého P1 v aplikaci HomeWizard a spusť <span class="k">node gul.js --install --ip=192.168.1.50</span>. U doplňku pro Home Assistant místo toho vyplň <span class="k">hw_ip</span>.</td></tr>
+    <tr><td>couldn&#x27;t find a total import kWh</td><td>Skript se k zařízení dostal, ale nedostal nic použitelného: v aplikaci HomeWizard je <strong>Local API pořád vypnuté</strong>, nebo to není elektroměr P1. Pro čtečku jiné značky použij <span class="k">--url=</span>.</td></tr>
+    <tr><td>couldn&#x27;t find a kWh number at …</td><td>JSON tvé čtečky nepoužívá název, který skript zná. Přidej <span class="k">--field=</span> s cestou k hodnotě, např. <span class="k">--field=electricity.import_kwh</span>.</td></tr>
+    <tr><td>server said 401</td><td>Token je špatně nebo neúplný. Zkopíruj ho znovu z aplikace a jednou spusť <span class="k">node gul.js --ask-token --install</span>, aby nahradil ten uložený.</td></tr>
+    <tr><td>submit one photo reading first</td><td>Tvůj elektroměr ještě nemá výchozí stav. Odešli v aplikaci jednou normálně stav s fotkou — automatické stavy nikdy nenastavují první hodnotu, aby si zařízení nemohlo samo vymyslet svůj výchozí stav. Potom se začne vyplácet.</td></tr>
+    <tr><td>usage … is outside the plausible range</td><td>Skoro vždycky jde o <strong>dvoutarifní elektroměr</strong>: displej vede dva registry (<span class="k">1.8.1</span> a <span class="k">1.8.2</span>) a tvoje fotka zachytila jeden z nich, zatímco čtečka hlásí součet obou — výchozí stav a čtečka jsou tedy v různých měřítkách. V aplikaci v panelu <span class="k">⚡ Automatický odečet</span> stiskni <strong>&bdquo;Použít tento stav jako můj výchozí stav&ldquo;</strong>. Nic nevyplácí, jen určuje, odkud se začne počítat. Jde to až do tvé první automatické výplaty.</td></tr>
+    <tr><td>this time photograph tariff register 2</td><td>Tvůj elektroměr ukazuje střídavě dva registry a tvoje fotky se taky střídají: pokaždé vyfoť ten, který na poslední fotce nebyl. Počkej, až displej přepne na registr, který aplikace uvádí (<span class="k">1.8.1</span> nebo <span class="k">1.8.2</span>), a pak fotku pořiď.</td></tr>
+    <tr><td>tariff register 1 went down</td><td>Každý registr počítá jen nahoru. Zkontroluj, že nízký a vysoký tarif jsou každý ve svém poli, ve stejném pořadí jako minule.</td></tr>
+    <tr><td>the automatic reading is stale</td><td>Stav musí být v okamžiku vyzvednutí mladší než 48 hodin. Plánovač to zkouší každou hodinu — v <span class="k">.gul-bridge.log</span> vedle <span class="k">gul.js</span> zjistíš, proč to selhalo, nebo znovu spusť <span class="k">node gul.js --install</span>. Vyplatí se, jakmile log ukáže <span class="k">pushed … ✓</span>.</td></tr>
+    <tr><td>Žádný stav v „⚡ Automatický odečet“</td><td>Skript zatím nic úspěšně neodeslal. Podívej se do jeho okna, nebo otevři <span class="k">.gul-bridge.log</span> ve stejné složce jako gul.js: každé spuštění tam zapíše buď <span class="k">pushed … ✓</span>, nebo důvod selhání.</td></tr>
+    <tr><td>Nevíš jistě, jestli je to naplánované?</td><td>Windows: v PowerShellu spusť <span class="k">schtasks /Query /TN GreenUtilityLog</span> — řádek s <em>GreenUtilityLog</em> a časem dalšího spuštění znamená, že ano. Mac / Linux / Pi: <span class="k">crontab -l</span> by měl ukázat řádek končící na <em># GreenUtilityLog</em>. Nic tam není? Vlož instalační řádek ještě jednou.</td></tr>
+    <tr><td>Nastavení z doby před 24. zářím</td><td>Vlož stejný řádek ještě jednou. Nový skript počká na server, který se teprve probouzí, místo aby to vzdal, zapisuje každé spuštění do <span class="k">.gul-bridge.log</span> a na Windows běží i na baterii.</td></tr>
+    <tr><td>Powerfox didn&#x27;t accept the e-mail and password</td><td>Použij přesně e-mail a heslo z aplikace Powerfox (pozor na překlepy a mezery). Změna hesla k Powerfox? Možnost 1: znovu <strong>Připojit Powerfox</strong> s novým heslem. Možnost 2: vlož znovu instalační řádek — zeptá se na heslo.</td></tr>
+    <tr><td>switch on data transfer (Datenfreigabe)</td><td>Powerfox odmítá sdílet tvoje stavy. V aplikaci Powerfox zapni sdílení dat (Datenfreigabe) a zkus to znovu.</td></tr>
+    <tr><td>Powerfox only has an old reading</td><td>Tvůj poweropti už nějakou dobu nic do Powerfox neposlal. V aplikaci Powerfox zkontroluj, že je online (Wi-Fi, baterie). Dokud nebude k dispozici čerstvý stav, nic se neodešle ani nevyplatí.</td></tr>
+    <tr><td>Tibber didn&#x27;t accept this token</td><td>Zkopíruj token znovu z developer.tibber.com, bez mezer. Vznikl tam nový token? Pak ten starý přestane fungovat: připoj se znovu s novým.</td></tr>
+    <tr><td>no Tibber Pulse found on this account</td><td>Pulse musí být nastavený v aplikaci Tibber, na stejném účtu jako token.</td></tr>
+    <tr><td>your Pulse sends live data but no meter total</td><td>Ne každý elektroměr posílá celkový stav přes port HAN. Pak použij fotky, nebo jinou čtečku.</td></tr>
+    <tr><td>this phone is already used by 1 other wallet</td><td>Jeden člověk, jedna peněženka: na jednom telefonu může vydělávat jedna peněženka. Peněženka, která na tomto telefonu dostala výplatu jako první, funguje dál. Natrvalo přechod na novou peněženku? Požádej admina přes Poslat zpětnou vazbu v aplikaci.</td></tr>
+    <tr><td>automatic payouts are paused until you take one photo</td><td>Čtečka, která posílá vlastní čísla (P1, Home Assistant, tento skript), potřebuje jednou za 90 dní jednu fotku elektroměru; Powerfox, Tibber a MojElektro ne. Stejná pauza přijde jednou i po opravě výchozího stavu bez fotky. Vyfoť ho na kartě Elektroměr a výplaty se znovu rozběhnou. Aplikace ti to týden předem připomene.</td></tr>
+    <tr><td>already been corrected once</td><td>Výchozí stav elektroměru jde opravit jednou — každá oprava smaže spotřebu od poslední výplaty. Pokud je zase špatně, požádej admina přes Poslat zpětnou vazbu v aplikaci.</td></tr>
+  </table></div>
+  <div class="note">Pořád to nejde? Pošli zprávu s tím, co ukazuje log (nebo terminál) — obvykle tam přesně stojí, co chybí.</div>
+  <footer>GreenUtilityLog · Návod pro testery · Beta na testnetu — testovací tokeny, zatím bez skutečné hodnoty.</footer>
+</section>
 </div>
 <script>
   const sections = document.querySelectorAll(".lang");
@@ -4667,7 +4902,7 @@
     try { localStorage.setItem("gul_guide_lang", lang); } catch (e) {}
   }
   picker?.addEventListener("change", () => show(picker.value));
-  const supported = ["en", "nl", "de", "fr", "es", "it", "el", "tr", "sl", "hr", "ro", "bg", "sv", "da", "nb", "fi", "hu", "pl", "pt"];
+  const supported = ["en", "nl", "de", "fr", "es", "it", "el", "tr", "sl", "hr", "ro", "bg", "sv", "da", "nb", "fi", "hu", "pl", "pt", "cs"];
   let pick = "en";
   try {
     const saved = localStorage.getItem("gul_guide_lang");

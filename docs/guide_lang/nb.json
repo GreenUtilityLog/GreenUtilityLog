@@ -334,7 +334,7 @@
   ],
   [
    "no HomeWizard found on the network",
-   "Your network blocks auto-discovery — common on guest Wi-Fi and with VLANs. Look up your P1’s IP in the HomeWizard app and run <span class=\"k\">node gul.js --install --ip=192.168.1.50</span>. On the Home Assistant add-on, fill in <span class=\"k\">hw_ip</span> instead."
+   "Nettverket ditt blokkerer automatisk søk – vanlig på gjestenett og med VLAN. Finn IP-adressen til P1-en din i HomeWizard-appen og kjør <span class=\"k\">node gul.js --install --ip=192.168.1.50</span>. I Home Assistant-tillegget fyller du i stedet inn <span class=\"k\">hw_ip</span>."
   ],
   [
    "couldn't find a total import kWh",
@@ -346,7 +346,7 @@
   ],
   [
    "server said 401",
-   "The token is wrong or incomplete. Copy it again from the app and run <span class=\"k\">node gul.js --ask-token --install</span> once to replace the saved one."
+   "Tokenet er feil eller ufullstendig. Kopier det på nytt fra appen og kjør <span class=\"k\">node gul.js --ask-token --install</span> én gang for å erstatte det lagrede."
   ],
   [
    "submit one photo reading first",
@@ -366,7 +366,7 @@
   ],
   [
    "the automatic reading is stale",
-   "A reading has to be under 48 hours old at the moment you claim it. The schedule tries every hour — look in <span class=\"k\">.gul-bridge.log</span> next to <span class=\"k\">gul.js</span> for why it failed, or run <span class=\"k\">node gul.js --install</span> again. It is paid as soon as the log says <span class=\"k\">pushed … ✓</span>."
+   "En målerstand må være under 48 timer gammel når du henter den. Planleggingen prøver hver time – se i <span class=\"k\">.gul-bridge.log</span> ved siden av <span class=\"k\">gul.js</span> hvorfor det mislyktes, eller kjør <span class=\"k\">node gul.js --install</span> på nytt. Den utbetales så snart loggen viser <span class=\"k\">pushed … ✓</span>."
   ],
   [
    "Ingen målerstand i «⚡ Automatisk avlesning»",

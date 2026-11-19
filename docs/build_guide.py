@@ -1079,7 +1079,7 @@ if "--dump" in sys.argv:
 _ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir)
 # The app's own words for the screens and buttons the guide points to, in each
 # language (src/i18n.js and src/lang/*.js), so "tap X" says what the app shows.
-_APP_KEYS = ["r.copy", "nav.meter", "m.readerLink", "r.setup", "r.getToken", "r.route.server",
+_APP_KEYS = ["r.checkTotal", "r.copy", "r.title", "r.timeline", "r.claim", "r.useAsStart", "r.paid", "r.connectedAt", "f.title", "nav.meter", "m.readerLink", "r.setup", "r.getToken", "r.route.server",
              "pf.connect", "pf.disconnect", "tb.connect", "tb.disconnect"]
 _js = """
 const root = process.argv[1], keys = JSON.parse(process.argv[2]);
@@ -1156,7 +1156,15 @@ def _app_words(code):
     return [("Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup", path),
             ("Get my device token", a["r.getToken"]), ("We fetch it for you", a["r.route.server"]),
             ("Disconnect Powerfox", a["pf.disconnect"]), ("Connect Powerfox", a["pf.connect"]),
-            ("Disconnect Tibber", a["tb.disconnect"]), ("Connect Tibber", a["tb.connect"])]
+            ("Disconnect Tibber", a["tb.disconnect"]), ("Connect Tibber", a["tb.connect"]),
+            ("⚡ Automatic reading", a["r.title"]), ("Timeline", a["r.timeline"]), ("Claim now", a["r.claim"]),
+            ("Use this reading as my starting point", a["r.useAsStart"]),
+            ("Paid +… B3TR", a["r.paid"].replace("{amount}", "…")),
+            # "✅ Connected — 8421 kWh received today 08:52": the guide shows it with "…".
+            ("Connected — … kWh received", re.sub(r"^✅\s*", "", a["r.connectedAt"]).replace("{n}", "…").replace(" {when}", "").replace("{when}", "")),
+            ("Send Feedback", re.sub(r"^✉️\s*", "", a["f.title"])),
+            # "Connected — Tibber reports 8421 kWh. Check that …": its first sentence.
+            ("Connected — Tibber reports … kWh", re.split(r"(?<=kWh)[.;。]", a["r.checkTotal"])[0].replace("{who}", "Tibber").replace("{n}", "…"))]
 def _swap(v, words):
     if isinstance(v, str):
         for old, new in words: v = v.replace(old, new)
