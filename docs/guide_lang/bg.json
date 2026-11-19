@@ -1,0 +1,540 @@
+{
+ "_toc": "На тази страница",
+ "name": "English",
+ "kicker": "Ръководство за тестващи",
+ "h1": "Печели, без да снимаш електромера",
+ "lede": "Обикновено снимаш електромера си, за да печелиш B3TR. Ако нещо у дома ти вече може да отчита електромера, то може да изпраща показанието вместо теб — и повече никога не снимаш. Започни, като намериш своята настройка по-долу.",
+ "s_routes": "Каква настройка имаш?",
+ "s_token": "За всички автоматични начини: вземи своя токен",
+ "s_a": "Начин A — Home Assistant (всеки електромер)",
+ "s_b": "Начин B — HomeWizard P1, без Home Assistant",
+ "s_c": "Начин C — Друг четец (P1 четец, четяща глава с Tasmota)",
+ "s_claim": "Накрая: плаща се само",
+ "s_trouble": "Ако нещо не работи",
+ "routes": [
+  [
+   "Използвам Home Assistant",
+   "Работи с почти всеки електромер, който HA вече отчита. Инсталирай нашата интеграция или постави няколко реда YAML.",
+   1,
+   "Най-лесно"
+  ],
+  [
+   "Имам HomeWizard P1",
+   "Не ти трябва Home Assistant. Работи в 🇳🇱 🇧🇪 🇱🇺 🇩🇰 🇸🇪 🇭🇺 — малка помощна програма сама намира електромера ти в мрежата.",
+   2,
+   "Малко техника"
+  ],
+  [
+   "Имам друг четец",
+   "P1 Monitor, четяща глава с Tasmota (Hichi) или всеки четец, който предоставя общото показание в kWh като JSON в мрежата ти.",
+   3,
+   "Техническо"
+  ],
+  [
+   "Имам Powerfox (poweropti)",
+   "Разпространен в Германия. Можем да взимаме показанието ти от облака на Powerfox — нищо за инсталиране, нищо, което да стои включено.",
+   1,
+   "Най-лесно"
+  ],
+  [
+   "Имам Tibber Pulse",
+   "Разпространен в Швеция, Норвегия, Дания и Финландия. Взимаме показанието ти от Tibber с личния ти токен — нищо за инсталиране.",
+   1,
+   "Най-лесно"
+  ],
+  [
+   "Нищо от изброеното",
+   "Тогава продължи да снимаш електромера си. Работи също толкова добре и носи точно толкова. Няма нищо за настройване.",
+   0,
+   "Без настройка"
+  ]
+ ],
+ "baseline_t": "Първо, еднократно: задай началното показание",
+ "baseline_b": "Който и начин да избереш, първо направи <strong>едно обикновено изпращане със снимка</strong> в приложението. Така приложението знае откъде е тръгнал електромерът ти — без това автоматичните показания не могат да бъдат изплатени.",
+ "token": [
+  [
+   "Копирай токена за устройството",
+   "В приложението: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → „Get my device token“</span>. Копирай го.",
+   "Какво е това",
+   "Дълъг код, който казва „тези показания принадлежат на моя портфейл“. Пази го в тайна — всеки, който го има, може да изпраща показания от твое име."
+  ]
+ ],
+ "a_intro": "Два начина. Нашата интеграция е най-лесна и работи с <em>всеки</em> електромер, който Home Assistant вече ти показва; YAML прави същото на ръка, ако предпочиташ да не инсталираш нищо.",
+ "a1_t": "С нашата интеграция (препоръчително)",
+ "a1": [
+  [
+   "Добави ни в HACS",
+   "В Home Assistant: <span class=\"k\">HACS → ⋮ (горе вдясно) → Custom repositories</span>. Постави адреса по-долу, избери тип <strong>Integration</strong> и натисни Add.",
+   "code",
+   "https://github.com/GreenUtilityLog/GreenUtilityLog",
+   "Адрес на хранилището"
+  ],
+  [
+   "Инсталирай и рестартирай",
+   "Отвори <strong>GreenUtilityLog</strong> в списъка на HACS, натисни <strong>Download</strong> и после рестартирай Home Assistant.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Добави интеграцията",
+   "Отиди в <span class=\"k\">Settings → Devices &amp; services → Add integration</span> и потърси <strong>GreenUtilityLog</strong>. Постави токена си, избери сензора с <strong>натрупаните kWh</strong> и избери колко често да се изпраща.",
+   "see",
+   "Провери дали работи",
+   "Появява се сензор <span class=\"k\">Last sent reading</span> с общото показание на електромера ти. Атрибутите му показват кога е изпратено и евентуални грешки."
+  ]
+ ],
+ "a2_t": "Със собствен сензор (всеки електромер)",
+ "a2": [
+  [
+   "Намери сензора на електромера",
+   "В Home Assistant: <span class=\"k\">Developer tools → States</span>. Филтрирай по <em>import</em> и избери този в kWh, чиято стойност непрекъснато расте — това е общото ти показание. ID-тата на обектите са различни за всяка инсталация, затова използвай своето.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Добави тези редове",
+   "Сложи това в <span class=\"k\">configuration.yaml</span>, като замениш обекта и токена със своите, после рестартирай Home Assistant.",
+   "code",
+   "rest_command:\n  gul_push:\n    url: \"https://greenutilitylog-rewards.onrender.com/meter-ingest\"\n    method: POST\n    content_type: \"application/json\"\n    timeout: 90  # секунди: на сървъра може да му трябва минута, за да се събуди\n    payload: '{\"token\":\"YOUR_TOKEN\",\"reading\":{{ states(\"sensor.YOUR_ENTITY\") | float }}}'\n\n# automations.yaml — два пъти на ден (можеш да вземаш награда веднъж на 20 ч)\n- alias: Push meter to GreenUtilityLog\n  trigger: { platform: time_pattern, hours: \"/12\" }\n  # само истинско общо показание в kWh: не 0 след рестарт, не unavailable\n  condition:\n    - condition: template\n      value_template: '{{ is_number(states(\"sensor.YOUR_ENTITY\")) and states(\"sensor.YOUR_ENTITY\") | float > 0 and state_attr(\"sensor.YOUR_ENTITY\", \"unit_of_measurement\") == \"kWh\" }}'\n  action: { service: rest_command.gul_push }",
+   "configuration.yaml + automations.yaml"
+  ]
+ ],
+ "b": [
+  [
+   "Включи Local API",
+   "В приложението <strong>HomeWizard Energy</strong>: <span class=\"k\">Settings → Meters → твоя P1 → Local API → ON</span>. Така собствената ти мрежа може да чете електромера.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Отвори PowerShell (или терминал)",
+   "<strong>Windows:</strong> натисни Start, напиши <em>PowerShell</em> и натисни Enter. <strong>Mac:</strong> отвори <em>Terminal</em>. <strong>Raspberry Pi / NAS:</strong> неговия терминал или през SSH. Всичко по-долу се пише в този прозорец. На Mac остани в домашната папка, в която се отваря Terminal (виж стъпка 5).",
+   null,
+   null,
+   null
+  ],
+  [
+   "Провери дали вече имаш Node",
+   "Напиши това и натисни Enter. Номер на версия — от <span class=\"k\">v22</span> нагоре — означава, че всичко е готово (по-стара версия: направи и следващата стъпка, тя вече не получава актуализации за сигурност) и можеш да пропуснеш следващата стъпка. Ако вместо това излезе грешка, Node още не е инсталиран.",
+   "code",
+   "node -v",
+   "Windows · Mac · Linux"
+  ],
+  [
+   "Инсталирай Node.js, ако излезе грешка",
+   "<strong>Windows:</strong> постави реда по-долу; натисни <span class=\"k\">Y</span>, ако те помоли да приемеш условията на източника. <strong>Mac:</strong> LTS инсталатора от nodejs.org или <span class=\"k\">brew install node</span>. <strong>Raspberry Pi / Debian:</strong> <span class=\"k\">sudo apt install nodejs</span> (трябва Node 22 или по-нов — по-старите версии вече не получават актуализации за сигурност; Debian/Ubuntu често идват с по-стара — тогава използвай инсталатора от nodesource.com). След това <strong>затвори прозореца и отвори нов</strong> — вече отвореният прозорец пази стария PATH и <span class=\"k\">node</span> пак няма да бъде намерен. Провери отново с <span class=\"k\">node -v</span>.",
+   "code",
+   "winget install OpenJS.NodeJS.LTS",
+   "Windows — PowerShell"
+  ],
+  [
+   "Постави един ред и натисни Enter",
+   "Той изтегля помощната програма и изпраща първото ти показание. Освен това тя сама се насрочва да докладва два пъти на ден (Windows: Task Scheduler · Mac / Linux / Pi: cron), така че после можеш да затвориш прозореца и тя продължава да работи, дори след рестарт. Това е единственият път, когато я пускаш. <strong>Mac:</strong> постави го в току-що отворен Terminal, в домашната си папка — не влизай преди това с <span class=\"k\">cd</span> в Desktop, Documents или Downloads: macOS не позволява на графика (cron) да чете файлове там и той никога няма да се изпълни.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Постави токена си, когато го поиска",
+   "Пита веднъж и го запомня; оттам нататък графикът използва запазения токен. После настройва графика, намира електромера и изпраща първото показание.",
+   "see",
+   "Какво трябва да видиш, в този ред",
+   "<span class=\"k\">Paste your device token…</span> → <span class=\"k\">Scheduled…</span> → <span class=\"k\">found HomeWizard at 192.168.…</span> → <span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "c_intro": "Същата помощна програма чете всяко устройство в мрежата ти, което предоставя общото показание в kWh като JSON през HTTP, без вход — само ѝ казваш къде. Не всеки четец го прави: API-то на dsmr-reader изисква ключ, а Shelly мери собствената си енергия, не регистъра на електромера. Първо направи стъпки 2–4 от начин B (терминал и Node); различна е само командата по-долу.",
+ "c": [
+  [
+   "Намери адреса с данните на четеца",
+   "Отвори уеб страницата на четеца си и потърси адреса, който връща чист JSON (често нещо като <span class=\"k\">/api/v1/data</span> или <span class=\"k\">/api/v2/sm/actual</span>). Точните пътища се различават според марката — виж документацията на своя четец.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Пусни помощната програма с този адрес",
+   "Сложи своя адрес на мястото на примерния; токена ще го поиска сама. Ако показанието не се намери автоматично, добави <span class=\"k\">--field=</span> с пътя (с точки) до стойността в kWh в този JSON. Само два тарифни регистъра и никакъв общ сбор (както при P1 Monitor например)? Свържи двата пътя с <span class=\"k\">+</span> и тя ще изпраща сбора им, напр. <span class=\"k\">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install --url=http://192.168.1.60/api/v1/data"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Четяща глава с Tasmota (Hichi)?",
+   "Използвай <span class=\"k\">--tasmota=</span> с нейния IP вместо <span class=\"k\">--url=</span>. Помощната програма сама чете общото показание на електромера (<span class=\"k\">Total_in</span>). Често се среща при германски, австрийски и швейцарски електромери.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --tasmota=192.168.1.70 --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Провери дали работи",
+   "Помощната програма показва какво е изпратила.",
+   "see",
+   "Очакван резултат",
+   "<span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "claim": [
+  [
+   "Показанието ти се появява само",
+   "В приложението отвори <strong>Електромер</strong>. Панелът <strong>⚡ Автоматично отчитане</strong> показва <span class=\"k\">Свързано — … kWh получени</span>, с общото показание на електромера ти и кога е пристигнало.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Плаща се само",
+   "Няма какво да натискаш: всяко показание се изплаща автоматично, щом пристигне, най-много веднъж на ден, а <strong>Хронология</strong> в панела показва <span class=\"k\">Изплатени +… B3TR</span>. Не ти се чака? <strong>Вземи сега</strong> прави същото.",
+   null,
+   null,
+   null
+  ]
+ ],
+ "s_country": "Работи ли това там, където живееш?",
+ "country_intro": "Изходът на електромера е различен в различните държави, затова не всеки четец работи навсякъде. Това винаги работи: <strong>ако Home Assistant вече показва общото показание на електромера ти, начин A работи</strong> — в която и държава да си.",
+ "country_th": [
+  "Държава",
+  "Електромерът ти има",
+  "Какво да използваш"
+ ],
+ "country_rows": [
+  [
+   "🇳🇱 Нидерландия",
+   "P1 порт (RJ12)",
+   "Всеки начин. HomeWizard работи направо."
+  ],
+  [
+   "🇧🇪 Белгия",
+   "P1 порт (RJ12, изключен по подразбиране)",
+   "Всеки начин, след като портът е включен: включи го безплатно в портала на Fluvius (при друг мрежов оператор: попитай своя)."
+  ],
+  [
+   "🇱🇺 Люксембург",
+   "P1 порт (Smarty, криптиран)",
+   "HomeWizard P1: поискай еднократно P1 ключа от мрежовия си оператор. Или Home Assistant."
+  ],
+  [
+   "🇸🇪 Швеция · 🇫🇮 Финландия",
+   "HAN порт (RJ12)",
+   "🇸🇪 HomeWizard P1 (начин B) — може първо мрежовият оператор да трябва да включи порта. Tibber Pulse: начин E. Иначе P1/HAN четец или Home Assistant."
+  ],
+  [
+   "🇩🇰 Дания",
+   "P1 (изключен по подразбиране) или HAN",
+   "HomeWizard P1 (начин B), след като мрежовият оператор включи P1 порта — за HAN порт трябва преходник. Tibber Pulse: начин E. Иначе четец с подходящия конектор или Home Assistant."
+  ],
+  [
+   "🇭🇺 Унгария",
+   "P1 порт (зависи от мрежовия оператор)",
+   "HomeWizard P1 с някои електромери — първо провери списъка на HomeWizard. Или Home Assistant, или снимки."
+  ],
+  [
+   "🇳🇴 Норвегия",
+   "HAN (RJ45, M-BUS)",
+   "Tibber Pulse: начин E. Иначе норвежки HAN четец + Home Assistant."
+  ],
+  [
+   "🇩🇪 Германия",
+   "Smart-Meter-Gateway / оптична глава",
+   "Powerfox poweropti: начин D. Четяща глава с Tasmota (Hichi): начин C. Иначе Home Assistant."
+  ],
+  [
+   "🇸🇮 Словения",
+   "P1 порт при много електромери (понякога криптиран)",
+   "Вероятно Home Assistant с P1 четец — още не е тествано."
+  ],
+  [
+   "🇬🇷 Гърция · 🇭🇷 Хърватия · 🇹🇷 Турция",
+   "Още не е открит порт за клиенти",
+   "Засега снимки."
+  ],
+  [
+   "🇷🇴 Румъния · 🇧🇬 България · останалите Балкани",
+   "Още не е открит порт за клиенти",
+   "Засега снимки."
+  ],
+  [
+   "🇦🇹 Австрия",
+   "Клиентски интерфейс (M-Bus) / оптичен порт",
+   "Tibber Pulse: начин E. Четяща глава с Tasmota (Hichi): начин C. Иначе Home Assistant."
+  ],
+  [
+   "🇨🇭 Швейцария",
+   "Клиентски интерфейс / оптичен порт",
+   "Четяща глава с Tasmota (Hichi): начин C. Иначе Home Assistant."
+  ],
+  [
+   "🇫🇷 Франция",
+   "Linky: TIC порт",
+   "Няма P1 порт, затова засега само Home Assistant (напр. със ZLinky). Или снимки."
+  ],
+  [
+   "🇬🇧 Обединеното кралство",
+   "SMETS2: няма порт (Zigbee)",
+   "Няма P1 порт, затова засега само Home Assistant (напр. с Hildebrand Glow). Или снимки."
+  ],
+  [
+   "🇪🇸 Испания",
+   "Няма порт",
+   "Няма P1 порт, затова засега само Home Assistant (напр. с Datadis). Или снимки."
+  ],
+  [
+   "🇮🇹 Италия",
+   "Chain 2 (трябва устройство като Sinapsi Alfa)",
+   "Няма P1 порт, затова засега само Home Assistant. Или снимки."
+  ],
+  [
+   "🇺🇸 🇨🇦 САЩ и Канада",
+   "Няма P1 порт (Zigbee, само ако доставчикът го включи)",
+   "Снимки, ако дисплеят показва общото показание в kWh. Home Assistant с Rainforest EAGLE, където доставчикът го позволява. Квебек (Hydro-Québec): само снимки."
+  ],
+  [
+   "Навсякъде другаде",
+   "Различно",
+   "Ако Home Assistant чете електромера ти, начин A работи."
+  ]
+ ],
+ "country_close": "Колебаеш се? Отвори Home Assistant и потърси електромера си в Developer tools → States. Ако там има стойност в kWh, която расте, всичко е наред. HomeWizard P1? Провери електромера си в <a href=\"https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter\">списъка на HomeWizard</a>.",
+ "be_t": "🇧🇪 Белгия (електромери на Fluvius)",
+ "be_b": "P1 портът на белгийските електромери е изключен по подразбиране. При Fluvius го включваш безплатно в онлайн портала им; при друг мрежов оператор — попитай тях. След това всичко работи по същия начин.",
+ "once_t": "Нямаш устройство, което стои включено?",
+ "once_b": "Не ти трябва. Пропуснат е насрочен час, защото компютърът е бил изключен? Тогава показанието тръгва веднага щом компютърът се включи отново — така че лаптоп, който отваряш от време на време, е достатъчен. Плаща се веднага щом пристигне, най-много веднъж на ден.",
+ "th": [
+  "Виждаш",
+  "Какво да направиш"
+ ],
+ "trouble": [
+  [
+   "'node' is not recognized",
+   "Node.js не е инсталиран или прозорецът е бил отворен още преди инсталирането. На Windows: <span class=\"k\">winget install OpenJS.NodeJS.LTS</span>. Другаде: nodejs.org. После отвори <strong>нов</strong> терминал и постави реда отново. Git не ти трябва."
+  ],
+  [
+   "Нищо — никакъв изход, направо обратно на командния ред",
+   "Стара версия на помощната програма, отпреди 19 септември. В нея имаше грешка, заради която на Windows спираше, без да изпише нищо. Изтегли я отново с реда по-горе; новата пита за токена ти."
+  ],
+  [
+   "no HomeWizard found on the network",
+   "Your network blocks auto-discovery — common on guest Wi-Fi and with VLANs. Look up your P1’s IP in the HomeWizard app and run <span class=\"k\">node gul.js --install --ip=192.168.1.50</span>. On the Home Assistant add-on, fill in <span class=\"k\">hw_ip</span> instead."
+  ],
+  [
+   "couldn't find a total import kWh",
+   "Устройството е открито, но не върна нищо използваемо: <strong>Local API още е изключен</strong> в приложението HomeWizard или това не е P1 електромер. За четец от друга марка използвай <span class=\"k\">--url=</span>."
+  ],
+  [
+   "couldn't find a kWh number at …",
+   "JSON-ът на четеца ти не използва име, което помощната програма познава. Добави <span class=\"k\">--field=</span> с пътя (с точки) до стойността, напр. <span class=\"k\">--field=electricity.import_kwh</span>."
+  ],
+  [
+   "server said 401",
+   "The token is wrong or incomplete. Copy it again from the app and run <span class=\"k\">node gul.js --ask-token --install</span> once to replace the saved one."
+  ],
+  [
+   "submit one photo reading first",
+   "Електромерът ти още няма начално показание. Направи едно обикновено изпращане със снимка в приложението — автоматичните показания никога не задават първата стойност, за да не може едно устройство само да си измисли началото. След това започват изплащанията."
+  ],
+  [
+   "usage … is outside the plausible range",
+   "Почти винаги това е <strong>двутарифен електромер</strong>: дисплеят води два регистъра (<span class=\"k\">1.8.1</span> и <span class=\"k\">1.8.2</span>) и на снимката ти е попаднал единият, а четецът отчита сбора на двата — така началното показание и четецът са в различен мащаб. В приложението, в панела <span class=\"k\">⚡ Автоматично отчитане</span>, натисни <strong>&ldquo;Използвай това показание като начално&rdquo;</strong>. Това не изплаща нищо, а само задава откъде започва броенето. Възможно е до първото ти автоматично изплащане."
+  ],
+  [
+   "this time photograph tariff register 2",
+   "Електромерът ти показва два регистъра последователно и снимките ти също се редуват: всеки път снимай регистъра, който последната ти снимка не показа. Изчакай дисплеят да покаже регистъра, който приложението посочва (<span class=\"k\">1.8.1</span> или <span class=\"k\">1.8.2</span>), и тогава снимай."
+  ],
+  [
+   "tariff register 1 went down",
+   "Всеки регистър само расте. Провери дали ниската и нормалната тарифа са всяка в своето поле, в същия ред като миналия път."
+  ],
+  [
+   "the automatic reading is stale",
+   "A reading has to be under 48 hours old at the moment you claim it. The schedule tries every hour — look in <span class=\"k\">.gul-bridge.log</span> next to <span class=\"k\">gul.js</span> for why it failed, or run <span class=\"k\">node gul.js --install</span> again. It is paid as soon as the log says <span class=\"k\">pushed … ✓</span>."
+  ],
+  [
+   "Няма показание в „⚡ Автоматично отчитане“",
+   "Помощната програма още не е изпратила нищо успешно. Погледни прозореца ѝ или отвори <span class=\"k\">.gul-bridge.log</span> в същата папка като gul.js: при всяко изпълнение там пише или <span class=\"k\">pushed … ✓</span>, или причината за неуспеха."
+  ],
+  [
+   "Не знаеш дали е насрочено?",
+   "Windows: в PowerShell изпълни <span class=\"k\">schtasks /Query /TN GreenUtilityLog</span> — ред с <em>GreenUtilityLog</em> и час на следващо изпълнение означава, че е насрочено. Mac / Linux / Pi: <span class=\"k\">crontab -l</span> трябва да покаже ред, който завършва на <em># GreenUtilityLog</em>. Нищо ли няма? Постави реда за настройка още веднъж."
+  ],
+  [
+   "Настройката ти е отпреди 24 септември",
+   "Постави същия ред още веднъж. Новата помощна програма изчаква сървъра, докато се събуди, вместо да се откаже, записва всяко изпълнение в <span class=\"k\">.gul-bridge.log</span> и на Windows работи и на батерия."
+  ],
+  [
+   "Powerfox didn't accept the e-mail and password",
+   "Използвай точно имейла и паролата от приложението Powerfox (внимавай за правописна грешка или интервал). Паролата за Powerfox е сменена? Вариант 1: <strong>Connect Powerfox</strong> отново с новата. Вариант 2: постави реда за настройка отново — той ще поиска паролата."
+  ],
+  [
+   "switch on data transfer (Datenfreigabe)",
+   "Powerfox отказва да споделя показанията ти. В приложението Powerfox включи споделянето на данни (Datenfreigabe) и опитай отново."
+  ],
+  [
+   "Powerfox only has an old reading",
+   "Твоят poweropti не е изпращал нищо към Powerfox от известно време. Провери в приложението Powerfox дали е онлайн (Wi-Fi, батерия). Нищо не се изпраща и не се плаща, докато няма свежо показание."
+  ],
+  [
+   "Tibber didn't accept this token",
+   "Копирай токена отново от developer.tibber.com, без интервали. Там е създаден нов токен? Тогава старият спира да работи: свържи се отново с новия."
+  ],
+  [
+   "no Tibber Pulse found on this account",
+   "Pulse трябва да е настроен в приложението Tibber, в същия профил като токена."
+  ],
+  [
+   "your Pulse sends live data but no meter total",
+   "Не всеки електромер подава общото си показание през HAN порта. Тогава използвай снимки или друг четец."
+  ],
+  [
+   "this phone is already used by 1 other wallet",
+   "Един човек, един портфейл: един телефон може да печели само с един портфейл. Портфейлът, на който е платено първо на този телефон, продължава да работи. Сменяш портфейла си завинаги? Помоли администратор чрез Изпрати отзив в приложението."
+  ],
+  [
+   "automatic payouts are paused until you take one photo",
+   "Четец, който изпраща собствените си числа (P1, Home Assistant, тази помощна програма), изисква една снимка на електромера на всеки 90 дни; Powerfox, Tibber и MojElektro не изискват. Същата пауза идва еднократно и след като началното показание е коригирано без снимка. Направи една снимка в раздела Електромер и изплащанията тръгват отново. Приложението ти напомня седмица по-рано."
+  ],
+  [
+   "already been corrected once",
+   "Началното показание на един електромер може да се коригира веднъж — всяка корекция изтрива потреблението от последното изплащане насам. Ако пак е грешно, помоли администратор чрез Изпрати отзив в приложението."
+  ]
+ ],
+ "close": "Пак не се получава? Изпрати съобщение с това, което показва логът (или терминалът) — обикновено там пише точно какво липсва.",
+ "foot": "GreenUtilityLog · Ръководство за тестващи · Testnet бета — тестови токени, все още без реална стойност.",
+ "s_pf": "Начин D — Powerfox (poweropti)",
+ "pf_intro": "Устройството poweropti чете електромера ти и изпраща общото показание в облака на Powerfox. По-долу има три начина то да стигне до нас — <strong>трябва ти само един</strong>. Колебаеш се? Избери вариант 1.",
+ "pf_first_t": "Първо, в приложението Powerfox",
+ "pf_first_b": "Включи <strong>споделянето на данни</strong> (Datenfreigabe). Без него Powerfox не споделя показанията ти с никого — нито с нас, нито с Home Assistant.",
+ "pf1_t": "Вариант 1 — We fetch it for you (най-лесно)",
+ "pf1": [
+  [
+   "Отвори Powerfox в приложението",
+   "В приложението: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Powerfox</span> и избери <strong>„We fetch it for you“</strong>. Няма го? Значи тази версия още не го предлага — използвай вариант 2 или 3.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Влез с профила си в Powerfox",
+   "Попълни имейла и паролата, които използваш в приложението Powerfox, отметни полето и натисни <strong>Connect Powerfox</strong>. Данните ти за вход се пазят шифровани и се използват само за отчитане на електромера ти. Съвет: използвай парола, която не ползваш никъде другаде.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Готово — компютърът ти може да е изключен",
+   "Сървърът ни взима общото показание на електромера ти от Powerfox приблизително всеки час и го плаща като всяко друго показание. Искаш да спреш? <strong>Disconnect Powerfox</strong> изтрива данните ти за вход веднага.",
+   "see",
+   "Провери дали работи",
+   "Състоянието най-горе показва <span class=\"k\">✅ Свързано — … kWh получени</span>."
+  ]
+ ],
+ "pf2_t": "Вариант 2 — На собствения ти компютър",
+ "pf2": [
+  [
+   "Подготви терминала и Node.js",
+   "Първо направи стъпки 2–4 от начин B: отвори PowerShell или терминал и провери дали е инсталиран Node.js 22 или по-нов.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Постави един ред с имейла си за Powerfox",
+   "Сложи имейла на профила си в Powerfox на мястото на <span class=\"k\">YOUR_POWERFOX_EMAIL</span>. Програмата веднъж пита за токена ти и за паролата ти за Powerfox (паролата не се вижда, докато пишеш) и пази и двете в личен файл до gul.js. После сама се насрочва, точно както при начин B. Компютърът трябва да е включен поне веднъж на ден.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Провери дали работи",
+   "Помощната програма показва какво е изпратила.",
+   "see",
+   "Очакван резултат",
+   "<span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "pf3_t": "Вариант 3 — С Home Assistant",
+ "pf3": [
+  [
+   "Добави Powerfox в Home Assistant",
+   "В Home Assistant: <span class=\"k\">Settings → Devices &amp; services → Add integration → Powerfox</span>. Влез с профила си в Powerfox.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Добави нашата интеграция",
+   "Следвай начин A, <em>„С нашата интеграция“</em>: добави ни в HACS, инсталирай, рестартирай и постави токена си.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Избери сензора на Powerfox за електромера",
+   "За сензор избери сензора на Powerfox <strong>Energy usage</strong> (kWh). Електромер с две тарифи, при който той остава празен? Направи помощник, който събира сензорите за дневна и нощна тарифа (<span class=\"k\">Settings → Devices &amp; services → Helpers → Create helper → Group → Sensor group</span>, тип <strong>Sum</strong>; не „Combine the state of several sensors“, който нашата интеграция не приема като общо показание), и избери него.",
+   null,
+   null,
+   null
+  ]
+ ],
+ "s_tb": "Начин E — Tibber Pulse",
+ "tb_intro": "Tibber Pulse чете HAN или P1 порта на електромера ти и изпраща общото показание към Tibber. Два начина то да стигне до нас — <strong>трябва ти само един</strong>.",
+ "tb1_t": "Вариант 1 — We fetch it for you (най-лесно)",
+ "tb1": [
+  [
+   "Копирай токена си за Tibber",
+   "Отвори <span class=\"k\">developer.tibber.com</span>, влез с профила си в Tibber, отвори <strong>Access token</strong> и копирай личния си токен.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Постави го в приложението",
+   "В приложението: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Tibber → „We fetch it for you“</span>. Постави токена, отметни полето и натисни <strong>Connect Tibber</strong>. Може да отнеме до 30 секунди. Няма го? Значи тази версия още не го предлага — използвай вариант 2.",
+   "see",
+   "Провери дали работи",
+   "Приложението показва <span class=\"k\">Свързано — Tibber отчита … kWh</span>. Провери дали това съвпада с общото показание на електромера ти."
+  ]
+ ],
+ "tb2_t": "Вариант 2 — С Home Assistant",
+ "tb2": [
+  [
+   "Добави Tibber в Home Assistant",
+   "<span class=\"k\">Settings → Devices &amp; services → Add integration → Tibber</span>. Постави токена си за Tibber.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Добави нашата интеграция и избери сензора",
+   "Следвай начин A, <em>„С нашата интеграция“</em>, и за сензор избери сензора на Tibber <strong>Last meter consumption</strong> (kWh) — собственото общо показание на електромера.",
+   null,
+   null,
+   null
+  ]
+ ]
+}

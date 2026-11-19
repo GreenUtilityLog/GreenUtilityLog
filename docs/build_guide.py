@@ -1052,7 +1052,7 @@ def render(code, d):
     r.append(f'  <div class="note">{d["close"]}</div>')
     r.append(f'  <footer>{d["foot"]}</footer>')
     r.append("</section>")
-    out = "\n".join(r).replace("{COPY}", COPY[code])
+    out = "\n".join(r).replace("{COPY}", COPY.get(code) or APP.get(code, {}).get("r.copy", "Copy"))
     # A table of contents under the masthead: the guide is long on a phone, and
     # people come for one route. Every section heading gets an anchor.
     toc = []
@@ -1079,7 +1079,7 @@ if "--dump" in sys.argv:
 _ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir)
 # The app's own words for the screens and buttons the guide points to, in each
 # language (src/i18n.js and src/lang/*.js), so "tap X" says what the app shows.
-_APP_KEYS = ["nav.meter", "m.readerLink", "r.setup", "r.getToken", "r.route.server",
+_APP_KEYS = ["r.copy", "nav.meter", "m.readerLink", "r.setup", "r.getToken", "r.route.server",
              "pf.connect", "pf.disconnect", "tb.connect", "tb.disconnect"]
 _js = """
 const root = process.argv[1], keys = JSON.parse(process.argv[2]);
@@ -1113,8 +1113,14 @@ def _check(code, en, tr, path="guide"):
     elif isinstance(en, str):
         if not isinstance(tr, str) or not tr.strip():
             raise SystemExit(f"guide_lang/{code}.json {path}: missing")
-        if "gul.js" in en and ("node " in en or "iwr " in en or "curl " in en) and tr != en:
+        # A command on its own stays as it is; a command inside an explanation
+        # (<span class="k">node gul.js …</span>) stays as it is, the words around
+        # it are translated.
+        if re.match(r"^(iwr |curl |node |Windows — |Mac · )", en) and tr != en:
             raise SystemExit(f"guide_lang/{code}.json {path}: a command was changed")
+        for k in re.findall(r'<span class="k">([^<]*gul\.js[^<]*)</span>', en):
+            if k not in tr:
+                raise SystemExit(f"guide_lang/{code}.json {path}: the command {k!r} was changed")
         if sorted(_URL.findall(en)) != sorted(_URL.findall(tr)):
             raise SystemExit(f"guide_lang/{code}.json {path}: links differ")
         if sorted(_TAG.findall(en)) != sorted(_TAG.findall(tr)):

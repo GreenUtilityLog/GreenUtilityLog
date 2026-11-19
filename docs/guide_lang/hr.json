@@ -1,0 +1,540 @@
+{
+ "_toc": "Na ovoj stranici",
+ "name": "English",
+ "kicker": "Vodič za testere",
+ "h1": "Zarađuj bez fotografiranja brojila",
+ "lede": "Inače za B3TR fotografiraš brojilo. Ako nešto u tvom domu već može očitati brojilo, može i poslati očitanje umjesto tebe — i više nikad ne moraš fotografirati. Za početak ispod pronađi svoju opremu.",
+ "s_routes": "Koju opremu imaš?",
+ "s_token": "Svi automatski putevi: dohvati svoj token",
+ "s_a": "Put A — Home Assistant (bilo koje brojilo)",
+ "s_b": "Put B — HomeWizard P1, bez Home Assistanta",
+ "s_c": "Put C — Drugi čitač (P1 čitač, Tasmota glava za očitavanje)",
+ "s_claim": "Na kraju: isplata stiže sama",
+ "s_trouble": "Ako nešto ne radi",
+ "routes": [
+  [
+   "Koristim Home Assistant",
+   "Radi s gotovo svakim brojilom koje HA već očitava. Instaliraj našu integraciju ili zalijepi nekoliko redaka YAML-a.",
+   1,
+   "Najlakše"
+  ],
+  [
+   "Imam HomeWizard P1",
+   "Home Assistant nije potreban. Radi u 🇳🇱 🇧🇪 🇱🇺 🇩🇰 🇸🇪 🇭🇺 — mala skripta sama pronađe tvoje brojilo u mreži.",
+   2,
+   "Malo tehnike"
+  ],
+  [
+   "Imam drugi čitač",
+   "P1 Monitor, Tasmota glava za očitavanje (Hichi) ili bilo koji čitač koji u tvojoj mreži daje ukupno stanje brojila u kWh kao JSON.",
+   3,
+   "Tehnički"
+  ],
+  [
+   "Imam Powerfox (poweropti)",
+   "Čest u Njemačkoj. Tvoje očitanje možemo dohvatiti iz Powerfox oblaka — ništa se ne instalira i ništa ne mora biti uključeno.",
+   1,
+   "Najlakše"
+  ],
+  [
+   "Imam Tibber Pulse",
+   "Čest u Švedskoj, Norveškoj, Danskoj i Finskoj. Tvoje očitanje dohvaćamo s Tibbera pomoću tvog osobnog tokena — ništa se ne instalira.",
+   1,
+   "Najlakše"
+  ],
+  [
+   "Ništa od toga",
+   "Onda i dalje fotografiraj brojilo. Radi jednako dobro i donosi točno isto. Ništa ne treba postavljati.",
+   0,
+   "Bez postavljanja"
+  ]
+ ],
+ "baseline_t": "Najprije, jednom: postavi početno stanje",
+ "baseline_b": "Koji god put odabereš, najprije u aplikaciji pošalji <strong>jedno obično očitanje s fotografijom</strong>. Tako aplikacija zna od kojeg je stanja tvoje brojilo krenulo — bez toga se automatska očitanja ne mogu isplatiti.",
+ "token": [
+  [
+   "Kopiraj token svog uređaja",
+   "U aplikaciji: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → „Get my device token“</span>. Kopiraj ga.",
+   "Što je to",
+   "Dugačak kod koji kaže „ova očitanja pripadaju mom novčaniku“. Čuvaj ga za sebe — tko god ga ima, može slati očitanja u tvoje ime."
+  ]
+ ],
+ "a_intro": "Dva načina. Naša integracija je najlakša i radi s <em>bilo kojim</em> brojilom koje ti Home Assistant već prikazuje; YAML radi isto ručno, ako radije ništa ne instaliraš.",
+ "a1_t": "S našom integracijom (preporučeno)",
+ "a1": [
+  [
+   "Dodaj nas u HACS",
+   "U Home Assistantu: <span class=\"k\">HACS → ⋮ (gore desno) → Custom repositories</span>. Zalijepi adresu ispod, odaberi vrstu <strong>Integration</strong> i pritisni Add.",
+   "code",
+   "https://github.com/GreenUtilityLog/GreenUtilityLog",
+   "Adresa repozitorija"
+  ],
+  [
+   "Instaliraj i ponovno pokreni",
+   "Na popisu u HACS-u otvori <strong>GreenUtilityLog</strong>, pritisni <strong>Download</strong> pa ponovno pokreni Home Assistant.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Dodaj integraciju",
+   "Idi na <span class=\"k\">Settings → Devices &amp; services → Add integration</span> i potraži <strong>GreenUtilityLog</strong>. Zalijepi svoj token, odaberi senzor s <strong>kumulativnim kWh</strong> i odredi koliko često se šalje.",
+   "see",
+   "Provjeri radi li",
+   "Pojavi se senzor <span class=\"k\">Last sent reading</span> sa stanjem tvog brojila. U njegovim atributima vidiš vrijeme slanja i eventualnu pogrešku."
+  ]
+ ],
+ "a2_t": "S vlastitim senzorom (bilo koje brojilo)",
+ "a2": [
+  [
+   "Pronađi senzor svog brojila",
+   "U Home Assistantu: <span class=\"k\">Developer tools → States</span>. Filtriraj po <em>import</em> i odaberi onaj u kWh čija vrijednost stalno raste — to je tvoje ukupno stanje. ID-jevi entiteta razlikuju se od instalacije do instalacije, pa koristi svoj.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Dodaj ove retke",
+   "Stavi ovo u <span class=\"k\">configuration.yaml</span>, zamijeni entitet i svoj token, pa ponovno pokreni Home Assistant.",
+   "code",
+   "rest_command:\n  gul_push:\n    url: \"https://greenutilitylog-rewards.onrender.com/meter-ingest\"\n    method: POST\n    content_type: \"application/json\"\n    timeout: 90  # seconds: the server can take a minute to wake up\n    payload: '{\"token\":\"YOUR_TOKEN\",\"reading\":{{ states(\"sensor.YOUR_ENTITY\") | float }}}'\n\n# automations.yaml — twice a day (you can claim once per 20h)\n- alias: Push meter to GreenUtilityLog\n  trigger: { platform: time_pattern, hours: \"/12\" }\n  # only a real kWh total: not 0 after a restart, not unavailable\n  condition:\n    - condition: template\n      value_template: '{{ is_number(states(\"sensor.YOUR_ENTITY\")) and states(\"sensor.YOUR_ENTITY\") | float > 0 and state_attr(\"sensor.YOUR_ENTITY\", \"unit_of_measurement\") == \"kWh\" }}'\n  action: { service: rest_command.gul_push }",
+   "configuration.yaml + automations.yaml"
+  ]
+ ],
+ "b": [
+  [
+   "Uključi Local API",
+   "U aplikaciji <strong>HomeWizard Energy</strong>: <span class=\"k\">Settings → Meters → tvoj P1 → Local API → ON</span>. Tako tvoja vlastita mreža može očitavati brojilo.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Otvori PowerShell (ili terminal)",
+   "<strong>Windows:</strong> pritisni Start, upiši <em>PowerShell</em> i pritisni Enter. <strong>Mac:</strong> otvori <em>Terminal</em>. <strong>Raspberry Pi / NAS:</strong> njegov terminal ili preko SSH-a. Sve što slijedi upisuješ u taj prozor. Na Macu ostani u početnoj mapi u kojoj se Terminal otvori (vidi 5. korak).",
+   null,
+   null,
+   null
+  ],
+  [
+   "Provjeri imaš li već Node",
+   "Upiši ovo i pritisni Enter. Broj verzije — bilo što od <span class=\"k\">v22</span> naviše — znači da je sve spremno (kod starije napravi i sljedeći korak, jer više ne dobiva sigurnosna ažuriranja) i sljedeći korak možeš preskočiti. Ako se umjesto toga pojavi pogreška, Node još nije instaliran.",
+   "code",
+   "node -v",
+   "Windows · Mac · Linux"
+  ],
+  [
+   "Instaliraj Node.js, ako se pojavila pogreška",
+   "<strong>Windows:</strong> zalijepi redak ispod; ako te pita prihvaćaš li uvjete izvora, pritisni <span class=\"k\">Y</span>. <strong>Mac:</strong> LTS instalacijski program s nodejs.org ili <span class=\"k\">brew install node</span>. <strong>Raspberry Pi / Debian:</strong> <span class=\"k\">sudo apt install nodejs</span> (treba Node 22 ili noviji — starije verzije više ne dobivaju sigurnosna ažuriranja; Debian/Ubuntu često nude stariju — tada koristi instalacijski program s nodesource.com). Zatim <strong>zatvori taj prozor i otvori novi</strong> — prozor koji je već bio otvoren zadržava stari PATH, pa se <span class=\"k\">node</span> i dalje ne bi pronašao. Ponovno provjeri s <span class=\"k\">node -v</span>.",
+   "code",
+   "winget install OpenJS.NodeJS.LTS",
+   "Windows — PowerShell"
+  ],
+  [
+   "Zalijepi jedan redak i pritisni Enter",
+   "Preuzme skriptu i pošalje tvoje prvo očitanje. Osim toga, sama se zakaže da javlja dvaput dnevno (Windows: Task Scheduler · Mac / Linux / Pi: cron), pa poslije možeš zatvoriti prozor, a ona i dalje radi, čak i nakon ponovnog pokretanja. Ovo pokrećeš samo ovaj put. <strong>Mac:</strong> zalijepi ga u tek otvoreni Terminal, u početnoj mapi — nemoj prije toga s <span class=\"k\">cd</span> ići u Desktop, Documents ili Downloads: macOS rasporedu (cron) ne dopušta čitanje datoteka ondje, pa se nikad ne bi pokrenuo.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Kad te pita, zalijepi svoj token",
+   "Pita samo jednom i zapamti ga; raspored od tada koristi spremljeni token. Zatim postavi raspored, pronađe brojilo i pošalje prvo očitanje.",
+   "see",
+   "Što trebaš vidjeti, redom",
+   "<span class=\"k\">Paste your device token…</span> → <span class=\"k\">Scheduled…</span> → <span class=\"k\">found HomeWizard at 192.168.…</span> → <span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "c_intro": "Ista skripta očitava bilo koji uređaj u tvojoj mreži koji preko HTTP-a daje ukupno stanje brojila u kWh kao JSON, bez prijave — samo joj reci gdje. To ne može svaki čitač: API za dsmr-reader traži ključ, a Shelly broji vlastitu potrošnju, a ne registar brojila. Najprije napravi korake 2–4 puta B (terminal i Node); drukčija je samo naredba ispod.",
+ "c": [
+  [
+   "Pronađi podatkovni URL svog čitača",
+   "Otvori web-stranicu svog čitača i potraži adresu koja vraća čisti JSON (često nešto poput <span class=\"k\">/api/v1/data</span> ili <span class=\"k\">/api/v2/sm/actual</span>). Točne putanje razlikuju se od marke do marke — provjeri dokumentaciju svog čitača.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Pokreni skriptu s tim URL-om",
+   "Umjesto primjera upiši svoju adresu; token će skripta sama zatražiti. Ako ne pronađe očitanje automatski, dodaj <span class=\"k\">--field=</span> s putanjom s točkama do vrijednosti kWh u tom JSON-u. Samo dva tarifna registra i nema ukupnog stanja (npr. P1 Monitor)? Spoji obje putanje s <span class=\"k\">+</span> i poslat će njihov zbroj, npr. <span class=\"k\">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install --url=http://192.168.1.60/api/v1/data"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Tasmota glava za očitavanje (Hichi)?",
+   "Umjesto <span class=\"k\">--url=</span> koristi <span class=\"k\">--tasmota=</span> s njezinom IP adresom. Skripta sama očita ukupno stanje brojila (<span class=\"k\">Total_in</span>). Česta na njemačkim, austrijskim i švicarskim brojilima.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --tasmota=192.168.1.70 --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Provjeri radi li",
+   "Skripta ispiše što je poslala.",
+   "see",
+   "Očekivani ispis",
+   "<span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "claim": [
+  [
+   "Tvoje očitanje pojavi se samo",
+   "U aplikaciji otvori <strong>Brojilo</strong>. Na ploči <strong>⚡ Automatsko očitanje</strong> piše <span class=\"k\">Povezano — … kWh primljeno</span>, sa stanjem tvog brojila i vremenom kad je stiglo.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Isplaćuje se samo",
+   "Ništa ne treba dodirnuti: svako očitanje isplaćuje se automatski čim stigne, najviše jednom dnevno, a <strong>Vremenski tijek</strong> na ploči pokazuje <span class=\"k\">Isplaćeno +… B3TR</span>. Ne želiš čekati? <strong>Preuzmi sada</strong> radi isto.",
+   null,
+   null,
+   null
+  ]
+ ],
+ "s_country": "Radi li ovo tamo gdje živiš?",
+ "country_intro": "Priključak na brojilu razlikuje se od zemlje do zemlje, pa ne radi svaki čitač svugdje. Ono što uvijek radi: <strong>ako Home Assistant već prikazuje ukupno stanje tvog brojila, put A radi</strong> — u kojoj god zemlji živiš.",
+ "country_th": [
+  "Zemlja",
+  "Tvoje brojilo ima",
+  "Što koristiti"
+ ],
+ "country_rows": [
+  [
+   "🇳🇱 Nizozemska",
+   "P1 priključak (RJ12)",
+   "Bilo koji put. HomeWizard radi odmah."
+  ],
+  [
+   "🇧🇪 Belgija",
+   "P1 priključak (RJ12, zadano isključen)",
+   "Bilo koji put, kad je priključak uključen: besplatno ga uključiš na portalu Fluvius (kod drugih operatora mreže pitaj svog)."
+  ],
+  [
+   "🇱🇺 Luksemburg",
+   "P1 priključak (Smarty, šifriran)",
+   "HomeWizard P1: jednom zatraži P1 ključ od operatora mreže. Ili Home Assistant."
+  ],
+  [
+   "🇸🇪 Švedska · 🇫🇮 Finska",
+   "HAN priključak (RJ12)",
+   "🇸🇪 HomeWizard P1 (put B) — operator mreže možda najprije mora uključiti priključak. Tibber Pulse: put E. Inače P1/HAN čitač ili Home Assistant."
+  ],
+  [
+   "🇩🇰 Danska",
+   "P1 (zadano isključen) ili HAN",
+   "HomeWizard P1 (put B), kad operator mreže uključi P1 priključak — za HAN priključak treba pretvarač. Tibber Pulse: put E. Inače čitač s odgovarajućim konektorom ili Home Assistant."
+  ],
+  [
+   "🇭🇺 Mađarska",
+   "P1 priključak (ovisi o operatoru mreže)",
+   "HomeWizard P1 s nekim brojilima — najprije provjeri HomeWizardov popis. Ili Home Assistant, ili fotografije."
+  ],
+  [
+   "🇳🇴 Norveška",
+   "HAN (RJ45, M-BUS)",
+   "Tibber Pulse: put E. Inače norveški HAN čitač + Home Assistant."
+  ],
+  [
+   "🇩🇪 Njemačka",
+   "Smart-Meter-Gateway / optička glava",
+   "Powerfox poweropti: put D. Tasmota glava za očitavanje (Hichi): put C. Inače Home Assistant."
+  ],
+  [
+   "🇸🇮 Slovenija",
+   "P1 priključak na mnogim brojilima (ponekad šifriran)",
+   "Vjerojatno Home Assistant s P1 čitačem — još nije testirano."
+  ],
+  [
+   "🇬🇷 Grčka · 🇭🇷 Hrvatska · 🇹🇷 Turska",
+   "Priključak za korisnike još nije pronađen",
+   "Zasad fotografije."
+  ],
+  [
+   "🇷🇴 Rumunjska · 🇧🇬 Bugarska · ostatak Balkana",
+   "Priključak za korisnike još nije pronađen",
+   "Zasad fotografije."
+  ],
+  [
+   "🇦🇹 Austrija",
+   "Korisničko sučelje (M-Bus) / optički priključak",
+   "Tibber Pulse: put E. Tasmota glava za očitavanje (Hichi): put C. Inače Home Assistant."
+  ],
+  [
+   "🇨🇭 Švicarska",
+   "Korisničko sučelje / optički priključak",
+   "Tasmota glava za očitavanje (Hichi): put C. Inače Home Assistant."
+  ],
+  [
+   "🇫🇷 Francuska",
+   "Linky: TIC priključak",
+   "Nema P1 priključka, pa zasad samo Home Assistant (npr. sa ZLinkyjem). Ili fotografije."
+  ],
+  [
+   "🇬🇧 Ujedinjeno Kraljevstvo",
+   "SMETS2: nema priključka (Zigbee)",
+   "Nema P1 priključka, pa zasad samo Home Assistant (npr. s Hildebrand Glowom). Ili fotografije."
+  ],
+  [
+   "🇪🇸 Španjolska",
+   "Nema priključka",
+   "Nema P1 priključka, pa zasad samo Home Assistant (npr. s Datadisom). Ili fotografije."
+  ],
+  [
+   "🇮🇹 Italija",
+   "Chain 2 (treba uređaj poput Sinapsi Alfa)",
+   "Nema P1 priključka, pa zasad samo Home Assistant. Ili fotografije."
+  ],
+  [
+   "🇺🇸 🇨🇦 SAD i Kanada",
+   "Nema P1 priključka (Zigbee, samo ako ga opskrbljivač omogući)",
+   "Fotografije, ako zaslon prikazuje ukupno stanje u kWh. Home Assistant s Rainforest EAGLE-om, gdje opskrbljivač to dopušta. Quebec (Hydro-Québec): samo fotografije."
+  ],
+  [
+   "Bilo gdje drugdje",
+   "Ovisi",
+   "Ako Home Assistant očitava tvoje brojilo, put A radi."
+  ]
+ ],
+ "country_close": "Ne znaš točno? Otvori Home Assistant i potraži svoje brojilo pod Developer tools → States. Ako je ondje vrijednost u kWh koja raste, sve je spremno. HomeWizard P1? Provjeri svoje brojilo na <a href=\"https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter\">HomeWizardovu popisu</a>.",
+ "be_t": "🇧🇪 Belgija (Fluvius brojila)",
+ "be_b": "P1 priključak na belgijskim brojilima zadano je isključen. Kod Fluviusa ga besplatno uključiš na njihovu web-portalu; kod drugog operatora mreže pitaj njih. Nakon toga sve radi jednako.",
+ "once_t": "Nemaš uređaj koji je stalno uključen?",
+ "once_b": "Ne treba ti. Računalo je bilo isključeno u zakazano vrijeme? Očitanje se šalje čim se računalo ponovno uključi — pa je dovoljno i prijenosno računalo koje povremeno otvoriš. Isplaćuje se čim stigne, najviše jednom dnevno.",
+ "th": [
+  "Vidiš",
+  "Što učiniti"
+ ],
+ "trouble": [
+  [
+   "'node' is not recognized",
+   "Node.js nije instaliran ili je taj prozor već bio otvoren kad se instalirao. Na Windowsima: <span class=\"k\">winget install OpenJS.NodeJS.LTS</span>. Drugdje: nodejs.org. Zatim otvori <strong>novi</strong> terminal i ponovno zalijepi redak. Git ti ne treba."
+  ],
+  [
+   "Baš ništa — nema ispisa, odmah natrag na naredbeni redak",
+   "Stara kopija skripte, od prije 19. rujna. Imala je grešku zbog koje se na Windowsima zatvarala bez ikakvog ispisa. Preuzmi je ponovno retkom iznad; nova traži tvoj token."
+  ],
+  [
+   "no HomeWizard found on the network",
+   "Your network blocks auto-discovery — common on guest Wi-Fi and with VLANs. Look up your P1’s IP in the HomeWizard app and run <span class=\"k\">node gul.js --install --ip=192.168.1.50</span>. On the Home Assistant add-on, fill in <span class=\"k\">hw_ip</span> instead."
+  ],
+  [
+   "couldn't find a total import kWh",
+   "Uređaj je dostupan, ali nije vratio ništa upotrebljivo: <strong>Local API je još isključen</strong> u aplikaciji HomeWizard ili ovo nije P1 brojilo. Za čitač druge marke koristi <span class=\"k\">--url=</span>."
+  ],
+  [
+   "couldn't find a kWh number at …",
+   "JSON tvog čitača ne koristi naziv koji skripta poznaje. Dodaj <span class=\"k\">--field=</span> s putanjom s točkama do vrijednosti, npr. <span class=\"k\">--field=electricity.import_kwh</span>."
+  ],
+  [
+   "server said 401",
+   "The token is wrong or incomplete. Copy it again from the app and run <span class=\"k\">node gul.js --ask-token --install</span> once to replace the saved one."
+  ],
+  [
+   "submit one photo reading first",
+   "Tvoje brojilo još nema početno stanje. U aplikaciji pošalji jedno obično očitanje s fotografijom — automatska očitanja nikad ne postavljaju prvu vrijednost, kako uređaj ne bi mogao izmisliti vlastito početno stanje. Nakon toga isplate rade."
+  ],
+  [
+   "usage … is outside the plausible range",
+   "Gotovo uvijek je riječ o <strong>dvotarifnom brojilu</strong>: zaslon vodi dva registra (<span class=\"k\">1.8.1</span> i <span class=\"k\">1.8.2</span>) i tvoja je fotografija zahvatila jedan od njih, a čitač javlja zbroj obaju — pa su tvoje početno stanje i čitač na različitim ljestvicama. U aplikaciji, na ploči <span class=\"k\">⚡ Automatsko očitanje</span>, pritisni <strong>&bdquo;Koristi ovo očitanje kao moje početno stanje&ldquo;</strong>. Ništa ne isplaćuje, samo određuje odakle počinje brojanje. Moguće do tvoje prve automatske isplate."
+  ],
+  [
+   "this time photograph tariff register 2",
+   "Tvoje brojilo naizmjence prikazuje dva registra, a i tvoje se fotografije izmjenjuju: svaki put fotografiraj onaj koji zadnja fotografija nije prikazala. Pričekaj da zaslon prijeđe na registar koji aplikacija navodi (<span class=\"k\">1.8.1</span> ili <span class=\"k\">1.8.2</span>), pa fotografiraj."
+  ],
+  [
+   "tariff register 1 went down",
+   "Svaki registar broji samo prema gore. Provjeri jesu li niža i viša tarifa svaka u svom polju, istim redoslijedom kao prošli put."
+  ],
+  [
+   "the automatic reading is stale",
+   "A reading has to be under 48 hours old at the moment you claim it. The schedule tries every hour — look in <span class=\"k\">.gul-bridge.log</span> next to <span class=\"k\">gul.js</span> for why it failed, or run <span class=\"k\">node gul.js --install</span> again. It is paid as soon as the log says <span class=\"k\">pushed … ✓</span>."
+  ],
+  [
+   "Nema očitanja u „⚡ Automatsko očitanje“",
+   "Skripta još nije uspješno poslala očitanje. Pogledaj njezin prozor ili otvori <span class=\"k\">.gul-bridge.log</span> u istoj mapi kao gul.js: svako pokretanje zapiše ili <span class=\"k\">pushed … ✓</span> ili razlog zašto nije uspjelo."
+  ],
+  [
+   "Ne znaš je li zakazano?",
+   "Windows: u PowerShellu pokreni <span class=\"k\">schtasks /Query /TN GreenUtilityLog</span> — redak s <em>GreenUtilityLog</em> i vremenom sljedećeg pokretanja znači da jest. Mac / Linux / Pi: <span class=\"k\">crontab -l</span> treba prikazati redak koji završava s <em># GreenUtilityLog</em>. Nema ničega? Još jednom zalijepi redak za postavljanje."
+  ],
+  [
+   "Postavljeno prije 24. rujna",
+   "Još jednom zalijepi isti redak. Nova skripta pričeka poslužitelj koji se još budi umjesto da odustane, svako pokretanje zapisuje u <span class=\"k\">.gul-bridge.log</span>, a na Windowsima radi i na baterijsko napajanje."
+  ],
+  [
+   "Powerfox didn't accept the e-mail and password",
+   "Koristi točno e-poštu i lozinku iz aplikacije Powerfox (pazi na tipfeler ili razmak). Promijenjena je lozinka za Powerfox? Opcija 1: ponovno pritisni <strong>Connect Powerfox</strong> s novom lozinkom. Opcija 2: ponovno zalijepi redak za postavljanje — tražit će lozinku."
+  ],
+  [
+   "switch on data transfer (Datenfreigabe)",
+   "Powerfox odbija dijeliti tvoja očitanja. U aplikaciji Powerfox uključi dijeljenje podataka (Datenfreigabe) pa pokušaj ponovno."
+  ],
+  [
+   "Powerfox only has an old reading",
+   "Tvoj poweropti već neko vrijeme nije ništa poslao Powerfoxu. U aplikaciji Powerfox provjeri je li online (Wi-Fi, baterija). Dok ne stigne svježe očitanje, ništa se ne šalje i ništa se ne isplaćuje."
+  ],
+  [
+   "Tibber didn't accept this token",
+   "Ponovno kopiraj token s developer.tibber.com, bez razmaka. Je li ondje napravljen novi token? Onda stari više ne radi: ponovno se poveži s novim."
+  ],
+  [
+   "no Tibber Pulse found on this account",
+   "Pulse mora biti postavljen u aplikaciji Tibber, na istom računu kao i token."
+  ],
+  [
+   "your Pulse sends live data but no meter total",
+   "Ne javlja svako brojilo ukupno stanje preko HAN priključka. Tada koristi fotografije ili drugi čitač."
+  ],
+  [
+   "this phone is already used by 1 other wallet",
+   "Jedna osoba, jedan novčanik: s jednim telefonom može zarađivati samo jedan novčanik. Novčanik koji je na ovom telefonu prvi dobio isplatu radi i dalje. Trajno prelaziš na novi novčanik? Javi se administratoru preko „Pošalji povratnu informaciju“ u aplikaciji."
+  ],
+  [
+   "automatic payouts are paused until you take one photo",
+   "Čitač koji šalje vlastite brojke (P1, Home Assistant, ova skripta) treba jednu fotografiju tvog brojila svakih 90 dana; Powerfox, Tibber i MojElektro ne trebaju. Ista pauza dođe jednom i nakon što je početno stanje ispravljeno bez fotografije. Snimi jednu na kartici Brojilo i isplate opet kreću. Aplikacija te podsjeti tjedan dana unaprijed."
+  ],
+  [
+   "already been corrected once",
+   "Početno stanje brojila može se ispraviti jednom — svaki ispravak briše potrošnju od zadnje isplate. Ako je opet pogrešno, javi se administratoru preko „Pošalji povratnu informaciju“ u aplikaciji."
+  ]
+ ],
+ "close": "Još uvijek zapinje? Pošalji poruku s onim što prikazuje kartica s dnevnikom (ili terminal) — obično točno piše što nedostaje.",
+ "foot": "GreenUtilityLog · Vodič za testere · Testnet beta — testni tokeni, zasad bez stvarne vrijednosti.",
+ "s_pf": "Put D — Powerfox (poweropti)",
+ "pf_intro": "Poweropti očitava tvoje brojilo i šalje ukupno stanje u Powerfox oblak. Ispod su tri načina da ga mi dobijemo — <strong>treba ti samo jedan</strong>. Ne znaš koji? Uzmi opciju 1.",
+ "pf_first_t": "Najprije, u aplikaciji Powerfox",
+ "pf_first_b": "Uključi <strong>dijeljenje podataka</strong> (Datenfreigabe). Bez toga Powerfox tvoja očitanja ne dijeli ni s kim — ni s nama, ni s Home Assistantom.",
+ "pf1_t": "Opcija 1 — We fetch it for you (najlakše)",
+ "pf1": [
+  [
+   "Otvori Powerfox u aplikaciji",
+   "U aplikaciji: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Powerfox</span> i odaberi <strong>„We fetch it for you“</strong>. Nema toga? Onda ova verzija to još ne nudi — koristi opciju 2 ili 3.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Prijavi se svojim Powerfox računom",
+   "Upiši e-poštu i lozinku koje koristiš u aplikaciji Powerfox, označi kućicu i pritisni <strong>Connect Powerfox</strong>. Tvoji podaci za prijavu spremaju se šifrirani i koriste se samo za očitavanje tvog brojila. Savjet: koristi lozinku koju ne koristiš nigdje drugdje.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Gotovo — računalo može ostati isključeno",
+   "Naš poslužitelj otprilike svaki sat dohvaća ukupno stanje tvog brojila s Powerfoxa i isplaćuje ga kao svako drugo očitanje. Želiš prestati? <strong>Disconnect Powerfox</strong> odmah briše tvoje podatke za prijavu.",
+   "see",
+   "Provjeri radi li",
+   "Status na vrhu pokazuje <span class=\"k\">✅ Povezano — … kWh primljeno</span>."
+  ]
+ ],
+ "pf2_t": "Opcija 2 — Na vlastitom računalu",
+ "pf2": [
+  [
+   "Pripremi terminal i Node.js",
+   "Najprije napravi korake 2–4 puta B: otvori PowerShell ili terminal i provjeri je li instaliran Node.js 22 ili noviji.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Zalijepi jedan redak sa svojom Powerfox e-poštom",
+   "Umjesto <span class=\"k\">YOUR_POWERFOX_EMAIL</span> upiši e-poštu svog Powerfox računa. Jednom će tražiti tvoj token i Powerfox lozinku (lozinka se ne prikazuje dok tipkaš) i oboje čuva u privatnoj datoteci pokraj gul.js. Zatim se sama zakaže, baš kao kod puta B. Računalo mora biti uključeno barem jednom dnevno.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Provjeri radi li",
+   "Skripta ispiše što je poslala.",
+   "see",
+   "Očekivani ispis",
+   "<span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "pf3_t": "Opcija 3 — S Home Assistantom",
+ "pf3": [
+  [
+   "Dodaj Powerfox u Home Assistant",
+   "U Home Assistantu: <span class=\"k\">Settings → Devices &amp; services → Add integration → Powerfox</span>. Prijavi se svojim Powerfox računom.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Dodaj našu integraciju",
+   "Slijedi put A, <em>„S našom integracijom“</em>: dodaj nas u HACS, instaliraj, ponovno pokreni i zalijepi svoj token.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Odaberi Powerfox senzor brojila",
+   "Kao senzor odaberi Powerfox senzor <strong>Energy usage</strong> (kWh). Dvotarifno brojilo kod kojeg on ostaje prazan? Napravi pomoćnika koji zbraja senzore više i niže tarife (<span class=\"k\">Settings → Devices &amp; services → Helpers → Create helper → Group → Sensor group</span>, vrsta <strong>Sum</strong>; ne „Combine the state of several sensors“, koji naša integracija ne prihvaća kao ukupno stanje brojila) i odaberi njega.",
+   null,
+   null,
+   null
+  ]
+ ],
+ "s_tb": "Put E — Tibber Pulse",
+ "tb_intro": "Tibber Pulse očitava HAN ili P1 priključak tvog brojila i šalje ukupno stanje Tibberu. Dva načina da ga mi dobijemo — <strong>treba ti samo jedan</strong>.",
+ "tb1_t": "Opcija 1 — We fetch it for you (najlakše)",
+ "tb1": [
+  [
+   "Kopiraj svoj Tibber token",
+   "Otvori <span class=\"k\">developer.tibber.com</span>, prijavi se svojim Tibber računom, otvori <strong>Access token</strong> i kopiraj svoj osobni token.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Zalijepi ga u aplikaciju",
+   "U aplikaciji: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Tibber → „We fetch it for you“</span>. Zalijepi token, označi kućicu i pritisni <strong>Connect Tibber</strong>. To može potrajati do 30 sekundi. Nema toga? Onda ova verzija to još ne nudi — koristi opciju 2.",
+   "see",
+   "Provjeri radi li",
+   "Aplikacija prikazuje <span class=\"k\">Povezano — Tibber javlja … kWh</span>. Provjeri odgovara li to ukupnom stanju tvog brojila."
+  ]
+ ],
+ "tb2_t": "Opcija 2 — S Home Assistantom",
+ "tb2": [
+  [
+   "Dodaj Tibber u Home Assistant",
+   "<span class=\"k\">Settings → Devices &amp; services → Add integration → Tibber</span>. Zalijepi svoj Tibber token.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Dodaj našu integraciju i odaberi senzor",
+   "Slijedi put A, <em>„S našom integracijom“</em>, i kao senzor odaberi Tibber senzor <strong>Last meter consumption</strong> (kWh) — vlastito ukupno stanje brojila.",
+   null,
+   null,
+   null
+  ]
+ ]
+}

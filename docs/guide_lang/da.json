@@ -1,0 +1,540 @@
+{
+ "_toc": "På denne side",
+ "name": "English",
+ "kicker": "Guide til testere",
+ "h1": "Tjen B3TR uden at tage billeder af din måler",
+ "lede": "Normalt tager du et billede af din måler for at tjene B3TR. Hvis noget i dit hjem allerede kan aflæse måleren, kan det sende målerstanden for dig — og så skal du aldrig tage billeder igen. Start med at finde din opsætning nedenfor.",
+ "s_routes": "Hvilken opsætning har du?",
+ "s_token": "Alle automatiske veje: hent dit token",
+ "s_a": "Vej A — Home Assistant (alle målere)",
+ "s_b": "Vej B — HomeWizard P1, uden Home Assistant",
+ "s_c": "Vej C — En anden aflæser (P1-aflæser, Tasmota-læsehoved)",
+ "s_claim": "Til sidst: udbetalingen sker af sig selv",
+ "s_trouble": "Hvis noget ikke virker",
+ "routes": [
+  [
+   "Jeg bruger Home Assistant",
+   "Virker med næsten alle målere, som HA allerede aflæser. Installér vores integration, eller indsæt et par linjer YAML.",
+   1,
+   "Nemmest"
+  ],
+  [
+   "Jeg har en HomeWizard P1",
+   "Ingen Home Assistant nødvendig. Virker i 🇳🇱 🇧🇪 🇱🇺 🇩🇰 🇸🇪 🇭🇺 — et lille hjælpeprogram finder selv din måler på netværket.",
+   2,
+   "Lidt teknik"
+  ],
+  [
+   "Jeg har en anden aflæser",
+   "P1 Monitor, et Tasmota-læsehoved (Hichi) eller enhver aflæser, der viser målerens kWh-total som JSON på dit netværk.",
+   3,
+   "Teknisk"
+  ],
+  [
+   "Jeg har en Powerfox (poweropti)",
+   "Udbredt i Tyskland. Vi kan hente din målerstand fra Powerfox-skyen — intet at installere, intet der skal være tændt.",
+   1,
+   "Nemmest"
+  ],
+  [
+   "Jeg har en Tibber Pulse",
+   "Udbredt i Sverige, Norge, Danmark og Finland. Vi henter din målerstand fra Tibber med dit personlige token — intet at installere.",
+   1,
+   "Nemmest"
+  ],
+  [
+   "Ingen af dem",
+   "Så fortsæt bare med at tage billeder af din måler. Det virker lige så godt og giver præcis det samme. Intet at sætte op.",
+   0,
+   "Ingen opsætning"
+  ]
+ ],
+ "baseline_t": "Først, én gang: sæt dit startpunkt",
+ "baseline_b": "Uanset hvilken vej du vælger: lav først <strong>én almindelig indsendelse med billede</strong> i appen. Så ved appen, hvor din måler startede — uden det kan automatiske aflæsninger ikke udbetales.",
+ "token": [
+  [
+   "Kopiér dit enhedstoken",
+   "I appen: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → “Get my device token”</span>. Kopiér det.",
+   "Hvad det er",
+   "En lang kode, der siger “disse aflæsninger hører til min wallet”. Hold den for dig selv — alle, der har den, kan sende aflæsninger i dit navn."
+  ]
+ ],
+ "a_intro": "To måder. Vores integration er den nemmeste og virker med <em>enhver</em> måler, som Home Assistant allerede viser dig; YAML gør det samme i hånden, hvis du helst ikke vil installere noget.",
+ "a1_t": "Med vores integration (anbefalet)",
+ "a1": [
+  [
+   "Tilføj os til HACS",
+   "I Home Assistant: <span class=\"k\">HACS → ⋮ (øverst til højre) → Custom repositories</span>. Indsæt adressen nedenfor, vælg typen <strong>Integration</strong>, og tryk på Add.",
+   "code",
+   "https://github.com/GreenUtilityLog/GreenUtilityLog",
+   "Repository-adresse"
+  ],
+  [
+   "Installér og genstart",
+   "Åbn <strong>GreenUtilityLog</strong> i HACS-listen, tryk på <strong>Download</strong>, og genstart derefter Home Assistant.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Tilføj integrationen",
+   "Gå til <span class=\"k\">Settings → Devices &amp; services → Add integration</span>, og søg efter <strong>GreenUtilityLog</strong>. Indsæt dit token, vælg sensoren med din <strong>akkumulerede kWh</strong>-total, og vælg, hvor ofte der skal sendes.",
+   "see",
+   "Tjek, at det virker",
+   "En sensor <span class=\"k\">Last sent reading</span> dukker op med din målerstand. Dens attributter viser, hvornår den blev sendt, og eventuelle fejl."
+  ]
+ ],
+ "a2_t": "Med din egen sensor (alle målere)",
+ "a2": [
+  [
+   "Find din målersensor",
+   "I Home Assistant: <span class=\"k\">Developer tools → States</span>. Filtrér på <em>import</em>, og vælg den i kWh, hvis værdi hele tiden tæller op — det er din total. Entity-ID'er er forskellige fra installation til installation, så brug dit eget.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Tilføj disse linjer",
+   "Sæt dette ind i <span class=\"k\">configuration.yaml</span>, udskift entity og token med dine egne, og genstart derefter Home Assistant.",
+   "code",
+   "rest_command:\n  gul_push:\n    url: \"https://greenutilitylog-rewards.onrender.com/meter-ingest\"\n    method: POST\n    content_type: \"application/json\"\n    timeout: 90  # sekunder: serveren kan bruge et minut på at vågne\n    payload: '{\"token\":\"DIT_TOKEN\",\"reading\":{{ states(\"sensor.DIN_ENTITY\") | float }}}'\n\n# automations.yaml — to gange om dagen (du kan hente én gang pr. 20 timer)\n- alias: Push meter to GreenUtilityLog\n  trigger: { platform: time_pattern, hours: \"/12\" }\n  # kun en rigtig kWh-total: ikke 0 efter en genstart, ikke unavailable\n  condition:\n    - condition: template\n      value_template: '{{ is_number(states(\"sensor.DIN_ENTITY\")) and states(\"sensor.DIN_ENTITY\") | float > 0 and state_attr(\"sensor.DIN_ENTITY\", \"unit_of_measurement\") == \"kWh\" }}'\n  action: { service: rest_command.gul_push }",
+   "configuration.yaml + automations.yaml"
+  ]
+ ],
+ "b": [
+  [
+   "Slå Local API til",
+   "I appen <strong>HomeWizard Energy</strong>: <span class=\"k\">Settings → Meters → din P1 → Local API → ON</span>. Så må dit eget netværk aflæse måleren.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Åbn PowerShell (eller en terminal)",
+   "<strong>Windows:</strong> tryk på Start, skriv <em>PowerShell</em>, og tryk på Enter. <strong>Mac:</strong> åbn <em>Terminal</em>. <strong>Raspberry Pi / NAS:</strong> dens egen terminal, eller via SSH. Alt nedenfor skriver du i det vindue. På en Mac: bliv i den hjemmemappe, Terminal åbner i (se trin 5).",
+   null,
+   null,
+   null
+  ],
+  [
+   "Tjek, om du allerede har Node",
+   "Skriv dette, og tryk på Enter. Et versionsnummer — alt fra <span class=\"k\">v22</span> og op — betyder, at du er klar (en ældre: lav også næste trin, den får ikke længere sikkerhedsopdateringer), og du kan springe næste trin over. Får du i stedet en fejl, er Node ikke installeret endnu.",
+   "code",
+   "node -v",
+   "Windows · Mac · Linux"
+  ],
+  [
+   "Installér Node.js, hvis det gav en fejl",
+   "<strong>Windows:</strong> indsæt linjen nedenfor; tryk på <span class=\"k\">Y</span>, hvis den beder dig acceptere kildens vilkår. <strong>Mac:</strong> LTS-installationsprogrammet fra nodejs.org, eller <span class=\"k\">brew install node</span>. <strong>Raspberry Pi / Debian:</strong> <span class=\"k\">sudo apt install nodejs</span> (kræver Node 22 eller nyere — ældre versioner får ikke længere sikkerhedsopdateringer; Debian/Ubuntu leverer ofte en ældre — brug så installationsprogrammet fra nodesource.com). <strong>Luk derefter vinduet, og åbn et nyt</strong> — et vindue, der allerede var åbent, beholder den gamle PATH, så <span class=\"k\">node</span> ville stadig ikke blive fundet. Tjek igen med <span class=\"k\">node -v</span>.",
+   "code",
+   "winget install OpenJS.NodeJS.LTS",
+   "Windows — PowerShell"
+  ],
+  [
+   "Indsæt én linje, og tryk på Enter",
+   "Den henter hjælpeprogrammet og sender din første aflæsning. Den planlægger også sig selv til at melde ind to gange om dagen (Windows: Opgavestyring · Mac / Linux / Pi: cron), så du kan lukke vinduet bagefter, og det bliver ved med at virke, også efter en genstart. Det er den eneste gang, du kører det. <strong>Mac:</strong> indsæt den i en nyåbnet Terminal, i din hjemmemappe — gå ikke først med <span class=\"k\">cd</span> ind i Skrivebord, Dokumenter eller Overførsler: macOS lader ikke planen (cron) læse filer der, så den ville aldrig køre.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Indsæt dit token, når den spørger",
+   "Den spørger én gang og husker det; planen bruger derefter det gemte token. Så sætter den planen op, finder måleren og sender den første aflæsning.",
+   "see",
+   "Det skal du se, i denne rækkefølge",
+   "<span class=\"k\">Paste your device token…</span> → <span class=\"k\">Scheduled…</span> → <span class=\"k\">found HomeWizard at 192.168.…</span> → <span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "c_intro": "Det samme hjælpeprogram aflæser enhver enhed på dit netværk, der viser målerens kWh-total som JSON over HTTP, uden login — du skal bare fortælle den hvor. Det gør ikke alle aflæsere: dsmr-readers API kræver en nøgle, og en Shelly måler sit eget forbrug, ikke målerens tælleværk. Lav først trin 2–4 i vej B (terminal og Node); kun kommandoen nedenfor er anderledes.",
+ "c": [
+  [
+   "Find aflæserens data-URL",
+   "Åbn aflæserens webside, og led efter den adresse, der returnerer rå JSON (ofte noget i stil med <span class=\"k\">/api/v1/data</span> eller <span class=\"k\">/api/v2/sm/actual</span>). De præcise stier er forskellige fra mærke til mærke — se aflæserens egen dokumentation.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Start hjælpeprogrammet med den URL",
+   "Skriv din egen adresse i stedet for eksemplets; den spørger selv efter dit token. Hvis aflæsningen ikke findes automatisk, så tilføj <span class=\"k\">--field=</span> med punktstien til kWh-værdien i den JSON. Kun to tarif-tælleværker og ingen total (som fx P1 Monitor)? Sæt begge stier sammen med <span class=\"k\">+</span>, så sender den summen, fx <span class=\"k\">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install --url=http://192.168.1.60/api/v1/data"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Et Tasmota-læsehoved (Hichi)?",
+   "Brug <span class=\"k\">--tasmota=</span> med dets IP i stedet for <span class=\"k\">--url=</span>. Hjælpeprogrammet aflæser selv målerens total (<span class=\"k\">Total_in</span>). Udbredt på tyske, østrigske og schweiziske målere.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --tasmota=192.168.1.70 --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Tjek, at det virker",
+   "Hjælpeprogrammet skriver, hvad det har sendt.",
+   "see",
+   "Forventet output",
+   "<span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "claim": [
+  [
+   "Din aflæsning dukker op af sig selv",
+   "Åbn <strong>Måler</strong> i appen. Panelet <strong>⚡ Automatisk aflæsning</strong> viser <span class=\"k\">Forbundet — … kWh modtaget</span>, med din målerstand og hvornår den kom ind.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Den bliver udbetalt af sig selv",
+   "Intet at trykke på: hver aflæsning udbetales automatisk, når den kommer ind, højst én gang om dagen, og panelets <strong>Tidslinje</strong> viser <span class=\"k\">Udbetalt +… B3TR</span>. Vil du ikke vente? <strong>Hent nu</strong> gør det samme.",
+   null,
+   null,
+   null
+  ]
+ ],
+ "s_country": "Virker det, hvor du bor?",
+ "country_intro": "Stikket på din måler er forskelligt fra land til land, så ikke alle aflæsere virker overalt. Det her virker altid: <strong>hvis Home Assistant allerede viser din målers total, virker vej A</strong> — uanset hvilket land du bor i.",
+ "country_th": [
+  "Land",
+  "Din måler har",
+  "Det bruger du"
+ ],
+ "country_rows": [
+  [
+   "🇳🇱 Holland",
+   "P1-port (RJ12)",
+   "Alle veje. HomeWizard virker med det samme."
+  ],
+  [
+   "🇧🇪 Belgien",
+   "P1-port (RJ12, slået fra som standard)",
+   "Alle veje, når porten er slået til: slå den gratis til i Fluvius-portalen (andre netselskaber: spørg dit)."
+  ],
+  [
+   "🇱🇺 Luxembourg",
+   "P1-port (Smarty, krypteret)",
+   "HomeWizard P1: bed dit netselskab om P1-nøglen én gang. Eller Home Assistant."
+  ],
+  [
+   "🇸🇪 Sverige · 🇫🇮 Finland",
+   "HAN-port (RJ12)",
+   "🇸🇪 HomeWizard P1 (vej B) — netselskabet skal måske slå porten til først. Tibber Pulse: vej E. Ellers en P1/HAN-aflæser, eller Home Assistant."
+  ],
+  [
+   "🇩🇰 Danmark",
+   "P1 (slået fra som standard) eller HAN",
+   "HomeWizard P1 (vej B), når dit netselskab har slået P1-porten til — en HAN-port kræver en adapter. Tibber Pulse: vej E. Ellers en aflæser med det rigtige stik, eller Home Assistant."
+  ],
+  [
+   "🇭🇺 Ungarn",
+   "P1-port (afhænger af netselskabet)",
+   "HomeWizard P1 med nogle målere — tjek HomeWizards liste først. Eller Home Assistant, eller billeder."
+  ],
+  [
+   "🇳🇴 Norge",
+   "HAN (RJ45, M-BUS)",
+   "Tibber Pulse: vej E. Ellers en norsk HAN-aflæser + Home Assistant."
+  ],
+  [
+   "🇩🇪 Tyskland",
+   "Smart-Meter-Gateway / optisk læsehoved",
+   "Powerfox poweropti: vej D. Tasmota-læsehoved (Hichi): vej C. Ellers Home Assistant."
+  ],
+  [
+   "🇸🇮 Slovenien",
+   "P1-port på mange målere (nogle gange krypteret)",
+   "Sandsynligvis Home Assistant med en P1-aflæser — ikke testet endnu."
+  ],
+  [
+   "🇬🇷 Grækenland · 🇭🇷 Kroatien · 🇹🇷 Tyrkiet",
+   "Ingen kundeport fundet endnu",
+   "Billeder indtil videre."
+  ],
+  [
+   "🇷🇴 Rumænien · 🇧🇬 Bulgarien · resten af Balkan",
+   "Ingen kundeport fundet endnu",
+   "Billeder indtil videre."
+  ],
+  [
+   "🇦🇹 Østrig",
+   "Kundegrænseflade (M-Bus) / optisk port",
+   "Tibber Pulse: vej E. Tasmota-læsehoved (Hichi): vej C. Ellers Home Assistant."
+  ],
+  [
+   "🇨🇭 Schweiz",
+   "Kundegrænseflade / optisk port",
+   "Tasmota-læsehoved (Hichi): vej C. Ellers Home Assistant."
+  ],
+  [
+   "🇫🇷 Frankrig",
+   "Linky: TIC-port",
+   "Ingen P1-port, så indtil videre kun Home Assistant (fx med en ZLinky). Eller billeder."
+  ],
+  [
+   "🇬🇧 Storbritannien",
+   "SMETS2: ingen port (Zigbee)",
+   "Ingen P1-port, så indtil videre kun Home Assistant (fx med en Hildebrand Glow). Eller billeder."
+  ],
+  [
+   "🇪🇸 Spanien",
+   "Ingen port",
+   "Ingen P1-port, så indtil videre kun Home Assistant (fx med Datadis). Eller billeder."
+  ],
+  [
+   "🇮🇹 Italien",
+   "Chain 2 (kræver en enhed som en Sinapsi Alfa)",
+   "Ingen P1-port, så indtil videre kun Home Assistant. Eller billeder."
+  ],
+  [
+   "🇺🇸 🇨🇦 USA og Canada",
+   "Ingen P1-port (Zigbee, kun hvis elselskabet slår det til)",
+   "Billeder, hvis displayet viser kWh-totalen. Home Assistant med en Rainforest EAGLE, hvor elselskabet tillader det. Québec (Hydro-Québec): kun billeder."
+  ],
+  [
+   "Alle andre steder",
+   "Varierer",
+   "Hvis Home Assistant aflæser din måler, virker vej A."
+  ]
+ ],
+ "country_close": "I tvivl? Åbn Home Assistant, og led efter din måler under Developer tools → States. Står der en kWh-værdi, som tæller op, er du klar. HomeWizard P1? Tjek din måler på <a href=\"https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter\">HomeWizards liste</a>.",
+ "be_t": "🇧🇪 Belgien (Fluvius-målere)",
+ "be_b": "P1-porten på belgiske målere er slået fra som standard. Hos Fluvius slår du den gratis til i deres onlineportal; har du et andet netselskab, så spørg dem. Derefter virker alt på samme måde.",
+ "once_t": "Ingen computer, der altid er tændt?",
+ "once_b": "Det behøver du ikke. Gik et planlagt tidspunkt tabt, fordi computeren var slukket? Så sender den, så snart computeren er tændt igen — så en bærbar, du åbner en gang imellem, er nok. Aflæsningen udbetales, så snart den kommer ind, højst én gang om dagen.",
+ "th": [
+  "Du ser",
+  "Det gør du"
+ ],
+ "trouble": [
+  [
+   "'node' is not recognized",
+   "Node.js er ikke installeret, eller vinduet var allerede åbent, da du installerede det. På Windows: <span class=\"k\">winget install OpenJS.NodeJS.LTS</span>. Ellers: nodejs.org. Åbn så en <strong>ny</strong> terminal, og indsæt linjen igen. Du behøver ikke git."
+  ],
+  [
+   "Slet ingenting — intet output, direkte tilbage til prompten",
+   "En gammel kopi af hjælpeprogrammet, fra før 19. september. Den havde en fejl, der fik den til at lukke på Windows uden at skrive noget. Hent den igen med linjen ovenfor; den nye spørger efter dit token."
+  ],
+  [
+   "no HomeWizard found on the network",
+   "Your network blocks auto-discovery — common on guest Wi-Fi and with VLANs. Look up your P1’s IP in the HomeWizard app and run <span class=\"k\">node gul.js --install --ip=192.168.1.50</span>. On the Home Assistant add-on, fill in <span class=\"k\">hw_ip</span> instead."
+  ],
+  [
+   "couldn't find a total import kWh",
+   "Den nåede enheden, men fik intet brugbart tilbage: <strong>Local API er stadig slået fra</strong> i HomeWizard-appen, eller også er det ikke en P1-måler. Til en aflæser af et andet mærke: brug <span class=\"k\">--url=</span>."
+  ],
+  [
+   "couldn't find a kWh number at …",
+   "Din aflæsers JSON bruger ikke et navn, som hjælpeprogrammet kender. Tilføj <span class=\"k\">--field=</span> med punktstien til værdien, fx <span class=\"k\">--field=electricity.import_kwh</span>."
+  ],
+  [
+   "server said 401",
+   "The token is wrong or incomplete. Copy it again from the app and run <span class=\"k\">node gul.js --ask-token --install</span> once to replace the saved one."
+  ],
+  [
+   "submit one photo reading first",
+   "Din måler har endnu intet startpunkt. Lav én almindelig indsendelse med billede i appen — automatiske aflæsninger sætter aldrig den første værdi, så en enhed ikke kan finde på sit eget startpunkt. Derefter bliver der udbetalt."
+  ],
+  [
+   "usage … is outside the plausible range",
+   "Næsten altid en <strong>måler med dobbelttarif</strong>: displayet har to tælleværker (<span class=\"k\">1.8.1</span> og <span class=\"k\">1.8.2</span>), og dit billede fangede det ene, mens din aflæser melder totalen af begge — så dit startpunkt og din aflæser er på hver sin skala. Tryk i appen, i panelet <span class=\"k\">⚡ Automatisk aflæsning</span>, på <strong>&ldquo;Brug denne aflæsning som mit startpunkt&rdquo;</strong>. Det udbetaler intet og fastlægger kun, hvor optællingen begynder. Muligt indtil din første automatiske udbetaling."
+  ],
+  [
+   "this time photograph tariff register 2",
+   "Din måler viser to tælleværker på skift, og dine billeder skiftes også: tag hver gang billede af det tælleværk, som dit sidste billede ikke viste. Vent, til displayet skifter til det tælleværk, appen nævner (<span class=\"k\">1.8.1</span> eller <span class=\"k\">1.8.2</span>), og tag så billedet."
+  ],
+  [
+   "tariff register 1 went down",
+   "Hvert tælleværk tæller kun op. Tjek, at lav- og normaltarif står i hver sin boks, i samme rækkefølge som sidst."
+  ],
+  [
+   "the automatic reading is stale",
+   "A reading has to be under 48 hours old at the moment you claim it. The schedule tries every hour — look in <span class=\"k\">.gul-bridge.log</span> next to <span class=\"k\">gul.js</span> for why it failed, or run <span class=\"k\">node gul.js --install</span> again. It is paid as soon as the log says <span class=\"k\">pushed … ✓</span>."
+  ],
+  [
+   "Ingen aflæsning i “⚡ Automatisk aflæsning”",
+   "Hjælpeprogrammet har ikke sendt noget med succes endnu. Kig i dets vindue, eller åbn <span class=\"k\">.gul-bridge.log</span> i samme mappe som gul.js: hver kørsel skriver enten <span class=\"k\">pushed … ✓</span> eller årsagen til, at det mislykkedes."
+  ],
+  [
+   "Er du i tvivl, om det er planlagt?",
+   "Windows: kør <span class=\"k\">schtasks /Query /TN GreenUtilityLog</span> i PowerShell — en linje med <em>GreenUtilityLog</em> og et tidspunkt for næste kørsel betyder, at det er det. Mac / Linux / Pi: <span class=\"k\">crontab -l</span> skal vise en linje, der slutter med <em># GreenUtilityLog</em>. Intet der? Indsæt opsætningslinjen én gang til."
+  ],
+  [
+   "Du satte det op før 24. september",
+   "Indsæt den samme linje én gang til. Det nye hjælpeprogram venter på en server, der stadig er ved at vågne, i stedet for at give op, skriver hver kørsel i <span class=\"k\">.gul-bridge.log</span> og kører på Windows også på batteri."
+  ],
+  [
+   "Powerfox didn't accept the e-mail and password",
+   "Brug præcis den e-mail og adgangskode, du bruger i Powerfox-appen (pas på stavefejl eller mellemrum). Har du skiftet adgangskode hos Powerfox? Mulighed 1: <strong>Connect Powerfox</strong> igen med den nye. Mulighed 2: indsæt opsætningslinjen igen — den spørger efter adgangskoden."
+  ],
+  [
+   "switch on data transfer (Datenfreigabe)",
+   "Powerfox vil ikke dele dine aflæsninger. Slå dataoverførsel (Datenfreigabe) til i Powerfox-appen, og prøv igen."
+  ],
+  [
+   "Powerfox only has an old reading",
+   "Din poweropti har ikke sendt noget til Powerfox i et stykke tid. Tjek i Powerfox-appen, at den er online (wi-fi, batteri). Intet bliver sendt eller udbetalt, før der er en frisk aflæsning."
+  ],
+  [
+   "Tibber didn't accept this token",
+   "Kopiér dit token igen fra developer.tibber.com, uden mellemrum. Har du lavet et nyt token der? Så holder det gamle op med at virke: forbind igen med det nye."
+  ],
+  [
+   "no Tibber Pulse found on this account",
+   "Din Pulse skal være sat op i Tibber-appen, på samme konto som dit token."
+  ],
+  [
+   "your Pulse sends live data but no meter total",
+   "Ikke alle målere melder deres total via HAN-porten. Brug så billeder, eller en anden aflæser."
+  ],
+  [
+   "this phone is already used by 1 other wallet",
+   "Én person, én wallet: en telefon kan bruges af én wallet til at tjene. Den wallet, der fik udbetalt først på denne telefon, bliver ved med at virke. Er du skiftet til en ny wallet for altid? Spørg en admin via Send feedback i appen."
+  ],
+  [
+   "automatic payouts are paused until you take one photo",
+   "En aflæser, der sender sine egne tal (P1, Home Assistant, dette hjælpeprogram), kræver ét billede af din måler hver 90. dag; Powerfox, Tibber og MojElektro gør ikke. Den samme pause kommer én gang, efter at startpunktet er rettet uden billede. Tag et billede på fanen Måler, så starter udbetalingerne igen. Appen minder dig om det en uge før."
+  ],
+  [
+   "already been corrected once",
+   "En målers startpunkt kan rettes én gang — hver rettelse sletter forbruget siden sidste udbetaling. Er det forkert igen, så spørg en admin via Send feedback i appen."
+  ]
+ ],
+ "close": "Sidder du stadig fast? Send en besked med det, loggen (eller terminalen) viser — der står som regel præcis, hvad der mangler.",
+ "foot": "GreenUtilityLog · Guide til testere · Testnet-beta — testtokens, ingen reel værdi endnu.",
+ "s_pf": "Vej D — Powerfox (poweropti)",
+ "pf_intro": "En poweropti aflæser din måler og sender totalen til Powerfox-skyen. Nedenfor er der tre måder at få den over til os — <strong>du skal kun bruge én</strong>. I tvivl? Vælg mulighed 1.",
+ "pf_first_t": "Først, i Powerfox-appen",
+ "pf_first_b": "Slå <strong>dataoverførsel</strong> (Datenfreigabe) til. Uden den deler Powerfox ikke dine aflæsninger med nogen — hverken med os eller med Home Assistant.",
+ "pf1_t": "Mulighed 1 — We fetch it for you (nemmest)",
+ "pf1": [
+  [
+   "Åbn Powerfox i appen",
+   "I appen: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Powerfox</span>, og vælg <strong>“We fetch it for you”</strong>. Er den der ikke? Så tilbyder denne version det ikke endnu — brug mulighed 2 eller 3.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Log ind med din Powerfox-konto",
+   "Udfyld den e-mail og adgangskode, du bruger i Powerfox-appen, sæt kryds i boksen, og tryk på <strong>Connect Powerfox</strong>. Dit login gemmes krypteret og bruges kun til at aflæse din måler. Tip: brug en adgangskode, du ikke bruger andre steder.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Færdig — din computer kan være slukket",
+   "Vores server henter din målerstand fra Powerfox cirka hver time og udbetaler den som enhver anden aflæsning. Vil du stoppe? <strong>Disconnect Powerfox</strong> sletter dit login med det samme.",
+   "see",
+   "Tjek, at det virker",
+   "Status øverst viser <span class=\"k\">✅ Forbundet — … kWh modtaget</span>."
+  ]
+ ],
+ "pf2_t": "Mulighed 2 — På din egen computer",
+ "pf2": [
+  [
+   "Gør terminalen og Node.js klar",
+   "Lav først trin 2–4 i vej B: åbn PowerShell eller en terminal, og tjek, at Node.js 22 eller nyere er installeret.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Indsæt én linje, med din Powerfox-e-mail",
+   "Skriv e-mailen til din Powerfox-konto i stedet for <span class=\"k\">YOUR_POWERFOX_EMAIL</span>. Den spørger én gang efter dit token og din Powerfox-adgangskode (adgangskoden vises ikke, mens du skriver) og gemmer begge i en privat fil ved siden af gul.js. Derefter planlægger den sig selv, ligesom i vej B. Computeren skal være tændt mindst én gang om dagen.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Tjek, at det virker",
+   "Hjælpeprogrammet skriver, hvad det har sendt.",
+   "see",
+   "Forventet output",
+   "<span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "pf3_t": "Mulighed 3 — Med Home Assistant",
+ "pf3": [
+  [
+   "Tilføj Powerfox til Home Assistant",
+   "I Home Assistant: <span class=\"k\">Settings → Devices &amp; services → Add integration → Powerfox</span>. Log ind med din Powerfox-konto.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Tilføj vores integration",
+   "Følg vej A, <em>“Med vores integration”</em>: tilføj os til HACS, installér, genstart, og indsæt dit token.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Vælg Powerfox-målersensoren",
+   "Vælg Powerfox-sensoren <strong>Energy usage</strong> (kWh) som sensor. En måler med to tariffer, hvor den forbliver tom? Lav en hjælper, der lægger sensorerne for høj- og lavtarif sammen (<span class=\"k\">Settings → Devices &amp; services → Helpers → Create helper → Group → Sensor group</span>, typen <strong>Sum</strong>; ikke “Combine the state of several sensors”, som vores integration ikke accepterer som målertotal), og vælg den.",
+   null,
+   null,
+   null
+  ]
+ ],
+ "s_tb": "Vej E — Tibber Pulse",
+ "tb_intro": "En Tibber Pulse aflæser målerens HAN- eller P1-port og sender totalen til Tibber. To måder at få den over til os — <strong>du skal kun bruge én</strong>.",
+ "tb1_t": "Mulighed 1 — We fetch it for you (nemmest)",
+ "tb1": [
+  [
+   "Kopiér dit Tibber-token",
+   "Åbn <span class=\"k\">developer.tibber.com</span>, log ind med din Tibber-konto, åbn <strong>Access token</strong>, og kopiér dit personlige token.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Indsæt det i appen",
+   "I appen: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Tibber → “We fetch it for you”</span>. Indsæt dit token, sæt kryds i boksen, og tryk på <strong>Connect Tibber</strong>. Det kan tage op til 30 sekunder. Er den der ikke? Så tilbyder denne version det ikke endnu — brug mulighed 2.",
+   "see",
+   "Tjek, at det virker",
+   "Appen viser <span class=\"k\">Forbundet — Tibber melder … kWh</span>. Tjek, at det passer med din målers total."
+  ]
+ ],
+ "tb2_t": "Mulighed 2 — Med Home Assistant",
+ "tb2": [
+  [
+   "Tilføj Tibber til Home Assistant",
+   "<span class=\"k\">Settings → Devices &amp; services → Add integration → Tibber</span>. Indsæt dit Tibber-token.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Tilføj vores integration, og vælg sensoren",
+   "Følg vej A, <em>“Med vores integration”</em>, og vælg Tibber-sensoren <strong>Last meter consumption</strong> (kWh) som sensor — målerens egen total.",
+   null,
+   null,
+   null
+  ]
+ ]
+}

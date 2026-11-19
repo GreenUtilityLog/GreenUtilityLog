@@ -1,0 +1,540 @@
+{
+ "name": "English",
+ "kicker": "Poradnik dla testerów",
+ "h1": "Zarabiaj bez fotografowania licznika",
+ "lede": "Zwykle fotografujesz licznik, żeby zarabiać B3TR. Jeśli coś w twoim domu już potrafi odczytać licznik, może wysyłać odczyty za ciebie — i już nigdy nie musisz robić zdjęć. Zacznij od znalezienia swojej konfiguracji poniżej.",
+ "s_routes": "Jaką masz konfigurację?",
+ "s_token": "Wszystkie drogi automatyczne: pobierz swój token",
+ "s_a": "Droga A — Home Assistant (dowolny licznik)",
+ "s_b": "Droga B — HomeWizard P1, bez Home Assistant",
+ "s_c": "Droga C — Inny czytnik (czytnik P1, głowica odczytowa Tasmota)",
+ "s_claim": "Na koniec: wypłata przychodzi sama",
+ "s_trouble": "Jeśli coś nie działa",
+ "routes": [
+  [
+   "Używam Home Assistant",
+   "Działa z niemal każdym licznikiem, który HA już odczytuje. Zainstaluj naszą integrację albo wklej kilka linijek YAML.",
+   1,
+   "Najprościej"
+  ],
+  [
+   "Mam HomeWizard P1",
+   "Home Assistant nie jest potrzebny. Działa w 🇳🇱 🇧🇪 🇱🇺 🇩🇰 🇸🇪 🇭🇺 — mały skrypt sam znajdzie twój licznik w sieci.",
+   2,
+   "Trochę techniki"
+  ],
+  [
+   "Mam inny czytnik",
+   "P1 Monitor, głowica odczytowa z Tasmota (Hichi) albo dowolny czytnik, który udostępnia w twojej sieci łączny stan licznika w kWh jako JSON.",
+   3,
+   "Dla zaawansowanych"
+  ],
+  [
+   "Mam Powerfox (poweropti)",
+   "Popularny w Niemczech. Możemy pobierać twój odczyt z chmury Powerfox — nic do instalowania, nic nie musi być stale włączone.",
+   1,
+   "Najprościej"
+  ],
+  [
+   "Mam Tibber Pulse",
+   "Popularny w Szwecji, Norwegii, Danii i Finlandii. Pobieramy twój odczyt z Tibber za pomocą twojego osobistego tokenu — nic do instalowania.",
+   1,
+   "Najprościej"
+  ],
+  [
+   "Żadne z tych",
+   "W takim razie dalej fotografuj licznik. Działa to równie dobrze i przynosi dokładnie tyle samo. Nic do konfigurowania.",
+   0,
+   "Bez konfiguracji"
+  ]
+ ],
+ "baseline_t": "Najpierw, jednorazowo: ustal punkt startowy",
+ "baseline_b": "Niezależnie od wybranej drogi najpierw <strong>wyślij w aplikacji jedno zwykłe zgłoszenie ze zdjęciem</strong>. Dzięki temu aplikacja wie, od jakiego stanu zaczynał twój licznik — bez tego automatyczne odczyty nie mogą być wypłacane.",
+ "token": [
+  [
+   "Skopiuj token urządzenia",
+   "W aplikacji: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → „Get my device token”</span>. Skopiuj go.",
+   "Co to jest",
+   "Długi kod, który mówi: „te odczyty należą do mojego portfela”. Zachowaj go dla siebie — każdy, kto go ma, może wysyłać odczyty w twoim imieniu."
+  ]
+ ],
+ "a_intro": "Dwa sposoby. Nasza integracja jest najprostsza i działa z <em>każdym</em> licznikiem, który Home Assistant już ci pokazuje; YAML robi to samo ręcznie, jeśli wolisz niczego nie instalować.",
+ "a1_t": "Z naszą integracją (zalecane)",
+ "a1": [
+  [
+   "Dodaj nas do HACS",
+   "W Home Assistant: <span class=\"k\">HACS → ⋮ (prawy górny róg) → Custom repositories</span>. Wklej poniższy adres, wybierz typ <strong>Integration</strong> i naciśnij Add.",
+   "code",
+   "https://github.com/GreenUtilityLog/GreenUtilityLog",
+   "Adres repozytorium"
+  ],
+  [
+   "Zainstaluj i uruchom ponownie",
+   "Otwórz <strong>GreenUtilityLog</strong> na liście HACS, naciśnij <strong>Download</strong>, a potem uruchom ponownie Home Assistant.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Dodaj integrację",
+   "Przejdź do <span class=\"k\">Settings → Devices &amp; services → Add integration</span> i wyszukaj <strong>GreenUtilityLog</strong>. Wklej swój token, wybierz sensor z <strong>łącznym stanem w kWh</strong> i ustaw, jak często wysyłać.",
+   "see",
+   "Sprawdź, czy działa",
+   "Pojawi się sensor <span class=\"k\">Last sent reading</span> ze stanem twojego licznika. Jego atrybuty pokazują czas wysłania i ewentualny błąd."
+  ]
+ ],
+ "a2_t": "Z własnym sensorem (dowolny licznik)",
+ "a2": [
+  [
+   "Znajdź sensor licznika",
+   "W Home Assistant: <span class=\"k\">Developer tools → States</span>. Wpisz w filtrze <em>import</em> i wybierz encję w kWh, której wartość stale rośnie — to twój łączny stan. Identyfikatory encji różnią się między instalacjami, więc użyj swojego.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Dodaj te linijki",
+   "Wstaw to do <span class=\"k\">configuration.yaml</span>, podmień encję i token, a potem uruchom ponownie Home Assistant.",
+   "code",
+   "rest_command:\n  gul_push:\n    url: \"https://greenutilitylog-rewards.onrender.com/meter-ingest\"\n    method: POST\n    content_type: \"application/json\"\n    timeout: 90  # sekundy: serwer może potrzebować minuty, żeby się obudzić\n    payload: '{\"token\":\"YOUR_TOKEN\",\"reading\":{{ states(\"sensor.YOUR_ENTITY\") | float }}}'\n\n# automations.yaml — dwa razy dziennie (odebrać można raz na 20 h)\n- alias: Push meter to GreenUtilityLog\n  trigger: { platform: time_pattern, hours: \"/12\" }\n  # tylko prawdziwy stan w kWh: nie 0 po restarcie, nie unavailable\n  condition:\n    - condition: template\n      value_template: '{{ is_number(states(\"sensor.YOUR_ENTITY\")) and states(\"sensor.YOUR_ENTITY\") | float > 0 and state_attr(\"sensor.YOUR_ENTITY\", \"unit_of_measurement\") == \"kWh\" }}'\n  action: { service: rest_command.gul_push }",
+   "configuration.yaml + automations.yaml"
+  ]
+ ],
+ "b": [
+  [
+   "Włącz Local API",
+   "W aplikacji <strong>HomeWizard Energy</strong>: <span class=\"k\">Settings → Meters → twój P1 → Local API → ON</span>. Dzięki temu twoja własna sieć może odczytywać licznik.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Otwórz PowerShell (albo terminal)",
+   "<strong>Windows:</strong> naciśnij Start, wpisz <em>PowerShell</em> i naciśnij Enter. <strong>Mac:</strong> otwórz <em>Terminal</em>. <strong>Raspberry Pi / NAS:</strong> jego własny terminal albo SSH. Wszystko poniżej wpisujesz w tym oknie. Na Macu zostań w folderze domowym, w którym otwiera się Terminal (zob. krok 5).",
+   null,
+   null,
+   null
+  ],
+  [
+   "Sprawdź, czy masz już Node",
+   "Wpisz to i naciśnij Enter. Numer wersji od <span class=\"k\">v22</span> w górę oznacza, że wszystko gotowe i możesz pominąć następny krok (starsza wersja: zrób jednak następny krok, bo nie dostaje już poprawek bezpieczeństwa). Jeśli zamiast tego pojawi się błąd, Node nie jest jeszcze zainstalowany.",
+   "code",
+   "node -v",
+   "Windows · Mac · Linux"
+  ],
+  [
+   "Zainstaluj Node.js, jeśli pojawił się błąd",
+   "<strong>Windows:</strong> wklej poniższą linijkę; naciśnij <span class=\"k\">Y</span>, jeśli pojawi się pytanie o akceptację warunków źródła. <strong>Mac:</strong> instalator LTS z nodejs.org albo <span class=\"k\">brew install node</span>. <strong>Raspberry Pi / Debian:</strong> <span class=\"k\">sudo apt install nodejs</span> (potrzebny jest Node 22 lub nowszy — starsze wersje nie dostają już poprawek bezpieczeństwa; Debian/Ubuntu często mają starszą — wtedy użyj instalatora z nodesource.com). Potem <strong>zamknij to okno i otwórz nowe</strong> — okno otwarte wcześniej zachowuje stary PATH, więc <span class=\"k\">node</span> nadal nie zostałby znaleziony. Sprawdź ponownie poleceniem <span class=\"k\">node -v</span>.",
+   "code",
+   "winget install OpenJS.NodeJS.LTS",
+   "Windows — PowerShell"
+  ],
+  [
+   "Wklej jedną linijkę i naciśnij Enter",
+   "Pobiera skrypt i wysyła twój pierwszy odczyt. Do tego sam ustawia się w harmonogramie, żeby wysyłać odczyty dwa razy dziennie (Windows: Harmonogram zadań · Mac / Linux / Pi: cron), więc potem możesz zamknąć okno, a wszystko działa dalej, nawet po restarcie. Uruchamiasz go tylko ten jeden raz. <strong>Mac:</strong> wklej go w świeżo otwartym Terminalu, w folderze domowym — nie przechodź wcześniej przez <span class=\"k\">cd</span> do Biurka, Dokumentów ani Pobranych: macOS nie pozwala harmonogramowi (cron) czytać tam plików, więc skrypt nigdy by się nie uruchomił.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Wklej token, gdy skrypt o niego zapyta",
+   "Pyta raz i zapamiętuje go; harmonogram korzysta potem z zapisanego tokenu. Następnie ustawia harmonogram, znajduje licznik i wysyła pierwszy odczyt.",
+   "see",
+   "Co powinno się pojawić, po kolei",
+   "<span class=\"k\">Paste your device token…</span> → <span class=\"k\">Scheduled…</span> → <span class=\"k\">found HomeWizard at 192.168.…</span> → <span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "c_intro": "Ten sam skrypt odczyta każde urządzenie w twojej sieci, które udostępnia łączny stan licznika w kWh jako JSON przez HTTP, bez logowania — wystarczy mu powiedzieć, gdzie. Nie każdy czytnik to potrafi: API dsmr-reader wymaga klucza, a Shelly liczy własną energię, a nie rejestr licznika. Najpierw zrób kroki 2–4 z drogi B (terminal i Node); inne jest tylko poniższe polecenie.",
+ "c": [
+  [
+   "Znajdź adres URL danych czytnika",
+   "Otwórz stronę internetową swojego czytnika i poszukaj adresu, który zwraca surowy JSON (często coś w rodzaju <span class=\"k\">/api/v1/data</span> lub <span class=\"k\">/api/v2/sm/actual</span>). Dokładne ścieżki zależą od marki — sprawdź dokumentację swojego czytnika.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Uruchom skrypt z tym adresem URL",
+   "Wstaw własny adres w miejsce przykładowego; o token skrypt zapyta sam. Jeśli odczyt nie zostanie znaleziony automatycznie, dodaj <span class=\"k\">--field=</span> ze ścieżką (z kropkami) do wartości kWh w tym JSON-ie. Tylko dwa rejestry taryf i brak sumy (tak jest np. w P1 Monitor)? Połącz obie ścieżki znakiem <span class=\"k\">+</span>, a skrypt wyśle ich sumę, np. <span class=\"k\">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install --url=http://192.168.1.60/api/v1/data"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Głowica odczytowa z Tasmota (Hichi)?",
+   "Użyj <span class=\"k\">--tasmota=</span> z jej adresem IP zamiast <span class=\"k\">--url=</span>. Skrypt sam odczyta stan licznika (<span class=\"k\">Total_in</span>). Popularne przy licznikach w Niemczech, Austrii i Szwajcarii.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --tasmota=192.168.1.70 --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Sprawdź, czy działa",
+   "Skrypt wypisuje, co wysłał.",
+   "see",
+   "Oczekiwany wynik",
+   "<span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "claim": [
+  [
+   "Odczyt pojawia się sam",
+   "Otwórz w aplikacji kartę <strong>Licznik</strong>. Panel <strong>⚡ Automatyczny odczyt</strong> pokazuje <span class=\"k\">Połączono — odebrano … kWh</span>, ze stanem licznika i czasem, kiedy dotarł.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Wypłata przychodzi sama",
+   "Nic nie trzeba klikać: każdy odczyt jest wypłacany automatycznie, gdy tylko dotrze, najwyżej raz dziennie, a <strong>Oś czasu</strong> w panelu pokazuje <span class=\"k\">Wypłacono +… B3TR</span>. Nie chcesz czekać? <strong>Odbierz teraz</strong> robi to samo.",
+   null,
+   null,
+   null
+  ]
+ ],
+ "s_country": "Czy to działa tam, gdzie mieszkasz?",
+ "country_intro": "Gniazdo w liczniku różni się w zależności od kraju, więc nie każdy czytnik działa wszędzie. Co działa zawsze: <strong>jeśli Home Assistant już pokazuje łączny stan twojego licznika, działa droga A</strong> — bez względu na kraj.",
+ "country_th": [
+  "Kraj",
+  "Twój licznik ma",
+  "Czego użyć"
+ ],
+ "country_rows": [
+  [
+   "🇳🇱 Holandia",
+   "Port P1 (RJ12)",
+   "Dowolna droga. HomeWizard działa od razu."
+  ],
+  [
+   "🇧🇪 Belgia",
+   "Port P1 (RJ12, domyślnie wyłączony)",
+   "Dowolna droga, gdy port jest włączony: włączysz go bezpłatnie w portalu Fluvius (u innych operatorów sieci zapytaj swojego)."
+  ],
+  [
+   "🇱🇺 Luksemburg",
+   "Port P1 (Smarty, szyfrowany)",
+   "HomeWizard P1: raz poproś operatora sieci o klucz P1. Albo Home Assistant."
+  ],
+  [
+   "🇸🇪 Szwecja · 🇫🇮 Finlandia",
+   "Port HAN (RJ12)",
+   "🇸🇪 HomeWizard P1 (droga B) — operator sieci może najpierw musieć włączyć port. Tibber Pulse: droga E. W innym wypadku czytnik P1/HAN albo Home Assistant."
+  ],
+  [
+   "🇩🇰 Dania",
+   "P1 (domyślnie wyłączony) lub HAN",
+   "HomeWizard P1 (droga B), gdy operator sieci włączy port P1 — port HAN wymaga konwertera. Tibber Pulse: droga E. W innym wypadku czytnik z odpowiednim złączem albo Home Assistant."
+  ],
+  [
+   "🇭🇺 Węgry",
+   "Port P1 (zależy od operatora sieci)",
+   "HomeWizard P1 z niektórymi licznikami — najpierw sprawdź listę HomeWizard. Albo Home Assistant, albo zdjęcia."
+  ],
+  [
+   "🇳🇴 Norwegia",
+   "HAN (RJ45, M-BUS)",
+   "Tibber Pulse: droga E. W innym wypadku norweski czytnik HAN + Home Assistant."
+  ],
+  [
+   "🇩🇪 Niemcy",
+   "Smart-Meter-Gateway / głowica optyczna",
+   "Powerfox poweropti: droga D. Głowica odczytowa z Tasmota (Hichi): droga C. W innym wypadku Home Assistant."
+  ],
+  [
+   "🇸🇮 Słowenia",
+   "Port P1 w wielu licznikach (czasem szyfrowany)",
+   "Prawdopodobnie Home Assistant z czytnikiem P1 — jeszcze nieprzetestowane."
+  ],
+  [
+   "🇬🇷 Grecja · 🇭🇷 Chorwacja · 🇹🇷 Turcja",
+   "Na razie nie znaleziono portu dla klienta",
+   "Na razie zdjęcia."
+  ],
+  [
+   "🇷🇴 Rumunia · 🇧🇬 Bułgaria · reszta Bałkanów",
+   "Na razie nie znaleziono portu dla klienta",
+   "Na razie zdjęcia."
+  ],
+  [
+   "🇦🇹 Austria",
+   "Interfejs klienta (M-Bus) / port optyczny",
+   "Tibber Pulse: droga E. Głowica odczytowa z Tasmota (Hichi): droga C. W innym wypadku Home Assistant."
+  ],
+  [
+   "🇨🇭 Szwajcaria",
+   "Interfejs klienta / port optyczny",
+   "Głowica odczytowa z Tasmota (Hichi): droga C. W innym wypadku Home Assistant."
+  ],
+  [
+   "🇫🇷 Francja",
+   "Linky: port TIC",
+   "Brak portu P1, więc na razie tylko Home Assistant (np. z ZLinky). Albo zdjęcia."
+  ],
+  [
+   "🇬🇧 Wielka Brytania",
+   "SMETS2: brak portu (Zigbee)",
+   "Brak portu P1, więc na razie tylko Home Assistant (np. z Hildebrand Glow). Albo zdjęcia."
+  ],
+  [
+   "🇪🇸 Hiszpania",
+   "Brak portu",
+   "Brak portu P1, więc na razie tylko Home Assistant (np. z Datadis). Albo zdjęcia."
+  ],
+  [
+   "🇮🇹 Włochy",
+   "Chain 2 (wymaga urządzenia, np. Sinapsi Alfa)",
+   "Brak portu P1, więc na razie tylko Home Assistant. Albo zdjęcia."
+  ],
+  [
+   "🇺🇸 🇨🇦 USA i Kanada",
+   "Brak portu P1 (Zigbee, tylko jeśli dostawca energii go włączy)",
+   "Zdjęcia, jeśli wyświetlacz pokazuje łączny stan w kWh. Home Assistant z Rainforest EAGLE tam, gdzie pozwala na to dostawca energii. Quebec (Hydro-Québec): tylko zdjęcia."
+  ],
+  [
+   "Gdzie indziej",
+   "Różnie",
+   "Jeśli Home Assistant odczytuje twój licznik, działa droga A."
+  ]
+ ],
+ "country_close": "Nie masz pewności? Otwórz Home Assistant i poszukaj swojego licznika w Developer tools → States. Jeśli jest tam wartość w kWh, która rośnie, wszystko gotowe. HomeWizard P1? Sprawdź swój licznik na <a href=\"https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter\">liście HomeWizard</a>.",
+ "be_t": "🇧🇪 Belgia (liczniki Fluvius)",
+ "be_b": "Port P1 w belgijskich licznikach jest domyślnie wyłączony. W Fluvius włączysz go bezpłatnie w ich portalu internetowym; u innego operatora sieci zapytaj bezpośrednio. Potem wszystko działa tak samo.",
+ "once_t": "Nie masz urządzenia, które jest stale włączone?",
+ "once_b": "Nie jest potrzebne. Komputer był wyłączony o zaplanowanej porze? Skrypt wyśle odczyt, gdy tylko komputer znów się włączy — wystarczy więc laptop otwierany od czasu do czasu. Wypłata następuje, gdy tylko odczyt dotrze, najwyżej raz dziennie.",
+ "th": [
+  "Widzisz",
+  "Co zrobić"
+ ],
+ "trouble": [
+  [
+   "'node' is not recognized",
+   "Node.js nie jest zainstalowany albo to okno było już otwarte podczas instalacji. Na Windowsie: <span class=\"k\">winget install OpenJS.NodeJS.LTS</span>. Gdzie indziej: nodejs.org. Potem otwórz <strong>nowy</strong> terminal i wklej linijkę ponownie. Git nie jest potrzebny."
+  ],
+  [
+   "Zupełnie nic — brak komunikatu, od razu powrót do wiersza poleceń",
+   "Stara kopia skryptu, sprzed 19 września. Miała błąd, przez który na Windowsie kończyła działanie bez żadnego komunikatu. Pobierz skrypt ponownie linijką powyżej; nowa wersja zapyta o twój token."
+  ],
+  [
+   "no HomeWizard found on the network",
+   "Your network blocks auto-discovery — common on guest Wi-Fi and with VLANs. Look up your P1’s IP in the HomeWizard app and run <span class=\"k\">node gul.js --install --ip=192.168.1.50</span>. On the Home Assistant add-on, fill in <span class=\"k\">hw_ip</span> instead."
+  ],
+  [
+   "couldn't find a total import kWh",
+   "Skrypt połączył się z urządzeniem, ale nie dostał nic przydatnego: <strong>Local API jest nadal wyłączone</strong> w aplikacji HomeWizard albo to nie jest licznik P1. Dla czytnika innej marki użyj <span class=\"k\">--url=</span>."
+  ],
+  [
+   "couldn't find a kWh number at …",
+   "JSON twojego czytnika nie używa nazwy, którą skrypt zna. Dodaj <span class=\"k\">--field=</span> ze ścieżką do wartości, np. <span class=\"k\">--field=electricity.import_kwh</span>."
+  ],
+  [
+   "server said 401",
+   "The token is wrong or incomplete. Copy it again from the app and run <span class=\"k\">node gul.js --ask-token --install</span> once to replace the saved one."
+  ],
+  [
+   "submit one photo reading first",
+   "Twój licznik nie ma jeszcze punktu startowego. Wyślij w aplikacji jedno zwykłe zgłoszenie ze zdjęciem — automatyczne odczyty nigdy nie ustalają pierwszej wartości, żeby urządzenie nie mogło samo wymyślić sobie stanu początkowego. Potem wypłaty ruszą."
+  ],
+  [
+   "usage … is outside the plausible range",
+   "Prawie zawsze to <strong>licznik dwutaryfowy</strong>: wyświetlacz prowadzi dwa rejestry (<span class=\"k\">1.8.1</span> i <span class=\"k\">1.8.2</span>), a twoje zdjęcie objęło jeden z nich, podczas gdy czytnik podaje sumę obu — punkt startowy i czytnik są więc w różnych skalach. W aplikacji, w panelu <span class=\"k\">⚡ Automatyczny odczyt</span>, naciśnij <strong>&bdquo;Użyj tego odczytu jako punktu startowego&rdquo;</strong>. Nic to nie wypłaca, ustala tylko, od czego zaczyna się liczenie. Można to zrobić do pierwszej automatycznej wypłaty."
+  ],
+  [
+   "this time photograph tariff register 2",
+   "Twój licznik pokazuje na zmianę dwa rejestry i twoje zdjęcia też się zmieniają: za każdym razem sfotografuj ten, którego nie było na ostatnim zdjęciu. Poczekaj, aż wyświetlacz przełączy się na rejestr wskazany przez aplikację (<span class=\"k\">1.8.1</span> lub <span class=\"k\">1.8.2</span>), i wtedy zrób zdjęcie."
+  ],
+  [
+   "tariff register 1 went down",
+   "Każdy rejestr liczy tylko w górę. Sprawdź, czy taryfa nocna i dzienna są każda we własnym polu, w tej samej kolejności co ostatnio."
+  ],
+  [
+   "the automatic reading is stale",
+   "A reading has to be under 48 hours old at the moment you claim it. The schedule tries every hour — look in <span class=\"k\">.gul-bridge.log</span> next to <span class=\"k\">gul.js</span> for why it failed, or run <span class=\"k\">node gul.js --install</span> again. It is paid as soon as the log says <span class=\"k\">pushed … ✓</span>."
+  ],
+  [
+   "Brak odczytu w „⚡ Automatyczny odczyt”",
+   "Skrypt nie wysłał jeszcze niczego z powodzeniem. Zajrzyj do jego okna albo otwórz <span class=\"k\">.gul-bridge.log</span> w tym samym folderze co gul.js: każde uruchomienie zapisuje albo <span class=\"k\">pushed … ✓</span>, albo powód niepowodzenia."
+  ],
+  [
+   "Nie wiesz, czy skrypt jest w harmonogramie?",
+   "Windows: w PowerShell uruchom <span class=\"k\">schtasks /Query /TN GreenUtilityLog</span> — wiersz z <em>GreenUtilityLog</em> i godziną następnego uruchomienia oznacza, że tak. Mac / Linux / Pi: <span class=\"k\">crontab -l</span> powinno pokazać wiersz kończący się na <em># GreenUtilityLog</em>. Nic tam nie ma? Wklej linijkę konfiguracyjną jeszcze raz."
+  ],
+  [
+   "Konfiguracja sprzed 24 września",
+   "Wklej jeszcze raz tę samą linijkę. Nowy skrypt czeka na serwer, który dopiero się budzi, zamiast się poddawać, zapisuje każde uruchomienie w <span class=\"k\">.gul-bridge.log</span>, a na Windowsie działa też na zasilaniu z baterii."
+  ],
+  [
+   "Powerfox didn't accept the e-mail and password",
+   "Użyj dokładnie tego e-maila i hasła co w aplikacji Powerfox (uważaj na literówki i spacje). Zmiana hasła Powerfox? Opcja 1: jeszcze raz <strong>Connect Powerfox</strong> z nowym hasłem. Opcja 2: wklej ponownie linijkę konfiguracyjną — zapyta o hasło."
+  ],
+  [
+   "switch on data transfer (Datenfreigabe)",
+   "Powerfox nie chce udostępnić twoich odczytów. W aplikacji Powerfox włącz udostępnianie danych (Datenfreigabe) i spróbuj ponownie."
+  ],
+  [
+   "Powerfox only has an old reading",
+   "Twój poweropti od jakiegoś czasu nic nie wysłał do Powerfox. Sprawdź w aplikacji Powerfox, czy jest online (Wi-Fi, bateria). Dopóki nie pojawi się świeży odczyt, nic nie jest wysyłane ani wypłacane."
+  ],
+  [
+   "Tibber didn't accept this token",
+   "Skopiuj token ponownie z developer.tibber.com, bez spacji. Utworzony tam nowy token? Wtedy stary przestaje działać: połącz ponownie, używając nowego."
+  ],
+  [
+   "no Tibber Pulse found on this account",
+   "Pulse musi być skonfigurowany w aplikacji Tibber, na tym samym koncie co token."
+  ],
+  [
+   "your Pulse sends live data but no meter total",
+   "Nie każdy licznik podaje łączny stan przez port HAN. Wtedy używaj zdjęć albo innego czytnika."
+  ],
+  [
+   "this phone is already used by 1 other wallet",
+   "Jedna osoba, jeden portfel: na jednym telefonie może zarabiać jeden portfel. Portfel, który jako pierwszy dostał wypłatę na tym telefonie, działa dalej. Przejście na nowy portfel na stałe? Poproś administratora przez Wyślij opinię w aplikacji."
+  ],
+  [
+   "automatic payouts are paused until you take one photo",
+   "Czytnik, który wysyła własne liczby (P1, Home Assistant, ten skrypt), potrzebuje jednego zdjęcia licznika co 90 dni; Powerfox, Tibber i MojElektro nie. Taka sama przerwa pojawia się jednorazowo po korekcie punktu startowego bez zdjęcia. Zrób zdjęcie w karcie Licznik, a wypłaty ruszą ponownie. Aplikacja przypomni o tym tydzień wcześniej."
+  ],
+  [
+   "already been corrected once",
+   "Punkt startowy licznika można skorygować raz — każda korekta kasuje zużycie od ostatniej wypłaty. Jeśli znów jest błędny, poproś administratora przez Wyślij opinię w aplikacji."
+  ]
+ ],
+ "close": "Nadal nie działa? Wyślij wiadomość z tym, co pokazuje log (albo terminal) — zwykle jest tam dokładnie napisane, czego brakuje.",
+ "foot": "GreenUtilityLog · Poradnik dla testerów · Beta w testnecie — tokeny testowe, na razie bez realnej wartości.",
+ "s_pf": "Droga D — Powerfox (poweropti)",
+ "pf_intro": "Poweropti odczytuje twój licznik i wysyła stan do chmury Powerfox. Poniżej są trzy sposoby, żeby trafił do nas — <strong>wystarczy jeden</strong>. Nie wiesz, który wybrać? Weź opcję 1.",
+ "pf_first_t": "Najpierw w aplikacji Powerfox",
+ "pf_first_b": "Włącz <strong>udostępnianie danych</strong> (Datenfreigabe). Bez tego Powerfox nie udostępnia twoich odczytów nikomu — ani nam, ani Home Assistant.",
+ "pf1_t": "Opcja 1 — We fetch it for you (najprościej)",
+ "pf1": [
+  [
+   "Otwórz Powerfox w aplikacji",
+   "W aplikacji: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Powerfox</span> i wybierz <strong>„We fetch it for you”</strong>. Nie ma tej opcji? Ta wersja jeszcze jej nie oferuje — użyj opcji 2 lub 3.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Zaloguj się kontem Powerfox",
+   "Wpisz e-mail i hasło, których używasz w aplikacji Powerfox, zaznacz pole i naciśnij <strong>Connect Powerfox</strong>. Dane logowania są przechowywane w postaci zaszyfrowanej i służą wyłącznie do odczytu licznika. Wskazówka: użyj hasła, którego nie używasz nigdzie indziej.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Gotowe — komputer może pozostać wyłączony",
+   "Nasz serwer mniej więcej co godzinę pobiera stan licznika z Powerfox i wypłaca go jak każdy odczyt. Chcesz zakończyć? <strong>Disconnect Powerfox</strong> od razu usuwa twoje dane logowania.",
+   "see",
+   "Sprawdź, czy działa",
+   "Status na górze pokazuje <span class=\"k\">✅ Połączono — odebrano … kWh</span>."
+  ]
+ ],
+ "pf2_t": "Opcja 2 — Na własnym komputerze",
+ "pf2": [
+  [
+   "Przygotuj terminal i Node.js",
+   "Najpierw zrób kroki 2–4 z drogi B: otwórz PowerShell lub terminal i sprawdź, czy masz zainstalowany Node.js 22 lub nowszy.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Wklej jedną linijkę z e-mailem Powerfox",
+   "Wstaw e-mail swojego konta Powerfox w miejsce <span class=\"k\">YOUR_POWERFOX_EMAIL</span>. Skrypt raz zapyta o token i hasło Powerfox (hasło nie jest widoczne podczas wpisywania) i zapisze oba w prywatnym pliku obok gul.js. Potem sam ustawi się w harmonogramie, tak jak w drodze B. Komputer musi być włączony przynajmniej raz dziennie.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Sprawdź, czy działa",
+   "Skrypt wypisuje, co wysłał.",
+   "see",
+   "Oczekiwany wynik",
+   "<span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "pf3_t": "Opcja 3 — Z Home Assistant",
+ "pf3": [
+  [
+   "Dodaj Powerfox do Home Assistant",
+   "W Home Assistant: <span class=\"k\">Settings → Devices &amp; services → Add integration → Powerfox</span>. Zaloguj się kontem Powerfox.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Dodaj naszą integrację",
+   "Postępuj według drogi A, <em>„Z naszą integracją”</em>: dodaj nas do HACS, zainstaluj, uruchom ponownie i wklej swój token.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Wybierz sensor licznika z Powerfox",
+   "Jako sensor wybierz sensor Powerfox <strong>Energy usage</strong> (kWh). Licznik dwutaryfowy, w którym ten sensor pozostaje pusty? Utwórz pomocnika, który sumuje sensory taryfy dziennej i nocnej (<span class=\"k\">Settings → Devices &amp; services → Helpers → Create helper → Group → Sensor group</span>, typ <strong>Sum</strong>; nie „Combine the state of several sensors”, bo tego nasza integracja nie przyjmie jako stanu licznika), i wybierz go.",
+   null,
+   null,
+   null
+  ]
+ ],
+ "s_tb": "Droga E — Tibber Pulse",
+ "tb_intro": "Tibber Pulse odczytuje port HAN lub P1 twojego licznika i wysyła stan do Tibber. Są dwa sposoby, żeby trafił do nas — <strong>wystarczy jeden</strong>.",
+ "tb1_t": "Opcja 1 — We fetch it for you (najprościej)",
+ "tb1": [
+  [
+   "Skopiuj token Tibber",
+   "Otwórz <span class=\"k\">developer.tibber.com</span>, zaloguj się kontem Tibber, otwórz <strong>Access token</strong> i skopiuj swój osobisty token.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Wklej go w aplikacji",
+   "W aplikacji: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Tibber → „We fetch it for you”</span>. Wklej token, zaznacz pole i naciśnij <strong>Connect Tibber</strong>. Może to potrwać do 30 sekund. Nie ma tej opcji? Ta wersja jeszcze jej nie oferuje — użyj opcji 2.",
+   "see",
+   "Sprawdź, czy działa",
+   "Aplikacja pokazuje <span class=\"k\">Połączono — Tibber podaje … kWh</span>. Sprawdź, czy zgadza się to z łącznym stanem licznika."
+  ]
+ ],
+ "tb2_t": "Opcja 2 — Z Home Assistant",
+ "tb2": [
+  [
+   "Dodaj Tibber do Home Assistant",
+   "<span class=\"k\">Settings → Devices &amp; services → Add integration → Tibber</span>. Wklej swój token Tibber.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Dodaj naszą integrację i wybierz sensor",
+   "Postępuj według drogi A, <em>„Z naszą integracją”</em>, i jako sensor wybierz sensor Tibber <strong>Last meter consumption</strong> (kWh) — własny łączny stan licznika.",
+   null,
+   null,
+   null
+  ]
+ ],
+ "_toc": "Na tej stronie"
+}
