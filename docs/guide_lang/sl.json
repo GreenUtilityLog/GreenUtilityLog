@@ -334,7 +334,7 @@
   ],
   [
    "no HomeWizard found on the network",
-   "Your network blocks auto-discovery — common on guest Wi-Fi and with VLANs. Look up your P1’s IP in the HomeWizard app and run <span class=\"k\">node gul.js --install --ip=192.168.1.50</span>. On the Home Assistant add-on, fill in <span class=\"k\">hw_ip</span> instead."
+   "Tvoje omrežje blokira samodejno iskanje naprav — pogosto v omrežju Wi-Fi za goste in pri VLAN-ih. IP svojega P1 poišči v aplikaciji HomeWizard in zaženi <span class=\"k\">node gul.js --install --ip=192.168.1.50</span>. Pri dodatku za Home Assistant namesto tega izpolni <span class=\"k\">hw_ip</span>."
   ],
   [
    "couldn't find a total import kWh",
@@ -346,7 +346,7 @@
   ],
   [
    "server said 401",
-   "The token is wrong or incomplete. Copy it again from the app and run <span class=\"k\">node gul.js --ask-token --install</span> once to replace the saved one."
+   "Žeton je napačen ali nepopoln. Znova ga kopiraj iz aplikacije in enkrat zaženi <span class=\"k\">node gul.js --ask-token --install</span>, da zamenjaš shranjenega."
   ],
   [
    "submit one photo reading first",
@@ -366,7 +366,7 @@
   ],
   [
    "the automatic reading is stale",
-   "A reading has to be under 48 hours old at the moment you claim it. The schedule tries every hour — look in <span class=\"k\">.gul-bridge.log</span> next to <span class=\"k\">gul.js</span> for why it failed, or run <span class=\"k\">node gul.js --install</span> again. It is paid as soon as the log says <span class=\"k\">pushed … ✓</span>."
+   "Odčitek mora biti ob prevzemu star manj kot 48 ur. Urnik poskuša vsako uro — v <span class=\"k\">.gul-bridge.log</span> poleg <span class=\"k\">gul.js</span> poglej, zakaj ni uspel, ali znova zaženi <span class=\"k\">node gul.js --install</span>. Izplača se, takoj ko dnevnik pokaže <span class=\"k\">pushed … ✓</span>."
   ],
   [
    "Ni odčitka v »⚡ Samodejno odčitavanje«",
@@ -531,8 +531,7 @@
   ],
   [
    "Dodaj našo integracijo in izberi senzor",
-   "Sledi poti A, <em>»Z našo integracijo«</em>, in kot senzor izberi senzor Tibber <strong>Last meter consumption</strong> (kWh) — lastno skupno stanje števca."
-   ,
+   "Sledi poti A, <em>»Z našo integracijo«</em>, in kot senzor izberi senzor Tibber <strong>Last meter consumption</strong> (kWh) — lastno skupno stanje števca.",
    null,
    null,
    null
