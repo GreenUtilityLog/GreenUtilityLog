@@ -198,6 +198,7 @@
 <option value="es">Español</option>
 <option value="it">Italiano</option>
 <option value="el">Ελληνικά</option>
+<option value="tr">Türkçe</option>
 <option value="sl">Slovenščina</option>
 <option value="hr">Hrvatski</option>
 <option value="ro">Română</option>
@@ -206,6 +207,7 @@
 <option value="da">Dansk</option>
 <option value="nb">Norsk</option>
 <option value="fi">Suomi</option>
+<option value="hu">Magyar</option>
 <option value="pl">Polski</option>
 <option value="pt">Português</option>
 </select></nav>
@@ -1588,15 +1590,15 @@
   <div class="scroll"><table class="stack"><tr><th>Vedi</th><th>Cosa fare</th></tr>
     <tr><td>&#x27;node&#x27; is not recognized</td><td>Node.js non è installato, oppure quella finestra era già aperta quando l'hai installato. Su Windows: <span class="k">winget install OpenJS.NodeJS.LTS</span>. Altrove: nodejs.org. Poi apri un <strong>nuovo</strong> terminale e incolla di nuovo la riga. Non ti serve git.</td></tr>
     <tr><td>Niente di niente — nessun output, si torna subito al prompt</td><td>Una vecchia copia del programma, di prima del 19 settembre. Aveva un bug che su Windows lo faceva chiudere senza scrivere nulla. Scaricalo di nuovo con la riga qui sopra; quello nuovo ti chiede il token.</td></tr>
-    <tr><td>no HomeWizard found on the network</td><td>Your network blocks auto-discovery — common on guest Wi-Fi and with VLANs. Look up your P1’s IP in the HomeWizard app and run <span class="k">node gul.js --install --ip=192.168.1.50</span>. On the Home Assistant add-on, fill in <span class="k">hw_ip</span> instead.</td></tr>
+    <tr><td>no HomeWizard found on the network</td><td>La tua rete blocca il rilevamento automatico — succede spesso sul Wi-Fi ospiti e con le VLAN. Cerca l'IP del tuo P1 nell'app HomeWizard ed esegui <span class="k">node gul.js --install --ip=192.168.1.50</span>. Con l'add-on di Home Assistant, compila invece <span class="k">hw_ip</span>.</td></tr>
     <tr><td>couldn&#x27;t find a total import kWh</td><td>Ha raggiunto il dispositivo ma non ha ricevuto niente di utilizzabile: la <strong>Local API è ancora spenta</strong> nell'app HomeWizard, oppure non è un contatore P1. Per un lettore di un'altra marca, usa <span class="k">--url=</span>.</td></tr>
     <tr><td>couldn&#x27;t find a kWh number at …</td><td>Il JSON del tuo lettore non usa un nome che il programma conosce. Aggiungi <span class="k">--field=</span> con il percorso a punti del valore, ad es. <span class="k">--field=electricity.import_kwh</span>.</td></tr>
-    <tr><td>server said 401</td><td>The token is wrong or incomplete. Copy it again from the app and run <span class="k">node gul.js --ask-token --install</span> once to replace the saved one.</td></tr>
+    <tr><td>server said 401</td><td>Il token è sbagliato o incompleto. Copialo di nuovo dall'app ed esegui una volta <span class="k">node gul.js --ask-token --install</span> per sostituire quello salvato.</td></tr>
     <tr><td>submit one photo reading first</td><td>Il tuo contatore non ha ancora un punto di partenza. Fai un normale invio con foto nell'app — le letture automatiche non fissano mai il primo valore, così un dispositivo non può inventarsi il proprio punto di partenza. Dopo, i pagamenti partono.</td></tr>
     <tr><td>usage … is outside the plausible range</td><td>Quasi sempre è un <strong>contatore a doppia tariffa</strong>: il display tiene due registri (<span class="k">1.8.1</span> e <span class="k">1.8.2</span>) e la tua foto ne ha ripreso uno, mentre il lettore invia il totale di entrambi — così il punto di partenza e il lettore sono su scale diverse. Nell'app, nel riquadro <span class="k">⚡ Lettura automatica</span>, premi <strong>&ldquo;Usa questa lettura come mio punto di partenza&rdquo;</strong>. Non paga nulla e fissa solo il punto da cui si inizia a contare. Puoi farlo fino al tuo primo pagamento automatico.</td></tr>
     <tr><td>this time photograph tariff register 2</td><td>Il tuo contatore mostra due registri a turno, e anche le tue foto si alternano: ogni volta fotografa quello che la tua ultima foto non mostrava. Aspetta che il display passi al registro indicato dall'app (<span class="k">1.8.1</span> o <span class="k">1.8.2</span>), poi scatta la foto.</td></tr>
     <tr><td>tariff register 1 went down</td><td>Ogni registro può solo salire. Controlla che la tariffa ridotta e quella normale siano ciascuna nella sua casella, nello stesso ordine dell'ultima volta.</td></tr>
-    <tr><td>the automatic reading is stale</td><td>A reading has to be under 48 hours old at the moment you claim it. The schedule tries every hour — look in <span class="k">.gul-bridge.log</span> next to <span class="k">gul.js</span> for why it failed, or run <span class="k">node gul.js --install</span> again. It is paid as soon as the log says <span class="k">pushed … ✓</span>.</td></tr>
+    <tr><td>the automatic reading is stale</td><td>Una lettura deve avere meno di 48 ore nel momento in cui la riscuoti. La pianificazione ci riprova ogni ora — guarda in <span class="k">.gul-bridge.log</span> accanto a <span class="k">gul.js</span> perché non è riuscita, oppure esegui di nuovo <span class="k">node gul.js --install</span>. Viene pagata appena il log riporta <span class="k">pushed … ✓</span>.</td></tr>
     <tr><td>Nessuna lettura in «⚡ Lettura automatica»</td><td>Il programma non è ancora riuscito a inviare nulla. Guarda la sua finestra, oppure apri <span class="k">.gul-bridge.log</span> nella stessa cartella di gul.js: ogni esecuzione scrive <span class="k">pushed … ✓</span> oppure il motivo per cui non è riuscita.</td></tr>
     <tr><td>Non sai se è pianificato?</td><td>Windows: in PowerShell esegui <span class="k">schtasks /Query /TN GreenUtilityLog</span> — se compare una riga con <em>GreenUtilityLog</em> e un'ora della prossima esecuzione, è pianificato. Mac / Linux / Pi: <span class="k">crontab -l</span> dovrebbe mostrare una riga che finisce con <em># GreenUtilityLog</em>. Non c'è niente? Incolla ancora una volta la riga di installazione.</td></tr>
     <tr><td>Hai fatto la configurazione prima del 24 settembre</td><td>Incolla di nuovo la stessa riga, una volta. Il nuovo programma aspetta un server che si sta ancora svegliando invece di arrendersi, scrive ogni esecuzione in <span class="k">.gul-bridge.log</span> e su Windows funziona anche a batteria.</td></tr>
@@ -1822,15 +1824,15 @@
   <div class="scroll"><table class="stack"><tr><th>Βλέπεις</th><th>Τι να κάνεις</th></tr>
     <tr><td>&#x27;node&#x27; is not recognized</td><td>Το Node.js δεν είναι εγκατεστημένο, ή εκείνο το παράθυρο ήταν ήδη ανοιχτό όταν το εγκατέστησες. Στα Windows: <span class="k">winget install OpenJS.NodeJS.LTS</span>. Αλλού: nodejs.org. Μετά άνοιξε ένα <strong>καινούργιο</strong> τερματικό και επικόλλησε ξανά τη γραμμή. Δεν χρειάζεσαι git.</td></tr>
     <tr><td>Απολύτως τίποτα — καμία έξοδος, κατευθείαν πίσω στο prompt</td><td>Ένα παλιό αντίγραφο του βοηθητικού προγράμματος, από πριν τις 19 Σεπτεμβρίου. Είχε ένα σφάλμα που το έκανε να κλείνει στα Windows χωρίς να γράψει τίποτα. Κατέβασέ το ξανά με την παραπάνω γραμμή· το καινούργιο σού ζητά το token.</td></tr>
-    <tr><td>no HomeWizard found on the network</td><td>Your network blocks auto-discovery — common on guest Wi-Fi and with VLANs. Look up your P1’s IP in the HomeWizard app and run <span class="k">node gul.js --install --ip=192.168.1.50</span>. On the Home Assistant add-on, fill in <span class="k">hw_ip</span> instead.</td></tr>
+    <tr><td>no HomeWizard found on the network</td><td>Το δίκτυό σου μπλοκάρει τον αυτόματο εντοπισμό — συμβαίνει συχνά σε Wi-Fi επισκεπτών και με VLAN. Βρες την IP του P1 σου στην εφαρμογή HomeWizard και τρέξε <span class="k">node gul.js --install --ip=192.168.1.50</span>. Στο add-on του Home Assistant, συμπλήρωσε αντί γι' αυτό το <span class="k">hw_ip</span>.</td></tr>
     <tr><td>couldn&#x27;t find a total import kWh</td><td>Έφτασε στη συσκευή αλλά δεν πήρε πίσω τίποτα χρήσιμο: το <strong>Local API είναι ακόμη κλειστό</strong> στην εφαρμογή HomeWizard, ή αυτός δεν είναι μετρητής P1. Για συσκευή άλλης μάρκας, χρησιμοποίησε <span class="k">--url=</span>.</td></tr>
     <tr><td>couldn&#x27;t find a kWh number at …</td><td>Το JSON της συσκευής σου δεν χρησιμοποιεί όνομα που ξέρει το βοηθητικό πρόγραμμα. Πρόσθεσε <span class="k">--field=</span> με τη διαδρομή (με τελείες) προς την τιμή, π.χ. <span class="k">--field=electricity.import_kwh</span>.</td></tr>
-    <tr><td>server said 401</td><td>The token is wrong or incomplete. Copy it again from the app and run <span class="k">node gul.js --ask-token --install</span> once to replace the saved one.</td></tr>
+    <tr><td>server said 401</td><td>Το token είναι λάθος ή ελλιπές. Αντίγραψέ το ξανά από την εφαρμογή και τρέξε μία φορά <span class="k">node gul.js --ask-token --install</span> για να αντικαταστήσεις το αποθηκευμένο.</td></tr>
     <tr><td>submit one photo reading first</td><td>Ο μετρητής σου δεν έχει ακόμη σημείο εκκίνησης. Κάνε μία κανονική υποβολή με φωτογραφία στην εφαρμογή — οι αυτόματες ενδείξεις δεν ορίζουν ποτέ την πρώτη τιμή, ώστε μια συσκευή να μην μπορεί να επινοήσει το δικό της σημείο εκκίνησης. Μετά από αυτό ξεκινούν οι πληρωμές.</td></tr>
     <tr><td>usage … is outside the plausible range</td><td>Σχεδόν πάντα πρόκειται για <strong>μετρητή διπλής χρέωσης</strong>: η οθόνη κρατά δύο ενδείξεις (<span class="k">1.8.1</span> και <span class="k">1.8.2</span>) και η φωτογραφία σου έπιασε τη μία, ενώ η συσκευή σου στέλνει το άθροισμα και των δύο — έτσι το σημείο εκκίνησης και η συσκευή είναι σε διαφορετική κλίμακα. Στην εφαρμογή, στο πλαίσιο <span class="k">⚡ Αυτόματη ανάγνωση</span>, πάτα <strong>&ldquo;Χρήση αυτής της ένδειξης ως σημείου εκκίνησης&rdquo;</strong>. Δεν πληρώνει τίποτα· ορίζει μόνο από πού ξεκινά η μέτρηση. Γίνεται μέχρι την πρώτη σου αυτόματη πληρωμή.</td></tr>
     <tr><td>this time photograph tariff register 2</td><td>Ο μετρητής σου δείχνει δύο ενδείξεις εναλλάξ, και οι φωτογραφίες σου εναλλάσσονται κι αυτές: κάθε φορά φωτογράφισε αυτή που δεν έδειχνε η προηγούμενη φωτογραφία σου. Περίμενε μέχρι η οθόνη να δείξει την ένδειξη που λέει η εφαρμογή (<span class="k">1.8.1</span> ή <span class="k">1.8.2</span>) και μετά βγάλε τη φωτογραφία.</td></tr>
     <tr><td>tariff register 1 went down</td><td>Κάθε ένδειξη μόνο ανεβαίνει. Έλεγξε ότι η χαμηλή και η κανονική χρέωση είναι η καθεμία στο δικό της πεδίο, με την ίδια σειρά όπως την προηγούμενη φορά.</td></tr>
-    <tr><td>the automatic reading is stale</td><td>A reading has to be under 48 hours old at the moment you claim it. The schedule tries every hour — look in <span class="k">.gul-bridge.log</span> next to <span class="k">gul.js</span> for why it failed, or run <span class="k">node gul.js --install</span> again. It is paid as soon as the log says <span class="k">pushed … ✓</span>.</td></tr>
+    <tr><td>the automatic reading is stale</td><td>Μια ένδειξη πρέπει να είναι λιγότερο από 48 ωρών τη στιγμή που κάνεις λήψη. Ο προγραμματισμός ξαναδοκιμάζει κάθε ώρα — κοίτα στο <span class="k">.gul-bridge.log</span> δίπλα στο <span class="k">gul.js</span> γιατί απέτυχε, ή τρέξε ξανά <span class="k">node gul.js --install</span>. Πληρώνεται μόλις το log γράψει <span class="k">pushed … ✓</span>.</td></tr>
     <tr><td>Καμία ένδειξη στην «⚡ Αυτόματη ανάγνωση»</td><td>Το βοηθητικό πρόγραμμα δεν έχει στείλει ακόμη τίποτα με επιτυχία. Κοίτα το παράθυρό του, ή άνοιξε το <span class="k">.gul-bridge.log</span> στον ίδιο φάκελο με το gul.js: κάθε εκτέλεση γράφει είτε <span class="k">pushed … ✓</span> είτε τον λόγο που απέτυχε.</td></tr>
     <tr><td>Δεν ξέρεις αν έχει προγραμματιστεί;</td><td>Windows: στο PowerShell τρέξε <span class="k">schtasks /Query /TN GreenUtilityLog</span> — αν δεις μια γραμμή με <em>GreenUtilityLog</em> και ώρα επόμενης εκτέλεσης, έχει προγραμματιστεί. Mac / Linux / Pi: το <span class="k">crontab -l</span> πρέπει να δείχνει μια γραμμή που τελειώνει σε <em># GreenUtilityLog</em>. Δεν υπάρχει τίποτα; Επικόλλησε άλλη μία φορά τη γραμμή ρύθμισης.</td></tr>
     <tr><td>Το ρύθμισες πριν τις 24 Σεπτεμβρίου</td><td>Επικόλλησε ξανά την ίδια γραμμή, μία φορά. Το νέο βοηθητικό πρόγραμμα περιμένει έναν διακομιστή που ακόμη «ξυπνά» αντί να τα παρατάει, γράφει κάθε εκτέλεση στο <span class="k">.gul-bridge.log</span> και στα Windows τρέχει και με μπαταρία.</td></tr>
@@ -1846,6 +1848,240 @@
   </table></div>
   <div class="note">Ακόμη δεν βγαίνει άκρη; Στείλε μας ένα μήνυμα με ό,τι δείχνει το log (ή το τερματικό) — συνήθως λέει ακριβώς τι λείπει.</div>
   <footer>GreenUtilityLog · Οδηγός για δοκιμαστές · Beta στο Testnet — δοκιμαστικά tokens, χωρίς πραγματική αξία ακόμη.</footer>
+</section>
+<section class="lang" id="lang-tr">
+  <header class="hero"><span class="kicker">Test kullanıcısı rehberi</span><h1>Sayacını fotoğraflamadan kazan</h1><p class="lede">Normalde B3TR kazanmak için sayacının fotoğrafını çekersin. Evinde sayacı zaten okuyabilen bir şey varsa, okumayı senin yerine o gönderebilir — ve bir daha fotoğraf çekmen gerekmez. Önce aşağıdan kendi düzenini bul.</p></header>
+  <nav class="toc" aria-label="Bu sayfada"><b>Bu sayfada</b><ol><li><a href="#tr-1">Sende hangi düzen var?</a></li><li><a href="#tr-2">Yaşadığın yerde çalışır mı?</a></li><li><a href="#tr-3">Tüm otomatik yollar için: token'ını al</a></li><li><a href="#tr-4">Yol A — Home Assistant (her sayaç)</a></li><li><a href="#tr-5">Yol B — HomeWizard P1, Home Assistant olmadan</a></li><li><a href="#tr-6">Yol C — Başka bir okuyucu (P1 okuyucu, Tasmota okuma başlığı)</a></li><li><a href="#tr-7">Yol D — Powerfox (poweropti)</a></li><li><a href="#tr-8">Yol E — Tibber Pulse</a></li><li><a href="#tr-9">Son olarak: ödeme kendiliğinden gelir</a></li><li><a href="#tr-10">Bir şey çalışmazsa</a></li></ol></nav>
+  <h2 id="tr-1">Sende hangi düzen var?</h2>
+  <div class="routes">
+    <div class="route pick"><div><h3>Home Assistant kullanıyorum</h3><p>HA'nın zaten okuduğu neredeyse her sayaçla çalışır. Entegrasyonumuzu kur ya da birkaç satır YAML yapıştır.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>En kolay</span></div></div>
+    <div class="route"><div><h3>HomeWizard P1'im var</h3><p>Home Assistant gerekmez. 🇳🇱 🇧🇪 🇱🇺 🇩🇰 🇸🇪 🇭🇺 ülkelerinde çalışır — küçük bir yardımcı program sayacını ağda kendisi bulur.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Biraz teknik</span></div></div>
+    <div class="route"><div><h3>Başka bir okuyucum var</h3><p>P1 Monitor, bir Tasmota okuma başlığı (Hichi) ya da sayacın kWh toplamını ağında JSON olarak sunan herhangi bir okuyucu.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span><span>Teknik</span></div></div>
+    <div class="route pick"><div><h3>Powerfox'um (poweropti) var</h3><p>Almanya'da yaygın. Okumanı Powerfox bulutundan biz alabiliriz — kurulacak bir şey yok, açık tutulacak bir şey yok.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>En kolay</span></div></div>
+    <div class="route pick"><div><h3>Tibber Pulse'um var</h3><p>İsveç, Norveç, Danimarka ve Finlandiya'da yaygın. Okumanı kişisel token'ınla Tibber'dan biz alırız — kurulacak bir şey yok.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>En kolay</span></div></div>
+    <div class="route"><div><h3>Bunların hiçbiri</h3><p>O zaman sayacını fotoğraflamaya devam et. Aynı derecede iyi çalışır ve tam olarak aynı kazancı getirir. Kurulacak bir şey yok.</p></div><div class="meter"><span>Kurulum yok</span></div></div>
+  </div>
+  <div class="note"><b>Önce, bir kez: başlangıç noktanı belirle</b>Hangi yolu seçersen seç, önce uygulamada <strong>normal bir fotoğraflı gönderim</strong> yap. Böylece uygulama sayacının nereden başladığını bilir — bu olmadan otomatik okumalar ödenemez.</div>
+  <h2 id="tr-2">Yaşadığın yerde çalışır mı?</h2>
+  <p class="lede" style="font-size:15.5px">Sayacındaki bağlantı noktası ülkeden ülkeye değişir, bu yüzden her okuyucu her yerde çalışmaz. Her zaman çalışan şu: <strong>Home Assistant sayacının toplamını zaten gösteriyorsa Yol A çalışır</strong> — hangi ülkede olursan ol.</p>
+  <div class="scroll"><table><tr><th>Ülke</th><th>Sayacında olan</th><th>Ne kullanmalı</th></tr>
+    <tr><td>🇳🇱 Hollanda</td><td>P1 portu (RJ12)</td><td>Her yol. HomeWizard kutudan çıktığı gibi çalışır.</td></tr>
+    <tr><td>🇧🇪 Belçika</td><td>P1 portu (RJ12, varsayılan olarak kapalı)</td><td>Port açıldıktan sonra her yol: Fluvius portalında ücretsiz aç (başka şebeke işletmecileri için: kendi işletmecine sor).</td></tr>
+    <tr><td>🇱🇺 Lüksemburg</td><td>P1 portu (Smarty, şifreli)</td><td>HomeWizard P1: şebeke işletmecinden bir kez P1 anahtarını iste. Ya da Home Assistant.</td></tr>
+    <tr><td>🇸🇪 İsveç · 🇫🇮 Finlandiya</td><td>HAN portu (RJ12)</td><td>🇸🇪 HomeWizard P1 (Yol B) — şebeke işletmecinin önce portu açması gerekebilir. Tibber Pulse: Yol E. Aksi halde bir P1/HAN okuyucu ya da Home Assistant.</td></tr>
+    <tr><td>🇩🇰 Danimarka</td><td>P1 (varsayılan olarak kapalı) veya HAN</td><td>HomeWizard P1 (Yol B), şebeke işletmecin P1 portunu açtıktan sonra — HAN portu için bir dönüştürücü gerekir. Tibber Pulse: Yol E. Aksi halde doğru bağlantıya sahip bir okuyucu ya da Home Assistant.</td></tr>
+    <tr><td>🇭🇺 Macaristan</td><td>P1 portu (şebeke işletmecisine bağlı)</td><td>Bazı sayaçlarda HomeWizard P1 — önce HomeWizard'ın listesine bak. Ya da Home Assistant veya fotoğraflar.</td></tr>
+    <tr><td>🇳🇴 Norveç</td><td>HAN (RJ45, M-BUS)</td><td>Tibber Pulse: Yol E. Aksi halde Norveç'e uygun bir HAN okuyucu + Home Assistant.</td></tr>
+    <tr><td>🇩🇪 Almanya</td><td>Smart-Meter-Gateway / optik başlık</td><td>Powerfox poweropti: Yol D. Tasmota okuma başlığı (Hichi): Yol C. Aksi halde Home Assistant.</td></tr>
+    <tr><td>🇸🇮 Slovenya</td><td>Birçok sayaçta P1 portu (bazen şifreli)</td><td>Büyük olasılıkla P1 okuyuculu Home Assistant — henüz test edilmedi.</td></tr>
+    <tr><td>🇬🇷 Yunanistan · 🇭🇷 Hırvatistan · 🇹🇷 Türkiye</td><td>Henüz müşteriye açık bir port bulunamadı</td><td>Şimdilik fotoğraflar.</td></tr>
+    <tr><td>🇷🇴 Romanya · 🇧🇬 Bulgaristan · Balkanların geri kalanı</td><td>Henüz müşteriye açık bir port bulunamadı</td><td>Şimdilik fotoğraflar.</td></tr>
+    <tr><td>🇦🇹 Avusturya</td><td>Müşteri arayüzü (M-Bus) / optik port</td><td>Tibber Pulse: Yol E. Tasmota okuma başlığı (Hichi): Yol C. Aksi halde Home Assistant.</td></tr>
+    <tr><td>🇨🇭 İsviçre</td><td>Müşteri arayüzü / optik port</td><td>Tasmota okuma başlığı (Hichi): Yol C. Aksi halde Home Assistant.</td></tr>
+    <tr><td>🇫🇷 Fransa</td><td>Linky: TIC portu</td><td>P1 portu yok, bu yüzden şimdilik yalnızca Home Assistant (örn. ZLinky ile). Ya da fotoğraflar.</td></tr>
+    <tr><td>🇬🇧 Birleşik Krallık</td><td>SMETS2: port yok (Zigbee)</td><td>P1 portu yok, bu yüzden şimdilik yalnızca Home Assistant (örn. Hildebrand Glow ile). Ya da fotoğraflar.</td></tr>
+    <tr><td>🇪🇸 İspanya</td><td>Port yok</td><td>P1 portu yok, bu yüzden şimdilik yalnızca Home Assistant (örn. Datadis ile). Ya da fotoğraflar.</td></tr>
+    <tr><td>🇮🇹 İtalya</td><td>Chain 2 (Sinapsi Alfa gibi bir cihaz gerekir)</td><td>P1 portu yok, bu yüzden şimdilik yalnızca Home Assistant. Ya da fotoğraflar.</td></tr>
+    <tr><td>🇺🇸 🇨🇦 ABD ve Kanada</td><td>P1 portu yok (Zigbee, yalnızca elektrik şirketi etkinleştirirse)</td><td>Ekran kWh toplamını gösteriyorsa fotoğraflar. Elektrik şirketinin izin verdiği yerlerde Rainforest EAGLE ile Home Assistant. Quebec (Hydro-Québec): yalnızca fotoğraflar.</td></tr>
+    <tr><td>Başka her yer</td><td>Değişir</td><td>Home Assistant sayacını okuyorsa Yol A çalışır.</td></tr>
+  </table></div>
+  <div class="note">Emin değil misin? Home Assistant'ı aç ve sayacını Developer tools → States altında ara. Orada artmaya devam eden bir kWh değeri varsa her şey hazır. HomeWizard P1 mi? Sayacını <a href="https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter">HomeWizard'ın listesinde</a> kontrol et.</div>
+  <h2 id="tr-3">Tüm otomatik yollar için: token'ını al</h2>
+  <ol class="steps">
+      <li><p class="steptitle">Cihaz token'ını kopyala</p>
+      <p>Uygulamada: <span class="k">Sayaç → ⚡ Sayaç okuyucun mu var (P1, Home Assistant…)? → ⚙️ Otomatik kurulum → “Cihaz token'ımı al”</span>. Kopyala.</p><div class="see"><b>Nedir?</b>“Bu okumalar benim cüzdanıma ait” diyen uzun bir kod. Kimseyle paylaşma — elinde bu kod olan herkes senin adına okuma gönderebilir.</div></li>
+      </ol>
+  <h2 id="tr-4">Yol A — Home Assistant (her sayaç)</h2>
+  <p class="lede" style="font-size:15.5px">İki yol var. Entegrasyonumuz en kolayıdır ve Home Assistant'ın sana zaten gösterdiği <em>her</em> sayaçla çalışır; bir şey kurmak istemiyorsan YAML aynı işi elle yapar.</p>
+  <h3 class="sub">Entegrasyonumuzla (önerilen)</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Bizi HACS'e ekle</p>
+      <p>Home Assistant'ta: <span class="k">HACS → ⋮ (sağ üst) → Custom repositories</span>. Aşağıdaki adresi yapıştır, tür olarak <strong>Integration</strong> seç ve Add'e bas.</p>
+      <div class="code"><span class="cap">Depo adresi</span><button class="copy">Kopyala</button><pre>https://github.com/GreenUtilityLog/GreenUtilityLog</pre></div>
+      </li>
+      <li><p class="steptitle">Kur ve yeniden başlat</p>
+      <p>HACS listesinde <strong>GreenUtilityLog</strong>'u aç, <strong>Download</strong>'a bas, sonra Home Assistant'ı yeniden başlat.</p>
+      </li>
+      <li><p class="steptitle">Entegrasyonu ekle</p>
+      <p><span class="k">Settings → Devices &amp; services → Add integration</span> bölümüne git ve <strong>GreenUtilityLog</strong> ara. Token'ını yapıştır, <strong>kümülatif kWh</strong> değerini tutan sensörü seç ve ne sıklıkla gönderileceğini belirle.</p>
+      <div class="see"><b>Çalıştığını kontrol et</b>Sayaç toplamınla birlikte bir <span class="k">Last sent reading</span> sensörü görünür. Özniteliklerinde gönderim zamanı ve varsa hata görünür.</div>
+      </li>
+      </ol>
+  <h3 class="sub">Kendi sensörünle (her sayaç)</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Sayaç sensörünü bul</p>
+      <p>Home Assistant'ta: <span class="k">Developer tools → States</span>. <em>import</em> ile filtrele ve değeri sürekli artan, kWh cinsinden olanı seç — o senin toplamın. Varlık kimlikleri (entity ID) her kurulumda farklıdır, o yüzden kendininkini kullan.</p>
+      </li>
+      <li><p class="steptitle">Bu satırları ekle</p>
+      <p>Bunu <span class="k">configuration.yaml</span> dosyasına koy, entity'yi ve token'ını kendi değerlerinle değiştir, sonra Home Assistant'ı yeniden başlat.</p>
+      <div class="code"><span class="cap">configuration.yaml + automations.yaml</span><button class="copy">Kopyala</button><pre>rest_command:
+  gul_push:
+    url: &quot;https://greenutilitylog-rewards.onrender.com/meter-ingest&quot;
+    method: POST
+    content_type: &quot;application/json&quot;
+    timeout: 90  # saniye: sunucunun uyanması bir dakika sürebilir
+    payload: &#x27;{&quot;token&quot;:&quot;TOKENIN&quot;,&quot;reading&quot;:{{ states(&quot;sensor.SENIN_ENTITY&quot;) | float }}}&#x27;
+
+# automations.yaml — günde iki kez (20 saatte bir ödül alabilirsin)
+- alias: Push meter to GreenUtilityLog
+  trigger: { platform: time_pattern, hours: &quot;/12&quot; }
+  # yalnızca gerçek bir kWh toplamı: yeniden başlatma sonrası 0 değil, unavailable değil
+  condition:
+    - condition: template
+      value_template: &#x27;{{ is_number(states(&quot;sensor.SENIN_ENTITY&quot;)) and states(&quot;sensor.SENIN_ENTITY&quot;) | float &gt; 0 and state_attr(&quot;sensor.SENIN_ENTITY&quot;, &quot;unit_of_measurement&quot;) == &quot;kWh&quot; }}&#x27;
+  action: { service: rest_command.gul_push }</pre></div>
+      </li>
+      </ol>
+  <h2 id="tr-5">Yol B — HomeWizard P1, Home Assistant olmadan</h2>
+  <ol class="steps">
+      <li><p class="steptitle">Local API'yi aç</p>
+      <p><strong>HomeWizard Energy</strong> uygulamasında: <span class="k">Settings → Meters → P1'in → Local API → ON</span>. Böylece kendi ağın sayacı okuyabilir.</p>
+      </li>
+      <li><p class="steptitle">PowerShell'i (veya bir terminali) aç</p>
+      <p><strong>Windows:</strong> Başlat'a bas, <em>PowerShell</em> yaz, Enter'a bas. <strong>Mac:</strong> <em>Terminal</em>'i aç. <strong>Raspberry Pi / NAS:</strong> kendi terminali ya da SSH. Aşağıdaki her şey o pencereye yazılır. Mac'te, Terminal'in açıldığı ana klasörde kal (5. adıma bak).</p>
+      </li>
+      <li><p class="steptitle">Node'un zaten kurulu olup olmadığını kontrol et</p>
+      <p>Bunu yaz ve Enter'a bas. Bir sürüm numarası çıkarsa — <span class="k">v22</span> ve üstü — her şey hazır (daha eskiyse bir sonraki adımı da yap, artık güvenlik güncellemesi almıyor) ve bir sonraki adımı atlayabilirsin. Bunun yerine bir hata çıkarsa Node henüz kurulu değil demektir.</p>
+      <div class="code"><span class="cap">Windows · Mac · Linux</span><button class="copy">Kopyala</button><pre>node -v</pre></div>
+      </li>
+      <li><p class="steptitle">Hata verdiyse Node.js'i kur</p>
+      <p><strong>Windows:</strong> aşağıdaki satırı yapıştır; kaynak koşullarını kabul etmeni isterse <span class="k">Y</span>'ye bas. <strong>Mac:</strong> nodejs.org'daki LTS yükleyicisi ya da <span class="k">brew install node</span>. <strong>Raspberry Pi / Debian:</strong> <span class="k">sudo apt install nodejs</span> (Node 22 veya daha yenisi gerekir — eski sürümler artık güvenlik güncellemesi almıyor; Debian/Ubuntu genelde daha eski bir sürümle gelir — o zaman nodesource.com'daki yükleyiciyi kullan). Sonra <strong>o pencereyi kapat ve yeni bir pencere aç</strong> — zaten açık olan bir pencere eski PATH'i korur, bu yüzden <span class="k">node</span> yine bulunamaz. <span class="k">node -v</span> ile tekrar kontrol et.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopyala</button><pre>winget install OpenJS.NodeJS.LTS</pre></div>
+      </li>
+      <li><p class="steptitle">Tek bir satır yapıştır, Enter'a bas</p>
+      <p>Yardımcı programı indirir ve ilk okumanı gönderir. Ayrıca kendini günde iki kez gönderim yapacak şekilde zamanlar (Windows: Görev Zamanlayıcı · Mac / Linux / Pi: cron); böylece pencereyi daha sonra kapatabilirsin, yeniden başlatmadan sonra bile çalışmaya devam eder. Bunu yalnızca bir kez çalıştırırsın. <strong>Mac:</strong> yeni açılmış bir Terminal'e, ana klasöründeyken yapıştır — önce <span class="k">cd</span> ile Masaüstü, Belgeler veya İndirilenler'e geçme: macOS zamanlamanın (cron) oradaki dosyaları okumasına izin vermez, bu yüzden hiç çalışmaz.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopyala</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopyala</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
+      </li>
+      <li><p class="steptitle">Sorduğunda token'ını yapıştır</p>
+      <p>Bir kez sorar ve hatırlar; bundan sonra zamanlama kaydedilen token'ı kullanır. Ardından zamanlamayı kurar, sayacı bulur ve ilk okumayı gönderir.</p>
+      <div class="see"><b>Sırasıyla görmen gerekenler</b><span class="k">Paste your device token…</span> → <span class="k">Scheduled…</span> → <span class="k">found HomeWizard at 192.168.…</span> → <span class="k">pushed 8421.3 kWh ✓</span></div>
+      </li>
+      </ol>
+  <h2 id="tr-6">Yol C — Başka bir okuyucu (P1 okuyucu, Tasmota okuma başlığı)</h2>
+  <p class="lede" style="font-size:15.5px">Aynı yardımcı program, ağındaki sayacın kWh toplamını HTTP üzerinden, giriş gerektirmeden JSON olarak sunan her cihazı okur — ona sadece nerede olduğunu söylersin. Her okuyucu bunu yapmaz: dsmr-reader'ın API'si bir anahtar ister, Shelly ise sayacın değerini değil kendi ölçtüğü enerjiyi sayar. Önce Yol B'nin 2–4. adımlarını yap (terminal ve Node); yalnızca aşağıdaki komut farklı.</p>
+  <ol class="steps">
+      <li><p class="steptitle">Okuyucunun veri URL'sini bul</p>
+      <p>Okuyucunun web sayfasını aç ve ham JSON döndüren adresi ara (genelde <span class="k">/api/v1/data</span> veya <span class="k">/api/v2/sm/actual</span> gibi bir şey). Tam yollar markadan markaya değişir — okuyucunun kendi belgelerine bak.</p>
+      </li>
+      <li><p class="steptitle">Yardımcı programı bu URL ile başlat</p>
+      <p>Örnek adresin yerine kendi adresini yaz; token'ını kendisi sorar. Okuma otomatik bulunamazsa, o JSON'daki kWh değerine giden noktalı yolla birlikte <span class="k">--field=</span> ekle. Toplam yok da yalnızca iki tarife değeri mi var (örneğin P1 Monitor'da)? İki yolu <span class="k">+</span> ile birleştir, toplamlarını gönderir; örn. <span class="k">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopyala</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopyala</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      </li>
+      <li><p class="steptitle">Tasmota okuma başlığı (Hichi) mı?</p>
+      <p><span class="k">--url=</span> yerine IP adresiyle birlikte <span class="k">--tasmota=</span> kullan. Yardımcı program sayaç toplamını (<span class="k">Total_in</span>) kendisi okur. Almanya, Avusturya ve İsviçre'deki sayaçlarda yaygındır.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopyala</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopyala</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      </li>
+      <li><p class="steptitle">Çalıştığını kontrol et</p>
+      <p>Yardımcı program ne gönderdiğini yazdırır.</p>
+      <div class="see"><b>Beklenen çıktı</b><span class="k">pushed 8421.3 kWh ✓</span></div>
+      </li>
+      </ol>
+  <h2 id="tr-7">Yol D — Powerfox (poweropti)</h2>
+  <p class="lede" style="font-size:15.5px">Bir poweropti sayacını okur ve toplamı Powerfox bulutuna gönderir. Bunu bize ulaştırmanın üç yolu aşağıda — <strong>yalnızca birine ihtiyacın var</strong>. Emin değil misin? Seçenek 1'i seç.</p>
+  <div class="note"><b>Önce, Powerfox uygulamasında</b><strong>Veri paylaşımını</strong> (Datenfreigabe) aç. Bu olmadan Powerfox okumalarını kimseyle paylaşmaz — ne bizimle ne de Home Assistant ile.</div>
+  <h3 class="sub">Seçenek 1 — Biz senin için alırız (en kolayı)</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Uygulamada Powerfox'u aç</p>
+      <p>Uygulamada: <span class="k">Sayaç → ⚡ Sayaç okuyucun mu var (P1, Home Assistant…)? → ⚙️ Otomatik kurulum → Powerfox</span> ve <strong>“Biz senin için alırız”</strong> seçeneğini seç. Orada değil mi? O zaman bu sürüm bunu henüz sunmuyor — seçenek 2'yi veya 3'ü kullan.</p>
+      </li>
+      <li><p class="steptitle">Powerfox hesabınla giriş yap</p>
+      <p>Powerfox uygulamasında kullandığın e-posta adresini ve şifreyi gir, kutuyu işaretle ve <strong>Powerfox'u bağla</strong> düğmesine bas. Giriş bilgilerin şifrelenmiş olarak saklanır ve yalnızca sayacını okumak için kullanılır. İpucu: başka hiçbir yerde kullanmadığın bir şifre kullan.</p>
+      </li>
+      <li><p class="steptitle">Bitti — bilgisayarın kapalı kalabilir</p>
+      <p>Sunucumuz sayaç toplamını yaklaşık her saat Powerfox'tan alır ve her okuma gibi öder. Durdurmak mı istiyorsun? <strong>Powerfox bağlantısını kes</strong> giriş bilgilerini hemen siler.</p>
+      <div class="see"><b>Çalıştığını kontrol et</b>Üstteki durum <span class="k">✅ Bağlandı — … kWh alındı</span> yazar.</div>
+      </li>
+      </ol>
+  <h3 class="sub">Seçenek 2 — Kendi bilgisayarında</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Terminali ve Node.js'i hazırla</p>
+      <p>Önce Yol B'nin 2–4. adımlarını yap: PowerShell'i veya bir terminali aç ve Node.js 22 ya da daha yenisinin kurulu olduğunu kontrol et.</p>
+      </li>
+      <li><p class="steptitle">Powerfox e-posta adresinle tek bir satır yapıştır</p>
+      <p><span class="k">YOUR_POWERFOX_EMAIL</span> yerine Powerfox hesabının e-posta adresini yaz. Token'ını ve Powerfox şifreni bir kez sorar (şifre yazarken görünmez) ve ikisini de gul.js'in yanındaki gizli bir dosyada saklar. Ardından tıpkı Yol B'deki gibi kendini zamanlar. Bilgisayarın günde en az bir kez açık olması gerekir.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopyala</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopyala</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      </li>
+      <li><p class="steptitle">Çalıştığını kontrol et</p>
+      <p>Yardımcı program ne gönderdiğini yazdırır.</p>
+      <div class="see"><b>Beklenen çıktı</b><span class="k">pushed 8421.3 kWh ✓</span></div>
+      </li>
+      </ol>
+  <h3 class="sub">Seçenek 3 — Home Assistant ile</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Powerfox'u Home Assistant'a ekle</p>
+      <p>Home Assistant'ta: <span class="k">Settings → Devices &amp; services → Add integration → Powerfox</span>. Powerfox hesabınla giriş yap.</p>
+      </li>
+      <li><p class="steptitle">Entegrasyonumuzu ekle</p>
+      <p>Yol A'daki <em>“Entegrasyonumuzla”</em> adımlarını izle: bizi HACS'e ekle, kur, yeniden başlat ve token'ını yapıştır.</p>
+      </li>
+      <li><p class="steptitle">Powerfox sayaç sensörünü seç</p>
+      <p>Sensör olarak Powerfox'un <strong>Energy usage</strong> (kWh) sensörünü seç. İki tarifeli bir sayaçta bu boş mu kalıyor? Yüksek ve düşük tarife sensörlerini toplayan bir yardımcı oluştur (<span class="k">Settings → Devices &amp; services → Helpers → Create helper → Group → Sensor group</span>, tür <strong>Sum</strong>; “Combine the state of several sensors” değil, çünkü entegrasyonumuz onu sayaç toplamı olarak kabul etmez) ve onu seç.</p>
+      </li>
+      </ol>
+  <h2 id="tr-8">Yol E — Tibber Pulse</h2>
+  <p class="lede" style="font-size:15.5px">Bir Tibber Pulse, sayacının HAN veya P1 portunu okur ve toplamı Tibber'a gönderir. Bunu bize ulaştırmanın iki yolu var — <strong>yalnızca birine ihtiyacın var</strong>.</p>
+  <h3 class="sub">Seçenek 1 — Biz senin için alırız (en kolayı)</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Tibber token'ını kopyala</p>
+      <p><span class="k">developer.tibber.com</span> adresini aç, Tibber hesabınla giriş yap, <strong>Access token</strong>'ı aç ve kişisel token'ını kopyala.</p>
+      </li>
+      <li><p class="steptitle">Uygulamaya yapıştır</p>
+      <p>Uygulamada: <span class="k">Sayaç → ⚡ Sayaç okuyucun mu var (P1, Home Assistant…)? → ⚙️ Otomatik kurulum → Tibber → “Biz senin için alırız”</span>. Token'ı yapıştır, kutuyu işaretle ve <strong>Tibber'ı bağla</strong> düğmesine bas. Bu 30 saniyeye kadar sürebilir. Orada değil mi? O zaman bu sürüm bunu henüz sunmuyor — seçenek 2'yi kullan.</p>
+      <div class="see"><b>Çalıştığını kontrol et</b>Uygulama <span class="k">Bağlandı — Tibber … kWh bildiriyor</span> gösterir. Bunun sayacındaki toplamla uyuştuğunu kontrol et.</div>
+      </li>
+      </ol>
+  <h3 class="sub">Seçenek 2 — Home Assistant ile</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Tibber'ı Home Assistant'a ekle</p>
+      <p><span class="k">Settings → Devices &amp; services → Add integration → Tibber</span>. Tibber token'ını yapıştır.</p>
+      </li>
+      <li><p class="steptitle">Entegrasyonumuzu ekle ve sensörü seç</p>
+      <p>Yol A'daki <em>“Entegrasyonumuzla”</em> adımlarını izle ve sensör olarak Tibber'ın <strong>Last meter consumption</strong> (kWh) sensörünü seç — sayacın kendi toplamı.</p>
+      </li>
+      </ol>
+  <div class="note"><b>Sürekli açık kalan bir cihazın yok mu?</b>Gerek yok. Planlanan saatte bilgisayar kapalı mıydı? Bilgisayar yeniden açılır açılmaz gönderir — yani arada bir açtığın bir dizüstü bilgisayar yeterli. Geldiği anda, günde en fazla bir kez ödenir.</div>
+  <h2 id="tr-9">Son olarak: ödeme kendiliğinden gelir</h2>
+  <ol class="steps">
+      <li><p class="steptitle">Okuman kendiliğinden görünür</p>
+      <p>Uygulamada <strong>Sayaç</strong>'ı aç. <strong>⚡ Otomatik okuma</strong> panelinde sayaç toplamın ve ne zaman geldiğiyle birlikte <span class="k">Bağlandı — … kWh alındı</span> yazar.</p>
+      </li>
+      <li><p class="steptitle">Ödeme kendiliğinden yapılır</p>
+      <p>Dokunman gereken bir şey yok: her okuma geldiği anda, günde en fazla bir kez otomatik olarak ödenir ve panelin <strong>Zaman çizelgesi</strong> <span class="k">+… B3TR ödendi</span> gösterir. Beklemek istemiyor musun? <strong>Şimdi al</strong> aynı işi yapar.</p>
+      </li>
+      </ol>
+  <div class="note flag"><b>🇧🇪 Belçika (Fluvius sayaçları)</b>Belçika'daki sayaçlarda P1 portu varsayılan olarak kapalıdır. Fluvius'ta bunu çevrim içi portallarından ücretsiz açarsın; başka bir şebeke işletmecisindeysen onlara sor. Sonrasında her şey aynı şekilde çalışır.</div>
+  <h2 id="tr-10">Bir şey çalışmazsa</h2>
+  <div class="scroll"><table class="stack"><tr><th>Gördüğün</th><th>Ne yapmalı</th></tr>
+    <tr><td>&#x27;node&#x27; is not recognized</td><td>Node.js kurulu değil ya da kurduğunda o pencere zaten açıktı. Windows'ta: <span class="k">winget install OpenJS.NodeJS.LTS</span>. Diğerlerinde: nodejs.org. Sonra <strong>yeni</strong> bir terminal aç ve satırı tekrar yapıştır. git'e ihtiyacın yok.</td></tr>
+    <tr><td>Hiçbir şey — çıktı yok, doğrudan komut satırına geri dönüyor</td><td>Yardımcı programın 19 Eylül'den önceki eski bir kopyası. Windows'ta hiçbir şey yazdırmadan kapanmasına yol açan bir hatası vardı. Yukarıdaki satırla yeniden indir; yenisi token'ını sorar.</td></tr>
+    <tr><td>no HomeWizard found on the network</td><td>Ağın otomatik bulmayı engelliyor — misafir Wi-Fi'larında ve VLAN kullanıldığında sık görülür. P1'inin IP adresini HomeWizard uygulamasında bul ve <span class="k">node gul.js --install --ip=192.168.1.50</span> komutunu çalıştır. Home Assistant eklentisinde bunun yerine <span class="k">hw_ip</span> alanını doldur.</td></tr>
+    <tr><td>couldn&#x27;t find a total import kWh</td><td>Cihaza ulaştı ama işe yarar bir şey alamadı: HomeWizard uygulamasında <strong>Local API hâlâ kapalı</strong> ya da bu bir P1 sayacı değil. Başka marka bir okuyucu için <span class="k">--url=</span> kullan.</td></tr>
+    <tr><td>couldn&#x27;t find a kWh number at …</td><td>Okuyucunun JSON'u yardımcı programın tanıdığı bir ad kullanmıyor. Değere giden noktalı yolla birlikte <span class="k">--field=</span> ekle, örn. <span class="k">--field=electricity.import_kwh</span>.</td></tr>
+    <tr><td>server said 401</td><td>Token yanlış ya da eksik. Uygulamadan tekrar kopyala ve kayıtlı olanı değiştirmek için bir kez <span class="k">node gul.js --ask-token --install</span> çalıştır.</td></tr>
+    <tr><td>submit one photo reading first</td><td>Sayacının henüz bir başlangıç noktası yok. Uygulamada normal bir fotoğraflı gönderim yap — otomatik okumalar hiçbir zaman ilk değeri belirlemez, böylece bir cihaz kendi başlangıç değerini uyduramaz. Ondan sonra ödeme yapılır.</td></tr>
+    <tr><td>usage … is outside the plausible range</td><td>Neredeyse her zaman bir <strong>çift tarifeli sayaç</strong>: ekran iki değer tutar (<span class="k">1.8.1</span> ve <span class="k">1.8.2</span>) ve fotoğrafın bunlardan birini yakalamıştır, okuyucun ise ikisinin toplamını bildirir — yani başlangıç noktan ile okuyucun farklı ölçeklerdedir. Uygulamada, <span class="k">⚡ Otomatik okuma</span> panelinde <strong>&ldquo;Bu okumayı başlangıç noktam yap&rdquo;</strong> düğmesine bas. Bu bir ödeme getirmez; yalnızca saymanın nereden başlayacağını belirler. İlk otomatik ödemene kadar yapılabilir.</td></tr>
+    <tr><td>this time photograph tariff register 2</td><td>Sayacın iki değeri sırayla gösterir ve fotoğrafların da sırayla değişir: her seferinde, son fotoğrafının göstermediği değeri fotoğrafla. Ekran uygulamanın belirttiği değere (<span class="k">1.8.1</span> veya <span class="k">1.8.2</span>) geçene kadar bekle, sonra fotoğrafı çek.</td></tr>
+    <tr><td>tariff register 1 went down</td><td>Her değer yalnızca artar. Düşük ve normal tarifenin her birinin kendi kutusunda, geçen seferle aynı sırada olduğunu kontrol et.</td></tr>
+    <tr><td>the automatic reading is stale</td><td>Bir okuma, ödülü aldığın anda 48 saatten yeni olmalı. Zamanlama her saat yeniden dener — neden başarısız olduğunu görmek için <span class="k">gul.js</span> dosyasının yanındaki <span class="k">.gul-bridge.log</span> dosyasına bak ya da <span class="k">node gul.js --install</span> komutunu tekrar çalıştır. Log'da <span class="k">pushed … ✓</span> yazar yazmaz ödenir.</td></tr>
+    <tr><td>“⚡ Otomatik okuma” bölümünde okuma yok</td><td>Yardımcı program henüz başarıyla bir şey gönderemedi. Penceresine bak ya da gul.js ile aynı klasördeki <span class="k">.gul-bridge.log</span> dosyasını aç: her çalıştırma ya <span class="k">pushed … ✓</span> ya da başarısız olma nedenini yazar.</td></tr>
+    <tr><td>Zamanlandığından emin değil misin?</td><td>Windows: PowerShell'de <span class="k">schtasks /Query /TN GreenUtilityLog</span> çalıştır — <em>GreenUtilityLog</em> içeren ve bir sonraki çalışma zamanını gösteren bir satır varsa zamanlanmış demektir. Mac / Linux / Pi: <span class="k">crontab -l</span>, <em># GreenUtilityLog</em> ile biten bir satır göstermeli. Hiçbir şey yok mu? Kurulum satırını bir kez daha yapıştır.</td></tr>
+    <tr><td>Bunu 24 Eylül&#x27;den önce kurduysan</td><td>Aynı satırı bir kez daha yapıştır. Yeni yardımcı program, hâlâ uyanmakta olan bir sunucuyu pes etmek yerine bekler, her çalıştırmayı <span class="k">.gul-bridge.log</span> dosyasına yazar ve Windows'ta pil gücüyle de çalışır.</td></tr>
+    <tr><td>Powerfox didn&#x27;t accept the e-mail and password</td><td>Powerfox uygulamasının e-posta adresini ve şifresini tam olarak kullan (yazım hatası veya boşluğa dikkat et). Powerfox şifreni mi değiştirdin? Seçenek 1: yenisiyle tekrar <strong>Powerfox'u bağla</strong> düğmesine bas. Seçenek 2: kurulum satırını tekrar yapıştır — şifreyi sorar.</td></tr>
+    <tr><td>switch on data transfer (Datenfreigabe)</td><td>Powerfox okumalarını paylaşmayı reddediyor. Powerfox uygulamasında veri paylaşımını (Datenfreigabe) aç, sonra tekrar dene.</td></tr>
+    <tr><td>Powerfox only has an old reading</td><td>poweropti'n bir süredir Powerfox'a bir şey göndermedi. Powerfox uygulamasında çevrim içi olduğunu kontrol et (Wi-Fi, pil). Yeni bir okuma gelene kadar hiçbir şey gönderilmez ve ödenmez.</td></tr>
+    <tr><td>Tibber didn&#x27;t accept this token</td><td>Token'ı developer.tibber.com'dan boşluksuz olarak tekrar kopyala. Orada yeni bir token mı oluşturdun? O zaman eskisi çalışmayı bırakır: yenisiyle tekrar bağlan.</td></tr>
+    <tr><td>no Tibber Pulse found on this account</td><td>Pulse'un Tibber uygulamasında, token ile aynı hesapta kurulmuş olması gerekir.</td></tr>
+    <tr><td>your Pulse sends live data but no meter total</td><td>Her sayaç toplamını HAN portu üzerinden bildirmez. O zaman fotoğrafları ya da başka bir okuyucuyu kullan.</td></tr>
+    <tr><td>this phone is already used by 1 other wallet</td><td>Bir kişi, bir cüzdan: bir telefonla yalnızca bir cüzdan kazanç sağlayabilir. Bu telefonda ilk ödeme alan cüzdan çalışmaya devam eder. Kalıcı olarak yeni bir cüzdana mı geçtin? Uygulamadaki “Geri Bildirim Gönder” üzerinden bir yöneticiye sor.</td></tr>
+    <tr><td>automatic payouts are paused until you take one photo</td><td>Kendi sayılarını gönderen bir okuyucu (P1, Home Assistant, bu yardımcı program) her 90 günde bir sayacının bir fotoğrafına ihtiyaç duyar; Powerfox, Tibber ve MojElektro duymaz. Başlangıç noktası fotoğrafsız düzeltildikten sonra da aynı duraklama bir kez gelir. Sayaç sekmesinde bir fotoğraf çek, ödemeler yeniden başlar. Uygulama sana bir hafta önceden hatırlatır.</td></tr>
+    <tr><td>already been corrected once</td><td>Bir sayacın başlangıç noktası bir kez düzeltilebilir — her düzeltme son ödemeden bu yana olan tüketimi siler. Yine yanlışsa, uygulamadaki “Geri Bildirim Gönder” üzerinden bir yöneticiye sor.</td></tr>
+  </table></div>
+  <div class="note">Hâlâ takıldın mı? Log'un (veya terminalin) gösterdiğini bize mesajla gönder — genelde tam olarak neyin eksik olduğunu söyler.</div>
+  <footer>GreenUtilityLog · Test kullanıcısı rehberi · Testnet beta — test token'ları, henüz gerçek bir değeri yok.</footer>
 </section>
 <section class="lang" id="lang-sl">
   <header class="hero"><span class="kicker">Vodnik za preizkuševalce</span><h1>Služi brez fotografiranja števca</h1><p class="lede">Običajno za B3TR fotografiraš svoj števec. Če lahko kaj v tvojem domu števec že odčita, lahko odčitek pošlje namesto tebe — in fotografij ne potrebuješ več. Najprej spodaj poišči svojo postavitev.</p></header>
@@ -3719,6 +3955,240 @@
   <div class="note">Vieläkin jumissa? Lähetä viesti, jossa kerrot, mitä Loki-välilehti (tai pääte) näyttää — siinä lukee yleensä tarkalleen, mikä puuttuu.</div>
   <footer>GreenUtilityLog · Testaajan opas · Testnet-beta — testitokeneita, ei vielä todellista arvoa.</footer>
 </section>
+<section class="lang" id="lang-hu">
+  <header class="hero"><span class="kicker">Útmutató tesztelőknek</span><h1>Keress úgy, hogy nem fotózod a mérődet</h1><p class="lede">Általában lefotózod a mérődet, hogy B3TR-t keress. Ha otthon már van valami, ami le tudja olvasni a mérőt, az elküldheti helyetted a mérőállást — és soha többé nem kell fotóznod. Először keresd meg lent, milyen eszközöd van.</p></header>
+  <nav class="toc" aria-label="Ezen az oldalon"><b>Ezen az oldalon</b><ol><li><a href="#hu-1">Milyen eszközöd van?</a></li><li><a href="#hu-2">Működik ez ott, ahol élsz?</a></li><li><a href="#hu-3">Minden automatikus útvonalhoz: kérd le a tokenedet</a></li><li><a href="#hu-4">A útvonal — Home Assistant (bármilyen mérő)</a></li><li><a href="#hu-5">B útvonal — HomeWizard P1, Home Assistant nélkül</a></li><li><a href="#hu-6">C útvonal — Más leolvasó (P1-olvasó, Tasmota olvasófej)</a></li><li><a href="#hu-7">D útvonal — Powerfox (poweropti)</a></li><li><a href="#hu-8">E útvonal — Tibber Pulse</a></li><li><a href="#hu-9">Végül: a kifizetés magától megtörténik</a></li><li><a href="#hu-10">Ha valami nem működik</a></li></ol></nav>
+  <h2 id="hu-1">Milyen eszközöd van?</h2>
+  <div class="routes">
+    <div class="route pick"><div><h3>Home Assistantot használok</h3><p>Szinte bármilyen mérővel működik, amelyet a HA már leolvas. Telepítsd az integrációnkat, vagy illessz be néhány sor YAML-t.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Legegyszerűbb</span></div></div>
+    <div class="route"><div><h3>HomeWizard P1-em van</h3><p>Nem kell hozzá Home Assistant. Működik itt: 🇳🇱 🇧🇪 🇱🇺 🇩🇰 🇸🇪 🇭🇺 — egy kis szkript magától megtalálja a mérődet a hálózaton.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i></i></span><span>Kis technika</span></div></div>
+    <div class="route"><div><h3>Más leolvasóm van</h3><p>P1 Monitor, Tasmota olvasófej (Hichi) vagy bármilyen leolvasó, amely a mérő összesített kWh-állását JSON-ként elérhetővé teszi a hálózatodon.</p></div><div class="meter"><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span><span>Technikai</span></div></div>
+    <div class="route pick"><div><h3>Powerfoxom (poweropti) van</h3><p>Németországban gyakori. A mérőállásodat lekérhetjük a Powerfox felhőjéből — semmit nem kell telepíteni, semmit nem kell bekapcsolva tartani.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Legegyszerűbb</span></div></div>
+    <div class="route pick"><div><h3>Tibber Pulse-om van</h3><p>Svédországban, Norvégiában, Dániában és Finnországban gyakori. A személyes tokeneddel lekérjük a mérőállásodat a Tibbertől — semmit nem kell telepíteni.</p></div><div class="meter"><span class="dots"><i class="on"></i><i></i><i></i></span><span>Legegyszerűbb</span></div></div>
+    <div class="route"><div><h3>Egyik sem</h3><p>Akkor fotózd tovább a mérődet. Ugyanolyan jól működik, és pontosan ugyanannyit hoz. Semmit nem kell beállítani.</p></div><div class="meter"><span>Nincs beállítás</span></div></div>
+  </div>
+  <div class="note"><b>Először, egyszer: állítsd be a kiindulási értékedet</b>Bármelyik útvonalat választod, előbb küldj be az appban <strong>egy szokásos fotós mérőállást</strong>. Ebből tudja az app, honnan indult a mérőd — enélkül az automatikus mérőállásokért nem lehet kifizetést adni.</div>
+  <h2 id="hu-2">Működik ez ott, ahol élsz?</h2>
+  <p class="lede" style="font-size:15.5px">A mérő csatlakozója országonként eltér, ezért nem minden leolvasó működik mindenhol. Ami mindig működik: <strong>ha a Home Assistant már mutatja a mérőd összesített állását, az A útvonal működik</strong> — bármelyik országban vagy.</p>
+  <div class="scroll"><table><tr><th>Ország</th><th>A mérődön ez van</th><th>Ezt használd</th></tr>
+    <tr><td>🇳🇱 Hollandia</td><td>P1 port (RJ12)</td><td>Bármelyik útvonal. A HomeWizard azonnal működik.</td></tr>
+    <tr><td>🇧🇪 Belgium</td><td>P1 port (RJ12, alapból kikapcsolva)</td><td>Bármelyik útvonal, ha a port be van kapcsolva: a Fluvius portálján ingyen bekapcsolhatod (más hálózati szolgáltatónál kérdezd meg a sajátodat).</td></tr>
+    <tr><td>🇱🇺 Luxemburg</td><td>P1 port (Smarty, titkosított)</td><td>HomeWizard P1: egyszer kérd el a hálózati szolgáltatódtól a P1-kulcsot. Vagy Home Assistant.</td></tr>
+    <tr><td>🇸🇪 Svédország · 🇫🇮 Finnország</td><td>HAN port (RJ12)</td><td>🇸🇪 HomeWizard P1 (B útvonal) — lehet, hogy előbb a hálózati szolgáltatónak kell bekapcsolnia a portot. Tibber Pulse: E útvonal. Egyébként P1/HAN-olvasó vagy Home Assistant.</td></tr>
+    <tr><td>🇩🇰 Dánia</td><td>P1 (alapból kikapcsolva) vagy HAN</td><td>HomeWizard P1 (B útvonal), miután a hálózati szolgáltatód bekapcsolta a P1 portot — a HAN porthoz átalakító kell. Tibber Pulse: E útvonal. Egyébként megfelelő csatlakozós leolvasó vagy Home Assistant.</td></tr>
+    <tr><td>🇭🇺 Magyarország</td><td>P1 port (a hálózati szolgáltatótól függ)</td><td>HomeWizard P1 bizonyos mérőkkel — előbb nézd meg a HomeWizard listáját. Vagy Home Assistant, vagy fotók.</td></tr>
+    <tr><td>🇳🇴 Norvégia</td><td>HAN (RJ45, M-BUS)</td><td>Tibber Pulse: E útvonal. Egyébként norvég HAN-olvasó + Home Assistant.</td></tr>
+    <tr><td>🇩🇪 Németország</td><td>Smart-Meter-Gateway / optikai olvasófej</td><td>Powerfox poweropti: D útvonal. Tasmota olvasófej (Hichi): C útvonal. Egyébként Home Assistant.</td></tr>
+    <tr><td>🇸🇮 Szlovénia</td><td>Sok mérőn P1 port (néha titkosított)</td><td>Valószínűleg Home Assistant egy P1-olvasóval — még nem teszteltük.</td></tr>
+    <tr><td>🇬🇷 Görögország · 🇭🇷 Horvátország · 🇹🇷 Törökország</td><td>Még nem találtunk ügyfélportot</td><td>Egyelőre fotók.</td></tr>
+    <tr><td>🇷🇴 Románia · 🇧🇬 Bulgária · a Balkán többi része</td><td>Még nem találtunk ügyfélportot</td><td>Egyelőre fotók.</td></tr>
+    <tr><td>🇦🇹 Ausztria</td><td>Ügyfélinterfész (M-Bus) / optikai port</td><td>Tibber Pulse: E útvonal. Tasmota olvasófej (Hichi): C útvonal. Egyébként Home Assistant.</td></tr>
+    <tr><td>🇨🇭 Svájc</td><td>Ügyfélinterfész / optikai port</td><td>Tasmota olvasófej (Hichi): C útvonal. Egyébként Home Assistant.</td></tr>
+    <tr><td>🇫🇷 Franciaország</td><td>Linky: TIC port</td><td>Nincs P1 port, így egyelőre csak Home Assistant (pl. ZLinkyvel). Vagy fotók.</td></tr>
+    <tr><td>🇬🇧 Egyesült Királyság</td><td>SMETS2: nincs port (Zigbee)</td><td>Nincs P1 port, így egyelőre csak Home Assistant (pl. Hildebrand Glow-val). Vagy fotók.</td></tr>
+    <tr><td>🇪🇸 Spanyolország</td><td>Nincs port</td><td>Nincs P1 port, így egyelőre csak Home Assistant (pl. Datadisszel). Vagy fotók.</td></tr>
+    <tr><td>🇮🇹 Olaszország</td><td>Chain 2 (eszköz kell hozzá, pl. Sinapsi Alfa)</td><td>Nincs P1 port, így egyelőre csak Home Assistant. Vagy fotók.</td></tr>
+    <tr><td>🇺🇸 🇨🇦 USA és Kanada</td><td>Nincs P1 port (Zigbee, csak ha az áramszolgáltató engedélyezi)</td><td>Fotók, ha a kijelző mutatja az összesített kWh-állást. Home Assistant egy Rainforest EAGLE-lel, ahol az áramszolgáltató engedi. Québec (Hydro-Québec): csak fotók.</td></tr>
+    <tr><td>Máshol</td><td>Változó</td><td>Ha a Home Assistant leolvassa a mérődet, az A útvonal működik.</td></tr>
+  </table></div>
+  <div class="note">Nem vagy biztos benne? Nyisd meg a Home Assistantot, és keresd meg a mérődet itt: Developer tools → States. Ha ott van egy felfelé számoló kWh-érték, minden rendben. HomeWizard P1? Nézd meg a mérődet a <a href="https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter">HomeWizard listáján</a>.</div>
+  <h2 id="hu-3">Minden automatikus útvonalhoz: kérd le a tokenedet</h2>
+  <ol class="steps">
+      <li><p class="steptitle">Másold ki az eszköztokenedet</p>
+      <p>Az appban: <span class="k">Mérő → ⚡ Van mérőleolvasód (P1, Home Assistant…)? → ⚙️ Automatikus beállítás → „Eszköztoken lekérése”</span>. Másold ki.</p><div class="see"><b>Mi ez?</b>Egy hosszú kód, amely azt mondja: „ezek a mérőállások az én tárcámhoz tartoznak”. Tartsd titokban — akinél megvan, a nevedben küldhet be mérőállásokat.</div></li>
+      </ol>
+  <h2 id="hu-4">A útvonal — Home Assistant (bármilyen mérő)</h2>
+  <p class="lede" style="font-size:15.5px">Két lehetőség van. Az integrációnk a legegyszerűbb, és <em>bármilyen</em> mérővel működik, amelyet a Home Assistant már mutat neked; a YAML ugyanezt kézzel csinálja, ha inkább nem telepítenél semmit.</p>
+  <h3 class="sub">Az integrációnkkal (ajánlott)</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Adj hozzá minket a HACS-hez</p>
+      <p>A Home Assistantban: <span class="k">HACS → ⋮ (jobbra fent) → Custom repositories</span>. Illeszd be az alábbi címet, típusnak válaszd az <strong>Integration</strong> lehetőséget, és nyomd meg az Add gombot.</p>
+      <div class="code"><span class="cap">A tároló (repository) címe</span><button class="copy">Másolás</button><pre>https://github.com/GreenUtilityLog/GreenUtilityLog</pre></div>
+      </li>
+      <li><p class="steptitle">Telepítés és újraindítás</p>
+      <p>Nyisd meg a <strong>GreenUtilityLog</strong> elemet a HACS listájában, nyomd meg a <strong>Download</strong> gombot, majd indítsd újra a Home Assistantot.</p>
+      </li>
+      <li><p class="steptitle">Add hozzá az integrációt</p>
+      <p>Menj ide: <span class="k">Settings → Devices &amp; services → Add integration</span>, és keress rá a <strong>GreenUtilityLog</strong> névre. Illeszd be a tokenedet, válaszd ki azt az érzékelőt, amelyik az <strong>összesített kWh-értéket</strong> mutatja, és add meg, milyen gyakran küldjön.</p>
+      <div class="see"><b>Ellenőrizd, hogy működik-e</b>Megjelenik egy <span class="k">Last sent reading</span> nevű érzékelő a mérőállásoddal. Az attribútumai mutatják, mikor küldte el, és az esetleges hibát.</div>
+      </li>
+      </ol>
+  <h3 class="sub">Saját érzékelővel (bármilyen mérő)</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Keresd meg a mérőd érzékelőjét</p>
+      <p>A Home Assistantban: <span class="k">Developer tools → States</span>. Szűrj az <em>import</em> szóra, és válaszd azt a kWh-ban mért értéket, amely folyamatosan felfelé számol — ez az összesített állásod. Az entitásazonosítók telepítésenként eltérnek, ezért a sajátodat használd.</p>
+      </li>
+      <li><p class="steptitle">Add hozzá ezeket a sorokat</p>
+      <p>Írd be ezt a <span class="k">configuration.yaml</span> fájlba, cseréld ki az entitást és a tokenedet, majd indítsd újra a Home Assistantot.</p>
+      <div class="code"><span class="cap">configuration.yaml + automations.yaml</span><button class="copy">Másolás</button><pre>rest_command:
+  gul_push:
+    url: &quot;https://greenutilitylog-rewards.onrender.com/meter-ingest&quot;
+    method: POST
+    content_type: &quot;application/json&quot;
+    timeout: 90  # másodperc: a szervernek akár egy perc is kellhet, hogy felébredjen
+    payload: &#x27;{&quot;token&quot;:&quot;A_TOKENED&quot;,&quot;reading&quot;:{{ states(&quot;sensor.AZ_ENTITASOD&quot;) | float }}}&#x27;
+
+# automations.yaml — naponta kétszer (20 óránként egyszer igényelhetsz)
+- alias: Push meter to GreenUtilityLog
+  trigger: { platform: time_pattern, hours: &quot;/12&quot; }
+  # csak valódi összesített kWh-érték: újraindítás után nem 0, és nem unavailable
+  condition:
+    - condition: template
+      value_template: &#x27;{{ is_number(states(&quot;sensor.AZ_ENTITASOD&quot;)) and states(&quot;sensor.AZ_ENTITASOD&quot;) | float &gt; 0 and state_attr(&quot;sensor.AZ_ENTITASOD&quot;, &quot;unit_of_measurement&quot;) == &quot;kWh&quot; }}&#x27;
+  action: { service: rest_command.gul_push }</pre></div>
+      </li>
+      </ol>
+  <h2 id="hu-5">B útvonal — HomeWizard P1, Home Assistant nélkül</h2>
+  <ol class="steps">
+      <li><p class="steptitle">Kapcsold be a Local API-t</p>
+      <p>A <strong>HomeWizard Energy</strong> appban: <span class="k">Settings → Meters → a P1-ed → Local API → ON</span>. Így a saját hálózatod leolvashatja a mérőt.</p>
+      </li>
+      <li><p class="steptitle">Nyisd meg a PowerShellt (vagy egy terminált)</p>
+      <p><strong>Windows:</strong> nyomd meg a Start gombot, írd be: <em>PowerShell</em>, majd Enter. <strong>Mac:</strong> nyisd meg a <em>Terminal</em> alkalmazást. <strong>Raspberry Pi / NAS:</strong> a saját termináljában vagy SSH-n keresztül. Minden további parancsot ebbe az ablakba írsz. Macen maradj abban a saját mappádban, amelyben a Terminal megnyílik (lásd az 5. lépést).</p>
+      </li>
+      <li><p class="steptitle">Nézd meg, megvan-e már a Node</p>
+      <p>Írd be ezt, és nyomj Entert. Ha egy verziószámot kapsz — <span class="k">v22</span> vagy afölött bármit —, akkor minden rendben (ha régebbit: a következő lépést is csináld meg, mert az már nem kap biztonsági frissítéseket), és a következő lépést kihagyhatod. Ha helyette hibaüzenetet kapsz, a Node még nincs telepítve.</p>
+      <div class="code"><span class="cap">Windows · Mac · Linux</span><button class="copy">Másolás</button><pre>node -v</pre></div>
+      </li>
+      <li><p class="steptitle">Telepítsd a Node.js-t, ha hibát kaptál</p>
+      <p><strong>Windows:</strong> illeszd be az alábbi sort; ha a forrás feltételeinek elfogadását kéri, nyomj <span class="k">Y</span>-t. <strong>Mac:</strong> az LTS telepítő a nodejs.org oldalról, vagy <span class="k">brew install node</span>. <strong>Raspberry Pi / Debian:</strong> <span class="k">sudo apt install nodejs</span> (Node 22 vagy újabb kell — a régebbi verziók már nem kapnak biztonsági frissítéseket; a Debian/Ubuntu gyakran régebbit ad — ilyenkor a nodesource.com telepítőjét használd). Ezután <strong>zárd be az ablakot, és nyiss egy újat</strong> — a már nyitva lévő ablak megtartja a régi PATH-t, így a <span class="k">node</span> továbbra sem lenne található. Ellenőrizd újra ezzel: <span class="k">node -v</span>.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Másolás</button><pre>winget install OpenJS.NodeJS.LTS</pre></div>
+      </li>
+      <li><p class="steptitle">Illessz be egy sort, és nyomj Entert</p>
+      <p>Ez letölti a szkriptet, és elküldi az első mérőállásodat. Ütemezi is magát, hogy naponta kétszer jelentsen (Windows: Feladatütemező · Mac / Linux / Pi: cron), így utána bezárhatod az ablakot, és tovább működik, újraindítás után is. Csak most az egyszer kell futtatnod. <strong>Mac:</strong> egy frissen megnyitott Terminalba illeszd be, a saját mappádban — előtte ne lépj be <span class="k">cd</span>-vel az Íróasztal, Dokumentumok vagy Letöltések mappába: a macOS nem engedi, hogy az ütemezés (cron) ott fájlokat olvasson, így soha nem futna le.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Másolás</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Másolás</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
+      </li>
+      <li><p class="steptitle">Illeszd be a tokenedet, amikor kéri</p>
+      <p>Egyszer kéri, és megjegyzi; az ütemezés onnantól a mentett tokent használja. Ezután beállítja az ütemezést, megtalálja a mérőt, és elküldi az első mérőállást.</p>
+      <div class="see"><b>Ezt kell látnod, ebben a sorrendben</b><span class="k">Paste your device token…</span> → <span class="k">Scheduled…</span> → <span class="k">found HomeWizard at 192.168.…</span> → <span class="k">pushed 8421.3 kWh ✓</span></div>
+      </li>
+      </ol>
+  <h2 id="hu-6">C útvonal — Más leolvasó (P1-olvasó, Tasmota olvasófej)</h2>
+  <p class="lede" style="font-size:15.5px">Ugyanez a szkript bármilyen eszközt le tud olvasni a hálózatodon, amely a mérő összesített kWh-állását JSON-ként, HTTP-n, bejelentkezés nélkül kínálja — csak azt kell megmondanod, hol. Nem minden leolvasó ilyen: a dsmr-reader API-ja kulcsot kér, a Shelly pedig a saját mért energiáját számolja, nem a mérő regiszterét. Előbb csináld meg a B útvonal 2–4. lépését (terminál és Node); csak az alábbi parancs más.</p>
+  <ol class="steps">
+      <li><p class="steptitle">Keresd meg a leolvasód adat-URL-jét</p>
+      <p>Nyisd meg a leolvasód weboldalát, és keresd meg azt a címet, amely nyers JSON-t ad vissza (gyakran valami ilyesmi: <span class="k">/api/v1/data</span> vagy <span class="k">/api/v2/sm/actual</span>). A pontos útvonalak gyártónként eltérnek — nézd meg a leolvasód saját dokumentációját.</p>
+      </li>
+      <li><p class="steptitle">Indítsd el a szkriptet ezzel az URL-lel</p>
+      <p>A példacím helyére a sajátodat írd; a tokent magától kéri. Ha nem találja meg automatikusan a mérőállást, add hozzá a <span class="k">--field=</span> kapcsolót a JSON-ban lévő kWh-értékhez vezető, pontokkal tagolt útvonallal. Csak két tarifaregiszter van, és nincs összesített érték (például a P1 Monitornál)? Kapcsold össze a két útvonalat <span class="k">+</span> jellel, és az összegüket küldi, pl. <span class="k">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Másolás</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Másolás</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      </li>
+      <li><p class="steptitle">Tasmota olvasófejed (Hichi) van?</p>
+      <p>A <span class="k">--url=</span> helyett használd a <span class="k">--tasmota=</span> kapcsolót az IP-címével. A szkript magától kiolvassa a mérő összesített állását (<span class="k">Total_in</span>). Német, osztrák és svájci mérőkön gyakori.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Másolás</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Másolás</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      </li>
+      <li><p class="steptitle">Ellenőrizd, hogy működött-e</p>
+      <p>A szkript kiírja, mit küldött el.</p>
+      <div class="see"><b>Várt kimenet</b><span class="k">pushed 8421.3 kWh ✓</span></div>
+      </li>
+      </ol>
+  <h2 id="hu-7">D útvonal — Powerfox (poweropti)</h2>
+  <p class="lede" style="font-size:15.5px">A poweropti leolvassa a mérődet, és elküldi az összesített állást a Powerfox felhőjébe. Lent három módját látod annak, hogyan jut el hozzánk — <strong>csak egy kell</strong>. Nem vagy biztos benne? Válaszd az 1. lehetőséget.</p>
+  <div class="note"><b>Először a Powerfox appban</b>Kapcsold be az <strong>adatmegosztást</strong> (Datenfreigabe). Enélkül a Powerfox senkivel nem osztja meg a mérőállásaidat — sem velünk, sem a Home Assistanttal.</div>
+  <h3 class="sub">1. lehetőség — Mi kérjük le neked (legegyszerűbb)</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Nyisd meg a Powerfoxot az appban</p>
+      <p>Az appban: <span class="k">Mérő → ⚡ Van mérőleolvasód (P1, Home Assistant…)? → ⚙️ Automatikus beállítás → Powerfox</span>, és válaszd ezt: <strong>„Mi kérjük le neked”</strong>. Nincs ott? Akkor ez a verzió még nem kínálja — használd a 2. vagy a 3. lehetőséget.</p>
+      </li>
+      <li><p class="steptitle">Jelentkezz be a Powerfox-fiókoddal</p>
+      <p>Add meg azt az e-mail-címet és jelszót, amelyet a Powerfox appban használsz, jelöld be a négyzetet, és nyomd meg a <strong>Powerfox csatlakoztatása</strong> gombot. A belépési adataidat titkosítva tároljuk, és csak a mérőd leolvasására használjuk. Tipp: olyan jelszót használj, amelyet máshol nem.</p>
+      </li>
+      <li><p class="steptitle">Kész — a számítógéped maradhat kikapcsolva</p>
+      <p>A szerverünk nagyjából óránként lekéri a mérőd összesített állását a Powerfoxtól, és ugyanúgy fizet érte, mint bármely mérőállásért. Le akarod állítani? A <strong>Powerfox leválasztása</strong> azonnal törli a belépési adataidat.</p>
+      <div class="see"><b>Ellenőrizd, hogy működik-e</b>A fenti állapotsor ezt mutatja: <span class="k">✅ Csatlakoztatva — … kWh beérkezett</span>.</div>
+      </li>
+      </ol>
+  <h3 class="sub">2. lehetőség — A saját számítógépeden</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Készítsd elő a terminált és a Node.js-t</p>
+      <p>Előbb csináld meg a B útvonal 2–4. lépését: nyisd meg a PowerShellt vagy egy terminált, és ellenőrizd, hogy a Node.js 22 vagy újabb telepítve van-e.</p>
+      </li>
+      <li><p class="steptitle">Illessz be egy sort a Powerfox e-mail-címeddel</p>
+      <p>A <span class="k">YOUR_POWERFOX_EMAIL</span> helyére írd a Powerfox-fiókod e-mail-címét. Egyszer elkéri a tokenedet és a Powerfox-jelszavadat (a jelszó gépelés közben nem látszik), és mindkettőt egy privát fájlban tárolja a gul.js mellett. Ezután ütemezi magát, pont úgy, mint a B útvonalon. A számítógépnek legalább naponta egyszer be kell lennie kapcsolva.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Másolás</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Másolás</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      </li>
+      <li><p class="steptitle">Ellenőrizd, hogy működött-e</p>
+      <p>A szkript kiírja, mit küldött el.</p>
+      <div class="see"><b>Várt kimenet</b><span class="k">pushed 8421.3 kWh ✓</span></div>
+      </li>
+      </ol>
+  <h3 class="sub">3. lehetőség — Home Assistanttal</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Add hozzá a Powerfoxot a Home Assistanthoz</p>
+      <p>A Home Assistantban: <span class="k">Settings → Devices &amp; services → Add integration → Powerfox</span>. Jelentkezz be a Powerfox-fiókoddal.</p>
+      </li>
+      <li><p class="steptitle">Add hozzá az integrációnkat</p>
+      <p>Kövesd az A útvonal <em>„Az integrációnkkal”</em> részét: adj hozzá minket a HACS-hez, telepítsd, indítsd újra, és illeszd be a tokenedet.</p>
+      </li>
+      <li><p class="steptitle">Válaszd ki a Powerfox mérőérzékelőjét</p>
+      <p>Érzékelőként a Powerfox <strong>Energy usage</strong> (kWh) érzékelőjét válaszd. Kéttarifás a mérő, és ez üres marad? Hozz létre egy segédet, amely összeadja a csúcs- és völgyidőszaki tarifa érzékelőit (<span class="k">Settings → Devices &amp; services → Helpers → Create helper → Group → Sensor group</span>, típus: <strong>Sum</strong>; ne a „Combine the state of several sensors” lehetőséget, mert azt az integrációnk nem fogadja el összesített mérőállásként), és azt válaszd.</p>
+      </li>
+      </ol>
+  <h2 id="hu-8">E útvonal — Tibber Pulse</h2>
+  <p class="lede" style="font-size:15.5px">A Tibber Pulse a mérőd HAN vagy P1 portját olvassa, és az összesített állást elküldi a Tibbernek. Két módja van, hogy eljusson hozzánk — <strong>csak egy kell</strong>.</p>
+  <h3 class="sub">1. lehetőség — Mi kérjük le neked (legegyszerűbb)</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Másold ki a Tibber-tokenedet</p>
+      <p>Nyisd meg a <span class="k">developer.tibber.com</span> oldalt, jelentkezz be a Tibber-fiókoddal, nyisd meg az <strong>Access token</strong> részt, és másold ki a személyes tokenedet.</p>
+      </li>
+      <li><p class="steptitle">Illeszd be az appba</p>
+      <p>Az appban: <span class="k">Mérő → ⚡ Van mérőleolvasód (P1, Home Assistant…)? → ⚙️ Automatikus beállítás → Tibber → „Mi kérjük le neked”</span>. Illeszd be a tokent, jelöld be a négyzetet, és nyomd meg a <strong>Tibber csatlakoztatása</strong> gombot. Akár 30 másodpercig is tarthat. Nincs ott? Akkor ez a verzió még nem kínálja — használd a 2. lehetőséget.</p>
+      <div class="see"><b>Ellenőrizd, hogy működik-e</b>Az app ezt mutatja: <span class="k">Csatlakoztatva — forrás: Tibber, jelentett érték: … kWh</span>. Ellenőrizd, hogy ez egyezik-e a mérőd összesített állásával.</div>
+      </li>
+      </ol>
+  <h3 class="sub">2. lehetőség — Home Assistanttal</h3>
+  <ol class="steps">
+      <li><p class="steptitle">Add hozzá a Tibbert a Home Assistanthoz</p>
+      <p><span class="k">Settings → Devices &amp; services → Add integration → Tibber</span>. Illeszd be a Tibber-tokenedet.</p>
+      </li>
+      <li><p class="steptitle">Add hozzá az integrációnkat, és válaszd ki az érzékelőt</p>
+      <p>Kövesd az A útvonal <em>„Az integrációnkkal”</em> részét, és érzékelőként a Tibber <strong>Last meter consumption</strong> (kWh) érzékelőjét válaszd — ez a mérő saját összesített állása.</p>
+      </li>
+      </ol>
+  <div class="note"><b>Nincs olyan géped, amely mindig be van kapcsolva?</b>Nem is kell. Ki volt kapcsolva a számítógép egy ütemezett időpontban? Akkor elküldi, amint újra bekapcsolod — vagyis elég egy laptop, amelyet néha kinyitsz. A kifizetés a beérkezéskor megtörténik, legfeljebb naponta egyszer.</div>
+  <h2 id="hu-9">Végül: a kifizetés magától megtörténik</h2>
+  <ol class="steps">
+      <li><p class="steptitle">A mérőállásod magától megjelenik</p>
+      <p>Az appban nyisd meg a <strong>Mérő</strong> lapot. Az <strong>⚡ Automatikus leolvasás</strong> panelen ez áll: <span class="k">Csatlakoztatva — … kWh beérkezett</span>, a mérőállásoddal és a beérkezés idejével.</p>
+      </li>
+      <li><p class="steptitle">A kifizetés magától megtörténik</p>
+      <p>Semmit nem kell megnyomnod: minden mérőállásért automatikusan jár a kifizetés, amikor beérkezik, legfeljebb naponta egyszer, és a panel <strong>Idővonal</strong> része mutatja: <span class="k">Kifizetve +… B3TR</span>. Nem akarsz várni? Az <strong>Igénylés most</strong> ugyanezt teszi.</p>
+      </li>
+      </ol>
+  <div class="note flag"><b>🇧🇪 Belgium (Fluvius-mérők)</b>A belga mérőkön a P1 port alapból ki van kapcsolva. A Fluviusnál ingyen bekapcsolhatod az online portáljukon; más hálózati szolgáltatónál kérdezd meg őket. Ezután minden ugyanúgy működik.</div>
+  <h2 id="hu-10">Ha valami nem működik</h2>
+  <div class="scroll"><table class="stack"><tr><th>Ezt látod</th><th>Mit tegyél</th></tr>
+    <tr><td>&#x27;node&#x27; is not recognized</td><td>A Node.js nincs telepítve, vagy az ablak már nyitva volt, amikor telepítetted. Windowson: <span class="k">winget install OpenJS.NodeJS.LTS</span>. Máshol: nodejs.org. Utána nyiss egy <strong>új</strong> terminált, és illeszd be újra a sort. Git nem kell hozzá.</td></tr>
+    <tr><td>Semmi sem történik — nincs kimenet, rögtön visszajön a parancssor</td><td>A szkript egy régi, szeptember 19. előtti példánya. Volt benne egy hiba, amely miatt Windowson semmit sem írt ki, és kilépett. Töltsd le újra a fenti sorral; az új verzió elkéri a tokenedet.</td></tr>
+    <tr><td>no HomeWizard found on the network</td><td>Your network blocks auto-discovery — common on guest Wi-Fi and with VLANs. Look up your P1’s IP in the HomeWizard app and run <span class="k">node gul.js --install --ip=192.168.1.50</span>. On the Home Assistant add-on, fill in <span class="k">hw_ip</span> instead.</td></tr>
+    <tr><td>couldn&#x27;t find a total import kWh</td><td>Elérte az eszközt, de semmi használhatót nem kapott vissza: a HomeWizard appban <strong>a Local API még ki van kapcsolva</strong>, vagy ez nem P1-mérő. Más gyártmányú leolvasóhoz használd a <span class="k">--url=</span> kapcsolót.</td></tr>
+    <tr><td>couldn&#x27;t find a kWh number at …</td><td>A leolvasód JSON-ja olyan nevet használ, amelyet a szkript nem ismer. Add hozzá a <span class="k">--field=</span> kapcsolót az értékhez vezető, pontokkal tagolt útvonallal, pl. <span class="k">--field=electricity.import_kwh</span>.</td></tr>
+    <tr><td>server said 401</td><td>The token is wrong or incomplete. Copy it again from the app and run <span class="k">node gul.js --ask-token --install</span> once to replace the saved one.</td></tr>
+    <tr><td>submit one photo reading first</td><td>A mérődnek még nincs kiindulási értéke. Küldj be az appban egy szokásos fotós mérőállást — az automatikus mérőállások soha nem állítják be az első értéket, hogy egy eszköz ne találhassa ki a saját kiindulási értékét. Ezután jön a kifizetés.</td></tr>
+    <tr><td>usage … is outside the plausible range</td><td>Szinte mindig <strong>kéttarifás mérőről</strong> van szó: a kijelző két regisztert vezet (<span class="k">1.8.1</span> és <span class="k">1.8.2</span>), és a fotód az egyiket rögzítette, a leolvasód viszont a kettő összegét jelenti — így a kiindulási érték és a leolvasó más skálán van. Az appban, az <span class="k">⚡ Automatikus leolvasás</span> panelen nyomd meg ezt: <strong>&bdquo;Legyen ez a mérőállás a kiindulási értékem&rdquo;</strong>. Ez nem jár kifizetéssel, csak azt rögzíti, honnan indul a számolás. Az első automatikus kifizetésedig teheted meg.</td></tr>
+    <tr><td>this time photograph tariff register 2</td><td>A mérőd felváltva mutat két regisztert, és a fotóid is felváltva követik egymást: mindig azt fotózd le, amelyiket az előző fotód nem mutatta. Várd meg, amíg a kijelző az app által megnevezett regisztert mutatja (<span class="k">1.8.1</span> vagy <span class="k">1.8.2</span>), és akkor készítsd el a fotót.</td></tr>
+    <tr><td>tariff register 1 went down</td><td>Mindegyik regiszter csak felfelé számol. Ellenőrizd, hogy az alacsony és a normál tarifa külön mezőben van-e, ugyanabban a sorrendben, mint legutóbb.</td></tr>
+    <tr><td>the automatic reading is stale</td><td>A reading has to be under 48 hours old at the moment you claim it. The schedule tries every hour — look in <span class="k">.gul-bridge.log</span> next to <span class="k">gul.js</span> for why it failed, or run <span class="k">node gul.js --install</span> again. It is paid as soon as the log says <span class="k">pushed … ✓</span>.</td></tr>
+    <tr><td>Nincs mérőállás az „⚡ Automatikus leolvasás” panelen</td><td>A szkript még nem tudott sikeresen küldeni. Nézd meg az ablakát, vagy nyisd meg a <span class="k">.gul-bridge.log</span> fájlt a gul.js mappájában: minden futás vagy azt írja, hogy <span class="k">pushed … ✓</span>, vagy a hiba okát.</td></tr>
+    <tr><td>Nem vagy biztos benne, hogy be van ütemezve?</td><td>Windows: futtasd a PowerShellben: <span class="k">schtasks /Query /TN GreenUtilityLog</span> — ha látsz egy sort <em>GreenUtilityLog</em> névvel és a következő futás idejével, akkor be van ütemezve. Mac / Linux / Pi: a <span class="k">crontab -l</span> parancsnak egy <em># GreenUtilityLog</em> végű sort kell mutatnia. Nincs ott semmi? Illeszd be még egyszer a beállító sort.</td></tr>
+    <tr><td>Szeptember 24. előtt állítottad be</td><td>Illeszd be még egyszer ugyanazt a sort. Az új szkript megvárja a még ébredő szervert ahelyett, hogy feladná, minden futást beír a <span class="k">.gul-bridge.log</span> fájlba, és Windowson akkumulátorról is fut.</td></tr>
+    <tr><td>Powerfox didn&#x27;t accept the e-mail and password</td><td>Pontosan azt az e-mail-címet és jelszót használd, amelyet a Powerfox appban (figyelj az elírásokra és a szóközökre). Megváltoztattad a Powerfox-jelszavadat? 1. lehetőség: nyomd meg újra a <strong>Powerfox csatlakoztatása</strong> gombot az új jelszóval. 2. lehetőség: illeszd be újra a beállító sort — elkéri a jelszót.</td></tr>
+    <tr><td>switch on data transfer (Datenfreigabe)</td><td>A Powerfox nem hajlandó megosztani a mérőállásaidat. Kapcsold be a Powerfox appban az adatmegosztást (Datenfreigabe), és próbáld újra.</td></tr>
+    <tr><td>Powerfox only has an old reading</td><td>A poweropti egy ideje nem küldött semmit a Powerfoxnak. Ellenőrizd a Powerfox appban, hogy online van-e (Wi-Fi, akkumulátor). Amíg nincs friss mérőállás, semmi nem megy el, és nincs kifizetés.</td></tr>
+    <tr><td>Tibber didn&#x27;t accept this token</td><td>Másold ki újra a tokent a developer.tibber.com oldalról, szóközök nélkül. Készítettél ott új tokent? Akkor a régi már nem működik: csatlakozz újra az újjal.</td></tr>
+    <tr><td>no Tibber Pulse found on this account</td><td>A Pulse-t a Tibber appban kell beállítani, ugyanabban a fiókban, amelyikhez a token tartozik.</td></tr>
+    <tr><td>your Pulse sends live data but no meter total</td><td>Nem minden mérő adja ki az összesített állását a HAN porton. Ilyenkor használj fotókat vagy másik leolvasót.</td></tr>
+    <tr><td>this phone is already used by 1 other wallet</td><td>Egy ember, egy tárca: egy telefonnal csak egy tárca kereshet. Az a tárca, amelyik ezen a telefonon először kapott kifizetést, továbbra is működik. Végleg új tárcára váltottál? Kérj segítséget egy admintól az app Visszajelzés küldése funkciójával.</td></tr>
+    <tr><td>automatic payouts are paused until you take one photo</td><td>Az olyan leolvasóhoz, amely a saját számait küldi (P1, Home Assistant, ez a szkript), 90 naponta kell egy fotó a mérődről; a Powerfoxhoz, a Tibberhez és a MojElektróhoz nem. Ugyanez a szünet egyszer akkor is bekövetkezik, ha a kiindulási értéket fotó nélkül javították. Készíts egy fotót a Mérő fülön, és a kifizetések újraindulnak. Az app egy héttel előtte szól.</td></tr>
+    <tr><td>already been corrected once</td><td>Egy mérő kiindulási értéke egyszer javítható — minden javítás törli az utolsó kifizetés óta mért fogyasztást. Ha megint hibás, kérj segítséget egy admintól az app Visszajelzés küldése funkciójával.</td></tr>
+  </table></div>
+  <div class="note">Még mindig elakadtál? Küldj egy üzenetet arról, mit mutat a Napló fül (vagy a terminál) — általában pontosan ott áll, mi hiányzik.</div>
+  <footer>GreenUtilityLog · Útmutató tesztelőknek · Testnet béta — teszttokenek, még nincs valódi értékük.</footer>
+</section>
 <section class="lang" id="lang-pl">
   <header class="hero"><span class="kicker">Poradnik dla testerów</span><h1>Zarabiaj bez fotografowania licznika</h1><p class="lede">Zwykle fotografujesz licznik, żeby zarabiać B3TR. Jeśli coś w twoim domu już potrafi odczytać licznik, może wysyłać odczyty za ciebie — i już nigdy nie musisz robić zdjęć. Zacznij od znalezienia swojej konfiguracji poniżej.</p></header>
   <nav class="toc" aria-label="Na tej stronie"><b>Na tej stronie</b><ol><li><a href="#pl-1">Jaką masz konfigurację?</a></li><li><a href="#pl-2">Czy to działa tam, gdzie mieszkasz?</a></li><li><a href="#pl-3">Wszystkie drogi automatyczne: pobierz swój token</a></li><li><a href="#pl-4">Droga A — Home Assistant (dowolny licznik)</a></li><li><a href="#pl-5">Droga B — HomeWizard P1, bez Home Assistant</a></li><li><a href="#pl-6">Droga C — Inny czytnik (czytnik P1, głowica odczytowa Tasmota)</a></li><li><a href="#pl-7">Droga D — Powerfox (poweropti)</a></li><li><a href="#pl-8">Droga E — Tibber Pulse</a></li><li><a href="#pl-9">Na koniec: wypłata przychodzi sama</a></li><li><a href="#pl-10">Jeśli coś nie działa</a></li></ol></nav>
@@ -4197,7 +4667,7 @@
     try { localStorage.setItem("gul_guide_lang", lang); } catch (e) {}
   }
   picker?.addEventListener("change", () => show(picker.value));
-  const supported = ["en", "nl", "de", "fr", "es", "it", "el", "sl", "hr", "ro", "bg", "sv", "da", "nb", "fi", "pl", "pt"];
+  const supported = ["en", "nl", "de", "fr", "es", "it", "el", "tr", "sl", "hr", "ro", "bg", "sv", "da", "nb", "fi", "hu", "pl", "pt"];
   let pick = "en";
   try {
     const saved = localStorage.getItem("gul_guide_lang");

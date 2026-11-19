@@ -334,7 +334,7 @@
   ],
   [
    "no HomeWizard found on the network",
-   "Your network blocks auto-discovery — common on guest Wi-Fi and with VLANs. Look up your P1’s IP in the HomeWizard app and run <span class=\"k\">node gul.js --install --ip=192.168.1.50</span>. On the Home Assistant add-on, fill in <span class=\"k\">hw_ip</span> instead."
+   "Το δίκτυό σου μπλοκάρει τον αυτόματο εντοπισμό — συμβαίνει συχνά σε Wi-Fi επισκεπτών και με VLAN. Βρες την IP του P1 σου στην εφαρμογή HomeWizard και τρέξε <span class=\"k\">node gul.js --install --ip=192.168.1.50</span>. Στο add-on του Home Assistant, συμπλήρωσε αντί γι' αυτό το <span class=\"k\">hw_ip</span>."
   ],
   [
    "couldn't find a total import kWh",
@@ -346,7 +346,7 @@
   ],
   [
    "server said 401",
-   "The token is wrong or incomplete. Copy it again from the app and run <span class=\"k\">node gul.js --ask-token --install</span> once to replace the saved one."
+   "Το token είναι λάθος ή ελλιπές. Αντίγραψέ το ξανά από την εφαρμογή και τρέξε μία φορά <span class=\"k\">node gul.js --ask-token --install</span> για να αντικαταστήσεις το αποθηκευμένο."
   ],
   [
    "submit one photo reading first",
@@ -366,7 +366,7 @@
   ],
   [
    "the automatic reading is stale",
-   "A reading has to be under 48 hours old at the moment you claim it. The schedule tries every hour — look in <span class=\"k\">.gul-bridge.log</span> next to <span class=\"k\">gul.js</span> for why it failed, or run <span class=\"k\">node gul.js --install</span> again. It is paid as soon as the log says <span class=\"k\">pushed … ✓</span>."
+   "Μια ένδειξη πρέπει να είναι λιγότερο από 48 ωρών τη στιγμή που κάνεις λήψη. Ο προγραμματισμός ξαναδοκιμάζει κάθε ώρα — κοίτα στο <span class=\"k\">.gul-bridge.log</span> δίπλα στο <span class=\"k\">gul.js</span> γιατί απέτυχε, ή τρέξε ξανά <span class=\"k\">node gul.js --install</span>. Πληρώνεται μόλις το log γράψει <span class=\"k\">pushed … ✓</span>."
   ],
   [
    "Καμία ένδειξη στην «⚡ Αυτόματη ανάγνωση»",

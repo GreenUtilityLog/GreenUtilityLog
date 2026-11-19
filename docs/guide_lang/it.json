@@ -334,7 +334,7 @@
   ],
   [
    "no HomeWizard found on the network",
-   "Your network blocks auto-discovery — common on guest Wi-Fi and with VLANs. Look up your P1’s IP in the HomeWizard app and run <span class=\"k\">node gul.js --install --ip=192.168.1.50</span>. On the Home Assistant add-on, fill in <span class=\"k\">hw_ip</span> instead."
+   "La tua rete blocca il rilevamento automatico — succede spesso sul Wi-Fi ospiti e con le VLAN. Cerca l'IP del tuo P1 nell'app HomeWizard ed esegui <span class=\"k\">node gul.js --install --ip=192.168.1.50</span>. Con l'add-on di Home Assistant, compila invece <span class=\"k\">hw_ip</span>."
   ],
   [
    "couldn't find a total import kWh",
@@ -346,7 +346,7 @@
   ],
   [
    "server said 401",
-   "The token is wrong or incomplete. Copy it again from the app and run <span class=\"k\">node gul.js --ask-token --install</span> once to replace the saved one."
+   "Il token è sbagliato o incompleto. Copialo di nuovo dall'app ed esegui una volta <span class=\"k\">node gul.js --ask-token --install</span> per sostituire quello salvato."
   ],
   [
    "submit one photo reading first",
@@ -366,7 +366,7 @@
   ],
   [
    "the automatic reading is stale",
-   "A reading has to be under 48 hours old at the moment you claim it. The schedule tries every hour — look in <span class=\"k\">.gul-bridge.log</span> next to <span class=\"k\">gul.js</span> for why it failed, or run <span class=\"k\">node gul.js --install</span> again. It is paid as soon as the log says <span class=\"k\">pushed … ✓</span>."
+   "Una lettura deve avere meno di 48 ore nel momento in cui la riscuoti. La pianificazione ci riprova ogni ora — guarda in <span class=\"k\">.gul-bridge.log</span> accanto a <span class=\"k\">gul.js</span> perché non è riuscita, oppure esegui di nuovo <span class=\"k\">node gul.js --install</span>. Viene pagata appena il log riporta <span class=\"k\">pushed … ✓</span>."
   ],
   [
    "Nessuna lettura in «⚡ Lettura automatica»",

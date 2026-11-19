@@ -1,0 +1,540 @@
+{
+ "_toc": "Bu sayfada",
+ "name": "English",
+ "kicker": "Test kullanıcısı rehberi",
+ "h1": "Sayacını fotoğraflamadan kazan",
+ "lede": "Normalde B3TR kazanmak için sayacının fotoğrafını çekersin. Evinde sayacı zaten okuyabilen bir şey varsa, okumayı senin yerine o gönderebilir — ve bir daha fotoğraf çekmen gerekmez. Önce aşağıdan kendi düzenini bul.",
+ "s_routes": "Sende hangi düzen var?",
+ "s_token": "Tüm otomatik yollar için: token'ını al",
+ "s_a": "Yol A — Home Assistant (her sayaç)",
+ "s_b": "Yol B — HomeWizard P1, Home Assistant olmadan",
+ "s_c": "Yol C — Başka bir okuyucu (P1 okuyucu, Tasmota okuma başlığı)",
+ "s_claim": "Son olarak: ödeme kendiliğinden gelir",
+ "s_trouble": "Bir şey çalışmazsa",
+ "routes": [
+  [
+   "Home Assistant kullanıyorum",
+   "HA'nın zaten okuduğu neredeyse her sayaçla çalışır. Entegrasyonumuzu kur ya da birkaç satır YAML yapıştır.",
+   1,
+   "En kolay"
+  ],
+  [
+   "HomeWizard P1'im var",
+   "Home Assistant gerekmez. 🇳🇱 🇧🇪 🇱🇺 🇩🇰 🇸🇪 🇭🇺 ülkelerinde çalışır — küçük bir yardımcı program sayacını ağda kendisi bulur.",
+   2,
+   "Biraz teknik"
+  ],
+  [
+   "Başka bir okuyucum var",
+   "P1 Monitor, bir Tasmota okuma başlığı (Hichi) ya da sayacın kWh toplamını ağında JSON olarak sunan herhangi bir okuyucu.",
+   3,
+   "Teknik"
+  ],
+  [
+   "Powerfox'um (poweropti) var",
+   "Almanya'da yaygın. Okumanı Powerfox bulutundan biz alabiliriz — kurulacak bir şey yok, açık tutulacak bir şey yok.",
+   1,
+   "En kolay"
+  ],
+  [
+   "Tibber Pulse'um var",
+   "İsveç, Norveç, Danimarka ve Finlandiya'da yaygın. Okumanı kişisel token'ınla Tibber'dan biz alırız — kurulacak bir şey yok.",
+   1,
+   "En kolay"
+  ],
+  [
+   "Bunların hiçbiri",
+   "O zaman sayacını fotoğraflamaya devam et. Aynı derecede iyi çalışır ve tam olarak aynı kazancı getirir. Kurulacak bir şey yok.",
+   0,
+   "Kurulum yok"
+  ]
+ ],
+ "baseline_t": "Önce, bir kez: başlangıç noktanı belirle",
+ "baseline_b": "Hangi yolu seçersen seç, önce uygulamada <strong>normal bir fotoğraflı gönderim</strong> yap. Böylece uygulama sayacının nereden başladığını bilir — bu olmadan otomatik okumalar ödenemez.",
+ "token": [
+  [
+   "Cihaz token'ını kopyala",
+   "Uygulamada: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → “Get my device token”</span>. Kopyala.",
+   "Nedir?",
+   "“Bu okumalar benim cüzdanıma ait” diyen uzun bir kod. Kimseyle paylaşma — elinde bu kod olan herkes senin adına okuma gönderebilir."
+  ]
+ ],
+ "a_intro": "İki yol var. Entegrasyonumuz en kolayıdır ve Home Assistant'ın sana zaten gösterdiği <em>her</em> sayaçla çalışır; bir şey kurmak istemiyorsan YAML aynı işi elle yapar.",
+ "a1_t": "Entegrasyonumuzla (önerilen)",
+ "a1": [
+  [
+   "Bizi HACS'e ekle",
+   "Home Assistant'ta: <span class=\"k\">HACS → ⋮ (sağ üst) → Custom repositories</span>. Aşağıdaki adresi yapıştır, tür olarak <strong>Integration</strong> seç ve Add'e bas.",
+   "code",
+   "https://github.com/GreenUtilityLog/GreenUtilityLog",
+   "Depo adresi"
+  ],
+  [
+   "Kur ve yeniden başlat",
+   "HACS listesinde <strong>GreenUtilityLog</strong>'u aç, <strong>Download</strong>'a bas, sonra Home Assistant'ı yeniden başlat.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Entegrasyonu ekle",
+   "<span class=\"k\">Settings → Devices &amp; services → Add integration</span> bölümüne git ve <strong>GreenUtilityLog</strong> ara. Token'ını yapıştır, <strong>kümülatif kWh</strong> değerini tutan sensörü seç ve ne sıklıkla gönderileceğini belirle.",
+   "see",
+   "Çalıştığını kontrol et",
+   "Sayaç toplamınla birlikte bir <span class=\"k\">Last sent reading</span> sensörü görünür. Özniteliklerinde gönderim zamanı ve varsa hata görünür."
+  ]
+ ],
+ "a2_t": "Kendi sensörünle (her sayaç)",
+ "a2": [
+  [
+   "Sayaç sensörünü bul",
+   "Home Assistant'ta: <span class=\"k\">Developer tools → States</span>. <em>import</em> ile filtrele ve değeri sürekli artan, kWh cinsinden olanı seç — o senin toplamın. Varlık kimlikleri (entity ID) her kurulumda farklıdır, o yüzden kendininkini kullan.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Bu satırları ekle",
+   "Bunu <span class=\"k\">configuration.yaml</span> dosyasına koy, entity'yi ve token'ını kendi değerlerinle değiştir, sonra Home Assistant'ı yeniden başlat.",
+   "code",
+   "rest_command:\n  gul_push:\n    url: \"https://greenutilitylog-rewards.onrender.com/meter-ingest\"\n    method: POST\n    content_type: \"application/json\"\n    timeout: 90  # saniye: sunucunun uyanması bir dakika sürebilir\n    payload: '{\"token\":\"TOKENIN\",\"reading\":{{ states(\"sensor.SENIN_ENTITY\") | float }}}'\n\n# automations.yaml — günde iki kez (20 saatte bir ödül alabilirsin)\n- alias: Push meter to GreenUtilityLog\n  trigger: { platform: time_pattern, hours: \"/12\" }\n  # yalnızca gerçek bir kWh toplamı: yeniden başlatma sonrası 0 değil, unavailable değil\n  condition:\n    - condition: template\n      value_template: '{{ is_number(states(\"sensor.SENIN_ENTITY\")) and states(\"sensor.SENIN_ENTITY\") | float > 0 and state_attr(\"sensor.SENIN_ENTITY\", \"unit_of_measurement\") == \"kWh\" }}'\n  action: { service: rest_command.gul_push }",
+   "configuration.yaml + automations.yaml"
+  ]
+ ],
+ "b": [
+  [
+   "Local API'yi aç",
+   "<strong>HomeWizard Energy</strong> uygulamasında: <span class=\"k\">Settings → Meters → P1'in → Local API → ON</span>. Böylece kendi ağın sayacı okuyabilir.",
+   null,
+   null,
+   null
+  ],
+  [
+   "PowerShell'i (veya bir terminali) aç",
+   "<strong>Windows:</strong> Başlat'a bas, <em>PowerShell</em> yaz, Enter'a bas. <strong>Mac:</strong> <em>Terminal</em>'i aç. <strong>Raspberry Pi / NAS:</strong> kendi terminali ya da SSH. Aşağıdaki her şey o pencereye yazılır. Mac'te, Terminal'in açıldığı ana klasörde kal (5. adıma bak).",
+   null,
+   null,
+   null
+  ],
+  [
+   "Node'un zaten kurulu olup olmadığını kontrol et",
+   "Bunu yaz ve Enter'a bas. Bir sürüm numarası çıkarsa — <span class=\"k\">v22</span> ve üstü — her şey hazır (daha eskiyse bir sonraki adımı da yap, artık güvenlik güncellemesi almıyor) ve bir sonraki adımı atlayabilirsin. Bunun yerine bir hata çıkarsa Node henüz kurulu değil demektir.",
+   "code",
+   "node -v",
+   "Windows · Mac · Linux"
+  ],
+  [
+   "Hata verdiyse Node.js'i kur",
+   "<strong>Windows:</strong> aşağıdaki satırı yapıştır; kaynak koşullarını kabul etmeni isterse <span class=\"k\">Y</span>'ye bas. <strong>Mac:</strong> nodejs.org'daki LTS yükleyicisi ya da <span class=\"k\">brew install node</span>. <strong>Raspberry Pi / Debian:</strong> <span class=\"k\">sudo apt install nodejs</span> (Node 22 veya daha yenisi gerekir — eski sürümler artık güvenlik güncellemesi almıyor; Debian/Ubuntu genelde daha eski bir sürümle gelir — o zaman nodesource.com'daki yükleyiciyi kullan). Sonra <strong>o pencereyi kapat ve yeni bir pencere aç</strong> — zaten açık olan bir pencere eski PATH'i korur, bu yüzden <span class=\"k\">node</span> yine bulunamaz. <span class=\"k\">node -v</span> ile tekrar kontrol et.",
+   "code",
+   "winget install OpenJS.NodeJS.LTS",
+   "Windows — PowerShell"
+  ],
+  [
+   "Tek bir satır yapıştır, Enter'a bas",
+   "Yardımcı programı indirir ve ilk okumanı gönderir. Ayrıca kendini günde iki kez gönderim yapacak şekilde zamanlar (Windows: Görev Zamanlayıcı · Mac / Linux / Pi: cron); böylece pencereyi daha sonra kapatabilirsin, yeniden başlatmadan sonra bile çalışmaya devam eder. Bunu yalnızca bir kez çalıştırırsın. <strong>Mac:</strong> yeni açılmış bir Terminal'e, ana klasöründeyken yapıştır — önce <span class=\"k\">cd</span> ile Masaüstü, Belgeler veya İndirilenler'e geçme: macOS zamanlamanın (cron) oradaki dosyaları okumasına izin vermez, bu yüzden hiç çalışmaz.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Sorduğunda token'ını yapıştır",
+   "Bir kez sorar ve hatırlar; bundan sonra zamanlama kaydedilen token'ı kullanır. Ardından zamanlamayı kurar, sayacı bulur ve ilk okumayı gönderir.",
+   "see",
+   "Sırasıyla görmen gerekenler",
+   "<span class=\"k\">Paste your device token…</span> → <span class=\"k\">Scheduled…</span> → <span class=\"k\">found HomeWizard at 192.168.…</span> → <span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "c_intro": "Aynı yardımcı program, ağındaki sayacın kWh toplamını HTTP üzerinden, giriş gerektirmeden JSON olarak sunan her cihazı okur — ona sadece nerede olduğunu söylersin. Her okuyucu bunu yapmaz: dsmr-reader'ın API'si bir anahtar ister, Shelly ise sayacın değerini değil kendi ölçtüğü enerjiyi sayar. Önce Yol B'nin 2–4. adımlarını yap (terminal ve Node); yalnızca aşağıdaki komut farklı.",
+ "c": [
+  [
+   "Okuyucunun veri URL'sini bul",
+   "Okuyucunun web sayfasını aç ve ham JSON döndüren adresi ara (genelde <span class=\"k\">/api/v1/data</span> veya <span class=\"k\">/api/v2/sm/actual</span> gibi bir şey). Tam yollar markadan markaya değişir — okuyucunun kendi belgelerine bak.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Yardımcı programı bu URL ile başlat",
+   "Örnek adresin yerine kendi adresini yaz; token'ını kendisi sorar. Okuma otomatik bulunamazsa, o JSON'daki kWh değerine giden noktalı yolla birlikte <span class=\"k\">--field=</span> ekle. Toplam yok da yalnızca iki tarife değeri mi var (örneğin P1 Monitor'da)? İki yolu <span class=\"k\">+</span> ile birleştir, toplamlarını gönderir; örn. <span class=\"k\">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install --url=http://192.168.1.60/api/v1/data"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Tasmota okuma başlığı (Hichi) mı?",
+   "<span class=\"k\">--url=</span> yerine IP adresiyle birlikte <span class=\"k\">--tasmota=</span> kullan. Yardımcı program sayaç toplamını (<span class=\"k\">Total_in</span>) kendisi okur. Almanya, Avusturya ve İsviçre'deki sayaçlarda yaygındır.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --tasmota=192.168.1.70 --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Çalıştığını kontrol et",
+   "Yardımcı program ne gönderdiğini yazdırır.",
+   "see",
+   "Beklenen çıktı",
+   "<span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "claim": [
+  [
+   "Okuman kendiliğinden görünür",
+   "Uygulamada <strong>Sayaç</strong>'ı aç. <strong>⚡ Otomatik okuma</strong> panelinde sayaç toplamın ve ne zaman geldiğiyle birlikte <span class=\"k\">Bağlandı — … kWh alındı</span> yazar.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Ödeme kendiliğinden yapılır",
+   "Dokunman gereken bir şey yok: her okuma geldiği anda, günde en fazla bir kez otomatik olarak ödenir ve panelin <strong>Zaman çizelgesi</strong> <span class=\"k\">+… B3TR ödendi</span> gösterir. Beklemek istemiyor musun? <strong>Şimdi al</strong> aynı işi yapar.",
+   null,
+   null,
+   null
+  ]
+ ],
+ "s_country": "Yaşadığın yerde çalışır mı?",
+ "country_intro": "Sayacındaki bağlantı noktası ülkeden ülkeye değişir, bu yüzden her okuyucu her yerde çalışmaz. Her zaman çalışan şu: <strong>Home Assistant sayacının toplamını zaten gösteriyorsa Yol A çalışır</strong> — hangi ülkede olursan ol.",
+ "country_th": [
+  "Ülke",
+  "Sayacında olan",
+  "Ne kullanmalı"
+ ],
+ "country_rows": [
+  [
+   "🇳🇱 Hollanda",
+   "P1 portu (RJ12)",
+   "Her yol. HomeWizard kutudan çıktığı gibi çalışır."
+  ],
+  [
+   "🇧🇪 Belçika",
+   "P1 portu (RJ12, varsayılan olarak kapalı)",
+   "Port açıldıktan sonra her yol: Fluvius portalında ücretsiz aç (başka şebeke işletmecileri için: kendi işletmecine sor)."
+  ],
+  [
+   "🇱🇺 Lüksemburg",
+   "P1 portu (Smarty, şifreli)",
+   "HomeWizard P1: şebeke işletmecinden bir kez P1 anahtarını iste. Ya da Home Assistant."
+  ],
+  [
+   "🇸🇪 İsveç · 🇫🇮 Finlandiya",
+   "HAN portu (RJ12)",
+   "🇸🇪 HomeWizard P1 (Yol B) — şebeke işletmecinin önce portu açması gerekebilir. Tibber Pulse: Yol E. Aksi halde bir P1/HAN okuyucu ya da Home Assistant."
+  ],
+  [
+   "🇩🇰 Danimarka",
+   "P1 (varsayılan olarak kapalı) veya HAN",
+   "HomeWizard P1 (Yol B), şebeke işletmecin P1 portunu açtıktan sonra — HAN portu için bir dönüştürücü gerekir. Tibber Pulse: Yol E. Aksi halde doğru bağlantıya sahip bir okuyucu ya da Home Assistant."
+  ],
+  [
+   "🇭🇺 Macaristan",
+   "P1 portu (şebeke işletmecisine bağlı)",
+   "Bazı sayaçlarda HomeWizard P1 — önce HomeWizard'ın listesine bak. Ya da Home Assistant veya fotoğraflar."
+  ],
+  [
+   "🇳🇴 Norveç",
+   "HAN (RJ45, M-BUS)",
+   "Tibber Pulse: Yol E. Aksi halde Norveç'e uygun bir HAN okuyucu + Home Assistant."
+  ],
+  [
+   "🇩🇪 Almanya",
+   "Smart-Meter-Gateway / optik başlık",
+   "Powerfox poweropti: Yol D. Tasmota okuma başlığı (Hichi): Yol C. Aksi halde Home Assistant."
+  ],
+  [
+   "🇸🇮 Slovenya",
+   "Birçok sayaçta P1 portu (bazen şifreli)",
+   "Büyük olasılıkla P1 okuyuculu Home Assistant — henüz test edilmedi."
+  ],
+  [
+   "🇬🇷 Yunanistan · 🇭🇷 Hırvatistan · 🇹🇷 Türkiye",
+   "Henüz müşteriye açık bir port bulunamadı",
+   "Şimdilik fotoğraflar."
+  ],
+  [
+   "🇷🇴 Romanya · 🇧🇬 Bulgaristan · Balkanların geri kalanı",
+   "Henüz müşteriye açık bir port bulunamadı",
+   "Şimdilik fotoğraflar."
+  ],
+  [
+   "🇦🇹 Avusturya",
+   "Müşteri arayüzü (M-Bus) / optik port",
+   "Tibber Pulse: Yol E. Tasmota okuma başlığı (Hichi): Yol C. Aksi halde Home Assistant."
+  ],
+  [
+   "🇨🇭 İsviçre",
+   "Müşteri arayüzü / optik port",
+   "Tasmota okuma başlığı (Hichi): Yol C. Aksi halde Home Assistant."
+  ],
+  [
+   "🇫🇷 Fransa",
+   "Linky: TIC portu",
+   "P1 portu yok, bu yüzden şimdilik yalnızca Home Assistant (örn. ZLinky ile). Ya da fotoğraflar."
+  ],
+  [
+   "🇬🇧 Birleşik Krallık",
+   "SMETS2: port yok (Zigbee)",
+   "P1 portu yok, bu yüzden şimdilik yalnızca Home Assistant (örn. Hildebrand Glow ile). Ya da fotoğraflar."
+  ],
+  [
+   "🇪🇸 İspanya",
+   "Port yok",
+   "P1 portu yok, bu yüzden şimdilik yalnızca Home Assistant (örn. Datadis ile). Ya da fotoğraflar."
+  ],
+  [
+   "🇮🇹 İtalya",
+   "Chain 2 (Sinapsi Alfa gibi bir cihaz gerekir)",
+   "P1 portu yok, bu yüzden şimdilik yalnızca Home Assistant. Ya da fotoğraflar."
+  ],
+  [
+   "🇺🇸 🇨🇦 ABD ve Kanada",
+   "P1 portu yok (Zigbee, yalnızca elektrik şirketi etkinleştirirse)",
+   "Ekran kWh toplamını gösteriyorsa fotoğraflar. Elektrik şirketinin izin verdiği yerlerde Rainforest EAGLE ile Home Assistant. Quebec (Hydro-Québec): yalnızca fotoğraflar."
+  ],
+  [
+   "Başka her yer",
+   "Değişir",
+   "Home Assistant sayacını okuyorsa Yol A çalışır."
+  ]
+ ],
+ "country_close": "Emin değil misin? Home Assistant'ı aç ve sayacını Developer tools → States altında ara. Orada artmaya devam eden bir kWh değeri varsa her şey hazır. HomeWizard P1 mi? Sayacını <a href=\"https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter\">HomeWizard'ın listesinde</a> kontrol et.",
+ "be_t": "🇧🇪 Belçika (Fluvius sayaçları)",
+ "be_b": "Belçika'daki sayaçlarda P1 portu varsayılan olarak kapalıdır. Fluvius'ta bunu çevrim içi portallarından ücretsiz açarsın; başka bir şebeke işletmecisindeysen onlara sor. Sonrasında her şey aynı şekilde çalışır.",
+ "once_t": "Sürekli açık kalan bir cihazın yok mu?",
+ "once_b": "Gerek yok. Planlanan saatte bilgisayar kapalı mıydı? Bilgisayar yeniden açılır açılmaz gönderir — yani arada bir açtığın bir dizüstü bilgisayar yeterli. Geldiği anda, günde en fazla bir kez ödenir.",
+ "th": [
+  "Gördüğün",
+  "Ne yapmalı"
+ ],
+ "trouble": [
+  [
+   "'node' is not recognized",
+   "Node.js kurulu değil ya da kurduğunda o pencere zaten açıktı. Windows'ta: <span class=\"k\">winget install OpenJS.NodeJS.LTS</span>. Diğerlerinde: nodejs.org. Sonra <strong>yeni</strong> bir terminal aç ve satırı tekrar yapıştır. git'e ihtiyacın yok."
+  ],
+  [
+   "Hiçbir şey — çıktı yok, doğrudan komut satırına geri dönüyor",
+   "Yardımcı programın 19 Eylül'den önceki eski bir kopyası. Windows'ta hiçbir şey yazdırmadan kapanmasına yol açan bir hatası vardı. Yukarıdaki satırla yeniden indir; yenisi token'ını sorar."
+  ],
+  [
+   "no HomeWizard found on the network",
+   "Ağın otomatik bulmayı engelliyor — misafir Wi-Fi'larında ve VLAN kullanıldığında sık görülür. P1'inin IP adresini HomeWizard uygulamasında bul ve <span class=\"k\">node gul.js --install --ip=192.168.1.50</span> komutunu çalıştır. Home Assistant eklentisinde bunun yerine <span class=\"k\">hw_ip</span> alanını doldur."
+  ],
+  [
+   "couldn't find a total import kWh",
+   "Cihaza ulaştı ama işe yarar bir şey alamadı: HomeWizard uygulamasında <strong>Local API hâlâ kapalı</strong> ya da bu bir P1 sayacı değil. Başka marka bir okuyucu için <span class=\"k\">--url=</span> kullan."
+  ],
+  [
+   "couldn't find a kWh number at …",
+   "Okuyucunun JSON'u yardımcı programın tanıdığı bir ad kullanmıyor. Değere giden noktalı yolla birlikte <span class=\"k\">--field=</span> ekle, örn. <span class=\"k\">--field=electricity.import_kwh</span>."
+  ],
+  [
+   "server said 401",
+   "Token yanlış ya da eksik. Uygulamadan tekrar kopyala ve kayıtlı olanı değiştirmek için bir kez <span class=\"k\">node gul.js --ask-token --install</span> çalıştır."
+  ],
+  [
+   "submit one photo reading first",
+   "Sayacının henüz bir başlangıç noktası yok. Uygulamada normal bir fotoğraflı gönderim yap — otomatik okumalar hiçbir zaman ilk değeri belirlemez, böylece bir cihaz kendi başlangıç değerini uyduramaz. Ondan sonra ödeme yapılır."
+  ],
+  [
+   "usage … is outside the plausible range",
+   "Neredeyse her zaman bir <strong>çift tarifeli sayaç</strong>: ekran iki değer tutar (<span class=\"k\">1.8.1</span> ve <span class=\"k\">1.8.2</span>) ve fotoğrafın bunlardan birini yakalamıştır, okuyucun ise ikisinin toplamını bildirir — yani başlangıç noktan ile okuyucun farklı ölçeklerdedir. Uygulamada, <span class=\"k\">⚡ Otomatik okuma</span> panelinde <strong>&ldquo;Bu okumayı başlangıç noktam yap&rdquo;</strong> düğmesine bas. Bu bir ödeme getirmez; yalnızca saymanın nereden başlayacağını belirler. İlk otomatik ödemene kadar yapılabilir."
+  ],
+  [
+   "this time photograph tariff register 2",
+   "Sayacın iki değeri sırayla gösterir ve fotoğrafların da sırayla değişir: her seferinde, son fotoğrafının göstermediği değeri fotoğrafla. Ekran uygulamanın belirttiği değere (<span class=\"k\">1.8.1</span> veya <span class=\"k\">1.8.2</span>) geçene kadar bekle, sonra fotoğrafı çek."
+  ],
+  [
+   "tariff register 1 went down",
+   "Her değer yalnızca artar. Düşük ve normal tarifenin her birinin kendi kutusunda, geçen seferle aynı sırada olduğunu kontrol et."
+  ],
+  [
+   "the automatic reading is stale",
+   "Bir okuma, ödülü aldığın anda 48 saatten yeni olmalı. Zamanlama her saat yeniden dener — neden başarısız olduğunu görmek için <span class=\"k\">gul.js</span> dosyasının yanındaki <span class=\"k\">.gul-bridge.log</span> dosyasına bak ya da <span class=\"k\">node gul.js --install</span> komutunu tekrar çalıştır. Log'da <span class=\"k\">pushed … ✓</span> yazar yazmaz ödenir."
+  ],
+  [
+   "“⚡ Otomatik okuma” bölümünde okuma yok",
+   "Yardımcı program henüz başarıyla bir şey gönderemedi. Penceresine bak ya da gul.js ile aynı klasördeki <span class=\"k\">.gul-bridge.log</span> dosyasını aç: her çalıştırma ya <span class=\"k\">pushed … ✓</span> ya da başarısız olma nedenini yazar."
+  ],
+  [
+   "Zamanlandığından emin değil misin?",
+   "Windows: PowerShell'de <span class=\"k\">schtasks /Query /TN GreenUtilityLog</span> çalıştır — <em>GreenUtilityLog</em> içeren ve bir sonraki çalışma zamanını gösteren bir satır varsa zamanlanmış demektir. Mac / Linux / Pi: <span class=\"k\">crontab -l</span>, <em># GreenUtilityLog</em> ile biten bir satır göstermeli. Hiçbir şey yok mu? Kurulum satırını bir kez daha yapıştır."
+  ],
+  [
+   "Bunu 24 Eylül'den önce kurduysan",
+   "Aynı satırı bir kez daha yapıştır. Yeni yardımcı program, hâlâ uyanmakta olan bir sunucuyu pes etmek yerine bekler, her çalıştırmayı <span class=\"k\">.gul-bridge.log</span> dosyasına yazar ve Windows'ta pil gücüyle de çalışır."
+  ],
+  [
+   "Powerfox didn't accept the e-mail and password",
+   "Powerfox uygulamasının e-posta adresini ve şifresini tam olarak kullan (yazım hatası veya boşluğa dikkat et). Powerfox şifreni mi değiştirdin? Seçenek 1: yenisiyle tekrar <strong>Connect Powerfox</strong> düğmesine bas. Seçenek 2: kurulum satırını tekrar yapıştır — şifreyi sorar."
+  ],
+  [
+   "switch on data transfer (Datenfreigabe)",
+   "Powerfox okumalarını paylaşmayı reddediyor. Powerfox uygulamasında veri paylaşımını (Datenfreigabe) aç, sonra tekrar dene."
+  ],
+  [
+   "Powerfox only has an old reading",
+   "poweropti'n bir süredir Powerfox'a bir şey göndermedi. Powerfox uygulamasında çevrim içi olduğunu kontrol et (Wi-Fi, pil). Yeni bir okuma gelene kadar hiçbir şey gönderilmez ve ödenmez."
+  ],
+  [
+   "Tibber didn't accept this token",
+   "Token'ı developer.tibber.com'dan boşluksuz olarak tekrar kopyala. Orada yeni bir token mı oluşturdun? O zaman eskisi çalışmayı bırakır: yenisiyle tekrar bağlan."
+  ],
+  [
+   "no Tibber Pulse found on this account",
+   "Pulse'un Tibber uygulamasında, token ile aynı hesapta kurulmuş olması gerekir."
+  ],
+  [
+   "your Pulse sends live data but no meter total",
+   "Her sayaç toplamını HAN portu üzerinden bildirmez. O zaman fotoğrafları ya da başka bir okuyucuyu kullan."
+  ],
+  [
+   "this phone is already used by 1 other wallet",
+   "Bir kişi, bir cüzdan: bir telefonla yalnızca bir cüzdan kazanç sağlayabilir. Bu telefonda ilk ödeme alan cüzdan çalışmaya devam eder. Kalıcı olarak yeni bir cüzdana mı geçtin? Uygulamadaki “Geri Bildirim Gönder” üzerinden bir yöneticiye sor."
+  ],
+  [
+   "automatic payouts are paused until you take one photo",
+   "Kendi sayılarını gönderen bir okuyucu (P1, Home Assistant, bu yardımcı program) her 90 günde bir sayacının bir fotoğrafına ihtiyaç duyar; Powerfox, Tibber ve MojElektro duymaz. Başlangıç noktası fotoğrafsız düzeltildikten sonra da aynı duraklama bir kez gelir. Sayaç sekmesinde bir fotoğraf çek, ödemeler yeniden başlar. Uygulama sana bir hafta önceden hatırlatır."
+  ],
+  [
+   "already been corrected once",
+   "Bir sayacın başlangıç noktası bir kez düzeltilebilir — her düzeltme son ödemeden bu yana olan tüketimi siler. Yine yanlışsa, uygulamadaki “Geri Bildirim Gönder” üzerinden bir yöneticiye sor."
+  ]
+ ],
+ "close": "Hâlâ takıldın mı? Log'un (veya terminalin) gösterdiğini bize mesajla gönder — genelde tam olarak neyin eksik olduğunu söyler.",
+ "foot": "GreenUtilityLog · Test kullanıcısı rehberi · Testnet beta — test token'ları, henüz gerçek bir değeri yok.",
+ "s_pf": "Yol D — Powerfox (poweropti)",
+ "pf_intro": "Bir poweropti sayacını okur ve toplamı Powerfox bulutuna gönderir. Bunu bize ulaştırmanın üç yolu aşağıda — <strong>yalnızca birine ihtiyacın var</strong>. Emin değil misin? Seçenek 1'i seç.",
+ "pf_first_t": "Önce, Powerfox uygulamasında",
+ "pf_first_b": "<strong>Veri paylaşımını</strong> (Datenfreigabe) aç. Bu olmadan Powerfox okumalarını kimseyle paylaşmaz — ne bizimle ne de Home Assistant ile.",
+ "pf1_t": "Seçenek 1 — We fetch it for you (en kolayı)",
+ "pf1": [
+  [
+   "Uygulamada Powerfox'u aç",
+   "Uygulamada: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Powerfox</span> ve <strong>“We fetch it for you”</strong> seçeneğini seç. Orada değil mi? O zaman bu sürüm bunu henüz sunmuyor — seçenek 2'yi veya 3'ü kullan.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Powerfox hesabınla giriş yap",
+   "Powerfox uygulamasında kullandığın e-posta adresini ve şifreyi gir, kutuyu işaretle ve <strong>Connect Powerfox</strong> düğmesine bas. Giriş bilgilerin şifrelenmiş olarak saklanır ve yalnızca sayacını okumak için kullanılır. İpucu: başka hiçbir yerde kullanmadığın bir şifre kullan.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Bitti — bilgisayarın kapalı kalabilir",
+   "Sunucumuz sayaç toplamını yaklaşık her saat Powerfox'tan alır ve her okuma gibi öder. Durdurmak mı istiyorsun? <strong>Disconnect Powerfox</strong> giriş bilgilerini hemen siler.",
+   "see",
+   "Çalıştığını kontrol et",
+   "Üstteki durum <span class=\"k\">✅ Bağlandı — … kWh alındı</span> yazar."
+  ]
+ ],
+ "pf2_t": "Seçenek 2 — Kendi bilgisayarında",
+ "pf2": [
+  [
+   "Terminali ve Node.js'i hazırla",
+   "Önce Yol B'nin 2–4. adımlarını yap: PowerShell'i veya bir terminali aç ve Node.js 22 ya da daha yenisinin kurulu olduğunu kontrol et.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Powerfox e-posta adresinle tek bir satır yapıştır",
+   "<span class=\"k\">YOUR_POWERFOX_EMAIL</span> yerine Powerfox hesabının e-posta adresini yaz. Token'ını ve Powerfox şifreni bir kez sorar (şifre yazarken görünmez) ve ikisini de gul.js'in yanındaki gizli bir dosyada saklar. Ardından tıpkı Yol B'deki gibi kendini zamanlar. Bilgisayarın günde en az bir kez açık olması gerekir.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Çalıştığını kontrol et",
+   "Yardımcı program ne gönderdiğini yazdırır.",
+   "see",
+   "Beklenen çıktı",
+   "<span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "pf3_t": "Seçenek 3 — Home Assistant ile",
+ "pf3": [
+  [
+   "Powerfox'u Home Assistant'a ekle",
+   "Home Assistant'ta: <span class=\"k\">Settings → Devices &amp; services → Add integration → Powerfox</span>. Powerfox hesabınla giriş yap.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Entegrasyonumuzu ekle",
+   "Yol A'daki <em>“Entegrasyonumuzla”</em> adımlarını izle: bizi HACS'e ekle, kur, yeniden başlat ve token'ını yapıştır.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Powerfox sayaç sensörünü seç",
+   "Sensör olarak Powerfox'un <strong>Energy usage</strong> (kWh) sensörünü seç. İki tarifeli bir sayaçta bu boş mu kalıyor? Yüksek ve düşük tarife sensörlerini toplayan bir yardımcı oluştur (<span class=\"k\">Settings → Devices &amp; services → Helpers → Create helper → Group → Sensor group</span>, tür <strong>Sum</strong>; “Combine the state of several sensors” değil, çünkü entegrasyonumuz onu sayaç toplamı olarak kabul etmez) ve onu seç.",
+   null,
+   null,
+   null
+  ]
+ ],
+ "s_tb": "Yol E — Tibber Pulse",
+ "tb_intro": "Bir Tibber Pulse, sayacının HAN veya P1 portunu okur ve toplamı Tibber'a gönderir. Bunu bize ulaştırmanın iki yolu var — <strong>yalnızca birine ihtiyacın var</strong>.",
+ "tb1_t": "Seçenek 1 — We fetch it for you (en kolayı)",
+ "tb1": [
+  [
+   "Tibber token'ını kopyala",
+   "<span class=\"k\">developer.tibber.com</span> adresini aç, Tibber hesabınla giriş yap, <strong>Access token</strong>'ı aç ve kişisel token'ını kopyala.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Uygulamaya yapıştır",
+   "Uygulamada: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Tibber → “We fetch it for you”</span>. Token'ı yapıştır, kutuyu işaretle ve <strong>Connect Tibber</strong> düğmesine bas. Bu 30 saniyeye kadar sürebilir. Orada değil mi? O zaman bu sürüm bunu henüz sunmuyor — seçenek 2'yi kullan.",
+   "see",
+   "Çalıştığını kontrol et",
+   "Uygulama <span class=\"k\">Bağlandı — Tibber … kWh bildiriyor</span> gösterir. Bunun sayacındaki toplamla uyuştuğunu kontrol et."
+  ]
+ ],
+ "tb2_t": "Seçenek 2 — Home Assistant ile",
+ "tb2": [
+  [
+   "Tibber'ı Home Assistant'a ekle",
+   "<span class=\"k\">Settings → Devices &amp; services → Add integration → Tibber</span>. Tibber token'ını yapıştır.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Entegrasyonumuzu ekle ve sensörü seç",
+   "Yol A'daki <em>“Entegrasyonumuzla”</em> adımlarını izle ve sensör olarak Tibber'ın <strong>Last meter consumption</strong> (kWh) sensörünü seç — sayacın kendi toplamı.",
+   null,
+   null,
+   null
+  ]
+ ]
+}
