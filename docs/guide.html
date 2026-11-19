@@ -190,12 +190,13 @@
 </style>
 <div class="wrap">
 <nav class="langbar" aria-label="Language"><a class="brand" href="./"><img src="icon.png" alt="" width="24" height="24">Green Utility Log</a><span class="lbl">Language</span>
-<button class="langbtn" data-lang="en" aria-pressed="true">English</button>
-<button class="langbtn" data-lang="nl" aria-pressed="false">Nederlands</button>
-<button class="langbtn" data-lang="de" aria-pressed="false">Deutsch</button>
-<button class="langbtn" data-lang="fr" aria-pressed="false">Français</button>
-<button class="langbtn" data-lang="es" aria-pressed="false">Español</button>
-</nav>
+<select class="langsel" aria-label="Language" style="font:inherit;font-weight:700;padding:6px 10px;border-radius:999px;border:1px solid currentColor;background:transparent;color:inherit">
+<option value="en" selected>English</option>
+<option value="nl">Nederlands</option>
+<option value="de">Deutsch</option>
+<option value="fr">Français</option>
+<option value="es">Español</option>
+</select></nav>
 <section class="lang active" id="lang-en">
   <header class="hero"><span class="kicker">Tester guide</span><h1>Earn without photographing your meter</h1><p class="lede">Normally you photograph your meter to earn B3TR. If something in your home can already read the meter, it can send the reading for you — and you never photograph again. Start by finding your setup below.</p></header>
   <nav class="toc" aria-label="On this page"><b>On this page</b><ol><li><a href="#en-1">Which setup do you have?</a></li><li><a href="#en-2">Does this work where you live?</a></li><li><a href="#en-3">All automatic routes: get your token</a></li><li><a href="#en-4">Route A — Home Assistant (any meter)</a></li><li><a href="#en-5">Route B — HomeWizard P1, without Home Assistant</a></li><li><a href="#en-6">Route C — Another reader (P1 reader, Tasmota reading head)</a></li><li><a href="#en-7">Route D — Powerfox (poweropti)</a></li><li><a href="#en-8">Route E — Tibber Pulse</a></li><li><a href="#en-9">Finally: it pays by itself</a></li><li><a href="#en-10">If something doesn't work</a></li></ol></nav>
@@ -236,7 +237,7 @@
   <h2 id="en-3">All automatic routes: get your token</h2>
   <ol class="steps">
       <li><p class="steptitle">Copy your device token</p>
-      <p>In the app: <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → “Get my device token”</span>. Copy it.</p><div class="see"><b>What it is</b>A long code that says “these readings belong to my wallet”. Keep it private — anyone holding it can send readings in your name.</div></li>
+      <p>In the app: <span class="k">Meter → ⚡ Have a meter reader (P1, Home Assistant…)? → ⚙️ Automatic setup → “Get my device token”</span>. Copy it.</p><div class="see"><b>What it is</b>A long code that says “these readings belong to my wallet”. Keep it private — anyone holding it can send readings in your name.</div></li>
       </ol>
   <h2 id="en-4">Route A — Home Assistant (any meter)</h2>
   <p class="lede" style="font-size:15.5px">Two ways. Our integration is the easiest and works with <em>any</em> meter Home Assistant already shows you; the YAML does the same by hand if you'd rather not install anything.</p>
@@ -332,7 +333,7 @@
   <h3 class="sub">Option 1 — We fetch it for you (easiest)</h3>
   <ol class="steps">
       <li><p class="steptitle">Open Powerfox in the app</p>
-      <p>In the app: <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Powerfox</span> and pick <strong>“We fetch it for you”</strong>. Not there? Then this version doesn't offer it yet — use option 2 or 3.</p>
+      <p>In the app: <span class="k">Meter → ⚡ Have a meter reader (P1, Home Assistant…)? → ⚙️ Automatic setup → Powerfox</span> and pick <strong>“We fetch it for you”</strong>. Not there? Then this version doesn't offer it yet — use option 2 or 3.</p>
       </li>
       <li><p class="steptitle">Log in with your Powerfox account</p>
       <p>Fill in the e-mail and password you use in the Powerfox app, tick the box and press <strong>Connect Powerfox</strong>. Your login is stored encrypted and is only used to read your meter. Tip: use a password you use nowhere else.</p>
@@ -377,7 +378,7 @@
       <p>Open <span class="k">developer.tibber.com</span>, sign in with your Tibber account, open <strong>Access token</strong> and copy your personal token.</p>
       </li>
       <li><p class="steptitle">Paste it in the app</p>
-      <p>In the app: <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Tibber → “We fetch it for you”</span>. Paste the token, tick the box and press <strong>Connect Tibber</strong>. It can take up to 30 seconds. Not there? Then this version doesn't offer it yet — use option 2.</p>
+      <p>In the app: <span class="k">Meter → ⚡ Have a meter reader (P1, Home Assistant…)? → ⚙️ Automatic setup → Tibber → “We fetch it for you”</span>. Paste the token, tick the box and press <strong>Connect Tibber</strong>. It can take up to 30 seconds. Not there? Then this version doesn't offer it yet — use option 2.</p>
       <div class="see"><b>Check it worked</b>The app shows <span class="k">Connected — Tibber reports … kWh</span>. Check that this matches your meter's total.</div>
       </li>
       </ol>
@@ -424,7 +425,7 @@
     <tr><td>no Tibber Pulse found on this account</td><td>The Pulse has to be set up in the Tibber app, on the same account as the token.</td></tr>
     <tr><td>your Pulse sends live data but no meter total</td><td>Not every meter reports its total through the HAN port. Then use photos, or another reader.</td></tr>
     <tr><td>this phone is already used by 1 other wallet</td><td>One person, one wallet: a phone can be used by one wallet to earn. The wallet that was paid first on this phone keeps working. Switched to a new wallet for good? Ask an admin via Send Feedback in the app.</td></tr>
-    <tr><td>automatic payouts are paused until you take one photo</td><td>Automatic readings need one photo of your meter every 30 days. Take one in the Meter tab and they start again. The app reminds you a week ahead.</td></tr>
+    <tr><td>automatic payouts are paused until you take one photo</td><td>A reader that sends its own numbers (P1, Home Assistant, this helper) needs one photo of your meter every 90 days; Powerfox, Tibber and MojElektro don't. The same pause comes once after the starting point was corrected without a photo. Take one in the Meter tab and they start again. The app reminds you a week ahead.</td></tr>
     <tr><td>already been corrected once</td><td>A meter’s starting point can be corrected once — every correction wipes the usage since the last payout. If it is wrong again, ask an admin via Send Feedback in the app.</td></tr>
   </table></div>
   <div class="note">Still stuck? Send a message with what the Log tab (or terminal) shows — it usually says exactly what's missing.</div>
@@ -470,7 +471,7 @@
   <h2 id="nl-3">Alle automatische routes: haal je token op</h2>
   <ol class="steps">
       <li><p class="steptitle">Kopieer je device-token</p>
-      <p>In de app: <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → “Get my device token”</span>. Kopieer ’m.</p><div class="see"><b>Wat het is</b>Een lange code die zegt: “deze standen horen bij mijn wallet”. Houd ’m privé — wie ’m heeft kan standen op jouw naam insturen.</div></li>
+      <p>In de app: <span class="k">Meter → ⚡ Heb je een uitlezer (P1, Home Assistant…)? → ⚙️ Automatisch instellen → “Haal mijn apparaattoken op”</span>. Kopieer ’m.</p><div class="see"><b>Wat het is</b>Een lange code die zegt: “deze standen horen bij mijn wallet”. Houd ’m privé — wie ’m heeft kan standen op jouw naam insturen.</div></li>
       </ol>
   <h2 id="nl-4">Route A — Home Assistant (elke meter)</h2>
   <p class="lede" style="font-size:15.5px">Twee manieren. Onze integratie is de makkelijkste en werkt met <em>elke</em> meter die Home Assistant al toont; de YAML doet hetzelfde handmatig als je liever niets installeert.</p>
@@ -566,13 +567,13 @@
   <h3 class="sub">Optie 1 — Wij halen het voor je op (makkelijkst)</h3>
   <ol class="steps">
       <li><p class="steptitle">Open Powerfox in de app</p>
-      <p>In de app: <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Powerfox</span> en kies <strong>“We fetch it for you”</strong>. Staat die er niet? Dan biedt deze versie het nog niet aan — gebruik optie 2 of 3.</p>
+      <p>In de app: <span class="k">Meter → ⚡ Heb je een uitlezer (P1, Home Assistant…)? → ⚙️ Automatisch instellen → Powerfox</span> en kies <strong>“Wij halen het voor je op”</strong>. Staat die er niet? Dan biedt deze versie het nog niet aan — gebruik optie 2 of 3.</p>
       </li>
       <li><p class="steptitle">Log in met je Powerfox-account</p>
-      <p>Vul het e-mailadres en wachtwoord in waarmee je in de Powerfox-app inlogt, vink het vakje aan en druk op <strong>Connect Powerfox</strong>. Je inlog wordt versleuteld bewaard en alleen gebruikt om je meter uit te lezen. Tip: gebruik een wachtwoord dat je nergens anders gebruikt.</p>
+      <p>Vul het e-mailadres en wachtwoord in waarmee je in de Powerfox-app inlogt, vink het vakje aan en druk op <strong>Powerfox koppelen</strong>. Je inlog wordt versleuteld bewaard en alleen gebruikt om je meter uit te lezen. Tip: gebruik een wachtwoord dat je nergens anders gebruikt.</p>
       </li>
       <li><p class="steptitle">Klaar — je computer mag uit</p>
-      <p>Onze server haalt ongeveer elk uur je meterstand op bij Powerfox en betaalt die uit zoals elke stand. Stoppen? <strong>Disconnect Powerfox</strong> wist je inlog meteen.</p>
+      <p>Onze server haalt ongeveer elk uur je meterstand op bij Powerfox en betaalt die uit zoals elke stand. Stoppen? <strong>Powerfox ontkoppelen</strong> wist je inlog meteen.</p>
       <div class="see"><b>Controleren of het werkt</b>Bovenaan staat <span class="k">✅ Connected — … kWh received</span>.</div>
       </li>
       </ol>
@@ -611,7 +612,7 @@
       <p>Open <span class="k">developer.tibber.com</span>, log in met je Tibber-account, open <strong>Access token</strong> en kopieer je persoonlijke token.</p>
       </li>
       <li><p class="steptitle">Plak hem in de app</p>
-      <p>In de app: <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Tibber → “We fetch it for you”</span>. Plak de token, vink het vakje aan en druk op <strong>Connect Tibber</strong>. Dat kan tot 30 seconden duren. Staat het er niet? Dan biedt deze versie het nog niet aan — gebruik optie 2.</p>
+      <p>In de app: <span class="k">Meter → ⚡ Heb je een uitlezer (P1, Home Assistant…)? → ⚙️ Automatisch instellen → Tibber → “Wij halen het voor je op”</span>. Plak de token, vink het vakje aan en druk op <strong>Tibber koppelen</strong>. Dat kan tot 30 seconden duren. Staat het er niet? Dan biedt deze versie het nog niet aan — gebruik optie 2.</p>
       <div class="see"><b>Controleren of het werkt</b>De app toont <span class="k">Connected — Tibber reports … kWh</span>. Kijk of dat klopt met de stand op je meter.</div>
       </li>
       </ol>
@@ -651,14 +652,14 @@
     <tr><td>Geen stand in “⚡ Automatic reading”</td><td>De helper heeft nog niets succesvol doorgestuurd. Kijk in zijn venster, of open <span class="k">.gul-bridge.log</span> in dezelfde map als gul.js: elke ronde schrijft óf <span class="k">pushed … ✓</span> óf de reden waarom het niet lukte.</td></tr>
     <tr><td>Weet je niet zeker of hij is ingepland?</td><td>Windows: typ in PowerShell <span class="k">schtasks /Query /TN GreenUtilityLog</span> — zie je een regel met <em>GreenUtilityLog</em> en een volgende starttijd, dan staat hij erin. Mac / Linux / Pi: <span class="k">crontab -l</span> hoort een regel te tonen die eindigt op <em># GreenUtilityLog</em>. Niets te zien? Plak de installatieregel nog één keer.</td></tr>
     <tr><td>Je stelde dit in vóór 24 september</td><td>Plak dezelfde regel nog één keer. De nieuwe helper wacht op een server die nog wakker wordt in plaats van op te geven, schrijft elke ronde naar <span class="k">.gul-bridge.log</span> en draait op Windows ook op de accu.</td></tr>
-    <tr><td>Powerfox didn&#x27;t accept the e-mail and password</td><td>Gebruik precies het e-mailadres en wachtwoord van de Powerfox-app (let op tikfouten of een spatie). Powerfox-wachtwoord veranderd? Optie 1: druk opnieuw op <strong>Connect Powerfox</strong> met het nieuwe. Optie 2: plak de installatieregel nog een keer — hij vraagt dan om het wachtwoord.</td></tr>
+    <tr><td>Powerfox didn&#x27;t accept the e-mail and password</td><td>Gebruik precies het e-mailadres en wachtwoord van de Powerfox-app (let op tikfouten of een spatie). Powerfox-wachtwoord veranderd? Optie 1: druk opnieuw op <strong>Powerfox koppelen</strong> met het nieuwe. Optie 2: plak de installatieregel nog een keer — hij vraagt dan om het wachtwoord.</td></tr>
     <tr><td>switch on data transfer (Datenfreigabe)</td><td>Powerfox weigert je standen te delen. Zet in de Powerfox-app gegevensoverdracht (Datenfreigabe) aan en probeer het opnieuw.</td></tr>
     <tr><td>Powerfox only has an old reading</td><td>Je poweropti heeft al een tijd niets naar Powerfox gestuurd. Kijk in de Powerfox-app of hij online is (wifi, batterij). Er wordt niets verstuurd of uitbetaald tot er een verse stand is.</td></tr>
     <tr><td>Tibber didn&#x27;t accept this token</td><td>Kopieer de token opnieuw van developer.tibber.com, zonder spaties. Heb je daar een nieuwe token gemaakt? Dan werkt de oude niet meer: koppel opnieuw met de nieuwe.</td></tr>
     <tr><td>no Tibber Pulse found on this account</td><td>De Pulse moet in de Tibber-app zijn ingesteld, op hetzelfde account als de token.</td></tr>
     <tr><td>your Pulse sends live data but no meter total</td><td>Niet elke meter geeft zijn totaal door via de HAN-poort. Gebruik dan foto's, of een andere reader.</td></tr>
     <tr><td>this phone is already used by 1 other wallet</td><td>Eén persoon, één wallet: op een telefoon kan één wallet verdienen. De wallet die als eerste op deze telefoon is uitbetaald, blijft werken. Ben je definitief overgestapt op een nieuwe wallet? Vraag het een admin via Send Feedback in de app.</td></tr>
-    <tr><td>automatic payouts are paused until you take one photo</td><td>Automatische standen hebben elke 30 dagen één foto van je meter nodig. Maak er een in het tabblad Meter en ze gaan weer door. De app herinnert je een week van tevoren.</td></tr>
+    <tr><td>automatic payouts are paused until you take one photo</td><td>Een uitlezer die zelf standen stuurt (P1, Home Assistant, dit script) heeft elke 90 dagen één foto van je meter nodig; Powerfox, Tibber en MojElektro niet. Dezelfde pauze komt één keer nadat het startpunt zonder foto is gecorrigeerd. Maak er een in het tabblad Meter en ze gaan weer door. De app herinnert je een week van tevoren.</td></tr>
     <tr><td>already been corrected once</td><td>Het startpunt van een meter kan één keer worden gecorrigeerd — elke correctie wist het verbruik sinds de laatste uitbetaling. Klopt het weer niet, vraag het een admin via Send Feedback in de app.</td></tr>
   </table></div>
   <div class="note">Kom je er niet uit? Stuur een berichtje met wat er in het Log-tabblad (of de terminal) staat — daar staat meestal precies wat er mist.</div>
@@ -704,7 +705,7 @@
   <h2 id="de-3">Alle automatischen Routen: Token holen</h2>
   <ol class="steps">
       <li><p class="steptitle">Geräte-Token kopieren</p>
-      <p>In der App: <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → „Get my device token“</span>. Kopieren.</p><div class="see"><b>Was das ist</b>Ein langer Code, der sagt: „diese Stände gehören zu meinem Wallet“. Halte ihn privat — wer ihn hat, kann Stände in deinem Namen senden.</div></li>
+      <p>In der App: <span class="k">Zähler → ⚡ Hast du ein Lesegerät (P1, Home Assistant…)? → ⚙️ Automatische Einrichtung → „Mein Geräte-Token holen“</span>. Kopieren.</p><div class="see"><b>Was das ist</b>Ein langer Code, der sagt: „diese Stände gehören zu meinem Wallet“. Halte ihn privat — wer ihn hat, kann Stände in deinem Namen senden.</div></li>
       </ol>
   <h2 id="de-4">Route A — Home Assistant (jeder Zähler)</h2>
   <p class="lede" style="font-size:15.5px">Zwei Wege. Unsere Integration ist am einfachsten und funktioniert mit <em>jedem</em> Zähler, den Home Assistant schon anzeigt; das YAML macht dasselbe von Hand, falls du nichts installieren willst.</p>
@@ -800,13 +801,13 @@
   <h3 class="sub">Option 1 — Wir holen ihn für dich (am einfachsten)</h3>
   <ol class="steps">
       <li><p class="steptitle">Powerfox in der App öffnen</p>
-      <p>In der App: <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Powerfox</span> und <strong>„We fetch it for you“</strong> wählen. Nicht da? Dann bietet diese Version es noch nicht an — nimm Option 2 oder 3.</p>
+      <p>In der App: <span class="k">Zähler → ⚡ Hast du ein Lesegerät (P1, Home Assistant…)? → ⚙️ Automatische Einrichtung → Powerfox</span> und <strong>„Wir holen es für dich ab“</strong> wählen. Nicht da? Dann bietet diese Version es noch nicht an — nimm Option 2 oder 3.</p>
       </li>
       <li><p class="steptitle">Mit deinem Powerfox-Konto anmelden</p>
-      <p>Gib die E-Mail-Adresse und das Passwort ein, mit denen du dich in der Powerfox-App anmeldest, setz das Häkchen und tippe auf <strong>Connect Powerfox</strong>. Deine Anmeldedaten werden verschlüsselt gespeichert und nur zum Auslesen deines Zählers verwendet. Tipp: Nimm ein Passwort, das du sonst nirgends verwendest.</p>
+      <p>Gib die E-Mail-Adresse und das Passwort ein, mit denen du dich in der Powerfox-App anmeldest, setz das Häkchen und tippe auf <strong>Powerfox verbinden</strong>. Deine Anmeldedaten werden verschlüsselt gespeichert und nur zum Auslesen deines Zählers verwendet. Tipp: Nimm ein Passwort, das du sonst nirgends verwendest.</p>
       </li>
       <li><p class="steptitle">Fertig — dein Computer darf aus bleiben</p>
-      <p>Unser Server holt etwa stündlich deinen Zählerstand bei Powerfox ab und zahlt ihn aus wie jeden anderen Stand. Aufhören? <strong>Disconnect Powerfox</strong> löscht deine Anmeldedaten sofort.</p>
+      <p>Unser Server holt etwa stündlich deinen Zählerstand bei Powerfox ab und zahlt ihn aus wie jeden anderen Stand. Aufhören? <strong>Powerfox trennen</strong> löscht deine Anmeldedaten sofort.</p>
       <div class="see"><b>Prüfen, ob es klappt</b>Oben steht <span class="k">✅ Connected — … kWh received</span>.</div>
       </li>
       </ol>
@@ -845,7 +846,7 @@
       <p>Öffne <span class="k">developer.tibber.com</span>, melde dich mit deinem Tibber-Konto an, öffne <strong>Access token</strong> und kopiere deinen persönlichen Token.</p>
       </li>
       <li><p class="steptitle">In der App einfügen</p>
-      <p>In der App: <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Tibber → „We fetch it for you“</span>. Token einfügen, Häkchen setzen und auf <strong>Connect Tibber</strong> tippen. Das kann bis zu 30 Sekunden dauern. Nicht da? Dann bietet diese Version es noch nicht an — nimm Option 2.</p>
+      <p>In der App: <span class="k">Zähler → ⚡ Hast du ein Lesegerät (P1, Home Assistant…)? → ⚙️ Automatische Einrichtung → Tibber → „Wir holen es für dich ab“</span>. Token einfügen, Häkchen setzen und auf <strong>Tibber verbinden</strong> tippen. Das kann bis zu 30 Sekunden dauern. Nicht da? Dann bietet diese Version es noch nicht an — nimm Option 2.</p>
       <div class="see"><b>Prüfen, ob es klappt</b>Die App zeigt <span class="k">Connected — Tibber reports … kWh</span>. Prüf, ob das zum Zählerstand passt.</div>
       </li>
       </ol>
@@ -885,14 +886,14 @@
     <tr><td>Kein Stand in „⚡ Automatic reading“</td><td>Das Hilfsprogramm hat noch nichts erfolgreich gesendet. Schau in sein Fenster oder öffne <span class="k">.gul-bridge.log</span> im selben Ordner wie gul.js: jede Runde schreibt entweder <span class="k">pushed … ✓</span> oder den Grund für den Fehlschlag.</td></tr>
     <tr><td>Nicht sicher, ob es eingeplant ist?</td><td>Windows: in PowerShell <span class="k">schtasks /Query /TN GreenUtilityLog</span> eingeben — eine Zeile mit <em>GreenUtilityLog</em> und einer nächsten Laufzeit heißt, es ist eingeplant. Mac / Linux / Pi: <span class="k">crontab -l</span> sollte eine Zeile zeigen, die auf <em># GreenUtilityLog</em> endet. Nichts da? Füge die Einrichtungszeile noch einmal ein.</td></tr>
     <tr><td>Vor dem 24. September eingerichtet</td><td>Füge dieselbe Zeile noch einmal ein. Das neue Hilfsprogramm wartet auf einen Server, der noch aufwacht, statt aufzugeben, schreibt jede Runde in <span class="k">.gul-bridge.log</span> und läuft unter Windows auch im Akkubetrieb.</td></tr>
-    <tr><td>Powerfox didn&#x27;t accept the e-mail and password</td><td>Nimm genau die E-Mail-Adresse und das Passwort der Powerfox-App (auf Tippfehler oder Leerzeichen achten). Powerfox-Passwort geändert? Option 1: noch einmal <strong>Connect Powerfox</strong> mit dem neuen. Option 2: die Einrichtungszeile noch einmal einfügen — sie fragt dann nach dem Passwort.</td></tr>
+    <tr><td>Powerfox didn&#x27;t accept the e-mail and password</td><td>Nimm genau die E-Mail-Adresse und das Passwort der Powerfox-App (auf Tippfehler oder Leerzeichen achten). Powerfox-Passwort geändert? Option 1: noch einmal <strong>Powerfox verbinden</strong> mit dem neuen. Option 2: die Einrichtungszeile noch einmal einfügen — sie fragt dann nach dem Passwort.</td></tr>
     <tr><td>switch on data transfer (Datenfreigabe)</td><td>Powerfox gibt deine Zählerstände nicht frei. Schalte in der Powerfox-App die Datenfreigabe ein und versuch es noch einmal.</td></tr>
     <tr><td>Powerfox only has an old reading</td><td>Dein poweropti hat seit einer Weile nichts an Powerfox gesendet. Prüf in der Powerfox-App, ob er online ist (WLAN, Batterie). Bis ein frischer Stand da ist, wird nichts gesendet oder ausgezahlt.</td></tr>
     <tr><td>Tibber didn&#x27;t accept this token</td><td>Kopier den Token noch einmal von developer.tibber.com, ohne Leerzeichen. Dort einen neuen Token erstellt? Dann gilt der alte nicht mehr: mit dem neuen erneut verbinden.</td></tr>
     <tr><td>no Tibber Pulse found on this account</td><td>Der Pulse muss in der Tibber-App eingerichtet sein, im selben Konto wie der Token.</td></tr>
     <tr><td>your Pulse sends live data but no meter total</td><td>Nicht jeder Zähler meldet seinen Gesamtstand über die HAN-Schnittstelle. Dann Fotos verwenden, oder einen anderen Reader.</td></tr>
     <tr><td>this phone is already used by 1 other wallet</td><td>Eine Person, eine Wallet: Auf einem Handy kann eine Wallet verdienen. Die Wallet, die auf diesem Handy zuerst ausgezahlt wurde, funktioniert weiter. Endgültig auf eine neue Wallet umgestiegen? Frag einen Admin über Send Feedback in der App.</td></tr>
-    <tr><td>automatic payouts are paused until you take one photo</td><td>Automatische Stände brauchen alle 30 Tage ein Foto deines Zählers. Mach eins im Tab Meter, dann geht es weiter. Die App erinnert dich eine Woche vorher.</td></tr>
+    <tr><td>automatic payouts are paused until you take one photo</td><td>Ein Leser, der seine Stände selbst sendet (P1, Home Assistant, dieses Skript), braucht alle 90 Tage ein Foto deines Zählers; Powerfox, Tibber und MojElektro nicht. Dieselbe Pause kommt einmal, nachdem der Startpunkt ohne Foto korrigiert wurde. Mach eins im Tab Meter, dann geht es weiter. Die App erinnert dich eine Woche vorher.</td></tr>
     <tr><td>already been corrected once</td><td>Der Startwert eines Zählers kann einmal korrigiert werden — jede Korrektur löscht den Verbrauch seit der letzten Auszahlung. Stimmt er wieder nicht, frag einen Admin über Send Feedback in der App.</td></tr>
   </table></div>
   <div class="note">Kommst du nicht weiter? Schick eine Nachricht mit dem Inhalt des Protokoll-Tabs (oder Terminals) — dort steht meist genau, was fehlt.</div>
@@ -938,7 +939,7 @@
   <h2 id="fr-3">Toutes les routes automatiques : récupérez votre jeton</h2>
   <ol class="steps">
       <li><p class="steptitle">Copiez votre jeton</p>
-      <p>Dans l'app : <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → « Get my device token »</span>. Copiez-le.</p><div class="see"><b>Ce que c'est</b>Un long code qui dit « ces relevés appartiennent à mon wallet ». Gardez-le privé — celui qui l'a peut envoyer des relevés en votre nom.</div></li>
+      <p>Dans l'app : <span class="k">Compteur → ⚡ Vous avez un lecteur (P1, Home Assistant…) ? → ⚙️ Configuration automatique → « Obtenir mon jeton d'appareil »</span>. Copiez-le.</p><div class="see"><b>Ce que c'est</b>Un long code qui dit « ces relevés appartiennent à mon wallet ». Gardez-le privé — celui qui l'a peut envoyer des relevés en votre nom.</div></li>
       </ol>
   <h2 id="fr-4">Route A — Home Assistant (tout compteur)</h2>
   <p class="lede" style="font-size:15.5px">Deux façons. Notre intégration est la plus simple et fonctionne avec <em>n'importe quel</em> compteur que Home Assistant affiche déjà ; le YAML fait la même chose à la main si vous préférez ne rien installer.</p>
@@ -1034,13 +1035,13 @@
   <h3 class="sub">Option 1 — Nous le récupérons pour vous (le plus simple)</h3>
   <ol class="steps">
       <li><p class="steptitle">Ouvrez Powerfox dans l'app</p>
-      <p>Dans l'app : <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Powerfox</span> et choisissez <strong>« We fetch it for you »</strong>. Absent ? Cette version ne le propose pas encore — prenez l'option 2 ou 3.</p>
+      <p>Dans l'app : <span class="k">Compteur → ⚡ Vous avez un lecteur (P1, Home Assistant…) ? → ⚙️ Configuration automatique → Powerfox</span> et choisissez <strong>« Nous le récupérons pour vous »</strong>. Absent ? Cette version ne le propose pas encore — prenez l'option 2 ou 3.</p>
       </li>
       <li><p class="steptitle">Connectez-vous avec votre compte Powerfox</p>
-      <p>Saisissez l'e-mail et le mot de passe de l'app Powerfox, cochez la case et appuyez sur <strong>Connect Powerfox</strong>. Vos identifiants sont conservés chiffrés et servent uniquement à lire votre compteur. Astuce : utilisez un mot de passe que vous n'utilisez nulle part ailleurs.</p>
+      <p>Saisissez l'e-mail et le mot de passe de l'app Powerfox, cochez la case et appuyez sur <strong>Connecter Powerfox</strong>. Vos identifiants sont conservés chiffrés et servent uniquement à lire votre compteur. Astuce : utilisez un mot de passe que vous n'utilisez nulle part ailleurs.</p>
       </li>
       <li><p class="steptitle">C'est fait — votre ordinateur peut rester éteint</p>
-      <p>Notre serveur récupère votre relevé chez Powerfox environ toutes les heures et le paie comme tout autre relevé. Arrêter ? <strong>Disconnect Powerfox</strong> efface vos identifiants aussitôt.</p>
+      <p>Notre serveur récupère votre relevé chez Powerfox environ toutes les heures et le paie comme tout autre relevé. Arrêter ? <strong>Déconnecter Powerfox</strong> efface vos identifiants aussitôt.</p>
       <div class="see"><b>Vérifier</b>En haut s'affiche <span class="k">✅ Connected — … kWh received</span>.</div>
       </li>
       </ol>
@@ -1079,7 +1080,7 @@
       <p>Ouvrez <span class="k">developer.tibber.com</span>, connectez-vous avec votre compte Tibber, ouvrez <strong>Access token</strong> et copiez votre jeton personnel.</p>
       </li>
       <li><p class="steptitle">Collez-le dans l'app</p>
-      <p>Dans l'app : <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Tibber → « We fetch it for you »</span>. Collez le jeton, cochez la case et appuyez sur <strong>Connect Tibber</strong>. Cela peut prendre jusqu'à 30 secondes. Absent ? Cette version ne le propose pas encore — prenez l'option 2.</p>
+      <p>Dans l'app : <span class="k">Compteur → ⚡ Vous avez un lecteur (P1, Home Assistant…) ? → ⚙️ Configuration automatique → Tibber → « Nous le récupérons pour vous »</span>. Collez le jeton, cochez la case et appuyez sur <strong>Connecter Tibber</strong>. Cela peut prendre jusqu'à 30 secondes. Absent ? Cette version ne le propose pas encore — prenez l'option 2.</p>
       <div class="see"><b>Vérifier</b>L'app affiche <span class="k">Connected — Tibber reports … kWh</span>. Vérifiez que cela correspond à votre compteur.</div>
       </li>
       </ol>
@@ -1119,14 +1120,14 @@
     <tr><td>Aucun relevé dans « ⚡ Automatic reading »</td><td>L’utilitaire n’a encore rien envoyé avec succès. Regardez sa fenêtre, ou ouvrez <span class="k">.gul-bridge.log</span> dans le même dossier que gul.js : chaque cycle écrit soit <span class="k">pushed … ✓</span>, soit la raison de l’échec.</td></tr>
     <tr><td>Pas sûr qu’il soit planifié ?</td><td>Windows : dans PowerShell, tapez <span class="k">schtasks /Query /TN GreenUtilityLog</span> — une ligne avec <em>GreenUtilityLog</em> et une prochaine exécution signifie que c’est bon. Mac / Linux / Pi : <span class="k">crontab -l</span> doit afficher une ligne se terminant par <em># GreenUtilityLog</em>. Rien ? Collez la ligne d’installation une fois de plus.</td></tr>
     <tr><td>Installé avant le 24 septembre</td><td>Collez la même ligne une fois de plus. Le nouvel utilitaire attend un serveur qui se réveille au lieu d’abandonner, écrit chaque cycle dans <span class="k">.gul-bridge.log</span> et, sous Windows, fonctionne aussi sur batterie.</td></tr>
-    <tr><td>Powerfox didn&#x27;t accept the e-mail and password</td><td>Utilisez exactement l'e-mail et le mot de passe de l'app Powerfox (attention aux fautes de frappe et aux espaces). Mot de passe Powerfox changé ? Option 1 : <strong>Connect Powerfox</strong> à nouveau avec le nouveau. Option 2 : recollez la ligne d'installation — elle redemande le mot de passe.</td></tr>
+    <tr><td>Powerfox didn&#x27;t accept the e-mail and password</td><td>Utilisez exactement l'e-mail et le mot de passe de l'app Powerfox (attention aux fautes de frappe et aux espaces). Mot de passe Powerfox changé ? Option 1 : <strong>Connecter Powerfox</strong> à nouveau avec le nouveau. Option 2 : recollez la ligne d'installation — elle redemande le mot de passe.</td></tr>
     <tr><td>switch on data transfer (Datenfreigabe)</td><td>Powerfox refuse de partager vos relevés. Dans l'app Powerfox, activez le partage des données (Datenfreigabe), puis réessayez.</td></tr>
     <tr><td>Powerfox only has an old reading</td><td>Votre poweropti n'a rien envoyé à Powerfox depuis un moment. Vérifiez dans l'app Powerfox qu'il est en ligne (Wi-Fi, pile). Rien n'est envoyé ni payé tant qu'un relevé récent n'est pas là.</td></tr>
     <tr><td>Tibber didn&#x27;t accept this token</td><td>Recopiez le jeton depuis developer.tibber.com, sans espaces. Vous y avez créé un nouveau jeton ? L'ancien ne marche plus : reconnectez-vous avec le nouveau.</td></tr>
     <tr><td>no Tibber Pulse found on this account</td><td>Le Pulse doit être configuré dans l'app Tibber, sur le même compte que le jeton.</td></tr>
     <tr><td>your Pulse sends live data but no meter total</td><td>Tous les compteurs n'envoient pas leur total par le port HAN. Utilisez alors des photos, ou un autre lecteur.</td></tr>
     <tr><td>this phone is already used by 1 other wallet</td><td>Une personne, un wallet : sur un téléphone, un seul wallet peut gagner. Le wallet payé en premier sur ce téléphone continue de marcher. Vous êtes passé définitivement à un nouveau wallet ? Demandez à un admin via Send Feedback dans l'app.</td></tr>
-    <tr><td>automatic payouts are paused until you take one photo</td><td>Les relevés automatiques demandent une photo du compteur tous les 30 jours. Prenez-en une dans l'onglet Meter et ils reprennent. L'app vous prévient une semaine avant.</td></tr>
+    <tr><td>automatic payouts are paused until you take one photo</td><td>Un lecteur qui envoie lui-même ses relevés (P1, Home Assistant, ce script) demande une photo du compteur tous les 90 jours ; Powerfox, Tibber et MojElektro non. La même pause arrive une fois après une correction du point de départ sans photo. Prenez-en une dans l'onglet Meter et ils reprennent. L'app vous prévient une semaine avant.</td></tr>
     <tr><td>already been corrected once</td><td>Le point de départ d’un compteur ne peut être corrigé qu’une fois — chaque correction efface la consommation depuis le dernier paiement. S’il est de nouveau faux, demandez à un admin via Send Feedback dans l’app.</td></tr>
   </table></div>
   <div class="note">Toujours bloqué ? Envoyez un message avec le contenu de l'onglet Journal (ou du terminal) — il dit généralement exactement ce qui manque.</div>
@@ -1172,7 +1173,7 @@
   <h2 id="es-3">Todas las rutas automáticas: consigue tu token</h2>
   <ol class="steps">
       <li><p class="steptitle">Copia tu token</p>
-      <p>En la app: <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → «Get my device token»</span>. Cópialo.</p><div class="see"><b>Qué es</b>Un código largo que dice «estas lecturas son de mi wallet». Mantenlo privado — quien lo tenga puede enviar lecturas en tu nombre.</div></li>
+      <p>En la app: <span class="k">Contador → ⚡ ¿Tienes un lector (P1, Home Assistant…)? → ⚙️ Configuración automática → «Obtener mi token de dispositivo»</span>. Cópialo.</p><div class="see"><b>Qué es</b>Un código largo que dice «estas lecturas son de mi wallet». Mantenlo privado — quien lo tenga puede enviar lecturas en tu nombre.</div></li>
       </ol>
   <h2 id="es-4">Ruta A — Home Assistant (cualquier contador)</h2>
   <p class="lede" style="font-size:15.5px">Dos formas. Nuestra integración es la más fácil y funciona con <em>cualquier</em> contador que Home Assistant ya muestre; el YAML hace lo mismo a mano si prefieres no instalar nada.</p>
@@ -1268,13 +1269,13 @@
   <h3 class="sub">Opción 1 — La recogemos por ti (lo más fácil)</h3>
   <ol class="steps">
       <li><p class="steptitle">Abre Powerfox en la app</p>
-      <p>En la app: <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Powerfox</span> y elige <strong>«We fetch it for you»</strong>. ¿No aparece? Esta versión aún no lo ofrece — usa la opción 2 o 3.</p>
+      <p>En la app: <span class="k">Contador → ⚡ ¿Tienes un lector (P1, Home Assistant…)? → ⚙️ Configuración automática → Powerfox</span> y elige <strong>«Lo recogemos por ti»</strong>. ¿No aparece? Esta versión aún no lo ofrece — usa la opción 2 o 3.</p>
       </li>
       <li><p class="steptitle">Inicia sesión con tu cuenta de Powerfox</p>
-      <p>Escribe el correo y la contraseña de la app de Powerfox, marca la casilla y pulsa <strong>Connect Powerfox</strong>. Tus datos de acceso se guardan cifrados y solo sirven para leer tu contador. Consejo: usa una contraseña que no uses en ningún otro sitio.</p>
+      <p>Escribe el correo y la contraseña de la app de Powerfox, marca la casilla y pulsa <strong>Conectar Powerfox</strong>. Tus datos de acceso se guardan cifrados y solo sirven para leer tu contador. Consejo: usa una contraseña que no uses en ningún otro sitio.</p>
       </li>
       <li><p class="steptitle">Listo — tu ordenador puede estar apagado</p>
-      <p>Nuestro servidor recoge tu lectura de Powerfox más o menos cada hora y la paga como cualquier otra lectura. ¿Quieres parar? <strong>Disconnect Powerfox</strong> borra tus datos de acceso al instante.</p>
+      <p>Nuestro servidor recoge tu lectura de Powerfox más o menos cada hora y la paga como cualquier otra lectura. ¿Quieres parar? <strong>Desconectar Powerfox</strong> borra tus datos de acceso al instante.</p>
       <div class="see"><b>Comprueba que funciona</b>Arriba pone <span class="k">✅ Connected — … kWh received</span>.</div>
       </li>
       </ol>
@@ -1313,7 +1314,7 @@
       <p>Abre <span class="k">developer.tibber.com</span>, inicia sesión con tu cuenta de Tibber, abre <strong>Access token</strong> y copia tu token personal.</p>
       </li>
       <li><p class="steptitle">Pégalo en la app</p>
-      <p>En la app: <span class="k">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Tibber → «We fetch it for you»</span>. Pega el token, marca la casilla y pulsa <strong>Connect Tibber</strong>. Puede tardar hasta 30 segundos. ¿No aparece? Esta versión aún no lo ofrece — usa la opción 2.</p>
+      <p>En la app: <span class="k">Contador → ⚡ ¿Tienes un lector (P1, Home Assistant…)? → ⚙️ Configuración automática → Tibber → «Lo recogemos por ti»</span>. Pega el token, marca la casilla y pulsa <strong>Conectar Tibber</strong>. Puede tardar hasta 30 segundos. ¿No aparece? Esta versión aún no lo ofrece — usa la opción 2.</p>
       <div class="see"><b>Comprueba que funciona</b>La app muestra <span class="k">Connected — Tibber reports … kWh</span>. Comprueba que coincide con tu contador.</div>
       </li>
       </ol>
@@ -1353,14 +1354,14 @@
     <tr><td>Ninguna lectura en “⚡ Automatic reading”</td><td>El programa aún no ha enviado nada con éxito. Mira su ventana, o abre <span class="k">.gul-bridge.log</span> en la misma carpeta que gul.js: cada ciclo escribe o bien <span class="k">pushed … ✓</span> o el motivo del fallo.</td></tr>
     <tr><td>¿No estás seguro de que esté programado?</td><td>Windows: en PowerShell escribe <span class="k">schtasks /Query /TN GreenUtilityLog</span> — una línea con <em>GreenUtilityLog</em> y una próxima ejecución significa que sí. Mac / Linux / Pi: <span class="k">crontab -l</span> debe mostrar una línea que termina en <em># GreenUtilityLog</em>. ¿No hay nada? Pega la línea de instalación una vez más.</td></tr>
     <tr><td>Lo configuraste antes del 24 de septiembre</td><td>Pega la misma línea una vez más. El nuevo programa espera a un servidor que aún se está despertando en lugar de rendirse, escribe cada ciclo en <span class="k">.gul-bridge.log</span> y en Windows también funciona con batería.</td></tr>
-    <tr><td>Powerfox didn&#x27;t accept the e-mail and password</td><td>Usa exactamente el correo y la contraseña de la app de Powerfox (cuidado con erratas o espacios). ¿Cambiaste la contraseña de Powerfox? Opción 1: pulsa otra vez <strong>Connect Powerfox</strong> con la nueva. Opción 2: vuelve a pegar la línea de instalación — te pedirá la contraseña.</td></tr>
+    <tr><td>Powerfox didn&#x27;t accept the e-mail and password</td><td>Usa exactamente el correo y la contraseña de la app de Powerfox (cuidado con erratas o espacios). ¿Cambiaste la contraseña de Powerfox? Opción 1: pulsa otra vez <strong>Conectar Powerfox</strong> con la nueva. Opción 2: vuelve a pegar la línea de instalación — te pedirá la contraseña.</td></tr>
     <tr><td>switch on data transfer (Datenfreigabe)</td><td>Powerfox se niega a compartir tus lecturas. En la app de Powerfox, activa la transferencia de datos (Datenfreigabe) y vuelve a intentarlo.</td></tr>
     <tr><td>Powerfox only has an old reading</td><td>Tu poweropti lleva un rato sin enviar nada a Powerfox. Comprueba en la app de Powerfox que está en línea (wifi, batería). No se envía ni se paga nada hasta que haya una lectura reciente.</td></tr>
     <tr><td>Tibber didn&#x27;t accept this token</td><td>Vuelve a copiar el token de developer.tibber.com, sin espacios. ¿Creaste allí un token nuevo? El antiguo deja de funcionar: vuelve a conectar con el nuevo.</td></tr>
     <tr><td>no Tibber Pulse found on this account</td><td>El Pulse tiene que estar configurado en la app de Tibber, en la misma cuenta que el token.</td></tr>
     <tr><td>your Pulse sends live data but no meter total</td><td>No todos los contadores envían su total por el puerto HAN. Usa entonces fotos, u otro lector.</td></tr>
     <tr><td>this phone is already used by 1 other wallet</td><td>Una persona, un wallet: en un teléfono solo un wallet puede ganar. El wallet que cobró primero en este teléfono sigue funcionando. ¿Te cambiaste a un wallet nuevo para siempre? Pide ayuda a un admin con Send Feedback en la app.</td></tr>
-    <tr><td>automatic payouts are paused until you take one photo</td><td>Las lecturas automáticas necesitan una foto del contador cada 30 días. Haz una en la pestaña Meter y vuelven a pagarse. La app te avisa una semana antes.</td></tr>
+    <tr><td>automatic payouts are paused until you take one photo</td><td>Un lector que envía sus propias lecturas (P1, Home Assistant, este script) necesita una foto del contador cada 90 días; Powerfox, Tibber y MojElektro no. La misma pausa llega una vez tras corregir el punto de partida sin foto. Haz una en la pestaña Meter y vuelven a pagarse. La app te avisa una semana antes.</td></tr>
     <tr><td>already been corrected once</td><td>El punto de partida de un contador solo se puede corregir una vez — cada corrección borra el consumo desde el último pago. Si vuelve a estar mal, pide ayuda a un admin con Send Feedback en la app.</td></tr>
   </table></div>
   <div class="note">¿Sigues atascado? Envía un mensaje con lo que muestra la pestaña Registro (o la terminal) — suele decir exactamente qué falta.</div>
@@ -1369,14 +1370,14 @@
 </div>
 <script>
   const sections = document.querySelectorAll(".lang");
-  const buttons = document.querySelectorAll(".langbtn");
+  const picker = document.querySelector(".langsel");
   function show(lang){
     sections.forEach(s => s.classList.toggle("active", s.id === "lang-" + lang));
-    buttons.forEach(b => b.setAttribute("aria-pressed", String(b.dataset.lang === lang)));
+    if (picker) picker.value = lang;
     try { localStorage.setItem("gul_guide_lang", lang); } catch (e) {}
   }
-  buttons.forEach(b => b.addEventListener("click", () => show(b.dataset.lang)));
-  const supported = ["en","nl","de","fr","es"];
+  picker?.addEventListener("change", () => show(picker.value));
+  const supported = ["en", "nl", "de", "fr", "es"];
   let pick = "en";
   try {
     const saved = localStorage.getItem("gul_guide_lang");

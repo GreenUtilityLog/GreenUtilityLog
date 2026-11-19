@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Generate the multilingual tester guide from one content source, so all five
 # languages keep identical structure and only the prose differs.
-import io, os, html, re
+import io, os, html, re, json, subprocess, sys
 
 REPO = "https://github.com/GreenUtilityLog/GreenUtilityLog"
 
@@ -943,15 +943,15 @@ for _c, _p in HWC.items():
     _d["country_close"] = _d["country_close"] + _p["close"].format(u=HW_CHECK)
 
 # ─────────────────────────── A PHOTO EVERY 30 DAYS ───────────────────────────
-# Automatic payouts pause when the meter's last photo is over 30 days old (the
+# Automatic payouts pause when the meter's last photo is over 90 days old (the
 # server's AUTO_PHOTO_EVERY_DAYS): a photo can't be lower than what was paid, so a
 # reader that ran ahead of the real meter is caught. Said where people look.
 PHOTO30 = {
-  "en": ("automatic payouts are paused until you take one photo", "Automatic readings need one photo of your meter every 30 days. Take one in the Meter tab and they start again. The app reminds you a week ahead."),
-  "nl": ("automatic payouts are paused until you take one photo", "Automatische standen hebben elke 30 dagen één foto van je meter nodig. Maak er een in het tabblad Meter en ze gaan weer door. De app herinnert je een week van tevoren."),
-  "de": ("automatic payouts are paused until you take one photo", "Automatische Stände brauchen alle 30 Tage ein Foto deines Zählers. Mach eins im Tab Meter, dann geht es weiter. Die App erinnert dich eine Woche vorher."),
-  "fr": ("automatic payouts are paused until you take one photo", "Les relevés automatiques demandent une photo du compteur tous les 30 jours. Prenez-en une dans l'onglet Meter et ils reprennent. L'app vous prévient une semaine avant."),
-  "es": ("automatic payouts are paused until you take one photo", "Las lecturas automáticas necesitan una foto del contador cada 30 días. Haz una en la pestaña Meter y vuelven a pagarse. La app te avisa una semana antes."),
+  "en": ("automatic payouts are paused until you take one photo", "A reader that sends its own numbers (P1, Home Assistant, this helper) needs one photo of your meter every 90 days; Powerfox, Tibber and MojElektro don't. The same pause comes once after the starting point was corrected without a photo. Take one in the Meter tab and they start again. The app reminds you a week ahead."),
+  "nl": ("automatic payouts are paused until you take one photo", "Een uitlezer die zelf standen stuurt (P1, Home Assistant, dit script) heeft elke 90 dagen één foto van je meter nodig; Powerfox, Tibber en MojElektro niet. Dezelfde pauze komt één keer nadat het startpunt zonder foto is gecorrigeerd. Maak er een in het tabblad Meter en ze gaan weer door. De app herinnert je een week van tevoren."),
+  "de": ("automatic payouts are paused until you take one photo", "Ein Leser, der seine Stände selbst sendet (P1, Home Assistant, dieses Skript), braucht alle 90 Tage ein Foto deines Zählers; Powerfox, Tibber und MojElektro nicht. Dieselbe Pause kommt einmal, nachdem der Startpunkt ohne Foto korrigiert wurde. Mach eins im Tab Meter, dann geht es weiter. Die App erinnert dich eine Woche vorher."),
+  "fr": ("automatic payouts are paused until you take one photo", "Un lecteur qui envoie lui-même ses relevés (P1, Home Assistant, ce script) demande une photo du compteur tous les 90 jours ; Powerfox, Tibber et MojElektro non. La même pause arrive une fois après une correction du point de départ sans photo. Prenez-en une dans l'onglet Meter et ils reprennent. L'app vous prévient une semaine avant."),
+  "es": ("automatic payouts are paused until you take one photo", "Un lector que envía sus propias lecturas (P1, Home Assistant, este script) necesita una foto del contador cada 90 días; Powerfox, Tibber y MojElektro no. La misma pausa llega una vez tras corregir el punto de partida sin foto. Haz una en la pestaña Meter y vuelven a pagarse. La app te avisa una semana antes."),
 }
 for _c, _row in PHOTO30.items():
     L[_c]["trouble"][-1:-1] = [_row]
@@ -1067,12 +1067,111 @@ def render(code, d):
 
 TOC_LABEL = {"en": "On this page", "nl": "Op deze pagina", "de": "Auf dieser Seite", "fr": "Sur cette page", "es": "En esta página"}
 
+# ── More languages, and the app's own button names ──────────────────────────────
+# `--dump` prints the English guide (everything above, merged) as JSON: the source
+# for a translation. A translation is docs/guide_lang/<code>.json with the same
+# shape; it is checked against the English below (same structure, commands, links
+# and markup) or the build stops.
+if "--dump" in sys.argv:
+    print(json.dumps(L["en"], ensure_ascii=False, indent=1))
+    sys.exit(0)
+
+_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir)
+# The app's own words for the screens and buttons the guide points to, in each
+# language (src/i18n.js and src/lang/*.js), so "tap X" says what the app shows.
+_APP_KEYS = ["nav.meter", "m.readerLink", "r.setup", "r.getToken", "r.route.server",
+             "pf.connect", "pf.disconnect", "tb.connect", "tb.disconnect"]
+_js = """
+const root = process.argv[1], keys = JSON.parse(process.argv[2]);
+const m = await import(root + "/src/i18n.js");
+const out = {};
+for (const c of Object.keys(m.LANGS)) {
+  try { await m.loadLang(c); } catch {}
+  const p = m.langPack(c);
+  out[c] = Object.fromEntries(keys.map((k) => [k, (p && p.texts[k]) || (m.TEXTS[k] && m.TEXTS[k][c]) || m.TEXTS[k].en]));
+  out[c].name = m.LANGS[c];
+}
+console.log(JSON.stringify(out));
+"""
+APP = json.loads(subprocess.run(["node", "--input-type=module", "-e", _js, os.path.abspath(_ROOT), json.dumps(_APP_KEYS)],
+                                capture_output=True, text=True, check=True).stdout)
+
+# Extra languages: one JSON file each, in the app's order.
+_LANG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "guide_lang")
+_URL = re.compile(r"https?://[^\s<>\"')]+")
+_TAG = re.compile(r"<(/?)([a-z0-9]+)")
+def _check(code, en, tr, path="guide"):
+    """The translation has the English shape; commands, links and markup unchanged."""
+    if isinstance(en, dict):
+        if not isinstance(tr, dict) or set(tr) != set(en):
+            raise SystemExit(f"guide_lang/{code}.json {path}: keys differ ({sorted(set(en) ^ set(tr or {}))})")
+        for k in en: _check(code, en[k], tr[k], f"{path}.{k}")
+    elif isinstance(en, (list, tuple)):
+        if not isinstance(tr, (list, tuple)) or len(tr) != len(en):
+            raise SystemExit(f"guide_lang/{code}.json {path}: {len(tr) if isinstance(tr, (list, tuple)) else 'not a list'} items instead of {len(en)}")
+        for i, (a, b) in enumerate(zip(en, tr)): _check(code, a, b, f"{path}[{i}]")
+    elif isinstance(en, str):
+        if not isinstance(tr, str) or not tr.strip():
+            raise SystemExit(f"guide_lang/{code}.json {path}: missing")
+        if "gul.js" in en and ("node " in en or "iwr " in en or "curl " in en) and tr != en:
+            raise SystemExit(f"guide_lang/{code}.json {path}: a command was changed")
+        if sorted(_URL.findall(en)) != sorted(_URL.findall(tr)):
+            raise SystemExit(f"guide_lang/{code}.json {path}: links differ")
+        if sorted(_TAG.findall(en)) != sorted(_TAG.findall(tr)):
+            raise SystemExit(f"guide_lang/{code}.json {path}: HTML tags differ")
+    elif en != tr:
+        raise SystemExit(f"guide_lang/{code}.json {path}: {tr!r} instead of {en!r}")
+_en_shape = json.loads(json.dumps(L["en"]))
+for _code in APP:
+    _f = os.path.join(_LANG_DIR, f"{_code}.json")
+    if _code in L or not os.path.exists(_f):
+        continue
+    _d = json.load(io.open(_f, encoding="utf8"))
+    _toc = _d.pop("_toc", "On this page")
+    _check(_code, _en_shape, _d)
+    _d["name"] = APP[_code]["name"]
+    L[_code] = _d
+    TOC_LABEL[_code] = _toc
+
+# The English names the guide was written with → the app's names in each language.
+def _short(label):
+    # "⚙️ Automatic setup (P1 reader / Powerfox / …)" → "⚙️ Automatic setup"
+    return re.sub(r"\s*\(.*\)\s*$", "", label).strip()
+def _question(label):
+    # "⚡ Have a meter reader (P1, Home Assistant…)? Set up … — optional" → up to the "?"
+    # (Greek ends a question with ";"); else the part before " — ".
+    m = re.match(r"^(.*?[?;？])(\s|$)", label)
+    return m.group(1).strip() if m else label.split(" — ")[0].strip()
+def _app_words(code):
+    a = APP.get(code, APP["en"])
+    # The way in for someone setting a reader up for the first time: the Meter tab,
+    # the reader link under the photo, then the setup.
+    path = f'{a["nav.meter"]} → {_question(a["m.readerLink"])} → {_short(a["r.setup"])}'
+    return [("Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup", path),
+            ("Get my device token", a["r.getToken"]), ("We fetch it for you", a["r.route.server"]),
+            ("Disconnect Powerfox", a["pf.disconnect"]), ("Connect Powerfox", a["pf.connect"]),
+            ("Disconnect Tibber", a["tb.disconnect"]), ("Connect Tibber", a["tb.connect"])]
+def _swap(v, words):
+    if isinstance(v, str):
+        for old, new in words: v = v.replace(old, new)
+        return v
+    if isinstance(v, dict): return {k: _swap(x, words) for k, x in v.items()}
+    if isinstance(v, tuple): return tuple(_swap(x, words) for x in v)
+    if isinstance(v, list): return [_swap(x, words) for x in v]
+    return v
+for _code in list(L):
+    _name = L[_code]["name"]
+    L[_code] = _swap(L[_code], _app_words(_code))
+    L[_code]["name"] = _name
+
 # The bar carries the brand and a way back to the app: the guide used to have
 # neither, so a tester who opened it from the app had no road back but the browser.
-nav = ['<nav class="langbar" aria-label="Language"><a class="brand" href="./"><img src="icon.png" alt="" width="24" height="24">Green Utility Log</a><span class="lbl">Language</span>']
+# With 20 languages a row of buttons filled the screen: a list instead.
+nav = ['<nav class="langbar" aria-label="Language"><a class="brand" href="./"><img src="icon.png" alt="" width="24" height="24">Green Utility Log</a><span class="lbl">Language</span>',
+       '<select class="langsel" aria-label="Language" style="font:inherit;font-weight:700;padding:6px 10px;border-radius:999px;border:1px solid currentColor;background:transparent;color:inherit">']
 for code in L:
-    nav.append(f'<button class="langbtn" data-lang="{code}" aria-pressed="{"true" if code=="en" else "false"}">{L[code]["name"]}</button>')
-nav.append("</nav>")
+    nav.append(f'<option value="{code}"{" selected" if code=="en" else ""}>{L[code]["name"]}</option>')
+nav.append("</select></nav>")
 
 # The language bar goes INSIDE .wrap. Its `margin:0 -24px` exists to cancel the
 # wrapper's 24px padding and run edge to edge; sitting outside the wrapper there was
@@ -1082,14 +1181,14 @@ body = "\n".join(['<div class="wrap">'] + nav + [render(c, L[c]) for c in L] + [
 
 script = """<script>
   const sections = document.querySelectorAll(".lang");
-  const buttons = document.querySelectorAll(".langbtn");
+  const picker = document.querySelector(".langsel");
   function show(lang){
     sections.forEach(s => s.classList.toggle("active", s.id === "lang-" + lang));
-    buttons.forEach(b => b.setAttribute("aria-pressed", String(b.dataset.lang === lang)));
+    if (picker) picker.value = lang;
     try { localStorage.setItem("gul_guide_lang", lang); } catch (e) {}
   }
-  buttons.forEach(b => b.addEventListener("click", () => show(b.dataset.lang)));
-  const supported = ["en","nl","de","fr","es"];
+  picker?.addEventListener("change", () => show(picker.value));
+  const supported = SUPPORTED_LANGS;
   let pick = "en";
   try {
     const saved = localStorage.getItem("gul_guide_lang");
@@ -1136,6 +1235,6 @@ shell = io.open(shell_path, encoding="utf8").read()
 if "<!--CONTENT-->" not in shell:
     raise SystemExit(f"{shell_path} has no <!--CONTENT--> placeholder — nothing to fill in")
 
-content = body + "\n" + script
+content = body + "\n" + script.replace("SUPPORTED_LANGS", json.dumps(list(L)))
 io.open(out_path, "w", encoding="utf8").write(shell.replace("<!--CONTENT-->", content))
 print("gegenereerd:", sum(len(L[c]["routes"]) for c in L), "routes,", len(L), "talen", "->", out_path)
