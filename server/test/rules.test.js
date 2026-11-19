@@ -43,15 +43,23 @@ describe("the last recorded reading per meter", () => {
   before(async () => { srv = await startServer({ state: stateWithBaseline() }); });
   after(async () => { await srv.stop(); });
 
-  test("/wallet/seen returns it, so another device measures from the same number", async () => {
-    let r = await srv.post("/wallet/seen", { address: WALLET });
-    assert.deepEqual(r.body.lastReadings.map((x) => [x.utility, x.meterNo, x.reading]), [["electric", "e1000", 1000]]);
+  // The endpoint takes no signature: the readings go only to a phone this wallet
+  // submitted from (its install id), not to anyone who knows the address.
+  const PHONE = { id: "ab".repeat(16) }, OTHER_PHONE = { id: "cd".repeat(16) };
+  test("/wallet/seen gives nothing to a phone the wallet never submitted from", async () => {
+    const r = await srv.post("/wallet/seen", { address: WALLET });
+    assert.deepEqual(r.body.lastReadings, []);
+    const o = await srv.post("/wallet/seen", { address: WALLET, device: OTHER_PHONE });
+    assert.deepEqual(o.body.lastReadings, []);
+  });
+  test("…and returns it to the phone the wallet submitted from, the server-only reading included", async () => {
     // A reading that saves nothing is recorded without a payout — and only the
     // server knows it then.
-    const pay = await srv.post("/reward", { utility: "electric", meterNo: "E1000", address: WALLET, reading: 1009, prevRead: 1000, photo: photo("last"), photoMime: "image/jpeg" });
+    const pay = await srv.post("/reward", { utility: "electric", meterNo: "E1000", address: WALLET, reading: 1009, prevRead: 1000, photo: photo("last"), photoMime: "image/jpeg", device: PHONE });
     assert.equal(pay.body.recorded, true, JSON.stringify(pay.body));
-    r = await srv.post("/wallet/seen", { address: WALLET });
-    assert.equal(r.body.lastReadings[0].reading, 1009);
+    const r = await srv.post("/wallet/seen", { address: WALLET, device: PHONE });
+    assert.deepEqual(r.body.lastReadings.map((x) => [x.utility, x.meterNo, x.reading]), [["electric", "e1000", 1009]]);
     assert.ok(r.body.lastReadings[0].at > Date.now() - 60000);
+    assert.deepEqual((await srv.post("/wallet/seen", { address: WALLET, device: OTHER_PHONE })).body.lastReadings, [], "still nothing for another phone");
   });
 });

@@ -28,7 +28,7 @@ const REDIS_KEY = process.env.STATE_KEY || "greenutilitylog:state";
 // `passes` is the access-pass registry (address → pass); `passesInit` records that the
 // one-time grandfathering has run, so turning REQUIRE_PASS on can't silently cut off
 // every existing tester — and can't re-grant a pass an admin has since revoked.
-const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {}, autoPaid: {}, payLog: [], prints: [], payDays: {}, meterRegs: {}, settings: {}, powerfox: {}, tibber: {}, mojelektro: {}, devices: {}, photoAts: {}, walletChecks: {} };
+const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {}, autoPaid: {}, payLog: [], prints: [], payDays: {}, meterRegs: {}, settings: {}, powerfox: {}, tibber: {}, mojelektro: {}, photoOwed: {}, readDevices: {}, devices: {}, photoAts: {}, walletChecks: {} };
 // A fresh copy each time. Spreading EMPTY copies only its top level: every
 // "empty" state then shared EMPTY's own maps, so writing to one wrote to all of
 // them — and to the next "empty" state read from Redis.
@@ -658,6 +658,14 @@ export const store = {
   },
   // When this meter's reading was last proven by a photo (a paid photo submission
   // or a fix-basis). Automatic payouts need one every AUTO_PHOTO_EVERY_DAYS.
+  // A starting point set without a photo (the user's one-time rebaseline from a
+  // reader, or an admin's set-baseline) owes one: automatic payouts wait for a photo
+  // whatever the source — also Powerfox/Tibber/MojElektro, which otherwise need no
+  // repeat photo. A photo of the real meter below that starting point is refused,
+  // so a starting point taken from someone else's meter can't be paid on. → the time
+  // it became owed, or null.
+  photoOwed: (utility, meterNo) => (isMap(state.photoOwed) && Object.prototype.hasOwnProperty.call(state.photoOwed, mKey(utility, meterNo)) ? state.photoOwed[mKey(utility, meterNo)] : null),
+  owePhoto: (utility, meterNo) => { if (!isMap(state.photoOwed)) state.photoOwed = {}; state.photoOwed[mKey(utility, meterNo)] = Date.now(); persist(); },
   photoAt: (utility, meterNo) => {
     const k = mKey(utility, meterNo);
     return isMap(state.photoAts) && Object.prototype.hasOwnProperty.call(state.photoAts, k) ? state.photoAts[k] : null;
@@ -665,6 +673,8 @@ export const store = {
   setPhotoAt: (utility, meterNo, at = Date.now()) => {
     if (!isMap(state.photoAts)) state.photoAts = {};
     state.photoAts[mKey(utility, meterNo)] = at;
+    // A real photo settles a photo that was owed (photoOwed below).
+    if (isMap(state.photoOwed)) delete state.photoOwed[mKey(utility, meterNo)];
     persist();
   },
   // `at`: when the meter showed this value. Now, except for a source that reports
@@ -787,7 +797,7 @@ export const store = {
     // Everything else known about the meter moves with it. Left behind, a rename
     // reset the photo clock (30 photo-free days), reopened the one-time rebaseline
     // and fix-basis, and counted the next usage as one day.
-    for (const f of ["readingAts", "photoAts", "autoPaid", "rebased", "basisFixed", "meterRegs"]) {
+    for (const f of ["readingAts", "photoAts", "photoOwed", "autoPaid", "rebased", "basisFixed", "meterRegs"]) {
       if (!isMap(state[f])) continue;
       if (has(state[f], oldK)) { state[f][newK] = state[f][oldK]; delete state[f][oldK]; }
       else if (mFallback(utility) && has(state[f], oldMeterNo)) { state[f][newK] = state[f][oldMeterNo]; delete state[f][oldMeterNo]; }
@@ -874,6 +884,21 @@ export const store = {
     const f = String(funder).toLowerCase(), me = String(except || "").toLowerCase();
     return Object.entries(state.walletChecks).filter(([a, v]) => a !== me && v?.f === f).length;
   },
+  // Phones a wallet submitted from (install key → wallets), for /wallet/seen: its
+  // last recorded readings go only to such a phone. Separate from `devices` (the
+  // one-wallet-per-phone rule, which skips admins): every wallet, admins too.
+  rememberReadDevice: (key, addr) => {
+    if (!key) return;
+    if (!isMap(state.readDevices)) state.readDevices = {};
+    const a = String(addr || "").toLowerCase();
+    const prev = Array.isArray(state.readDevices[key]) ? state.readDevices[key] : [];
+    if (prev.includes(a)) return;
+    state.readDevices[key] = [...prev, a].slice(-5);
+    const keys = Object.keys(state.readDevices);
+    if (keys.length > 20000) delete state.readDevices[keys[0]];
+    persist();
+  },
+  readDeviceHas: (key, addr) => !!key && isMap(state.readDevices) && Array.isArray(state.readDevices[key]) && state.readDevices[key].includes(String(addr || "").toLowerCase()),
   deviceWallets: (key) => {
     if (!key || !isMap(state.devices) || !Object.prototype.hasOwnProperty.call(state.devices, key)) return [];
     return Array.isArray(state.devices[key]?.w) ? [...state.devices[key].w] : [];

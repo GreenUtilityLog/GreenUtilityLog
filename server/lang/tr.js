@@ -137,6 +137,7 @@ export default {
   "the automatic reading is stale — refresh your reader, then try again": "otomatik okuma eskimiş — okuyucunu yenile, sonra tekrar dene",
   "submit one photo reading first to set this meter's baseline — then automatic readings pay out": "bu sayacın başlangıç noktasını belirlemek için önce bir fotoğraflı okuma gönder — ardından otomatik okumalar ödenir",
   "submit one photo reading first to set this meter's baseline": "bu sayacın başlangıç noktasını belirlemek için önce bir fotoğraflı okuma gönder",
+  "take one photo of your meter first — its starting point was set without one": "önce sayacının bir fotoğrafını çek — başlangıç noktası fotoğrafsız belirlendi",
   "automatic payouts are paused until you take one photo of your meter — once every {days} days keeps them going": "sayacının bir fotoğrafını çekene kadar otomatik ödemeler duraklatıldı — her {days} günde bir fotoğraf ödemelerin sürmesini sağlar",
   "this reader has already paid out once, so its starting point is settled": "bu okuyucu zaten bir kez ödeme aldı, bu yüzden başlangıç noktası kesinleşti",
   "this meter's starting point has already been corrected once — ask an admin if it is wrong again": "bu sayacın başlangıç noktası zaten bir kez düzeltildi — yine yanlışsa bir yöneticiye sor",

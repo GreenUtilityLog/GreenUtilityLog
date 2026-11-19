@@ -68,7 +68,7 @@ const { readFileSync, writeFileSync, appendFileSync, statSync, renameSync, chmod
 const { createInterface } = require("node:readline");
 const { basename, join } = require("node:path");
 const { spawnSync } = require("node:child_process");
-const { release } = require("node:os");
+const { release, homedir } = require("node:os");
 
 // --name=value, --name value, or a bare --flag. Unknown flags are ignored rather
 // than fatal: a stray argument shouldn't stop someone's meter from reporting. A
@@ -423,8 +423,10 @@ function readTotal(data) {
     const v = n(d[key]);
     if (v != null) return v;
   }
+  // Both tariff registers, or no reading: one alone is about half the total, and on
+  // a first run (or in Docker, with nothing saved) nothing else would catch that.
   for (const [k1, k2] of [["total_power_import_t1_kwh", "total_power_import_t2_kwh"], ["energy_import_t1_kwh", "energy_import_t2_kwh"]]) {
-    if (d[k1] != null || d[k2] != null) return +((n(d[k1]) || 0) + (n(d[k2]) || 0)).toFixed(3);
+    if (n(d[k1]) != null && n(d[k2]) != null) return +(n(d[k1]) + n(d[k2])).toFixed(3);
   }
   return null;
 }
@@ -677,12 +679,38 @@ function stableNodePath() {
   } catch {}
   return process.execPath;
 }
+// nvm and snap keep node in a folder per version, which an upgrade removes: cron
+// then fails every hour without a word. Said at install, with what to do.
+function warnVersionedNode(nodePath) {
+  if (/[\/]\.nvm[\/]versions[\/]|[\/]snap[\/]node[\/]\d/.test(nodePath)) {
+    log(`NOTE: cron will run ${nodePath}, a node that an nvm/snap upgrade removes. After upgrading Node, run --install again (or install Node from nodejs.org).`);
+  }
+}
+// macOS doesn't let cron read files in Desktop, Documents or Downloads (privacy
+// protection): every scheduled run then fails with "Operation not permitted", and
+// the log next to the script can't be written either. → the folder, or "".
+function macProtectedFolder(file) {
+  if (process.platform !== "darwin") return "";
+  const home = homedir();
+  for (const f of ["Desktop", "Documents", "Downloads", "Library/Mobile Documents"]) {
+    const dir = `${home}/${f}`;
+    if (file === dir || String(file).startsWith(dir + "/")) return f;
+  }
+  return "";
+}
 function manageCron(action) {
+  const blocked = action === "install" ? macProtectedFolder(process.argv[1]) : "";
+  if (blocked) {
+    log(`Not scheduled: macOS doesn't let cron run files in ${blocked}, so it would stop without a word. Move gul.js to your home folder and install from there:\n  mkdir -p ~/GreenUtilityLog && mv "${process.argv[1]}" ~/GreenUtilityLog/ && cd ~/GreenUtilityLog && node gul.js --install`);
+    return 1;
+  }
   // Single-quoted for sh: a space in a path or an & in --url would otherwise split
   // or background the command. ' itself becomes '\''.
   const q = (v) => `'${String(v).replace(/'/g, "'\\''")}'`;
   const keep = keptArgs().map((a) => (a.startsWith("--ingest=") ? q(a) : a)).join(" ");
-  const cmd = `${q(stableNodePath())} ${q(process.argv[1])} --once --due${keep ? " " + keep : ""}`;
+  const nodePath = stableNodePath();
+  if (action === "install") warnVersionedNode(nodePath);
+  const cmd = `${q(nodePath)} ${q(process.argv[1])} --once --due${keep ? " " + keep : ""}`;
   // Every hour, but --due makes it push only when the last reading is 11 h old:
   // twice a day in practice, and caught up within the hour when the machine wakes.
   // Output goes to .gul-bridge.log already; without the redirect cron mails it.
@@ -724,8 +752,29 @@ function manageCron(action) {
   return 0;
 }
 
+// --uninstall without --ingest removes every one of ours on Windows too (as with
+// cron): a task for a test server kept running after "Nothing is scheduled any more".
+function ourWindowsTasks() {
+  const r = spawnSync("schtasks", ["/Query", "/FO", "CSV", "/NH"], { encoding: "utf8" });
+  if (r.status !== 0) return [TASK_NAME];
+  const names = new Set();
+  for (const l of String(r.stdout || "").split(/\r?\n/)) {
+    const m = /^"\\?(GreenUtilityLog(?:-[a-z0-9-]+)?)"/i.exec(l.trim());
+    if (m) names.add(m[1]);
+  }
+  return names.size ? [...names] : [TASK_NAME];
+}
 function manageTask(action) {
   if (process.platform !== "win32") return manageCron(action);
+  if (action === "uninstall" && !FLAGS.ingest && !process.env.GUL_INGEST_URL) {
+    let ok = true;
+    for (const name of ourWindowsTasks()) {
+      const r = spawnSync("schtasks", ["/Delete", "/TN", name, "/F"], { encoding: "utf8" });
+      if (r.status !== 0 && name === TASK_NAME && !/cannot find|not exist/i.test(`${r.stdout || ""}${r.stderr || ""}`)) ok = false;
+    }
+    log(ok ? "Removed. Nothing is scheduled any more." : "could not remove the scheduled task — run: schtasks /Delete /TN GreenUtilityLog /F");
+    return ok ? 0 : 1;
+  }
   const [cmd, args] = taskCommand(action);
   const r = spawnSync(cmd, args, { encoding: "utf8" });
   const out = `${r.stdout || ""}${r.stderr || ""}`.trim();

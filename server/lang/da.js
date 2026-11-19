@@ -137,6 +137,7 @@ export default {
   "the automatic reading is stale — refresh your reader, then try again": "den automatiske aflæsning er forældet — opdatér din aflæser, og prøv igen",
   "submit one photo reading first to set this meter's baseline — then automatic readings pay out": "indsend først én aflæsning med billede for at sætte denne målers startpunkt — så udbetales automatiske aflæsninger",
   "submit one photo reading first to set this meter's baseline": "indsend først én aflæsning med billede for at sætte denne målers startpunkt",
+  "take one photo of your meter first — its starting point was set without one": "tag først ét billede af din måler — dens startpunkt blev sat uden et",
   "automatic payouts are paused until you take one photo of your meter — once every {days} days keeps them going": "automatiske udbetalinger er sat på pause, indtil du tager ét billede af din måler — én gang hver {days}. dag holder dem i gang",
   "this reader has already paid out once, so its starting point is settled": "denne aflæser har allerede udbetalt én gang, så dens startpunkt ligger fast",
   "this meter's starting point has already been corrected once — ask an admin if it is wrong again": "denne målers startpunkt er allerede rettet én gang — spørg en admin, hvis det er forkert igen",

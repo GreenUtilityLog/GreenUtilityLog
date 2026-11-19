@@ -37,10 +37,11 @@ fi
 
 if bashio::config.has_value 'powerfox_email'; then
   bashio::log.info "Reading Powerfox (${GUL_POWERFOX_USER}) from the Powerfox cloud"
+elif bashio::config.has_value 'read_url'; then
+  # read_url wins over tasmota_ip in the bridge (gul.js), so it is named first here.
+  bashio::log.info "Reading from ${READ_URL}"
 elif bashio::config.has_value 'tasmota_ip'; then
   bashio::log.info "Reading the Tasmota reading head at ${TASMOTA_IP}"
-elif bashio::config.has_value 'read_url'; then
-  bashio::log.info "Reading from ${READ_URL}"
 elif bashio::config.has_value 'hw_ip'; then
   bashio::log.info "Reading HomeWizard at ${HW_IP}"
 else

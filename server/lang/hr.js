@@ -137,6 +137,7 @@ export default {
   "the automatic reading is stale — refresh your reader, then try again": "automatsko očitanje je zastarjelo — osvježi svoj čitač, pa pokušaj ponovno",
   "submit one photo reading first to set this meter's baseline — then automatic readings pay out": "najprije pošalji jedno očitanje fotografijom kako bi se postavilo početno stanje ovog brojila — nakon toga se automatska očitanja isplaćuju",
   "submit one photo reading first to set this meter's baseline": "najprije pošalji jedno očitanje fotografijom kako bi se postavilo početno stanje ovog brojila",
+  "take one photo of your meter first — its starting point was set without one": "najprije snimi jednu fotografiju brojila — njegovo početno stanje postavljeno je bez nje",
   "automatic payouts are paused until you take one photo of your meter — once every {days} days keeps them going": "automatske isplate su pauzirane dok ne snimiš jednu fotografiju brojila — jedna svakih {days} dana održava ih aktivnima",
   "this reader has already paid out once, so its starting point is settled": "ovaj čitač već je jednom isplatio, pa je njegovo početno stanje utvrđeno",
   "this meter's starting point has already been corrected once — ask an admin if it is wrong again": "početno stanje ovog brojila već je jednom ispravljeno — ako opet nije točno, obrati se administratoru",

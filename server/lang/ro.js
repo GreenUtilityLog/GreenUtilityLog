@@ -137,6 +137,7 @@ export default {
   "the automatic reading is stale — refresh your reader, then try again": "citirea automată e veche — reîmprospătează cititorul, apoi încearcă din nou",
   "submit one photo reading first to set this meter's baseline — then automatic readings pay out": "trimite mai întâi o citire cu poză ca să stabilești punctul de plecare al acestui contor — apoi citirile automate se plătesc",
   "submit one photo reading first to set this meter's baseline": "trimite mai întâi o citire cu poză ca să stabilești punctul de plecare al acestui contor",
+  "take one photo of your meter first — its starting point was set without one": "fă mai întâi o poză contorului — punctul lui de plecare a fost stabilit fără poză",
   "automatic payouts are paused until you take one photo of your meter — once every {days} days keeps them going": "plățile automate sunt pe pauză până faci o poză contorului — o dată la {days} zile le ține în funcțiune",
   "this reader has already paid out once, so its starting point is settled": "acest cititor a plătit deja o dată, așa că punctul lui de plecare e stabilit",
   "this meter's starting point has already been corrected once — ask an admin if it is wrong again": "punctul de plecare al acestui contor a fost deja corectat o dată — întreabă un administrator dacă e din nou greșit",

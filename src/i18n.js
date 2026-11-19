@@ -69,9 +69,14 @@ function apply(lang) {
   for (const fn of listeners) fn(lang);
 }
 // Switches once the language's texts are there; resolves true when it did.
+// The last language asked for wins: picking Italiano (still loading) and then
+// Nederlands used to end in Italian when the Italian file arrived last.
+let langSeq = 0;
 export async function setLang(lang) {
   if (!LANGS[lang]) return false;
+  const seq = ++langSeq;
   try { await loadLang(lang); } catch { return false; }
+  if (seq !== langSeq) return false;
   try { localStorage.setItem(KEY, lang); localStorage.setItem(HELP_KEY, lang); } catch { /* storage blocked */ }
   apply(lang);
   return true;
@@ -80,7 +85,7 @@ export async function setLang(lang) {
 // (main.jsx waits for this, briefly, before the first render).
 const startLang = detectLang();
 if (CORE_LANGS[startLang]) apply(startLang); else apply("en");
-export const langReady = CORE_LANGS[startLang] ? Promise.resolve() : loadLang(startLang).then(() => apply(startLang), () => {});
+export const langReady = CORE_LANGS[startLang] ? Promise.resolve() : loadLang(startLang).then(() => { if (langSeq === 0) apply(startLang); }, () => {});
 
 // [key, en, nl, de, fr, es]
 const ROWS = [
@@ -647,6 +652,22 @@ const ROWS = [
   ["r.relinked.same", "✓ Already linked — the server has this exact token, so the problem is elsewhere.", "✓ Al gekoppeld — de server heeft precies dit token, dus het probleem zit ergens anders.", "✓ Schon verknüpft — der Server hat genau dieses Token, das Problem liegt also woanders.", "✓ Déjà lié — le serveur a exactement ce jeton, le problème est donc ailleurs.", "✓ Ya vinculado — el servidor tiene exactamente este token, así que el problema está en otra parte."],
   ["r.photoFirst.t", "First a photo of your meter", "Eerst een foto van je meter", "Zuerst ein Foto deines Zählers", "D'abord une photo de votre compteur", "Primero una foto de tu contador"],
   ["r.photoFirst.s", "automatic payouts wait for one photo (tab Photo) — then they go on by themselves", "automatische uitbetalingen wachten op één foto (tab Foto) — daarna gaan ze vanzelf verder", "automatische Auszahlungen warten auf ein Foto (Tab Foto) — danach laufen sie von selbst weiter", "les paiements automatiques attendent une photo (onglet Photo) — ensuite ils reprennent seuls", "los pagos automáticos esperan una foto (pestaña Foto) — después siguen solos"],
+  ["p.photoBad", "⚠️ Couldn't open that photo here — try a JPEG or PNG", "⚠️ Die foto kon hier niet geopend worden — probeer een JPEG of PNG", "⚠️ Das Foto ließ sich hier nicht öffnen — versuch ein JPEG oder PNG", "⚠️ Impossible d'ouvrir cette photo ici — essayez un JPEG ou un PNG", "⚠️ No se pudo abrir esa foto aquí — prueba con un JPEG o PNG"],
+  ["p.saveBlocked", "⚠️ This browser won't let the app save it — try outside private mode", "⚠️ Deze browser laat de app het niet opslaan — probeer het buiten de privémodus", "⚠️ Dieser Browser lässt die App nicht speichern — versuch es außerhalb des privaten Modus", "⚠️ Ce navigateur empêche l'app d'enregistrer — essayez hors navigation privée", "⚠️ Este navegador no deja que la app lo guarde — prueba fuera del modo privado"],
+  ["cd.hm", "{h}h {m}m", "{h}u {m}m", "{h} Std. {m} Min.", "{h} h {m} min", "{h} h {m} min"],
+  ["s.noSavingNote", "no saving to reward this time", "dit keer geen besparing om te belonen", "diesmal keine Einsparung zu belohnen", "pas d'économie à récompenser cette fois", "esta vez no hay ahorro que premiar"],
+  ["hist.eco", "Eco bonus", "Eco-bonus", "Öko-Bonus", "Bonus éco", "Bono eco"],
+  ["hist.eco.run", "Eco run", "Eco-wasbeurt", "Öko-Durchgang", "Cycle éco", "Ciclo eco"],
+  ["hist.eco.washer", "Washing machine", "Wasmachine", "Waschmaschine", "Lave-linge", "Lavadora"],
+  ["hist.eco.dryer", "Dryer", "Droger", "Trockner", "Sèche-linge", "Secadora"],
+  ["hist.eco.dishwasher", "Dishwasher", "Vaatwasser", "Geschirrspüler", "Lave-vaisselle", "Lavavajillas"],
+  ["r.connectedAt", "✅ Connected — {n} kWh received {when}", "✅ Verbonden — {n} kWh ontvangen {when}", "✅ Verbunden — {n} kWh empfangen {when}", "✅ Connecté — {n} kWh reçus {when}", "✅ Conectado — {n} kWh recibidos {when}"],
+  ["r.lastStale", "⚠️ Last reading {n} kWh, {when} — nothing since; check that your reader is on", "⚠️ Laatste stand {n} kWh, {when} — sindsdien niets; controleer of je uitlezer aan staat", "⚠️ Letzter Stand {n} kWh, {when} — seitdem nichts; prüfe, ob dein Leser läuft", "⚠️ Dernier relevé {n} kWh, {when} — rien depuis ; vérifiez que votre lecteur est allumé", "⚠️ Última lectura {n} kWh, {when} — nada desde entonces; comprueba que tu lector esté encendido"],
+  ["r.waitingFirst", "⏳ Waiting for your first reading… (leave this open after you set it up)", "⏳ Wachten op je eerste stand… (laat dit open nadat je het hebt ingesteld)", "⏳ Warte auf deinen ersten Stand … (lass das nach der Einrichtung offen)", "⏳ En attente de votre premier relevé… (laissez ceci ouvert après la configuration)", "⏳ Esperando tu primera lectura… (deja esto abierto tras configurarlo)"],
+  ["r.copy", "Copy", "Kopiëren", "Kopieren", "Copier", "Copiar"],
+  ["r.pairFailed", "pairing failed", "koppelen mislukt", "Koppeln fehlgeschlagen", "échec de l'association", "no se pudo vincular"],
+  ["r.relinkFailed", "could not re-link this device", "dit apparaat kon niet opnieuw gekoppeld worden", "dieses Gerät konnte nicht neu gekoppelt werden", "impossible de réassocier cet appareil", "no se pudo volver a vincular este dispositivo"],
+  ["r.rebaseFailed", "updating the starting point failed", "het startpunt bijwerken is mislukt", "das Aktualisieren des Startpunkts ist fehlgeschlagen", "la mise à jour du point de départ a échoué", "no se pudo actualizar el punto de partida"],
   ["r.everyHour", "We fetch your reading every hour{last}. Payouts follow automatically — after your first photo submission, which sets the starting point (until then, automatic readings are not paid).", "We halen je stand elk uur op{last}. Uitbetalingen volgen vanzelf — na je eerste foto-inzending, die het startpunt zet (tot dan worden automatische standen niet betaald).", "Wir holen deinen Stand stündlich ab{last}. Auszahlungen folgen automatisch — nach deiner ersten Foto-Einreichung, die den Startpunkt setzt (bis dahin werden automatische Stände nicht ausgezahlt).", "Nous récupérons votre relevé chaque heure{last}. Les paiements suivent automatiquement — après votre premier envoi photo, qui fixe le point de départ (avant cela, les relevés automatiques ne sont pas payés).", "Recogemos tu lectura cada hora{last}. Los pagos siguen solos — tras tu primer envío con foto, que fija el punto de partida (hasta entonces no se pagan las lecturas automáticas)."],
   ["r.lastTime", " — last time {when}", " — laatst {when}", " — zuletzt {when}", " — dernière fois {when}", " — última vez {when}"],
   ["r.checkTotal", "Connected — {who} reports {n} kWh. Check that this matches your meter's total.", "Verbonden — {who} meldt {n} kWh. Controleer of dit klopt met het totaal op je meter.", "Verbunden — {who} meldet {n} kWh. Prüfe, ob das zur Summe deines Zählers passt.", "Connecté — {who} indique {n} kWh. Vérifiez que cela correspond au total du compteur.", "Conectado — {who} indica {n} kWh. Comprueba que coincide con el total de tu contador."],

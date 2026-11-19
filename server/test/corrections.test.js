@@ -63,11 +63,22 @@ describe("correcting a paired reader's starting point", () => {
     assert.equal(srv.readState().readings[KEY], TOTAL);
   });
 
-  test("and the claim works afterwards", async () => {
+  // A starting point taken from a reader has no photo behind it: the next automatic
+  // payout waits for one. A photo of the real meter below it is refused, so a
+  // starting point taken from someone else's meter can't be paid on.
+  test("the claim afterwards waits for a photo", async () => {
     await srv.post("/meter-ingest", { token, reading: TOTAL + 8 });
     const r = await srv.post("/reward-from-meter", { address: WALLET, meterNo: METER });
-    assert.equal(r.status, 200, JSON.stringify(r.body));
-    assert.equal(r.body.usage, 8);
+    assert.equal(r.status, 400, JSON.stringify(r.body));
+    assert.equal(r.body.needsPhoto, true);
+    assert.match(r.body.error, /starting point was set without one/);
+    const latest = await srv.get(`/meter/latest?address=${WALLET}`, { "x-device-token": token });
+    assert.ok(latest.body.photoDueAt && latest.body.photoDueAt <= Date.now(), "the app is told a photo is due");
+  });
+  test("a photo of the meter settles it, and the claim works", async () => {
+    const shot = await srv.post("/reward", { utility: "electric", meterNo: METER, address: WALLET, reading: TOTAL + 8, photo: photo("after-rebase"), photoMime: "image/jpeg" });
+    assert.ok(shot.status === 200, JSON.stringify(shot.body));
+    assert.equal(srv.readState().photoOwed?.[KEY], undefined, "no photo owed any more");
   });
 });
 

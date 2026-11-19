@@ -137,6 +137,7 @@ export default {
   "the automatic reading is stale — refresh your reader, then try again": "automaattinen lukema on vanhentunut — päivitä lukijasi ja yritä uudelleen",
   "submit one photo reading first to set this meter's baseline — then automatic readings pay out": "lähetä ensin yksi kuvalukema tämän mittarin lähtölukeman asettamiseksi — sen jälkeen automaattisista lukemista maksetaan",
   "submit one photo reading first to set this meter's baseline": "lähetä ensin yksi kuvalukema tämän mittarin lähtölukeman asettamiseksi",
+  "take one photo of your meter first — its starting point was set without one": "ota ensin yksi kuva mittaristasi — sen lähtölukema asetettiin ilman kuvaa",
   "automatic payouts are paused until you take one photo of your meter — once every {days} days keeps them going": "automaattiset maksut ovat tauolla, kunnes otat mittaristasi yhden kuvan — kuva {days} päivän välein pitää ne käynnissä",
   "this reader has already paid out once, so its starting point is settled": "tämä lukija on jo maksanut kerran, joten sen lähtölukema on vahvistettu",
   "this meter's starting point has already been corrected once — ask an admin if it is wrong again": "tämän mittarin lähtölukema on jo korjattu kerran — kysy ylläpitäjältä, jos se on taas väärin",
