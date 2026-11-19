@@ -1,0 +1,540 @@
+{
+ "_toc": "Tällä sivulla",
+ "name": "English",
+ "kicker": "Testaajan opas",
+ "h1": "Ansaitse kuvaamatta mittariasi",
+ "lede": "Tavallisesti kuvaat mittarisi ansaitaksesi B3TR-tokeneita. Jos kotonasi on jo jokin laite, joka osaa lukea mittarin, se voi lähettää lukeman puolestasi — eikä sinun tarvitse enää koskaan ottaa kuvaa. Aloita etsimällä oma tilanteesi alta.",
+ "s_routes": "Millainen laitteisto sinulla on?",
+ "s_token": "Kaikki automaattiset reitit: hae tokenisi",
+ "s_a": "Reitti A — Home Assistant (mikä tahansa mittari)",
+ "s_b": "Reitti B — HomeWizard P1 ilman Home Assistantia",
+ "s_c": "Reitti C — Muu lukija (P1-lukija, Tasmota-lukupää)",
+ "s_claim": "Lopuksi: maksu tulee itsestään",
+ "s_trouble": "Jos jokin ei toimi",
+ "routes": [
+  [
+   "Käytän Home Assistantia",
+   "Toimii lähes minkä tahansa mittarin kanssa, jonka HA jo lukee. Asenna integraatiomme tai liitä muutama rivi YAMLia.",
+   1,
+   "Helpoin"
+  ],
+  [
+   "Minulla on HomeWizard P1",
+   "Home Assistantia ei tarvita. Toimii maissa 🇳🇱 🇧🇪 🇱🇺 🇩🇰 🇸🇪 🇭🇺 — pieni skripti löytää mittarisi verkosta itse.",
+   2,
+   "Vähän tekniikkaa"
+  ],
+  [
+   "Minulla on muu lukija",
+   "P1 Monitor, Tasmota-lukupää (Hichi) tai mikä tahansa lukija, joka tarjoaa mittarin kWh-kokonaislukeman JSON-muodossa kotiverkossasi.",
+   3,
+   "Tekninen"
+  ],
+  [
+   "Minulla on Powerfox (poweropti)",
+   "Yleinen Saksassa. Voimme hakea lukemasi Powerfoxin pilvestä — ei mitään asennettavaa eikä mitään, mitä pitäisi pitää päällä.",
+   1,
+   "Helpoin"
+  ],
+  [
+   "Minulla on Tibber Pulse",
+   "Yleinen Ruotsissa, Norjassa, Tanskassa ja Suomessa. Haemme lukemasi Tibberiltä henkilökohtaisella tokenillasi — ei mitään asennettavaa.",
+   1,
+   "Helpoin"
+  ],
+  [
+   "Ei mikään näistä",
+   "Jatka siis mittarin kuvaamista. Se toimii yhtä hyvin ja tuottaa täsmälleen saman verran. Mitään ei tarvitse ottaa käyttöön.",
+   0,
+   "Ei asetuksia"
+  ]
+ ],
+ "baseline_t": "Ensin, kerran: aseta lähtölukemasi",
+ "baseline_b": "Valitsitpa minkä reitin tahansa, tee ensin sovelluksessa <strong>yksi tavallinen lähetys kuvan kanssa</strong>. Siitä sovellus tietää, mistä mittarisi lähti liikkeelle — ilman sitä automaattisia lukemia ei voida maksaa.",
+ "token": [
+  [
+   "Kopioi laitetokenisi",
+   "Sovelluksessa: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → ”Get my device token”</span>. Kopioi se.",
+   "Mikä se on",
+   "Pitkä koodi, joka kertoo: ”nämä lukemat kuuluvat minun lompakkooni”. Pidä se omana tietonasi — kuka tahansa, jolla se on, voi lähettää lukemia nimissäsi."
+  ]
+ ],
+ "a_intro": "Kaksi tapaa. Integraatiomme on helpoin, ja se toimii <em>minkä tahansa</em> mittarin kanssa, jonka Home Assistant jo näyttää sinulle; YAML tekee saman käsin, jos et halua asentaa mitään.",
+ "a1_t": "Integraatiollamme (suositeltu)",
+ "a1": [
+  [
+   "Lisää meidät HACSiin",
+   "Home Assistantissa: <span class=\"k\">HACS → ⋮ (oikeassa yläkulmassa) → Custom repositories</span>. Liitä alla oleva osoite, valitse tyypiksi <strong>Integration</strong> ja paina Add.",
+   "code",
+   "https://github.com/GreenUtilityLog/GreenUtilityLog",
+   "Repositorion osoite"
+  ],
+  [
+   "Asenna ja käynnistä uudelleen",
+   "Avaa <strong>GreenUtilityLog</strong> HACSin listasta, paina <strong>Download</strong> ja käynnistä Home Assistant uudelleen.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Lisää integraatio",
+   "Mene kohtaan <span class=\"k\">Settings → Devices &amp; services → Add integration</span> ja hae <strong>GreenUtilityLog</strong>. Liitä tokenisi, valitse anturi, jossa on <strong>kertyvä kWh-lukema</strong>, ja valitse, kuinka usein lukema lähetetään.",
+   "see",
+   "Tarkista, että se toimii",
+   "Näkyviin tulee anturi <span class=\"k\">Last sent reading</span>, jossa on mittarisi kokonaislukema. Sen attribuuteista näet lähetysajan ja mahdollisen virheen."
+  ]
+ ],
+ "a2_t": "Omalla anturillasi (mikä tahansa mittari)",
+ "a2": [
+  [
+   "Etsi mittarisi anturi",
+   "Home Assistantissa: <span class=\"k\">Developer tools → States</span>. Suodata sanalla <em>import</em> ja valitse kWh-anturi, jonka arvo kasvaa koko ajan — se on kokonaislukemasi. Entiteettien tunnukset vaihtelevat asennuksittain, joten käytä omaasi.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Lisää nämä rivit",
+   "Lisää tämä tiedostoon <span class=\"k\">configuration.yaml</span>, vaihda tilalle oma entiteettisi ja tokenisi ja käynnistä Home Assistant uudelleen.",
+   "code",
+   "rest_command:\n  gul_push:\n    url: \"https://greenutilitylog-rewards.onrender.com/meter-ingest\"\n    method: POST\n    content_type: \"application/json\"\n    timeout: 90  # sekuntia: palvelimen herääminen voi kestää minuutin\n    payload: '{\"token\":\"OMA_TOKEN\",\"reading\":{{ states(\"sensor.OMA_ENTITEETTI\") | float }}}'\n\n# automations.yaml — kahdesti päivässä (lunastaa voi kerran 20 tunnissa)\n- alias: Push meter to GreenUtilityLog\n  trigger: { platform: time_pattern, hours: \"/12\" }\n  # vain todellinen kWh-kokonaislukema: ei 0 uudelleenkäynnistyksen jälkeen, ei unavailable\n  condition:\n    - condition: template\n      value_template: '{{ is_number(states(\"sensor.OMA_ENTITEETTI\")) and states(\"sensor.OMA_ENTITEETTI\") | float > 0 and state_attr(\"sensor.OMA_ENTITEETTI\", \"unit_of_measurement\") == \"kWh\" }}'\n  action: { service: rest_command.gul_push }",
+   "configuration.yaml + automations.yaml"
+  ]
+ ],
+ "b": [
+  [
+   "Ota Local API käyttöön",
+   "<strong>HomeWizard Energy</strong> -sovelluksessa: <span class=\"k\">Settings → Meters → P1-laitteesi → Local API → ON</span>. Näin oma kotiverkkosi saa lukea mittaria.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Avaa PowerShell (tai pääte)",
+   "<strong>Windows:</strong> paina Käynnistä, kirjoita <em>PowerShell</em> ja paina Enter. <strong>Mac:</strong> avaa <em>Terminal</em>. <strong>Raspberry Pi / NAS:</strong> sen oma pääte tai SSH-yhteys. Kaikki alla oleva kirjoitetaan siihen ikkunaan. Macilla pysy kotikansiossa, johon Terminal avautuu (katso vaihe 5).",
+   null,
+   null,
+   null
+  ],
+  [
+   "Tarkista, onko sinulla jo Node",
+   "Kirjoita tämä ja paina Enter. Jos saat versionumeron — mikä tahansa <span class=\"k\">v22</span>:sta ylöspäin — kaikki on valmista (vanhempi versio: tee myös seuraava vaihe, koska se ei enää saa tietoturvapäivityksiä), ja voit ohittaa seuraavan vaiheen. Jos saat sen sijaan virheilmoituksen, Nodea ei ole vielä asennettu.",
+   "code",
+   "node -v",
+   "Windows · Mac · Linux"
+  ],
+  [
+   "Asenna Node.js, jos tuli virhe",
+   "<strong>Windows:</strong> liitä alla oleva rivi; paina <span class=\"k\">Y</span>, jos sinua pyydetään hyväksymään lähteen ehdot. <strong>Mac:</strong> LTS-asennusohjelma osoitteesta nodejs.org tai <span class=\"k\">brew install node</span>. <strong>Raspberry Pi / Debian:</strong> <span class=\"k\">sudo apt install nodejs</span> (vaatii Node 22:n tai uudemman — vanhemmat versiot eivät enää saa tietoturvapäivityksiä; Debian/Ubuntu tarjoavat usein vanhemman — käytä silloin nodesource.comin asennusohjelmaa). <strong>Sulje sitten ikkuna ja avaa uusi</strong> — jo valmiiksi auki ollut ikkuna muistaa vanhan PATHin, eikä <span class=\"k\">node</span> silloin vieläkään löydy. Tarkista uudelleen komennolla <span class=\"k\">node -v</span>.",
+   "code",
+   "winget install OpenJS.NodeJS.LTS",
+   "Windows — PowerShell"
+  ],
+  [
+   "Liitä yksi rivi ja paina Enter",
+   "Se lataa skriptin ja lähettää ensimmäisen lukemasi. Lisäksi se ajastaa itsensä raportoimaan kahdesti päivässä (Windows: Tehtävien ajoitus · Mac / Linux / Pi: cron), joten voit sulkea ikkunan sen jälkeen, ja se toimii edelleen, myös uudelleenkäynnistyksen jälkeen. Tämä on ainoa kerta, kun ajat sen. <strong>Mac:</strong> liitä se juuri avattuun Terminal-ikkunaan kotikansiossasi — älä siirry ensin <span class=\"k\">cd</span>-komennolla Työpöytä-, Dokumentit- tai Lataukset-kansioon: macOS ei anna ajastuksen (cron) lukea niissä olevia tiedostoja, joten se ei koskaan käynnistyisi.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Liitä tokenisi, kun sitä kysytään",
+   "Se kysyy kerran ja muistaa sen; ajastus käyttää siitä lähtien tallennettua tokenia. Sitten se luo ajastuksen, löytää mittarin ja lähettää ensimmäisen lukeman.",
+   "see",
+   "Tämän pitäisi näkyä, tässä järjestyksessä",
+   "<span class=\"k\">Paste your device token…</span> → <span class=\"k\">Scheduled…</span> → <span class=\"k\">found HomeWizard at 192.168.…</span> → <span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "c_intro": "Sama skripti lukee minkä tahansa kotiverkkosi laitteen, joka tarjoaa mittarin kWh-kokonaislukeman JSON-muodossa HTTP:n kautta ilman kirjautumista — sinun tarvitsee vain kertoa, mistä. Kaikki lukijat eivät tee niin: dsmr-readerin API vaatii avaimen, ja Shelly mittaa omaa energiaansa, ei mittarin rekisteriä. Tee ensin reitin B vaiheet 2–4 (pääte ja Node); vain alla oleva komento on erilainen.",
+ "c": [
+  [
+   "Etsi lukijasi data-URL",
+   "Avaa lukijasi verkkosivu ja etsi osoite, joka palauttaa raakaa JSONia (usein jotain kuten <span class=\"k\">/api/v1/data</span> tai <span class=\"k\">/api/v2/sm/actual</span>). Tarkat polut vaihtelevat merkeittäin — katso lukijasi omasta ohjeesta.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Käynnistä skripti sillä URL-osoitteella",
+   "Laita oma osoitteesi esimerkkiosoitteen tilalle; tokenia skripti kysyy itse. Jos lukemaa ei löydy automaattisesti, lisää <span class=\"k\">--field=</span> ja pistein erotettu polku JSONin kWh-arvoon. Onko vain kaksi tariffirekisteriä eikä kokonaislukemaa (esimerkiksi P1 Monitorissa)? Yhdistä molemmat polut merkillä <span class=\"k\">+</span>, niin skripti lähettää niiden summan, esim. <span class=\"k\">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install --url=http://192.168.1.60/api/v1/data"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Tasmota-lukupää (Hichi)?",
+   "Käytä <span class=\"k\">--tasmota=</span> ja sen IP-osoitetta <span class=\"k\">--url=</span>:n sijaan. Skripti lukee mittarin kokonaislukeman (<span class=\"k\">Total_in</span>) itse. Yleinen saksalaisissa, itävaltalaisissa ja sveitsiläisissä mittareissa.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --tasmota=192.168.1.70 --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Tarkista, että se toimi",
+   "Skripti tulostaa, mitä se lähetti.",
+   "see",
+   "Odotettu tuloste",
+   "<span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "claim": [
+  [
+   "Lukemasi tulee näkyviin itsestään",
+   "Avaa sovelluksessa <strong>Mittari</strong>. <strong>⚡ Automaattinen luenta</strong> -paneelissa lukee <span class=\"k\">Yhdistetty — … kWh vastaanotettu</span>, ja siinä näkyy mittarisi kokonaislukema ja milloin se saapui.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Se maksetaan itsestään",
+   "Mitään ei tarvitse napauttaa: jokainen lukema maksetaan automaattisesti, kun se saapuu, enintään kerran päivässä, ja paneelin <strong>Aikajana</strong> näyttää <span class=\"k\">Maksettu +… B3TR</span>. Etkö halua odottaa? <strong>Lunasta nyt</strong> tekee saman.",
+   null,
+   null,
+   null
+  ]
+ ],
+ "s_country": "Toimiiko tämä siellä, missä asut?",
+ "country_intro": "Mittarin liitäntä vaihtelee maittain, joten kaikki lukijat eivät toimi kaikkialla. Tämä toimii aina: <strong>jos Home Assistant näyttää jo mittarisi kokonaislukeman, reitti A toimii</strong> — maasta riippumatta.",
+ "country_th": [
+  "Maa",
+  "Mittarissasi on",
+  "Mitä käytät"
+ ],
+ "country_rows": [
+  [
+   "🇳🇱 Alankomaat",
+   "P1-portti (RJ12)",
+   "Mikä tahansa reitti. HomeWizard toimii suoraan."
+  ],
+  [
+   "🇧🇪 Belgia",
+   "P1-portti (RJ12, oletuksena pois päältä)",
+   "Mikä tahansa reitti, kun portti on päällä: kytke se maksutta päälle Fluviuksen portaalissa (muut verkkoyhtiöt: kysy omaltasi)."
+  ],
+  [
+   "🇱🇺 Luxemburg",
+   "P1-portti (Smarty, salattu)",
+   "HomeWizard P1: pyydä verkkoyhtiöltäsi kerran P1-avain. Tai Home Assistant."
+  ],
+  [
+   "🇸🇪 Ruotsi · 🇫🇮 Suomi",
+   "HAN-portti (RJ12)",
+   "🇸🇪 HomeWizard P1 (reitti B) — verkkoyhtiön voi ensin täytyä avata portti. Tibber Pulse: reitti E. Muuten P1/HAN-lukija tai Home Assistant."
+  ],
+  [
+   "🇩🇰 Tanska",
+   "P1 (oletuksena pois päältä) tai HAN",
+   "HomeWizard P1 (reitti B), kun verkkoyhtiösi on avannut P1-portin — HAN-portti tarvitsee sovittimen. Tibber Pulse: reitti E. Muuten lukija, jossa on oikea liitin, tai Home Assistant."
+  ],
+  [
+   "🇭🇺 Unkari",
+   "P1-portti (riippuu verkkoyhtiöstä)",
+   "HomeWizard P1 joidenkin mittarien kanssa — tarkista ensin HomeWizardin lista. Tai Home Assistant tai kuvat."
+  ],
+  [
+   "🇳🇴 Norja",
+   "HAN (RJ45, M-BUS)",
+   "Tibber Pulse: reitti E. Muuten norjalainen HAN-lukija + Home Assistant."
+  ],
+  [
+   "🇩🇪 Saksa",
+   "Smart-Meter-Gateway / optinen lukupää",
+   "Powerfox poweropti: reitti D. Tasmota-lukupää (Hichi): reitti C. Muuten Home Assistant."
+  ],
+  [
+   "🇸🇮 Slovenia",
+   "P1-portti monissa mittareissa (joskus salattu)",
+   "Todennäköisesti Home Assistant ja P1-lukija — ei vielä testattu."
+  ],
+  [
+   "🇬🇷 Kreikka · 🇭🇷 Kroatia · 🇹🇷 Turkki",
+   "Asiakasporttia ei ole vielä löytynyt",
+   "Toistaiseksi kuvat."
+  ],
+  [
+   "🇷🇴 Romania · 🇧🇬 Bulgaria · muu Balkan",
+   "Asiakasporttia ei ole vielä löytynyt",
+   "Toistaiseksi kuvat."
+  ],
+  [
+   "🇦🇹 Itävalta",
+   "Asiakasliitäntä (M-Bus) / optinen portti",
+   "Tibber Pulse: reitti E. Tasmota-lukupää (Hichi): reitti C. Muuten Home Assistant."
+  ],
+  [
+   "🇨🇭 Sveitsi",
+   "Asiakasliitäntä / optinen portti",
+   "Tasmota-lukupää (Hichi): reitti C. Muuten Home Assistant."
+  ],
+  [
+   "🇫🇷 Ranska",
+   "Linky: TIC-portti",
+   "Ei P1-porttia, joten toistaiseksi vain Home Assistant (esim. ZLinkyn kanssa). Tai kuvat."
+  ],
+  [
+   "🇬🇧 Iso-Britannia",
+   "SMETS2: ei porttia (Zigbee)",
+   "Ei P1-porttia, joten toistaiseksi vain Home Assistant (esim. Hildebrand Glow’n kanssa). Tai kuvat."
+  ],
+  [
+   "🇪🇸 Espanja",
+   "Ei porttia",
+   "Ei P1-porttia, joten toistaiseksi vain Home Assistant (esim. Datadisin kanssa). Tai kuvat."
+  ],
+  [
+   "🇮🇹 Italia",
+   "Chain 2 (vaatii laitteen, kuten Sinapsi Alfan)",
+   "Ei P1-porttia, joten toistaiseksi vain Home Assistant. Tai kuvat."
+  ],
+  [
+   "🇺🇸 🇨🇦 Yhdysvallat ja Kanada",
+   "Ei P1-porttia (Zigbee, vain jos sähköyhtiö ottaa sen käyttöön)",
+   "Kuvat, jos näytössä näkyy kWh-kokonaislukema. Home Assistant ja Rainforest EAGLE, jos sähköyhtiö sallii sen. Québec (Hydro-Québec): vain kuvat."
+  ],
+  [
+   "Muualla",
+   "Vaihtelee",
+   "Jos Home Assistant lukee mittarisi, reitti A toimii."
+  ]
+ ],
+ "country_close": "Etkö ole varma? Avaa Home Assistant ja etsi mittarisi kohdasta Developer tools → States. Jos siellä on kWh-arvo, joka kasvaa, kaikki on kunnossa. HomeWizard P1? Tarkista mittarisi <a href=\"https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter\">HomeWizardin listasta</a>.",
+ "be_t": "🇧🇪 Belgia (Fluvius-mittarit)",
+ "be_b": "Belgialaisten mittarien P1-portti on oletuksena pois päältä. Fluviuksella kytket sen maksutta päälle heidän verkkoportaalissaan; muilta verkkoyhtiöiltä kysy suoraan. Sen jälkeen kaikki toimii samalla tavalla.",
+ "once_t": "Eikö sinulla ole laitetta, joka on aina päällä?",
+ "once_b": "Sellaista ei tarvita. Oliko tietokone pois päältä ajastettuna aikana? Lukema lähtee heti, kun tietokone on taas päällä — joten silloin tällöin avattava kannettava riittää. Se maksetaan heti saapuessaan, enintään kerran päivässä.",
+ "th": [
+  "Näet",
+  "Mitä tehdä"
+ ],
+ "trouble": [
+  [
+   "'node' is not recognized",
+   "Node.js ei ole asennettuna, tai ikkuna oli jo auki, kun asensit sen. Windowsissa: <span class=\"k\">winget install OpenJS.NodeJS.LTS</span>. Muualla: nodejs.org. Avaa sitten <strong>uusi</strong> pääte ja liitä rivi uudelleen. Gitiä et tarvitse."
+  ],
+  [
+   "Ei yhtään mitään — ei tulostetta, suoraan takaisin kehotteeseen",
+   "Vanha kopio skriptistä, ajalta ennen 19. syyskuuta. Siinä oli virhe, jonka takia se sulkeutui Windowsissa tulostamatta mitään. Lataa se uudelleen yllä olevalla rivillä; uusi versio kysyy tokeniasi."
+  ],
+  [
+   "no HomeWizard found on the network",
+   "Verkkosi estää automaattisen haun — yleistä vierasverkoissa ja VLANien kanssa. Katso P1-laitteesi IP-osoite HomeWizard-sovelluksesta ja aja <span class=\"k\">node gul.js --install --ip=192.168.1.50</span>. Home Assistant -lisäosassa täytä sen sijaan <span class=\"k\">hw_ip</span>."
+  ],
+  [
+   "couldn't find a total import kWh",
+   "Skripti tavoitti laitteen, mutta ei saanut takaisin mitään käyttökelpoista: <strong>Local API on yhä pois päältä</strong> HomeWizard-sovelluksessa, tai kyseessä ei ole P1-mittari. Toisen merkin lukijalle käytä <span class=\"k\">--url=</span>."
+  ],
+  [
+   "couldn't find a kWh number at …",
+   "Lukijasi JSON ei käytä nimeä, jonka skripti tuntee. Lisää <span class=\"k\">--field=</span> ja pistein erotettu polku arvoon, esim. <span class=\"k\">--field=electricity.import_kwh</span>."
+  ],
+  [
+   "server said 401",
+   "Token on väärä tai puutteellinen. Kopioi se uudelleen sovelluksesta ja aja kerran <span class=\"k\">node gul.js --ask-token --install</span>, niin tallennettu token korvataan."
+  ],
+  [
+   "submit one photo reading first",
+   "Mittarillasi ei ole vielä lähtölukemaa. Tee sovelluksessa yksi tavallinen lähetys kuvan kanssa — automaattiset lukemat eivät koskaan aseta ensimmäistä arvoa, jottei laite voi keksiä omaa lähtölukemaansa. Sen jälkeen maksut alkavat."
+  ],
+  [
+   "usage … is outside the plausible range",
+   "Lähes aina kyse on <strong>kaksiaikamittarista</strong>: näytössä on kaksi rekisteriä (<span class=\"k\">1.8.1</span> ja <span class=\"k\">1.8.2</span>) ja kuvasi tallensi niistä toisen, kun taas lukijasi ilmoittaa molempien summan — lähtölukemasi ja lukijasi ovat siis eri asteikolla. Paina sovelluksen <span class=\"k\">⚡ Automaattinen luenta</span> -paneelissa <strong>&rdquo;Käytä tätä lukemaa lähtölukemanani&rdquo;</strong>. Se ei maksa mitään, vaan asettaa vain, mistä laskenta alkaa. Mahdollista ensimmäiseen automaattiseen maksuusi asti."
+  ],
+  [
+   "this time photograph tariff register 2",
+   "Mittarisi näyttää kahta rekisteriä vuorotellen, ja kuvasi vuorottelevat myös: kuvaa joka kerta se rekisteri, jota edellinen kuvasi ei näyttänyt. Odota, kunnes näytössä on sovelluksen mainitsema rekisteri (<span class=\"k\">1.8.1</span> tai <span class=\"k\">1.8.2</span>), ja ota sitten kuva."
+  ],
+  [
+   "tariff register 1 went down",
+   "Kumpikin rekisteri vain kasvaa. Tarkista, että yö- ja päiväsähkö ovat kumpikin omassa kentässään, samassa järjestyksessä kuin viime kerralla."
+  ],
+  [
+   "the automatic reading is stale",
+   "Lukeman on oltava alle 48 tuntia vanha silloin, kun lunastat sen. Ajastus yrittää joka tunti — katso tiedostosta <span class=\"k\">.gul-bridge.log</span> tiedoston <span class=\"k\">gul.js</span> vierestä, miksi se epäonnistui, tai aja <span class=\"k\">node gul.js --install</span> uudelleen. Lukema maksetaan heti, kun lokissa lukee <span class=\"k\">pushed … ✓</span>."
+  ],
+  [
+   "Ei lukemaa kohdassa ”⚡ Automaattinen luenta”",
+   "Skripti ei ole vielä onnistunut lähettämään mitään. Katso sen ikkunaa tai avaa <span class=\"k\">.gul-bridge.log</span> samasta kansiosta, jossa gul.js on: jokainen ajokerta kirjoittaa joko <span class=\"k\">pushed … ✓</span> tai syyn epäonnistumiseen."
+  ],
+  [
+   "Etkö ole varma, onko se ajastettu?",
+   "Windows: aja PowerShellissä <span class=\"k\">schtasks /Query /TN GreenUtilityLog</span> — jos näet rivin, jossa on <em>GreenUtilityLog</em> ja seuraava ajoaika, ajastus on kunnossa. Mac / Linux / Pi: <span class=\"k\">crontab -l</span> näyttää rivin, joka päättyy <em># GreenUtilityLog</em>. Eikö siellä ole mitään? Liitä käyttöönottorivi vielä kerran."
+  ],
+  [
+   "Otit tämän käyttöön ennen 24. syyskuuta",
+   "Liitä sama rivi vielä kerran. Uusi skripti odottaa vielä heräävää palvelinta luovuttamisen sijaan, kirjaa jokaisen ajokerran tiedostoon <span class=\"k\">.gul-bridge.log</span> ja toimii Windowsissa myös akkuvirralla."
+  ],
+  [
+   "Powerfox didn't accept the e-mail and password",
+   "Käytä täsmälleen samaa sähköpostiosoitetta ja salasanaa kuin Powerfox-sovelluksessa (varo kirjoitusvirheitä ja välilyöntejä). Vaihdoitko Powerfox-salasanasi? Vaihtoehto 1: paina uudella salasanalla uudelleen <strong>Connect Powerfox</strong>. Vaihtoehto 2: liitä käyttöönottorivi uudelleen — se kysyy salasanaa."
+  ],
+  [
+   "switch on data transfer (Datenfreigabe)",
+   "Powerfox kieltäytyy jakamasta lukemiasi. Ota Powerfox-sovelluksessa tiedonsiirto (Datenfreigabe) käyttöön ja yritä uudelleen."
+  ],
+  [
+   "Powerfox only has an old reading",
+   "Poweropti ei ole lähettänyt Powerfoxille mitään vähään aikaan. Tarkista Powerfox-sovelluksesta, että se on verkossa (Wi-Fi, akku). Mitään ei lähetetä eikä makseta ennen kuin tuore lukema on saatavilla."
+  ],
+  [
+   "Tibber didn't accept this token",
+   "Kopioi token uudelleen osoitteesta developer.tibber.com ilman välilyöntejä. Teitkö sinne uuden tokenin? Silloin vanha lakkaa toimimasta: yhdistä uudelleen uudella tokenilla."
+  ],
+  [
+   "no Tibber Pulse found on this account",
+   "Pulse täytyy olla otettu käyttöön Tibber-sovelluksessa samalla tilillä kuin token."
+  ],
+  [
+   "your Pulse sends live data but no meter total",
+   "Kaikki mittarit eivät ilmoita kokonaislukemaansa HAN-portin kautta. Käytä silloin kuvia tai muuta lukijaa."
+  ],
+  [
+   "this phone is already used by 1 other wallet",
+   "Yksi ihminen, yksi lompakko: yhdellä puhelimella voi ansaita vain yksi lompakko. Lompakko, jolle tällä puhelimella maksettiin ensimmäisenä, toimii edelleen. Vaihdoitko pysyvästi uuteen lompakkoon? Pyydä apua ylläpitäjältä sovelluksen Lähetä palautetta -toiminnolla."
+  ],
+  [
+   "automatic payouts are paused until you take one photo",
+   "Lukija, joka lähettää omia lukujaan (P1, Home Assistant, tämä skripti), tarvitsee yhden kuvan mittaristasi 90 päivän välein; Powerfox, Tibber ja MojElektro eivät tarvitse. Sama tauko tulee kerran myös, jos lähtölukemaa on korjattu ilman kuvaa. Ota kuva Mittari-välilehdellä, niin maksut jatkuvat. Sovellus muistuttaa sinua viikkoa etukäteen."
+  ],
+  [
+   "already been corrected once",
+   "Mittarin lähtölukeman voi korjata kerran — jokainen korjaus pyyhkii kulutuksen edellisestä maksusta lähtien. Jos se on taas väärin, pyydä apua ylläpitäjältä sovelluksen Lähetä palautetta -toiminnolla."
+  ]
+ ],
+ "close": "Vieläkin jumissa? Lähetä viesti, jossa kerrot, mitä Loki-välilehti (tai pääte) näyttää — siinä lukee yleensä tarkalleen, mikä puuttuu.",
+ "foot": "GreenUtilityLog · Testaajan opas · Testnet-beta — testitokeneita, ei vielä todellista arvoa.",
+ "s_pf": "Reitti D — Powerfox (poweropti)",
+ "pf_intro": "Poweropti lukee mittarisi ja lähettää kokonaislukeman Powerfoxin pilveen. Alla on kolme tapaa saada se meille — <strong>tarvitset vain yhden</strong>. Etkö ole varma? Valitse vaihtoehto 1.",
+ "pf_first_t": "Ensin Powerfox-sovelluksessa",
+ "pf_first_b": "Ota <strong>tiedonsiirto</strong> (Datenfreigabe) käyttöön. Ilman sitä Powerfox ei jaa lukemiasi kenellekään — ei meille eikä myöskään Home Assistantille.",
+ "pf1_t": "Vaihtoehto 1 — Haemme sen puolestasi (helpoin)",
+ "pf1": [
+  [
+   "Avaa Powerfox sovelluksessa",
+   "Sovelluksessa: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Powerfox</span> ja valitse <strong>”We fetch it for you”</strong>. Eikö sitä näy? Silloin tämä versio ei vielä tarjoa sitä — käytä vaihtoehtoa 2 tai 3.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Kirjaudu Powerfox-tililläsi",
+   "Täytä sähköpostiosoite ja salasana, joita käytät Powerfox-sovelluksessa, valitse ruutu ja paina <strong>Connect Powerfox</strong>. Kirjautumistietosi tallennetaan salattuina, ja niitä käytetään vain mittarisi lukemiseen. Vinkki: käytä salasanaa, jota et käytä missään muualla.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Valmista — tietokoneesi voi olla pois päältä",
+   "Palvelimemme hakee mittarisi kokonaislukeman Powerfoxilta noin tunnin välein ja maksaa sen kuten minkä tahansa lukeman. Haluatko lopettaa? <strong>Disconnect Powerfox</strong> poistaa kirjautumistietosi heti.",
+   "see",
+   "Tarkista, että se toimii",
+   "Ylhäällä oleva tila näyttää <span class=\"k\">✅ Yhdistetty — … kWh vastaanotettu</span>."
+  ]
+ ],
+ "pf2_t": "Vaihtoehto 2 — Omalla tietokoneellasi",
+ "pf2": [
+  [
+   "Valmistele pääte ja Node.js",
+   "Tee ensin reitin B vaiheet 2–4: avaa PowerShell tai pääte ja tarkista, että Node.js 22 tai uudempi on asennettuna.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Liitä yksi rivi Powerfox-sähköpostiosoitteesi kanssa",
+   "Laita Powerfox-tilisi sähköpostiosoite kohdan <span class=\"k\">YOUR_POWERFOX_EMAIL</span> tilalle. Skripti kysyy kerran tokeniasi ja Powerfox-salasanaasi (salasana ei näy kirjoittaessa) ja säilyttää molemmat yksityisessä tiedostossa gul.js:n vieressä. Sitten se ajastaa itsensä, aivan kuten reitillä B. Tietokoneen on oltava päällä vähintään kerran päivässä.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Tarkista, että se toimi",
+   "Skripti tulostaa, mitä se lähetti.",
+   "see",
+   "Odotettu tuloste",
+   "<span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "pf3_t": "Vaihtoehto 3 — Home Assistantilla",
+ "pf3": [
+  [
+   "Lisää Powerfox Home Assistantiin",
+   "Home Assistantissa: <span class=\"k\">Settings → Devices &amp; services → Add integration → Powerfox</span>. Kirjaudu Powerfox-tililläsi.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Lisää integraatiomme",
+   "Seuraa reittiä A, <em>”Integraatiollamme”</em>: lisää meidät HACSiin, asenna, käynnistä uudelleen ja liitä tokenisi.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Valitse Powerfoxin mittarianturi",
+   "Valitse anturiksi Powerfoxin anturi <strong>Energy usage</strong> (kWh). Onko mittarissa kaksi tariffia ja jääkö kyseinen anturi tyhjäksi? Tee apuri, joka laskee yhteen päivä- ja yötariffin anturit (<span class=\"k\">Settings → Devices &amp; services → Helpers → Create helper → Group → Sensor group</span>, tyyppi <strong>Sum</strong>; ei ”Combine the state of several sensors”, jota integraatiomme ei hyväksy mittarin kokonaislukemaksi), ja valitse se.",
+   null,
+   null,
+   null
+  ]
+ ],
+ "s_tb": "Reitti E — Tibber Pulse",
+ "tb_intro": "Tibber Pulse lukee mittarisi HAN- tai P1-porttia ja lähettää kokonaislukeman Tibberille. Kaksi tapaa saada se meille — <strong>tarvitset vain yhden</strong>.",
+ "tb1_t": "Vaihtoehto 1 — Haemme sen puolestasi (helpoin)",
+ "tb1": [
+  [
+   "Kopioi Tibber-tokenisi",
+   "Avaa <span class=\"k\">developer.tibber.com</span>, kirjaudu Tibber-tililläsi, avaa <strong>Access token</strong> ja kopioi henkilökohtainen tokenisi.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Liitä se sovellukseen",
+   "Sovelluksessa: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Tibber → ”We fetch it for you”</span>. Liitä token, valitse ruutu ja paina <strong>Connect Tibber</strong>. Tämä voi kestää jopa 30 sekuntia. Eikö sitä näy? Silloin tämä versio ei vielä tarjoa sitä — käytä vaihtoehtoa 2.",
+   "see",
+   "Tarkista, että se toimii",
+   "Sovellus näyttää <span class=\"k\">Yhdistetty — Tibber ilmoittaa … kWh</span>. Tarkista, että tämä vastaa mittarisi kokonaislukemaa."
+  ]
+ ],
+ "tb2_t": "Vaihtoehto 2 — Home Assistantilla",
+ "tb2": [
+  [
+   "Lisää Tibber Home Assistantiin",
+   "<span class=\"k\">Settings → Devices &amp; services → Add integration → Tibber</span>. Liitä Tibber-tokenisi.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Lisää integraatiomme ja valitse anturi",
+   "Seuraa reittiä A, <em>”Integraatiollamme”</em>, ja valitse anturiksi Tibberin anturi <strong>Last meter consumption</strong> (kWh) — mittarin oma kokonaislukema.",
+   null,
+   null,
+   null
+  ]
+ ]
+}

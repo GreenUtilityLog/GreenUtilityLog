@@ -1,0 +1,540 @@
+{
+ "name": "English",
+ "kicker": "Návod pro testery",
+ "h1": "Vydělávej bez focení elektroměru",
+ "lede": "Normálně fotíš elektroměr a dostáváš za to B3TR. Pokud už něco u tebe doma umí elektroměr odečítat, může stav posílat za tebe — a už nikdy nemusíš fotit. Začni tím, že níže najdeš své zařízení.",
+ "s_routes": "Co máš doma?",
+ "s_token": "Všechny automatické cesty: získej svůj token",
+ "s_a": "Cesta A — Home Assistant (jakýkoli elektroměr)",
+ "s_b": "Cesta B — HomeWizard P1, bez Home Assistant",
+ "s_c": "Cesta C — Jiná čtečka (čtečka P1, čtecí hlava Tasmota)",
+ "s_claim": "Nakonec: výplata přijde sama",
+ "s_trouble": "Když něco nefunguje",
+ "routes": [
+  [
+   "Používám Home Assistant",
+   "Funguje s téměř každým elektroměrem, který HA už čte. Nainstaluj naši integraci, nebo vlož pár řádků YAML.",
+   1,
+   "Nejjednodušší"
+  ],
+  [
+   "Mám HomeWizard P1",
+   "Home Assistant není potřeba. Funguje v 🇳🇱 🇧🇪 🇱🇺 🇩🇰 🇸🇪 🇭🇺 — malý skript si elektroměr v síti najde sám.",
+   2,
+   "Trochu techniky"
+  ],
+  [
+   "Mám jinou čtečku",
+   "P1 Monitor, čtecí hlava s Tasmota (Hichi) nebo jakákoli čtečka, která ve tvé síti poskytuje celkový stav elektroměru v kWh jako JSON.",
+   3,
+   "Technické"
+  ],
+  [
+   "Mám Powerfox (poweropti)",
+   "Běžný v Německu. Stav můžeme stahovat z cloudu Powerfox — nic se neinstaluje, nic nemusí zůstat zapnuté.",
+   1,
+   "Nejjednodušší"
+  ],
+  [
+   "Mám Tibber Pulse",
+   "Běžný ve Švédsku, Norsku, Dánsku a Finsku. Stav stahujeme z Tibberu pomocí tvého osobního tokenu — nic se neinstaluje.",
+   1,
+   "Nejjednodušší"
+  ],
+  [
+   "Nic z toho",
+   "Pak dál foť elektroměr. Funguje to stejně dobře a vynáší přesně totéž. Není co nastavovat.",
+   0,
+   "Bez nastavení"
+  ]
+ ],
+ "baseline_t": "Nejdřív, jen jednou: nastav výchozí stav",
+ "baseline_b": "Ať zvolíš kteroukoli cestu, nejdřív v aplikaci <strong>jednou normálně odešli stav s fotkou</strong>. Tím aplikace zjistí, odkud tvůj elektroměr začínal — bez toho nejde automatické stavy vyplatit.",
+ "token": [
+  [
+   "Zkopíruj token zařízení",
+   "V aplikaci: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → „Get my device token“</span>. Zkopíruj ho.",
+   "Co to je",
+   "Dlouhý kód, který říká „tyhle stavy patří k mé peněžence“. Nikomu ho nedávej — kdokoli ho má, může posílat stavy tvým jménem."
+  ]
+ ],
+ "a_intro": "Jsou dva způsoby. Naše integrace je nejjednodušší a funguje s <em>jakýmkoli</em> elektroměrem, který ti Home Assistant už ukazuje; YAML udělá totéž ručně, pokud nechceš nic instalovat.",
+ "a1_t": "S naší integrací (doporučeno)",
+ "a1": [
+  [
+   "Přidej nás do HACS",
+   "V Home Assistant: <span class=\"k\">HACS → ⋮ (vpravo nahoře) → Custom repositories</span>. Vlož adresu níže, zvol typ <strong>Integration</strong> a stiskni Add.",
+   "code",
+   "https://github.com/GreenUtilityLog/GreenUtilityLog",
+   "Adresa repozitáře"
+  ],
+  [
+   "Nainstaluj a restartuj",
+   "V seznamu HACS otevři <strong>GreenUtilityLog</strong>, stiskni <strong>Download</strong> a pak restartuj Home Assistant.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Přidej integraci",
+   "Jdi do <span class=\"k\">Settings → Devices &amp; services → Add integration</span> a vyhledej <strong>GreenUtilityLog</strong>. Vlož svůj token, vyber senzor s <strong>kumulativním stavem v kWh</strong> a zvol, jak často se má posílat.",
+   "see",
+   "Ověř, že to funguje",
+   "Objeví se senzor <span class=\"k\">Last sent reading</span> s celkovým stavem tvého elektroměru. Jeho atributy ukazují čas odeslání a případnou chybu."
+  ]
+ ],
+ "a2_t": "S vlastním senzorem (jakýkoli elektroměr)",
+ "a2": [
+  [
+   "Najdi senzor elektroměru",
+   "V Home Assistant: <span class=\"k\">Developer tools → States</span>. Vyfiltruj <em>import</em> a vyber entitu v kWh, jejíž hodnota pořád roste — to je tvůj celkový stav. ID entit se liší instalaci od instalace, takže použij to svoje.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Přidej tyto řádky",
+   "Vlož to do <span class=\"k\">configuration.yaml</span>, nahraď entitu a svůj token a restartuj Home Assistant.",
+   "code",
+   "rest_command:\n  gul_push:\n    url: \"https://greenutilitylog-rewards.onrender.com/meter-ingest\"\n    method: POST\n    content_type: \"application/json\"\n    timeout: 90  # sekundy: probuzení serveru může trvat minutu\n    payload: '{\"token\":\"YOUR_TOKEN\",\"reading\":{{ states(\"sensor.YOUR_ENTITY\") | float }}}'\n\n# automations.yaml — dvakrát denně (vyzvednout jde jednou za 20 h)\n- alias: Push meter to GreenUtilityLog\n  trigger: { platform: time_pattern, hours: \"/12\" }\n  # jen skutečný stav v kWh: ne 0 po restartu, ne unavailable\n  condition:\n    - condition: template\n      value_template: '{{ is_number(states(\"sensor.YOUR_ENTITY\")) and states(\"sensor.YOUR_ENTITY\") | float > 0 and state_attr(\"sensor.YOUR_ENTITY\", \"unit_of_measurement\") == \"kWh\" }}'\n  action: { service: rest_command.gul_push }",
+   "configuration.yaml + automations.yaml"
+  ]
+ ],
+ "b": [
+  [
+   "Zapni Local API",
+   "V aplikaci <strong>HomeWizard Energy</strong>: <span class=\"k\">Settings → Meters → tvůj P1 → Local API → ON</span>. Díky tomu může elektroměr číst tvoje vlastní síť.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Otevři PowerShell (nebo terminál)",
+   "<strong>Windows:</strong> stiskni Start, napiš <em>PowerShell</em> a stiskni Enter. <strong>Mac:</strong> otevři <em>Terminal</em>. <strong>Raspberry Pi / NAS:</strong> jeho vlastní terminál, nebo přes SSH. Všechno níže se píše do tohoto okna. Na Macu zůstaň v domovské složce, ve které se Terminal otevře (viz krok 5).",
+   null,
+   null,
+   null
+  ],
+  [
+   "Zjisti, jestli už máš Node",
+   "Napiš tohle a stiskni Enter. Číslo verze od <span class=\"k\">v22</span> výš znamená, že je vše připravené a další krok můžeš přeskočit (starší verze: udělej i další krok, protože už nedostává bezpečnostní aktualizace). Pokud se místo toho objeví chyba, Node ještě není nainstalovaný.",
+   "code",
+   "node -v",
+   "Windows · Mac · Linux"
+  ],
+  [
+   "Nainstaluj Node.js, pokud se objevila chyba",
+   "<strong>Windows:</strong> vlož řádek níže; pokud se zeptá na souhlas s podmínkami zdroje, stiskni <span class=\"k\">Y</span>. <strong>Mac:</strong> instalátor LTS z nodejs.org, nebo <span class=\"k\">brew install node</span>. <strong>Raspberry Pi / Debian:</strong> <span class=\"k\">sudo apt install nodejs</span> (je potřeba Node 22 nebo novější — starší verze už nedostávají bezpečnostní aktualizace; Debian/Ubuntu často obsahují starší — pak použij instalátor z nodesource.com). Potom <strong>to okno zavři a otevři nové</strong> — okno, které už bylo otevřené, si drží starou PATH, takže by se <span class=\"k\">node</span> pořád nenašel. Znovu ověř pomocí <span class=\"k\">node -v</span>.",
+   "code",
+   "winget install OpenJS.NodeJS.LTS",
+   "Windows — PowerShell"
+  ],
+  [
+   "Vlož jeden řádek a stiskni Enter",
+   "Stáhne skript a odešle tvůj první stav. Navíc se sám naplánuje, aby stav hlásil dvakrát denně (Windows: Plánovač úloh · Mac / Linux / Pi: cron), takže pak můžeš okno zavřít a dál to poběží, i po restartu. Spouštíš ho jen tentokrát. <strong>Mac:</strong> vlož ho do čerstvě otevřeného Terminalu, v domovské složce — nepřecházej předtím pomocí <span class=\"k\">cd</span> do Plochy, Dokumentů ani Stažených souborů: macOS tam plánovači (cron) nedovolí číst soubory, takže by se nikdy nespustil.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Až se zeptá, vlož svůj token",
+   "Zeptá se jednou a zapamatuje si ho; plánovač pak používá uložený token. Potom nastaví plánování, najde elektroměr a odešle první stav.",
+   "see",
+   "Co se objeví, v tomto pořadí",
+   "<span class=\"k\">Paste your device token…</span> → <span class=\"k\">Scheduled…</span> → <span class=\"k\">found HomeWizard at 192.168.…</span> → <span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "c_intro": "Stejný skript přečte jakékoli zařízení ve tvé síti, které poskytuje celkový stav elektroměru v kWh jako JSON přes HTTP, bez přihlášení — jen mu řekneš kde. Ne každá čtečka to umí: API dsmr-reader vyžaduje klíč a Shelly počítá vlastní energii, ne registr elektroměru. Nejdřív udělej kroky 2–4 z cesty B (terminál a Node); jiný je jen příkaz níže.",
+ "c": [
+  [
+   "Najdi URL s daty své čtečky",
+   "Otevři webovou stránku své čtečky a hledej adresu, která vrací čistý JSON (často něco jako <span class=\"k\">/api/v1/data</span> nebo <span class=\"k\">/api/v2/sm/actual</span>). Přesné cesty se liší podle značky — podívej se do dokumentace své čtečky.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Spusť skript s touto URL",
+   "Místo ukázkové adresy dej svou vlastní; o token si skript řekne sám. Pokud se stav nenajde automaticky, přidej <span class=\"k\">--field=</span> s cestou (oddělenou tečkami) k hodnotě kWh v tom JSONu. Jen dva tarifní registry a žádný součet (třeba u P1 Monitor)? Spoj obě cesty znakem <span class=\"k\">+</span> a skript pošle jejich součet, např. <span class=\"k\">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install --url=http://192.168.1.60/api/v1/data"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Čtecí hlava s Tasmota (Hichi)?",
+   "Použij <span class=\"k\">--tasmota=</span> s její IP adresou místo <span class=\"k\">--url=</span>. Skript si celkový stav elektroměru (<span class=\"k\">Total_in</span>) přečte sám. Běžné u elektroměrů v Německu, Rakousku a Švýcarsku.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --tasmota=192.168.1.70 --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Ověř, že to funguje",
+   "Skript vypíše, co odeslal.",
+   "see",
+   "Očekávaný výstup",
+   "<span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "claim": [
+  [
+   "Stav se objeví sám",
+   "V aplikaci otevři <strong>Elektroměr</strong>. Panel <strong>⚡ Automatický odečet</strong> ukazuje <span class=\"k\">Připojeno — … kWh přijato</span>, s celkovým stavem elektroměru a časem, kdy dorazil.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Výplata přijde sama",
+   "Nemusíš na nic klepat: každý stav se vyplatí automaticky, jakmile dorazí, nejvýš jednou denně, a <strong>Časová osa</strong> v panelu ukáže <span class=\"k\">Vyplaceno +… B3TR</span>. Nechceš čekat? <strong>Vyzvednout</strong> udělá totéž.",
+   null,
+   null,
+   null
+  ]
+ ],
+ "s_country": "Funguje to tam, kde bydlíš?",
+ "country_intro": "Rozhraní na elektroměru se liší podle země, takže ne každá čtečka funguje všude. Co funguje vždycky: <strong>pokud Home Assistant už ukazuje celkový stav tvého elektroměru, funguje cesta A</strong> — v jakékoli zemi.",
+ "country_th": [
+  "Země",
+  "Tvůj elektroměr má",
+  "Co použít"
+ ],
+ "country_rows": [
+  [
+   "🇳🇱 Nizozemsko",
+   "Port P1 (RJ12)",
+   "Jakákoli cesta. HomeWizard funguje hned."
+  ],
+  [
+   "🇧🇪 Belgie",
+   "Port P1 (RJ12, ve výchozím stavu vypnutý)",
+   "Jakákoli cesta, jakmile je port zapnutý: zapneš ho zdarma na portálu Fluvius (u jiných provozovatelů sítě se zeptej toho svého)."
+  ],
+  [
+   "🇱🇺 Lucembursko",
+   "Port P1 (Smarty, šifrovaný)",
+   "HomeWizard P1: jednou si vyžádej klíč P1 od provozovatele sítě. Nebo Home Assistant."
+  ],
+  [
+   "🇸🇪 Švédsko · 🇫🇮 Finsko",
+   "Port HAN (RJ12)",
+   "🇸🇪 HomeWizard P1 (cesta B) — provozovatel sítě možná musí port nejdřív zapnout. Tibber Pulse: cesta E. Jinak čtečka P1/HAN, nebo Home Assistant."
+  ],
+  [
+   "🇩🇰 Dánsko",
+   "P1 (ve výchozím stavu vypnutý) nebo HAN",
+   "HomeWizard P1 (cesta B), jakmile provozovatel sítě zapne port P1 — port HAN potřebuje převodník. Tibber Pulse: cesta E. Jinak čtečka se správným konektorem, nebo Home Assistant."
+  ],
+  [
+   "🇭🇺 Maďarsko",
+   "Port P1 (záleží na provozovateli sítě)",
+   "HomeWizard P1 s některými elektroměry — nejdřív zkontroluj seznam HomeWizard. Nebo Home Assistant, nebo fotky."
+  ],
+  [
+   "🇳🇴 Norsko",
+   "HAN (RJ45, M-BUS)",
+   "Tibber Pulse: cesta E. Jinak norská čtečka HAN + Home Assistant."
+  ],
+  [
+   "🇩🇪 Německo",
+   "Smart-Meter-Gateway / optická hlava",
+   "Powerfox poweropti: cesta D. Čtecí hlava s Tasmota (Hichi): cesta C. Jinak Home Assistant."
+  ],
+  [
+   "🇸🇮 Slovinsko",
+   "Port P1 na mnoha elektroměrech (někdy šifrovaný)",
+   "Nejspíš Home Assistant se čtečkou P1 — zatím neotestováno."
+  ],
+  [
+   "🇬🇷 Řecko · 🇭🇷 Chorvatsko · 🇹🇷 Turecko",
+   "Zatím jsme nenašli žádný zákaznický port",
+   "Zatím fotky."
+  ],
+  [
+   "🇷🇴 Rumunsko · 🇧🇬 Bulharsko · zbytek Balkánu",
+   "Zatím jsme nenašli žádný zákaznický port",
+   "Zatím fotky."
+  ],
+  [
+   "🇦🇹 Rakousko",
+   "Zákaznické rozhraní (M-Bus) / optický port",
+   "Tibber Pulse: cesta E. Čtecí hlava s Tasmota (Hichi): cesta C. Jinak Home Assistant."
+  ],
+  [
+   "🇨🇭 Švýcarsko",
+   "Zákaznické rozhraní / optický port",
+   "Čtecí hlava s Tasmota (Hichi): cesta C. Jinak Home Assistant."
+  ],
+  [
+   "🇫🇷 Francie",
+   "Linky: port TIC",
+   "Žádný port P1, takže zatím jen Home Assistant (např. se ZLinky). Nebo fotky."
+  ],
+  [
+   "🇬🇧 Spojené království",
+   "SMETS2: žádný port (Zigbee)",
+   "Žádný port P1, takže zatím jen Home Assistant (např. s Hildebrand Glow). Nebo fotky."
+  ],
+  [
+   "🇪🇸 Španělsko",
+   "Žádný port",
+   "Žádný port P1, takže zatím jen Home Assistant (např. s Datadis). Nebo fotky."
+  ],
+  [
+   "🇮🇹 Itálie",
+   "Chain 2 (potřebuje zařízení, např. Sinapsi Alfa)",
+   "Žádný port P1, takže zatím jen Home Assistant. Nebo fotky."
+  ],
+  [
+   "🇺🇸 🇨🇦 USA a Kanada",
+   "Žádný port P1 (Zigbee, jen pokud ho dodavatel energie zapne)",
+   "Fotky, pokud displej ukazuje celkový stav v kWh. Home Assistant s Rainforest EAGLE tam, kde to dodavatel energie dovolí. Québec (Hydro-Québec): jen fotky."
+  ],
+  [
+   "Jinde",
+   "Různé",
+   "Pokud Home Assistant čte tvůj elektroměr, funguje cesta A."
+  ]
+ ],
+ "country_close": "Nevíš jistě? Otevři Home Assistant a najdi svůj elektroměr v Developer tools → States. Pokud tam je hodnota v kWh, která roste, máš hotovo. HomeWizard P1? Zkontroluj svůj elektroměr v <a href=\"https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter\">seznamu HomeWizard</a>.",
+ "be_t": "🇧🇪 Belgie (elektroměry Fluvius)",
+ "be_b": "Port P1 na belgických elektroměrech je ve výchozím stavu vypnutý. U Fluvius ho zapneš zdarma na jejich online portálu; u jiného provozovatele sítě se zeptej přímo jich. Pak už všechno funguje stejně.",
+ "once_t": "Nemáš zařízení, které je pořád zapnuté?",
+ "once_b": "Není potřeba. Byl počítač v naplánovanou dobu vypnutý? Stav se odešle, jakmile se počítač znovu zapne — stačí tedy notebook, který občas otevřeš. Vyplatí se, jakmile dorazí, nejvýš jednou denně.",
+ "th": [
+  "Vidíš",
+  "Co dělat"
+ ],
+ "trouble": [
+  [
+   "'node' is not recognized",
+   "Node.js není nainstalovaný, nebo bylo to okno při instalaci už otevřené. Na Windows: <span class=\"k\">winget install OpenJS.NodeJS.LTS</span>. Jinde: nodejs.org. Pak otevři <strong>nový</strong> terminál a vlož řádek znovu. Git nepotřebuješ."
+  ],
+  [
+   "Vůbec nic — žádný výstup, hned zpátky na příkazový řádek",
+   "Stará kopie skriptu, z doby před 19. zářím. Měla chybu, kvůli které se na Windows ukončila, aniž by cokoli vypsala. Stáhni ji znovu řádkem výše; nová verze se zeptá na tvůj token."
+  ],
+  [
+   "no HomeWizard found on the network",
+   "Tvoje síť blokuje automatické vyhledávání — to je běžné u Wi-Fi pro hosty a s VLAN. Najdi IP adresu svého P1 v aplikaci HomeWizard a spusť <span class=\"k\">node gul.js --install --ip=192.168.1.50</span>. U doplňku pro Home Assistant místo toho vyplň <span class=\"k\">hw_ip</span>."
+  ],
+  [
+   "couldn't find a total import kWh",
+   "Skript se k zařízení dostal, ale nedostal nic použitelného: v aplikaci HomeWizard je <strong>Local API pořád vypnuté</strong>, nebo to není elektroměr P1. Pro čtečku jiné značky použij <span class=\"k\">--url=</span>."
+  ],
+  [
+   "couldn't find a kWh number at …",
+   "JSON tvé čtečky nepoužívá název, který skript zná. Přidej <span class=\"k\">--field=</span> s cestou k hodnotě, např. <span class=\"k\">--field=electricity.import_kwh</span>."
+  ],
+  [
+   "server said 401",
+   "Token je špatně nebo neúplný. Zkopíruj ho znovu z aplikace a jednou spusť <span class=\"k\">node gul.js --ask-token --install</span>, aby nahradil ten uložený."
+  ],
+  [
+   "submit one photo reading first",
+   "Tvůj elektroměr ještě nemá výchozí stav. Odešli v aplikaci jednou normálně stav s fotkou — automatické stavy nikdy nenastavují první hodnotu, aby si zařízení nemohlo samo vymyslet svůj výchozí stav. Potom se začne vyplácet."
+  ],
+  [
+   "usage … is outside the plausible range",
+   "Skoro vždycky jde o <strong>dvoutarifní elektroměr</strong>: displej vede dva registry (<span class=\"k\">1.8.1</span> a <span class=\"k\">1.8.2</span>) a tvoje fotka zachytila jeden z nich, zatímco čtečka hlásí součet obou — výchozí stav a čtečka jsou tedy v různých měřítkách. V aplikaci v panelu <span class=\"k\">⚡ Automatický odečet</span> stiskni <strong>&bdquo;Použít tento stav jako můj výchozí stav&ldquo;</strong>. Nic nevyplácí, jen určuje, odkud se začne počítat. Jde to až do tvé první automatické výplaty."
+  ],
+  [
+   "this time photograph tariff register 2",
+   "Tvůj elektroměr ukazuje střídavě dva registry a tvoje fotky se taky střídají: pokaždé vyfoť ten, který na poslední fotce nebyl. Počkej, až displej přepne na registr, který aplikace uvádí (<span class=\"k\">1.8.1</span> nebo <span class=\"k\">1.8.2</span>), a pak fotku pořiď."
+  ],
+  [
+   "tariff register 1 went down",
+   "Každý registr počítá jen nahoru. Zkontroluj, že nízký a vysoký tarif jsou každý ve svém poli, ve stejném pořadí jako minule."
+  ],
+  [
+   "the automatic reading is stale",
+   "Stav musí být v okamžiku vyzvednutí mladší než 48 hodin. Plánovač to zkouší každou hodinu — v <span class=\"k\">.gul-bridge.log</span> vedle <span class=\"k\">gul.js</span> zjistíš, proč to selhalo, nebo znovu spusť <span class=\"k\">node gul.js --install</span>. Vyplatí se, jakmile log ukáže <span class=\"k\">pushed … ✓</span>."
+  ],
+  [
+   "Žádný stav v „⚡ Automatický odečet“",
+   "Skript zatím nic úspěšně neodeslal. Podívej se do jeho okna, nebo otevři <span class=\"k\">.gul-bridge.log</span> ve stejné složce jako gul.js: každé spuštění tam zapíše buď <span class=\"k\">pushed … ✓</span>, nebo důvod selhání."
+  ],
+  [
+   "Nevíš jistě, jestli je to naplánované?",
+   "Windows: v PowerShellu spusť <span class=\"k\">schtasks /Query /TN GreenUtilityLog</span> — řádek s <em>GreenUtilityLog</em> a časem dalšího spuštění znamená, že ano. Mac / Linux / Pi: <span class=\"k\">crontab -l</span> by měl ukázat řádek končící na <em># GreenUtilityLog</em>. Nic tam není? Vlož instalační řádek ještě jednou."
+  ],
+  [
+   "Nastavení z doby před 24. zářím",
+   "Vlož stejný řádek ještě jednou. Nový skript počká na server, který se teprve probouzí, místo aby to vzdal, zapisuje každé spuštění do <span class=\"k\">.gul-bridge.log</span> a na Windows běží i na baterii."
+  ],
+  [
+   "Powerfox didn't accept the e-mail and password",
+   "Použij přesně e-mail a heslo z aplikace Powerfox (pozor na překlepy a mezery). Změna hesla k Powerfox? Možnost 1: znovu <strong>Connect Powerfox</strong> s novým heslem. Možnost 2: vlož znovu instalační řádek — zeptá se na heslo."
+  ],
+  [
+   "switch on data transfer (Datenfreigabe)",
+   "Powerfox odmítá sdílet tvoje stavy. V aplikaci Powerfox zapni sdílení dat (Datenfreigabe) a zkus to znovu."
+  ],
+  [
+   "Powerfox only has an old reading",
+   "Tvůj poweropti už nějakou dobu nic do Powerfox neposlal. V aplikaci Powerfox zkontroluj, že je online (Wi-Fi, baterie). Dokud nebude k dispozici čerstvý stav, nic se neodešle ani nevyplatí."
+  ],
+  [
+   "Tibber didn't accept this token",
+   "Zkopíruj token znovu z developer.tibber.com, bez mezer. Vznikl tam nový token? Pak ten starý přestane fungovat: připoj se znovu s novým."
+  ],
+  [
+   "no Tibber Pulse found on this account",
+   "Pulse musí být nastavený v aplikaci Tibber, na stejném účtu jako token."
+  ],
+  [
+   "your Pulse sends live data but no meter total",
+   "Ne každý elektroměr posílá celkový stav přes port HAN. Pak použij fotky, nebo jinou čtečku."
+  ],
+  [
+   "this phone is already used by 1 other wallet",
+   "Jeden člověk, jedna peněženka: na jednom telefonu může vydělávat jedna peněženka. Peněženka, která na tomto telefonu dostala výplatu jako první, funguje dál. Natrvalo přechod na novou peněženku? Požádej admina přes Poslat zpětnou vazbu v aplikaci."
+  ],
+  [
+   "automatic payouts are paused until you take one photo",
+   "Čtečka, která posílá vlastní čísla (P1, Home Assistant, tento skript), potřebuje jednou za 90 dní jednu fotku elektroměru; Powerfox, Tibber a MojElektro ne. Stejná pauza přijde jednou i po opravě výchozího stavu bez fotky. Vyfoť ho na kartě Elektroměr a výplaty se znovu rozběhnou. Aplikace ti to týden předem připomene."
+  ],
+  [
+   "already been corrected once",
+   "Výchozí stav elektroměru jde opravit jednou — každá oprava smaže spotřebu od poslední výplaty. Pokud je zase špatně, požádej admina přes Poslat zpětnou vazbu v aplikaci."
+  ]
+ ],
+ "close": "Pořád to nejde? Pošli zprávu s tím, co ukazuje log (nebo terminál) — obvykle tam přesně stojí, co chybí.",
+ "foot": "GreenUtilityLog · Návod pro testery · Beta na testnetu — testovací tokeny, zatím bez skutečné hodnoty.",
+ "s_pf": "Cesta D — Powerfox (poweropti)",
+ "pf_intro": "Poweropti čte tvůj elektroměr a posílá celkový stav do cloudu Powerfox. Níže jsou tři způsoby, jak ho dostat k nám — <strong>stačí ti jeden</strong>. Nevíš? Vezmi možnost 1.",
+ "pf_first_t": "Nejdřív v aplikaci Powerfox",
+ "pf_first_b": "Zapni <strong>sdílení dat</strong> (Datenfreigabe). Bez něj Powerfox tvoje stavy nesdílí s nikým — ani s námi, ani s Home Assistant.",
+ "pf1_t": "Možnost 1 — We fetch it for you (nejjednodušší)",
+ "pf1": [
+  [
+   "Otevři Powerfox v aplikaci",
+   "V aplikaci: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Powerfox</span> a zvol <strong>„We fetch it for you“</strong>. Není tam? Pak to tato verze ještě nenabízí — použij možnost 2 nebo 3.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Přihlas se účtem Powerfox",
+   "Vyplň e-mail a heslo, které používáš v aplikaci Powerfox, zaškrtni políčko a stiskni <strong>Connect Powerfox</strong>. Přihlašovací údaje se ukládají šifrovaně a slouží jen ke čtení tvého elektroměru. Tip: použij heslo, které nepoužíváš nikde jinde.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Hotovo — počítač může zůstat vypnutý",
+   "Náš server zhruba každou hodinu stáhne z Powerfox celkový stav tvého elektroměru a vyplatí ho jako každý jiný stav. Chceš skončit? <strong>Disconnect Powerfox</strong> tvoje přihlašovací údaje hned smaže.",
+   "see",
+   "Ověř, že to funguje",
+   "Stav nahoře ukazuje <span class=\"k\">✅ Připojeno — … kWh přijato</span>."
+  ]
+ ],
+ "pf2_t": "Možnost 2 — Na vlastním počítači",
+ "pf2": [
+  [
+   "Připrav terminál a Node.js",
+   "Nejdřív udělej kroky 2–4 z cesty B: otevři PowerShell nebo terminál a ověř, že máš nainstalovaný Node.js 22 nebo novější.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Vlož jeden řádek se svým e-mailem Powerfox",
+   "Místo <span class=\"k\">YOUR_POWERFOX_EMAIL</span> dej e-mail svého účtu Powerfox. Skript se jednou zeptá na tvůj token a heslo k Powerfox (heslo se při psaní nezobrazuje) a obojí uloží do soukromého souboru vedle gul.js. Pak se sám naplánuje, stejně jako u cesty B. Počítač musí být zapnutý aspoň jednou denně.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Ověř, že to funguje",
+   "Skript vypíše, co odeslal.",
+   "see",
+   "Očekávaný výstup",
+   "<span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "pf3_t": "Možnost 3 — S Home Assistant",
+ "pf3": [
+  [
+   "Přidej Powerfox do Home Assistant",
+   "V Home Assistant: <span class=\"k\">Settings → Devices &amp; services → Add integration → Powerfox</span>. Přihlas se svým účtem Powerfox.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Přidej naši integraci",
+   "Postupuj podle cesty A, <em>„S naší integrací“</em>: přidej nás do HACS, nainstaluj, restartuj a vlož svůj token.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Vyber senzor elektroměru z Powerfox",
+   "Jako senzor vyber senzor Powerfox <strong>Energy usage</strong> (kWh). Dvoutarifní elektroměr, u kterého zůstává prázdný? Vytvoř pomocníka, který sečte senzory vysokého a nízkého tarifu (<span class=\"k\">Settings → Devices &amp; services → Helpers → Create helper → Group → Sensor group</span>, typ <strong>Sum</strong>; ne „Combine the state of several sensors“, to naše integrace jako celkový stav elektroměru nepřijme), a vyber ten.",
+   null,
+   null,
+   null
+  ]
+ ],
+ "s_tb": "Cesta E — Tibber Pulse",
+ "tb_intro": "Tibber Pulse čte port HAN nebo P1 tvého elektroměru a posílá celkový stav do Tibberu. Jsou dva způsoby, jak ho dostat k nám — <strong>stačí ti jeden</strong>.",
+ "tb1_t": "Možnost 1 — We fetch it for you (nejjednodušší)",
+ "tb1": [
+  [
+   "Zkopíruj svůj token Tibber",
+   "Otevři <span class=\"k\">developer.tibber.com</span>, přihlas se účtem Tibber, otevři <strong>Access token</strong> a zkopíruj svůj osobní token.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Vlož ho do aplikace",
+   "V aplikaci: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Tibber → „We fetch it for you“</span>. Vlož token, zaškrtni políčko a stiskni <strong>Connect Tibber</strong>. Může to trvat až 30 sekund. Není tam? Pak to tato verze ještě nenabízí — použij možnost 2.",
+   "see",
+   "Ověř, že to funguje",
+   "Aplikace ukáže <span class=\"k\">Připojeno — Tibber hlásí … kWh</span>. Zkontroluj, že to odpovídá celkovému stavu tvého elektroměru."
+  ]
+ ],
+ "tb2_t": "Možnost 2 — S Home Assistant",
+ "tb2": [
+  [
+   "Přidej Tibber do Home Assistant",
+   "<span class=\"k\">Settings → Devices &amp; services → Add integration → Tibber</span>. Vlož svůj token Tibber.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Přidej naši integraci a vyber senzor",
+   "Postupuj podle cesty A, <em>„S naší integrací“</em>, a jako senzor vyber senzor Tibber <strong>Last meter consumption</strong> (kWh) — vlastní celkový stav elektroměru.",
+   null,
+   null,
+   null
+  ]
+ ],
+ "_toc": "Na této stránce"
+}

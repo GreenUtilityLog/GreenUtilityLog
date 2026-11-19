@@ -1,0 +1,540 @@
+{
+ "_toc": "Na tej strani",
+ "name": "English",
+ "kicker": "Vodnik za preizkuševalce",
+ "h1": "Služi brez fotografiranja števca",
+ "lede": "Običajno za B3TR fotografiraš svoj števec. Če lahko kaj v tvojem domu števec že odčita, lahko odčitek pošlje namesto tebe — in fotografij ne potrebuješ več. Najprej spodaj poišči svojo postavitev.",
+ "s_routes": "Kakšno postavitev imaš?",
+ "s_token": "Vse samodejne poti: pridobi svoj žeton",
+ "s_a": "Pot A — Home Assistant (kateri koli števec)",
+ "s_b": "Pot B — HomeWizard P1, brez Home Assistanta",
+ "s_c": "Pot C — Drug čitalnik (čitalnik P1, čitalna glava Tasmota)",
+ "s_claim": "Na koncu: izplačilo pride samo",
+ "s_trouble": "Če kaj ne deluje",
+ "routes": [
+  [
+   "Uporabljam Home Assistant",
+   "Deluje s skoraj vsakim števcem, ki ga HA že bere. Namesti našo integracijo ali prilepi nekaj vrstic YAML.",
+   1,
+   "Najlažje"
+  ],
+  [
+   "Imam HomeWizard P1",
+   "Home Assistant ni potreben. Deluje v 🇳🇱 🇧🇪 🇱🇺 🇩🇰 🇸🇪 🇭🇺 — majhna skripta sama poišče tvoj števec v omrežju.",
+   2,
+   "Malo tehnike"
+  ],
+  [
+   "Imam drug čitalnik",
+   "P1 Monitor, čitalna glava Tasmota (Hichi) ali kateri koli čitalnik, ki v tvojem omrežju ponuja skupno stanje števca v kWh kot JSON.",
+   3,
+   "Tehnično"
+  ],
+  [
+   "Imam Powerfox (poweropti)",
+   "Pogost v Nemčiji. Tvoj odčitek lahko pridobimo iz oblaka Powerfox — nič ni treba namestiti in nič imeti vklopljenega.",
+   1,
+   "Najlažje"
+  ],
+  [
+   "Imam Tibber Pulse",
+   "Pogost na Švedskem, Norveškem, Danskem in Finskem. Tvoj odčitek pridobimo od Tibberja s tvojim osebnim žetonom — nič ni treba namestiti.",
+   1,
+   "Najlažje"
+  ],
+  [
+   "Nič od tega",
+   "Potem števec še naprej fotografiraj. Deluje prav tako dobro in prinese povsem enako. Nič ni treba nastaviti.",
+   0,
+   "Brez nastavitve"
+  ]
+ ],
+ "baseline_t": "Najprej, enkrat: določi izhodišče",
+ "baseline_b": "Ne glede na izbrano pot najprej v aplikaciji opravi <strong>eno običajno oddajo s fotografijo</strong>. Tako aplikacija ve, pri kateri številki je tvoj števec začel — brez tega samodejnih odčitkov ni mogoče izplačati.",
+ "token": [
+  [
+   "Kopiraj žeton svoje naprave",
+   "V aplikaciji: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → »Get my device token«</span>. Kopiraj ga.",
+   "Kaj je to",
+   "Dolga koda, ki pove »ti odčitki pripadajo moji denarnici«. Ne deli je z nikomer — kdor jo ima, lahko v tvojem imenu pošilja odčitke."
+  ]
+ ],
+ "a_intro": "Dva načina. Naša integracija je najlažja in deluje s <em>katerim koli</em> števcem, ki ti ga Home Assistant že prikazuje; YAML naredi isto ročno, če ne želiš ničesar nameščati.",
+ "a1_t": "Z našo integracijo (priporočeno)",
+ "a1": [
+  [
+   "Dodaj nas v HACS",
+   "V Home Assistantu: <span class=\"k\">HACS → ⋮ (zgoraj desno) → Custom repositories</span>. Prilepi spodnji naslov, izberi vrsto <strong>Integration</strong> in pritisni Add.",
+   "code",
+   "https://github.com/GreenUtilityLog/GreenUtilityLog",
+   "Naslov repozitorija"
+  ],
+  [
+   "Namesti in znova zaženi",
+   "Na seznamu HACS odpri <strong>GreenUtilityLog</strong>, pritisni <strong>Download</strong> in nato znova zaženi Home Assistant.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Dodaj integracijo",
+   "Pojdi v <span class=\"k\">Settings → Devices &amp; services → Add integration</span> in poišči <strong>GreenUtilityLog</strong>. Prilepi svoj žeton, izberi senzor s <strong>skupnimi kWh</strong> in nastavi, kako pogosto naj pošilja.",
+   "see",
+   "Preveri, ali deluje",
+   "Prikaže se senzor <span class=\"k\">Last sent reading</span> s stanjem tvojega števca. V njegovih atributih vidiš čas pošiljanja in morebitno napako."
+  ]
+ ],
+ "a2_t": "Z lastnim senzorjem (kateri koli števec)",
+ "a2": [
+  [
+   "Poišči senzor svojega števca",
+   "V Home Assistantu: <span class=\"k\">Developer tools → States</span>. Filtriraj po <em>import</em> in izberi tistega v kWh, katerega vrednost ves čas raste — to je tvoje skupno stanje. ID-ji entitet so pri vsaki namestitvi drugačni, zato uporabi svojega.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Dodaj te vrstice",
+   "To vstavi v <span class=\"k\">configuration.yaml</span>, zamenjaj entiteto in svoj žeton, nato znova zaženi Home Assistant.",
+   "code",
+   "rest_command:\n  gul_push:\n    url: \"https://greenutilitylog-rewards.onrender.com/meter-ingest\"\n    method: POST\n    content_type: \"application/json\"\n    timeout: 90  # seconds: the server can take a minute to wake up\n    payload: '{\"token\":\"YOUR_TOKEN\",\"reading\":{{ states(\"sensor.YOUR_ENTITY\") | float }}}'\n\n# automations.yaml — twice a day (you can claim once per 20h)\n- alias: Push meter to GreenUtilityLog\n  trigger: { platform: time_pattern, hours: \"/12\" }\n  # only a real kWh total: not 0 after a restart, not unavailable\n  condition:\n    - condition: template\n      value_template: '{{ is_number(states(\"sensor.YOUR_ENTITY\")) and states(\"sensor.YOUR_ENTITY\") | float > 0 and state_attr(\"sensor.YOUR_ENTITY\", \"unit_of_measurement\") == \"kWh\" }}'\n  action: { service: rest_command.gul_push }",
+   "configuration.yaml + automations.yaml"
+  ]
+ ],
+ "b": [
+  [
+   "Vklopi Local API",
+   "V aplikaciji <strong>HomeWizard Energy</strong>: <span class=\"k\">Settings → Meters → tvoj P1 → Local API → ON</span>. Tako lahko tvoje lastno omrežje bere števec.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Odpri PowerShell (ali terminal)",
+   "<strong>Windows:</strong> pritisni Start, natipkaj <em>PowerShell</em> in pritisni Enter. <strong>Mac:</strong> odpri <em>Terminal</em>. <strong>Raspberry Pi / NAS:</strong> njegov terminal ali prek SSH. Vse, kar sledi, tipkaš v to okno. Na Macu ostani v domači mapi, v kateri se Terminal odpre (glej 5. korak).",
+   null,
+   null,
+   null
+  ],
+  [
+   "Preveri, ali Node že imaš",
+   "Natipkaj to in pritisni Enter. Številka različice — karkoli od <span class=\"k\">v22</span> naprej — pomeni, da je vse pripravljeno (pri starejši opravi še naslednji korak, ker ne dobiva več varnostnih posodobitev), in naslednji korak lahko preskočiš. Če se namesto tega izpiše napaka, Node še ni nameščen.",
+   "code",
+   "node -v",
+   "Windows · Mac · Linux"
+  ],
+  [
+   "Namesti Node.js, če se je izpisala napaka",
+   "<strong>Windows:</strong> prilepi spodnjo vrstico; če te vpraša, ali sprejemaš pogoje vira, pritisni <span class=\"k\">Y</span>. <strong>Mac:</strong> namestitveni program LTS z nodejs.org ali <span class=\"k\">brew install node</span>. <strong>Raspberry Pi / Debian:</strong> <span class=\"k\">sudo apt install nodejs</span> (potrebuješ Node 22 ali novejši — starejše različice ne dobivajo več varnostnih posodobitev; Debian/Ubuntu pogosto ponujata starejšo — takrat uporabi namestitveni program z nodesource.com). Nato <strong>zapri to okno in odpri novo</strong> — okno, ki je bilo že odprto, ohrani stari PATH, zato <span class=\"k\">node</span> še vedno ne bi bil najden. Znova preveri z <span class=\"k\">node -v</span>.",
+   "code",
+   "winget install OpenJS.NodeJS.LTS",
+   "Windows — PowerShell"
+  ],
+  [
+   "Prilepi eno vrstico in pritisni Enter",
+   "Prenese skripto in pošlje tvoj prvi odčitek. Poleg tega se sama nastavi, da poroča dvakrat na dan (Windows: Task Scheduler · Mac / Linux / Pi: cron), zato lahko okno nato zapreš in deluje naprej, tudi po ponovnem zagonu. To zaženeš samo tokrat. <strong>Mac:</strong> prilepi jo v na novo odprt Terminal, v domači mapi — prej ne pojdi s <span class=\"k\">cd</span> v Desktop, Documents ali Downloads: macOS urniku (cron) ne dovoli brati datotek tam, zato se ne bi nikoli zagnal.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Ko te vpraša, prilepi svoj žeton",
+   "Vpraša samo enkrat in si ga zapomni; urnik nato uporablja shranjeni žeton. Potem nastavi urnik, poišče števec in pošlje prvi odčitek.",
+   "see",
+   "Kaj moraš videti, po vrsti",
+   "<span class=\"k\">Paste your device token…</span> → <span class=\"k\">Scheduled…</span> → <span class=\"k\">found HomeWizard at 192.168.…</span> → <span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "c_intro": "Ista skripta bere katero koli napravo v tvojem omrežju, ki prek HTTP ponuja skupno stanje števca v kWh kot JSON, brez prijave — samo povedati ji moraš, kje. Tega ne zmore vsak čitalnik: API za dsmr-reader potrebuje ključ, Shelly pa šteje lastno porabo, ne registra števca. Najprej opravi korake 2–4 poti B (terminal in Node); drugačen je samo spodnji ukaz.",
+ "c": [
+  [
+   "Poišči podatkovni URL svojega čitalnika",
+   "Odpri spletno stran svojega čitalnika in poišči naslov, ki vrne surov JSON (pogosto nekaj takega kot <span class=\"k\">/api/v1/data</span> ali <span class=\"k\">/api/v2/sm/actual</span>). Natančne poti se razlikujejo glede na znamko — preveri dokumentacijo svojega čitalnika.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Zaženi skripto s tem URL-jem",
+   "Namesto primera vpiši svoj naslov; za žeton te skripta vpraša sama. Če odčitka ne najde samodejno, dodaj <span class=\"k\">--field=</span> s potjo s pikami do vrednosti kWh v tem JSON. Samo dva tarifna registra in nobenega skupnega stanja (na primer P1 Monitor)? Obe poti združi s <span class=\"k\">+</span> in poslala bo njuno vsoto, npr. <span class=\"k\">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install --url=http://192.168.1.60/api/v1/data"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Čitalna glava Tasmota (Hichi)?",
+   "Namesto <span class=\"k\">--url=</span> uporabi <span class=\"k\">--tasmota=</span> z njenim IP-jem. Skripta sama prebere skupno stanje števca (<span class=\"k\">Total_in</span>). Pogosto pri nemških, avstrijskih in švicarskih števcih.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --tasmota=192.168.1.70 --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Preveri, ali deluje",
+   "Skripta izpiše, kaj je poslala.",
+   "see",
+   "Pričakovani izpis",
+   "<span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "claim": [
+  [
+   "Tvoj odčitek se prikaže sam",
+   "V aplikaciji odpri <strong>Števec</strong>. Na plošči <strong>⚡ Samodejno odčitavanje</strong> piše <span class=\"k\">Povezano — … kWh prejeto</span>, skupaj s stanjem tvojega števca in časom, ko je prispelo.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Izplača se samo",
+   "Ničesar ni treba tapniti: vsak odčitek se izplača samodejno, ko prispe, največ enkrat na dan, in <strong>Časovnica</strong> na plošči pokaže <span class=\"k\">Izplačano +… B3TR</span>. Ne želiš čakati? <strong>Prevzemi zdaj</strong> naredi isto.",
+   null,
+   null,
+   null
+  ]
+ ],
+ "s_country": "Ali to deluje tam, kjer živiš?",
+ "country_intro": "Vmesnik na števcu se razlikuje od države do države, zato vsak čitalnik ne deluje povsod. Kar deluje vedno: <strong>če Home Assistant že prikazuje skupno stanje tvojega števca, deluje pot A</strong> — v kateri koli državi.",
+ "country_th": [
+  "Država",
+  "Tvoj števec ima",
+  "Kaj uporabiti"
+ ],
+ "country_rows": [
+  [
+   "🇳🇱 Nizozemska",
+   "Vmesnik P1 (RJ12)",
+   "Katera koli pot. HomeWizard deluje takoj."
+  ],
+  [
+   "🇧🇪 Belgija",
+   "Vmesnik P1 (RJ12, privzeto izklopljen)",
+   "Katera koli pot, ko je vmesnik vklopljen: brezplačno ga vklopiš na portalu Fluvius (pri drugih distributerjih vprašaj svojega)."
+  ],
+  [
+   "🇱🇺 Luksemburg",
+   "Vmesnik P1 (Smarty, šifriran)",
+   "HomeWizard P1: pri distributerju enkrat zaprosi za ključ P1. Ali Home Assistant."
+  ],
+  [
+   "🇸🇪 Švedska · 🇫🇮 Finska",
+   "Vmesnik HAN (RJ12)",
+   "🇸🇪 HomeWizard P1 (pot B) — distributer mora vmesnik morda najprej vklopiti. Tibber Pulse: pot E. Sicer čitalnik P1/HAN ali Home Assistant."
+  ],
+  [
+   "🇩🇰 Danska",
+   "P1 (privzeto izklopljen) ali HAN",
+   "HomeWizard P1 (pot B), ko distributer vklopi vmesnik P1 — za vmesnik HAN potrebuješ pretvornik. Tibber Pulse: pot E. Sicer čitalnik s pravim priključkom ali Home Assistant."
+  ],
+  [
+   "🇭🇺 Madžarska",
+   "Vmesnik P1 (odvisno od distributerja)",
+   "HomeWizard P1 z nekaterimi števci — najprej preveri seznam HomeWizard. Ali Home Assistant ali fotografije."
+  ],
+  [
+   "🇳🇴 Norveška",
+   "HAN (RJ45, M-BUS)",
+   "Tibber Pulse: pot E. Sicer norveški čitalnik HAN + Home Assistant."
+  ],
+  [
+   "🇩🇪 Nemčija",
+   "Smart-Meter-Gateway / optična glava",
+   "Powerfox poweropti: pot D. Čitalna glava Tasmota (Hichi): pot C. Sicer Home Assistant."
+  ],
+  [
+   "🇸🇮 Slovenija",
+   "Vmesnik P1 na mnogih števcih (včasih šifriran)",
+   "Verjetno Home Assistant s čitalnikom P1 — še ni preizkušeno."
+  ],
+  [
+   "🇬🇷 Grčija · 🇭🇷 Hrvaška · 🇹🇷 Turčija",
+   "Vmesnika za odjemalce še nismo našli",
+   "Zaenkrat fotografije."
+  ],
+  [
+   "🇷🇴 Romunija · 🇧🇬 Bolgarija · preostali Balkan",
+   "Vmesnika za odjemalce še nismo našli",
+   "Zaenkrat fotografije."
+  ],
+  [
+   "🇦🇹 Avstrija",
+   "Vmesnik za odjemalce (M-Bus) / optični vmesnik",
+   "Tibber Pulse: pot E. Čitalna glava Tasmota (Hichi): pot C. Sicer Home Assistant."
+  ],
+  [
+   "🇨🇭 Švica",
+   "Vmesnik za odjemalce / optični vmesnik",
+   "Čitalna glava Tasmota (Hichi): pot C. Sicer Home Assistant."
+  ],
+  [
+   "🇫🇷 Francija",
+   "Linky: vmesnik TIC",
+   "Ni vmesnika P1, zato zaenkrat samo Home Assistant (npr. z ZLinky). Ali fotografije."
+  ],
+  [
+   "🇬🇧 Združeno kraljestvo",
+   "SMETS2: brez vmesnika (Zigbee)",
+   "Ni vmesnika P1, zato zaenkrat samo Home Assistant (npr. s Hildebrand Glow). Ali fotografije."
+  ],
+  [
+   "🇪🇸 Španija",
+   "Brez vmesnika",
+   "Ni vmesnika P1, zato zaenkrat samo Home Assistant (npr. z Datadis). Ali fotografije."
+  ],
+  [
+   "🇮🇹 Italija",
+   "Chain 2 (potrebna je naprava, kot je Sinapsi Alfa)",
+   "Ni vmesnika P1, zato zaenkrat samo Home Assistant. Ali fotografije."
+  ],
+  [
+   "🇺🇸 🇨🇦 ZDA in Kanada",
+   "Ni vmesnika P1 (Zigbee, samo če ga dobavitelj omogoči)",
+   "Fotografije, če zaslon prikazuje skupno stanje v kWh. Home Assistant z Rainforest EAGLE, kjer dobavitelj to dovoli. Quebec (Hydro-Québec): samo fotografije."
+  ],
+  [
+   "Kjer koli drugje",
+   "Različno",
+   "Če Home Assistant bere tvoj števec, deluje pot A."
+  ]
+ ],
+ "country_close": "Ne veš zagotovo? Odpri Home Assistant in poišči svoj števec pod Developer tools → States. Če je tam vrednost v kWh, ki narašča, je vse pripravljeno. HomeWizard P1? Svoj števec preveri na <a href=\"https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter\">seznamu HomeWizard</a>.",
+ "be_t": "🇧🇪 Belgija (števci Fluvius)",
+ "be_b": "Vmesnik P1 na belgijskih števcih je privzeto izklopljen. Pri Fluviusu ga brezplačno vklopiš na njihovem spletnem portalu; pri drugem distributerju vprašaj njega. Potem vse deluje enako.",
+ "once_t": "Nimaš naprave, ki je ves čas vklopljena?",
+ "once_b": "Ne potrebuješ je. Je bil računalnik ob načrtovanem času izklopljen? Odčitek se pošlje, takoj ko se računalnik spet vklopi — zato zadošča tudi prenosnik, ki ga občasno odpreš. Izplača se, takoj ko prispe, največ enkrat na dan.",
+ "th": [
+  "Vidiš",
+  "Kaj narediti"
+ ],
+ "trouble": [
+  [
+   "'node' is not recognized",
+   "Node.js ni nameščen ali pa je bilo okno že odprto, ko se je nameščal. Na Windows: <span class=\"k\">winget install OpenJS.NodeJS.LTS</span>. Drugje: nodejs.org. Nato odpri <strong>nov</strong> terminal in znova prilepi vrstico. Gita ne potrebuješ."
+  ],
+  [
+   "Popolnoma nič — brez izpisa, takoj nazaj v ukazno vrstico",
+   "Stara kopija skripte, izpred 19. septembra. Imela je napako, zaradi katere se je na Windows končala, ne da bi kaj izpisala. Prenesi jo znova z zgornjo vrstico; nova te vpraša za žeton."
+  ],
+  [
+   "no HomeWizard found on the network",
+   "Tvoje omrežje blokira samodejno iskanje naprav — pogosto v omrežju Wi-Fi za goste in pri VLAN-ih. IP svojega P1 poišči v aplikaciji HomeWizard in zaženi <span class=\"k\">node gul.js --install --ip=192.168.1.50</span>. Pri dodatku za Home Assistant namesto tega izpolni <span class=\"k\">hw_ip</span>."
+  ],
+  [
+   "couldn't find a total import kWh",
+   "Naprava je dosegljiva, vendar ni vrnila ničesar uporabnega: <strong>Local API je še izklopljen</strong> v aplikaciji HomeWizard ali pa to ni števec P1. Za čitalnik druge znamke uporabi <span class=\"k\">--url=</span>."
+  ],
+  [
+   "couldn't find a kWh number at …",
+   "JSON tvojega čitalnika ne uporablja imena, ki ga skripta pozna. Dodaj <span class=\"k\">--field=</span> s potjo s pikami do vrednosti, npr. <span class=\"k\">--field=electricity.import_kwh</span>."
+  ],
+  [
+   "server said 401",
+   "Žeton je napačen ali nepopoln. Znova ga kopiraj iz aplikacije in enkrat zaženi <span class=\"k\">node gul.js --ask-token --install</span>, da zamenjaš shranjenega."
+  ],
+  [
+   "submit one photo reading first",
+   "Tvoj števec še nima izhodišča. V aplikaciji opravi eno običajno oddajo s fotografijo — samodejni odčitki nikoli ne določijo prve vrednosti, da si naprava ne more izmisliti lastnega izhodišča. Potem se izplačuje."
+  ],
+  [
+   "usage … is outside the plausible range",
+   "Skoraj vedno gre za <strong>dvotarifni števec</strong>: zaslon vodi dva registra (<span class=\"k\">1.8.1</span> in <span class=\"k\">1.8.2</span>) in tvoja fotografija je zajela enega, čitalnik pa sporoča seštevek obeh — zato sta izhodišče in čitalnik na različnih lestvicah. V aplikaciji na plošči <span class=\"k\">⚡ Samodejno odčitavanje</span> pritisni <strong>&raquo;Uporabi ta odčitek kot moje izhodišče&laquo;</strong>. Nič ne izplača, samo določi, od kod se začne šteti. To je mogoče do tvojega prvega samodejnega izplačila."
+  ],
+  [
+   "this time photograph tariff register 2",
+   "Tvoj števec izmenično kaže dva registra in tvoje fotografije se prav tako izmenjujejo: vsakič fotografiraj tistega, ki ga zadnja fotografija ni pokazala. Počakaj, da zaslon preklopi na register, ki ga navede aplikacija (<span class=\"k\">1.8.1</span> ali <span class=\"k\">1.8.2</span>), nato fotografiraj."
+  ],
+  [
+   "tariff register 1 went down",
+   "Vsak register šteje samo navzgor. Preveri, ali sta mala in velika tarifa vsaka v svojem polju, v istem vrstnem redu kot zadnjič."
+  ],
+  [
+   "the automatic reading is stale",
+   "Odčitek mora biti ob prevzemu star manj kot 48 ur. Urnik poskuša vsako uro — v <span class=\"k\">.gul-bridge.log</span> poleg <span class=\"k\">gul.js</span> poglej, zakaj ni uspel, ali znova zaženi <span class=\"k\">node gul.js --install</span>. Izplača se, takoj ko dnevnik pokaže <span class=\"k\">pushed … ✓</span>."
+  ],
+  [
+   "Ni odčitka v »⚡ Samodejno odčitavanje«",
+   "Skripta še ni uspešno poslala odčitka. Poglej v njeno okno ali odpri <span class=\"k\">.gul-bridge.log</span> v isti mapi kot gul.js: vsak zagon zapiše bodisi <span class=\"k\">pushed … ✓</span> bodisi razlog, zakaj ni uspel."
+  ],
+  [
+   "Ne veš zagotovo, ali je v urniku?",
+   "Windows: v PowerShellu zaženi <span class=\"k\">schtasks /Query /TN GreenUtilityLog</span> — vrstica z <em>GreenUtilityLog</em> in časom naslednjega zagona pomeni, da je. Mac / Linux / Pi: <span class=\"k\">crontab -l</span> mora pokazati vrstico, ki se konča z <em># GreenUtilityLog</em>. Tam ni ničesar? Še enkrat prilepi vrstico za nastavitev."
+  ],
+  [
+   "Nastavitev je bila narejena pred 24. septembrom",
+   "Še enkrat prilepi isto vrstico. Nova skripta počaka na strežnik, ki se še prebuja, namesto da bi obupala, vsak zagon zapiše v <span class=\"k\">.gul-bridge.log</span> in na Windows deluje tudi na baterijo."
+  ],
+  [
+   "Powerfox didn't accept the e-mail and password",
+   "Uporabi natanko e-poštni naslov in geslo iz aplikacije Powerfox (pazi na tipkarske napake in presledke). Je bilo geslo za Powerfox spremenjeno? Možnost 1: z novim geslom znova pritisni <strong>Connect Powerfox</strong>. Možnost 2: znova prilepi vrstico za nastavitev — vpraša te za geslo."
+  ],
+  [
+   "switch on data transfer (Datenfreigabe)",
+   "Powerfox noče deliti tvojih odčitkov. V aplikaciji Powerfox vklopi prenos podatkov (Datenfreigabe) in poskusi znova."
+  ],
+  [
+   "Powerfox only has an old reading",
+   "Tvoj poweropti že nekaj časa ni poslal ničesar Powerfoxu. V aplikaciji Powerfox preveri, ali je povezan s spletom (Wi-Fi, baterija). Dokler ni novega odčitka, se nič ne pošlje in nič ne izplača."
+  ],
+  [
+   "Tibber didn't accept this token",
+   "Žeton znova kopiraj z developer.tibber.com, brez presledkov. Je bil tam ustvarjen nov žeton? Potem stari ne deluje več: znova se poveži z novim."
+  ],
+  [
+   "no Tibber Pulse found on this account",
+   "Pulse mora biti nastavljen v aplikaciji Tibber, v istem računu kot žeton."
+  ],
+  [
+   "your Pulse sends live data but no meter total",
+   "Vsak števec ne sporoča skupnega stanja prek vmesnika HAN. V tem primeru uporabi fotografije ali drug čitalnik."
+  ],
+  [
+   "this phone is already used by 1 other wallet",
+   "Ena oseba, ena denarnica: s telefonom lahko služi samo ena denarnica. Denarnica, ki je bila na tem telefonu prva izplačana, deluje naprej. Trajno na novo denarnico? Prosi skrbnika prek »Pošlji mnenje« v aplikaciji."
+  ],
+  [
+   "automatic payouts are paused until you take one photo",
+   "Čitalnik, ki pošilja lastne številke (P1, Home Assistant, ta skripta), potrebuje eno fotografijo tvojega števca vsakih 90 dni; Powerfox, Tibber in MojElektro je ne. Enak premor nastopi enkrat tudi po tem, ko je bilo izhodišče popravljeno brez fotografije. Posnemi eno na zavihku Števec in izplačila znova stečejo. Aplikacija te teden prej opomni."
+  ],
+  [
+   "already been corrected once",
+   "Izhodišče števca je mogoče popraviti enkrat — vsak popravek izbriše porabo od zadnjega izplačila. Če je spet napačno, prosi skrbnika prek »Pošlji mnenje« v aplikaciji."
+  ]
+ ],
+ "close": "Še vedno ne gre? Pošlji sporočilo s tem, kar kaže zavihek z dnevnikom (ali terminal) — običajno natanko pove, kaj manjka.",
+ "foot": "GreenUtilityLog · Vodnik za preizkuševalce · Testnet beta — testni žetoni, zaenkrat brez realne vrednosti.",
+ "s_pf": "Pot D — Powerfox (poweropti)",
+ "pf_intro": "Poweropti bere tvoj števec in pošilja skupno stanje v oblak Powerfox. Spodaj so trije načini, kako ga dobimo mi — <strong>potrebuješ samo enega</strong>. Ne veš, katerega? Izberi možnost 1.",
+ "pf_first_t": "Najprej v aplikaciji Powerfox",
+ "pf_first_b": "Vklopi <strong>prenos podatkov</strong> (Datenfreigabe). Brez tega Powerfox tvojih odčitkov ne deli z nikomer — ne z nami in tudi ne s Home Assistantom.",
+ "pf1_t": "Možnost 1 — We fetch it for you (najlažje)",
+ "pf1": [
+  [
+   "V aplikaciji odpri Powerfox",
+   "V aplikaciji: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Powerfox</span> in izberi <strong>»We fetch it for you«</strong>. Ga ni? Potem ga ta različica še ne ponuja — uporabi možnost 2 ali 3.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Prijavi se s svojim računom Powerfox",
+   "Vpiši e-poštni naslov in geslo, ki ju uporabljaš v aplikaciji Powerfox, označi polje in pritisni <strong>Connect Powerfox</strong>. Tvoja prijava je shranjena šifrirano in se uporablja samo za branje tvojega števca. Nasvet: uporabi geslo, ki ga ne uporabljaš nikjer drugje.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Končano — računalnik je lahko izklopljen",
+   "Naš strežnik približno vsako uro pridobi skupno stanje tvojega števca od Powerfoxa in ga izplača kot vsak drug odčitek. Želiš prenehati? <strong>Disconnect Powerfox</strong> takoj izbriše tvojo prijavo.",
+   "see",
+   "Preveri, ali deluje",
+   "Stanje na vrhu kaže <span class=\"k\">✅ Povezano — … kWh prejeto</span>."
+  ]
+ ],
+ "pf2_t": "Možnost 2 — Na lastnem računalniku",
+ "pf2": [
+  [
+   "Pripravi terminal in Node.js",
+   "Najprej opravi korake 2–4 poti B: odpri PowerShell ali terminal in preveri, ali je nameščen Node.js 22 ali novejši.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Prilepi eno vrstico z e-poštnim naslovom za Powerfox",
+   "Namesto <span class=\"k\">YOUR_POWERFOX_EMAIL</span> vpiši e-poštni naslov svojega računa Powerfox. Enkrat te vpraša za žeton in geslo za Powerfox (geslo se med tipkanjem ne prikaže) in oboje hrani v zasebni datoteki poleg gul.js. Nato se sama nastavi v urnik, tako kot pri poti B. Računalnik mora biti vklopljen vsaj enkrat na dan.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Preveri, ali deluje",
+   "Skripta izpiše, kaj je poslala.",
+   "see",
+   "Pričakovani izpis",
+   "<span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "pf3_t": "Možnost 3 — S Home Assistantom",
+ "pf3": [
+  [
+   "Dodaj Powerfox v Home Assistant",
+   "V Home Assistantu: <span class=\"k\">Settings → Devices &amp; services → Add integration → Powerfox</span>. Prijavi se s svojim računom Powerfox.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Dodaj našo integracijo",
+   "Sledi poti A, <em>»Z našo integracijo«</em>: dodaj nas v HACS, namesti, znova zaženi in prilepi svoj žeton.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Izberi senzor števca Powerfox",
+   "Kot senzor izberi senzor Powerfox <strong>Energy usage</strong> (kWh). Dvotarifni števec, pri katerem ta ostane prazen? Ustvari pomočnika, ki sešteje senzorja velike in male tarife (<span class=\"k\">Settings → Devices &amp; services → Helpers → Create helper → Group → Sensor group</span>, vrsta <strong>Sum</strong>; ne »Combine the state of several sensors«, ki ga naša integracija ne sprejme kot skupno stanje števca), in izberi tega.",
+   null,
+   null,
+   null
+  ]
+ ],
+ "s_tb": "Pot E — Tibber Pulse",
+ "tb_intro": "Tibber Pulse bere vmesnik HAN ali P1 na tvojem števcu in pošilja skupno stanje Tibberju. Dva načina, kako ga dobimo mi — <strong>potrebuješ samo enega</strong>.",
+ "tb1_t": "Možnost 1 — We fetch it for you (najlažje)",
+ "tb1": [
+  [
+   "Kopiraj svoj žeton Tibber",
+   "Odpri <span class=\"k\">developer.tibber.com</span>, prijavi se s svojim računom Tibber, odpri <strong>Access token</strong> in kopiraj svoj osebni žeton.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Prilepi ga v aplikacijo",
+   "V aplikaciji: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Tibber → »We fetch it for you«</span>. Prilepi žeton, označi polje in pritisni <strong>Connect Tibber</strong>. To lahko traja do 30 sekund. Ga ni? Potem ga ta različica še ne ponuja — uporabi možnost 2.",
+   "see",
+   "Preveri, ali deluje",
+   "Aplikacija pokaže <span class=\"k\">Povezano — Tibber sporoča … kWh</span>. Preveri, ali se to ujema s skupnim stanjem na tvojem števcu."
+  ]
+ ],
+ "tb2_t": "Možnost 2 — S Home Assistantom",
+ "tb2": [
+  [
+   "Dodaj Tibber v Home Assistant",
+   "<span class=\"k\">Settings → Devices &amp; services → Add integration → Tibber</span>. Prilepi svoj žeton Tibber.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Dodaj našo integracijo in izberi senzor",
+   "Sledi poti A, <em>»Z našo integracijo«</em>, in kot senzor izberi senzor Tibber <strong>Last meter consumption</strong> (kWh) — lastno skupno stanje števca.",
+   null,
+   null,
+   null
+  ]
+ ]
+}

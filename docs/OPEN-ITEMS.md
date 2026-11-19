@@ -105,7 +105,8 @@ Laatst bijgewerkt: 2026-11-01.
 
 ## Product en organisatie
 - [ ] Antwoord aan VeBetterDAO (beoordeling) versturen en opvolgen
-- [ ] Creator NFT / endorsement afwachten
+- [x] Creator NFT ontvangen; app-aanvraag op mainnet ingediend (17-11-2026)
+- [ ] Goedkeuring en endorsement afwachten
 - [ ] Mainnet-stappen uit `docs/MAINNET.md` (Render-dienst, sleutels, `CERT_DOMAINS`, eerste week `MAX_PAYOUT_PER_SUBMISSION=1`)
 - [ ] Grant-aanvraag VeBetter Grants (x2earn-spoor)
 - [x] Toegang mainnet volgens de regel van VeBetterDAO (morbidejs, 17-11-2026): hoofdwallet van het Passport (geen gekoppelde), geen signaleringen, gestemd in de vorige ronde met een GM NFT van niveau 2+ die nog in de wallet staat, plus Passport "is persoon". Elke regel apart getest; de app toont per regel wat ontbreekt (20 talen)
@@ -138,7 +139,7 @@ Met een foto kan elk land al meedoen. Voor elk nieuw land geldt eerst: een norm 
 - [x] 7 talen erbij: Italiaans, Grieks, Turks, Sloveens, Kroatisch, Roemeens, Bulgaars (app, Help/FAQ, servermeldingen). Machinaal vertaald en automatisch gecontroleerd; nog niet nagelezen door iemand die de taal spreekt
 - [ ] Vertalingen laten nalezen door een moedertaalspreker (per taal)
 - [x] 8 talen erbij: Zweeds, Deens, Noors, Fins, Hongaars (daar werken meters al), Pools, Portugees, Tsjechisch — 20 talen in totaal; ook nog niet nagelezen
-- [ ] De handleiding (`docs/guide.html`) is er in 5 talen, nog niet in de 7 nieuwe
+- [x] Handleiding: schermnamen komen uit de app zelf (klopten in het Nederlands, Duits, Frans en Spaans niet: stonden in het Engels); fotoregel bijgewerkt (90 dagen, niet voor Powerfox/Tibber/MojElektro); extra talen als `docs/guide_lang/<code>.json`, door het script gecontroleerd op opbouw, opdrachten, links en HTML; taalkeuze als keuzelijst
 - [x] FAQ "Welke meters werken?" en de landentabel in de handleiding: Slovenië (P1, nog niet getest), Griekenland, Kroatië, Turkije, Roemenië, Bulgarije en de rest van de Balkan (voorlopig foto's), in 5 talen
 - [ ] Norm per land, vastgesteld door de beheerder of aan de hand van de meter (niet door de gebruiker zelf te kiezen)
 - [ ] 🇸🇮 Slovenië: P1-poort op Iskraemeco-meters (soms versleuteld; niet elke netbeheerder geeft de sleutel) en het portaal MojElektro (persoonlijke toegangscode). Eerst testen of de bestaande P1/Home Assistant-routes al werken

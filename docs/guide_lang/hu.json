@@ -1,0 +1,540 @@
+{
+ "_toc": "Ezen az oldalon",
+ "name": "English",
+ "kicker": "Útmutató tesztelőknek",
+ "h1": "Keress úgy, hogy nem fotózod a mérődet",
+ "lede": "Általában lefotózod a mérődet, hogy B3TR-t keress. Ha otthon már van valami, ami le tudja olvasni a mérőt, az elküldheti helyetted a mérőállást — és soha többé nem kell fotóznod. Először keresd meg lent, milyen eszközöd van.",
+ "s_routes": "Milyen eszközöd van?",
+ "s_token": "Minden automatikus útvonalhoz: kérd le a tokenedet",
+ "s_a": "A útvonal — Home Assistant (bármilyen mérő)",
+ "s_b": "B útvonal — HomeWizard P1, Home Assistant nélkül",
+ "s_c": "C útvonal — Más leolvasó (P1-olvasó, Tasmota olvasófej)",
+ "s_claim": "Végül: a kifizetés magától megtörténik",
+ "s_trouble": "Ha valami nem működik",
+ "routes": [
+  [
+   "Home Assistantot használok",
+   "Szinte bármilyen mérővel működik, amelyet a HA már leolvas. Telepítsd az integrációnkat, vagy illessz be néhány sor YAML-t.",
+   1,
+   "Legegyszerűbb"
+  ],
+  [
+   "HomeWizard P1-em van",
+   "Nem kell hozzá Home Assistant. Működik itt: 🇳🇱 🇧🇪 🇱🇺 🇩🇰 🇸🇪 🇭🇺 — egy kis szkript magától megtalálja a mérődet a hálózaton.",
+   2,
+   "Kis technika"
+  ],
+  [
+   "Más leolvasóm van",
+   "P1 Monitor, Tasmota olvasófej (Hichi) vagy bármilyen leolvasó, amely a mérő összesített kWh-állását JSON-ként elérhetővé teszi a hálózatodon.",
+   3,
+   "Technikai"
+  ],
+  [
+   "Powerfoxom (poweropti) van",
+   "Németországban gyakori. A mérőállásodat lekérhetjük a Powerfox felhőjéből — semmit nem kell telepíteni, semmit nem kell bekapcsolva tartani.",
+   1,
+   "Legegyszerűbb"
+  ],
+  [
+   "Tibber Pulse-om van",
+   "Svédországban, Norvégiában, Dániában és Finnországban gyakori. A személyes tokeneddel lekérjük a mérőállásodat a Tibbertől — semmit nem kell telepíteni.",
+   1,
+   "Legegyszerűbb"
+  ],
+  [
+   "Egyik sem",
+   "Akkor fotózd tovább a mérődet. Ugyanolyan jól működik, és pontosan ugyanannyit hoz. Semmit nem kell beállítani.",
+   0,
+   "Nincs beállítás"
+  ]
+ ],
+ "baseline_t": "Először, egyszer: állítsd be a kiindulási értékedet",
+ "baseline_b": "Bármelyik útvonalat választod, előbb küldj be az appban <strong>egy szokásos fotós mérőállást</strong>. Ebből tudja az app, honnan indult a mérőd — enélkül az automatikus mérőállásokért nem lehet kifizetést adni.",
+ "token": [
+  [
+   "Másold ki az eszköztokenedet",
+   "Az appban: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → „Get my device token”</span>. Másold ki.",
+   "Mi ez?",
+   "Egy hosszú kód, amely azt mondja: „ezek a mérőállások az én tárcámhoz tartoznak”. Tartsd titokban — akinél megvan, a nevedben küldhet be mérőállásokat."
+  ]
+ ],
+ "a_intro": "Két lehetőség van. Az integrációnk a legegyszerűbb, és <em>bármilyen</em> mérővel működik, amelyet a Home Assistant már mutat neked; a YAML ugyanezt kézzel csinálja, ha inkább nem telepítenél semmit.",
+ "a1_t": "Az integrációnkkal (ajánlott)",
+ "a1": [
+  [
+   "Adj hozzá minket a HACS-hez",
+   "A Home Assistantban: <span class=\"k\">HACS → ⋮ (jobbra fent) → Custom repositories</span>. Illeszd be az alábbi címet, típusnak válaszd az <strong>Integration</strong> lehetőséget, és nyomd meg az Add gombot.",
+   "code",
+   "https://github.com/GreenUtilityLog/GreenUtilityLog",
+   "A tároló (repository) címe"
+  ],
+  [
+   "Telepítés és újraindítás",
+   "Nyisd meg a <strong>GreenUtilityLog</strong> elemet a HACS listájában, nyomd meg a <strong>Download</strong> gombot, majd indítsd újra a Home Assistantot.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Add hozzá az integrációt",
+   "Menj ide: <span class=\"k\">Settings → Devices &amp; services → Add integration</span>, és keress rá a <strong>GreenUtilityLog</strong> névre. Illeszd be a tokenedet, válaszd ki azt az érzékelőt, amelyik az <strong>összesített kWh-értéket</strong> mutatja, és add meg, milyen gyakran küldjön.",
+   "see",
+   "Ellenőrizd, hogy működik-e",
+   "Megjelenik egy <span class=\"k\">Last sent reading</span> nevű érzékelő a mérőállásoddal. Az attribútumai mutatják, mikor küldte el, és az esetleges hibát."
+  ]
+ ],
+ "a2_t": "Saját érzékelővel (bármilyen mérő)",
+ "a2": [
+  [
+   "Keresd meg a mérőd érzékelőjét",
+   "A Home Assistantban: <span class=\"k\">Developer tools → States</span>. Szűrj az <em>import</em> szóra, és válaszd azt a kWh-ban mért értéket, amely folyamatosan felfelé számol — ez az összesített állásod. Az entitásazonosítók telepítésenként eltérnek, ezért a sajátodat használd.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Add hozzá ezeket a sorokat",
+   "Írd be ezt a <span class=\"k\">configuration.yaml</span> fájlba, cseréld ki az entitást és a tokenedet, majd indítsd újra a Home Assistantot.",
+   "code",
+   "rest_command:\n  gul_push:\n    url: \"https://greenutilitylog-rewards.onrender.com/meter-ingest\"\n    method: POST\n    content_type: \"application/json\"\n    timeout: 90  # másodperc: a szervernek akár egy perc is kellhet, hogy felébredjen\n    payload: '{\"token\":\"A_TOKENED\",\"reading\":{{ states(\"sensor.AZ_ENTITASOD\") | float }}}'\n\n# automations.yaml — naponta kétszer (20 óránként egyszer igényelhetsz)\n- alias: Push meter to GreenUtilityLog\n  trigger: { platform: time_pattern, hours: \"/12\" }\n  # csak valódi összesített kWh-érték: újraindítás után nem 0, és nem unavailable\n  condition:\n    - condition: template\n      value_template: '{{ is_number(states(\"sensor.AZ_ENTITASOD\")) and states(\"sensor.AZ_ENTITASOD\") | float > 0 and state_attr(\"sensor.AZ_ENTITASOD\", \"unit_of_measurement\") == \"kWh\" }}'\n  action: { service: rest_command.gul_push }",
+   "configuration.yaml + automations.yaml"
+  ]
+ ],
+ "b": [
+  [
+   "Kapcsold be a Local API-t",
+   "A <strong>HomeWizard Energy</strong> appban: <span class=\"k\">Settings → Meters → a P1-ed → Local API → ON</span>. Így a saját hálózatod leolvashatja a mérőt.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Nyisd meg a PowerShellt (vagy egy terminált)",
+   "<strong>Windows:</strong> nyomd meg a Start gombot, írd be: <em>PowerShell</em>, majd Enter. <strong>Mac:</strong> nyisd meg a <em>Terminal</em> alkalmazást. <strong>Raspberry Pi / NAS:</strong> a saját termináljában vagy SSH-n keresztül. Minden további parancsot ebbe az ablakba írsz. Macen maradj abban a saját mappádban, amelyben a Terminal megnyílik (lásd az 5. lépést).",
+   null,
+   null,
+   null
+  ],
+  [
+   "Nézd meg, megvan-e már a Node",
+   "Írd be ezt, és nyomj Entert. Ha egy verziószámot kapsz — <span class=\"k\">v22</span> vagy afölött bármit —, akkor minden rendben (ha régebbit: a következő lépést is csináld meg, mert az már nem kap biztonsági frissítéseket), és a következő lépést kihagyhatod. Ha helyette hibaüzenetet kapsz, a Node még nincs telepítve.",
+   "code",
+   "node -v",
+   "Windows · Mac · Linux"
+  ],
+  [
+   "Telepítsd a Node.js-t, ha hibát kaptál",
+   "<strong>Windows:</strong> illeszd be az alábbi sort; ha a forrás feltételeinek elfogadását kéri, nyomj <span class=\"k\">Y</span>-t. <strong>Mac:</strong> az LTS telepítő a nodejs.org oldalról, vagy <span class=\"k\">brew install node</span>. <strong>Raspberry Pi / Debian:</strong> <span class=\"k\">sudo apt install nodejs</span> (Node 22 vagy újabb kell — a régebbi verziók már nem kapnak biztonsági frissítéseket; a Debian/Ubuntu gyakran régebbit ad — ilyenkor a nodesource.com telepítőjét használd). Ezután <strong>zárd be az ablakot, és nyiss egy újat</strong> — a már nyitva lévő ablak megtartja a régi PATH-t, így a <span class=\"k\">node</span> továbbra sem lenne található. Ellenőrizd újra ezzel: <span class=\"k\">node -v</span>.",
+   "code",
+   "winget install OpenJS.NodeJS.LTS",
+   "Windows — PowerShell"
+  ],
+  [
+   "Illessz be egy sort, és nyomj Entert",
+   "Ez letölti a szkriptet, és elküldi az első mérőállásodat. Ütemezi is magát, hogy naponta kétszer jelentsen (Windows: Feladatütemező · Mac / Linux / Pi: cron), így utána bezárhatod az ablakot, és tovább működik, újraindítás után is. Csak most az egyszer kell futtatnod. <strong>Mac:</strong> egy frissen megnyitott Terminalba illeszd be, a saját mappádban — előtte ne lépj be <span class=\"k\">cd</span>-vel az Íróasztal, Dokumentumok vagy Letöltések mappába: a macOS nem engedi, hogy az ütemezés (cron) ott fájlokat olvasson, így soha nem futna le.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Illeszd be a tokenedet, amikor kéri",
+   "Egyszer kéri, és megjegyzi; az ütemezés onnantól a mentett tokent használja. Ezután beállítja az ütemezést, megtalálja a mérőt, és elküldi az első mérőállást.",
+   "see",
+   "Ezt kell látnod, ebben a sorrendben",
+   "<span class=\"k\">Paste your device token…</span> → <span class=\"k\">Scheduled…</span> → <span class=\"k\">found HomeWizard at 192.168.…</span> → <span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "c_intro": "Ugyanez a szkript bármilyen eszközt le tud olvasni a hálózatodon, amely a mérő összesített kWh-állását JSON-ként, HTTP-n, bejelentkezés nélkül kínálja — csak azt kell megmondanod, hol. Nem minden leolvasó ilyen: a dsmr-reader API-ja kulcsot kér, a Shelly pedig a saját mért energiáját számolja, nem a mérő regiszterét. Előbb csináld meg a B útvonal 2–4. lépését (terminál és Node); csak az alábbi parancs más.",
+ "c": [
+  [
+   "Keresd meg a leolvasód adat-URL-jét",
+   "Nyisd meg a leolvasód weboldalát, és keresd meg azt a címet, amely nyers JSON-t ad vissza (gyakran valami ilyesmi: <span class=\"k\">/api/v1/data</span> vagy <span class=\"k\">/api/v2/sm/actual</span>). A pontos útvonalak gyártónként eltérnek — nézd meg a leolvasód saját dokumentációját.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Indítsd el a szkriptet ezzel az URL-lel",
+   "A példacím helyére a sajátodat írd; a tokent magától kéri. Ha nem találja meg automatikusan a mérőállást, add hozzá a <span class=\"k\">--field=</span> kapcsolót a JSON-ban lévő kWh-értékhez vezető, pontokkal tagolt útvonallal. Csak két tarifaregiszter van, és nincs összesített érték (például a P1 Monitornál)? Kapcsold össze a két útvonalat <span class=\"k\">+</span> jellel, és az összegüket küldi, pl. <span class=\"k\">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install --url=http://192.168.1.60/api/v1/data"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Tasmota olvasófejed (Hichi) van?",
+   "A <span class=\"k\">--url=</span> helyett használd a <span class=\"k\">--tasmota=</span> kapcsolót az IP-címével. A szkript magától kiolvassa a mérő összesített állását (<span class=\"k\">Total_in</span>). Német, osztrák és svájci mérőkön gyakori.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --tasmota=192.168.1.70 --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Ellenőrizd, hogy működött-e",
+   "A szkript kiírja, mit küldött el.",
+   "see",
+   "Várt kimenet",
+   "<span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "claim": [
+  [
+   "A mérőállásod magától megjelenik",
+   "Az appban nyisd meg a <strong>Mérő</strong> lapot. Az <strong>⚡ Automatikus leolvasás</strong> panelen ez áll: <span class=\"k\">Csatlakoztatva — … kWh beérkezett</span>, a mérőállásoddal és a beérkezés idejével.",
+   null,
+   null,
+   null
+  ],
+  [
+   "A kifizetés magától megtörténik",
+   "Semmit nem kell megnyomnod: minden mérőállásért automatikusan jár a kifizetés, amikor beérkezik, legfeljebb naponta egyszer, és a panel <strong>Idővonal</strong> része mutatja: <span class=\"k\">Kifizetve +… B3TR</span>. Nem akarsz várni? Az <strong>Igénylés most</strong> ugyanezt teszi.",
+   null,
+   null,
+   null
+  ]
+ ],
+ "s_country": "Működik ez ott, ahol élsz?",
+ "country_intro": "A mérő csatlakozója országonként eltér, ezért nem minden leolvasó működik mindenhol. Ami mindig működik: <strong>ha a Home Assistant már mutatja a mérőd összesített állását, az A útvonal működik</strong> — bármelyik országban vagy.",
+ "country_th": [
+  "Ország",
+  "A mérődön ez van",
+  "Ezt használd"
+ ],
+ "country_rows": [
+  [
+   "🇳🇱 Hollandia",
+   "P1 port (RJ12)",
+   "Bármelyik útvonal. A HomeWizard azonnal működik."
+  ],
+  [
+   "🇧🇪 Belgium",
+   "P1 port (RJ12, alapból kikapcsolva)",
+   "Bármelyik útvonal, ha a port be van kapcsolva: a Fluvius portálján ingyen bekapcsolhatod (más hálózati szolgáltatónál kérdezd meg a sajátodat)."
+  ],
+  [
+   "🇱🇺 Luxemburg",
+   "P1 port (Smarty, titkosított)",
+   "HomeWizard P1: egyszer kérd el a hálózati szolgáltatódtól a P1-kulcsot. Vagy Home Assistant."
+  ],
+  [
+   "🇸🇪 Svédország · 🇫🇮 Finnország",
+   "HAN port (RJ12)",
+   "🇸🇪 HomeWizard P1 (B útvonal) — lehet, hogy előbb a hálózati szolgáltatónak kell bekapcsolnia a portot. Tibber Pulse: E útvonal. Egyébként P1/HAN-olvasó vagy Home Assistant."
+  ],
+  [
+   "🇩🇰 Dánia",
+   "P1 (alapból kikapcsolva) vagy HAN",
+   "HomeWizard P1 (B útvonal), miután a hálózati szolgáltatód bekapcsolta a P1 portot — a HAN porthoz átalakító kell. Tibber Pulse: E útvonal. Egyébként megfelelő csatlakozós leolvasó vagy Home Assistant."
+  ],
+  [
+   "🇭🇺 Magyarország",
+   "P1 port (a hálózati szolgáltatótól függ)",
+   "HomeWizard P1 bizonyos mérőkkel — előbb nézd meg a HomeWizard listáját. Vagy Home Assistant, vagy fotók."
+  ],
+  [
+   "🇳🇴 Norvégia",
+   "HAN (RJ45, M-BUS)",
+   "Tibber Pulse: E útvonal. Egyébként norvég HAN-olvasó + Home Assistant."
+  ],
+  [
+   "🇩🇪 Németország",
+   "Smart-Meter-Gateway / optikai olvasófej",
+   "Powerfox poweropti: D útvonal. Tasmota olvasófej (Hichi): C útvonal. Egyébként Home Assistant."
+  ],
+  [
+   "🇸🇮 Szlovénia",
+   "Sok mérőn P1 port (néha titkosított)",
+   "Valószínűleg Home Assistant egy P1-olvasóval — még nem teszteltük."
+  ],
+  [
+   "🇬🇷 Görögország · 🇭🇷 Horvátország · 🇹🇷 Törökország",
+   "Még nem találtunk ügyfélportot",
+   "Egyelőre fotók."
+  ],
+  [
+   "🇷🇴 Románia · 🇧🇬 Bulgária · a Balkán többi része",
+   "Még nem találtunk ügyfélportot",
+   "Egyelőre fotók."
+  ],
+  [
+   "🇦🇹 Ausztria",
+   "Ügyfélinterfész (M-Bus) / optikai port",
+   "Tibber Pulse: E útvonal. Tasmota olvasófej (Hichi): C útvonal. Egyébként Home Assistant."
+  ],
+  [
+   "🇨🇭 Svájc",
+   "Ügyfélinterfész / optikai port",
+   "Tasmota olvasófej (Hichi): C útvonal. Egyébként Home Assistant."
+  ],
+  [
+   "🇫🇷 Franciaország",
+   "Linky: TIC port",
+   "Nincs P1 port, így egyelőre csak Home Assistant (pl. ZLinkyvel). Vagy fotók."
+  ],
+  [
+   "🇬🇧 Egyesült Királyság",
+   "SMETS2: nincs port (Zigbee)",
+   "Nincs P1 port, így egyelőre csak Home Assistant (pl. Hildebrand Glow-val). Vagy fotók."
+  ],
+  [
+   "🇪🇸 Spanyolország",
+   "Nincs port",
+   "Nincs P1 port, így egyelőre csak Home Assistant (pl. Datadisszel). Vagy fotók."
+  ],
+  [
+   "🇮🇹 Olaszország",
+   "Chain 2 (eszköz kell hozzá, pl. Sinapsi Alfa)",
+   "Nincs P1 port, így egyelőre csak Home Assistant. Vagy fotók."
+  ],
+  [
+   "🇺🇸 🇨🇦 USA és Kanada",
+   "Nincs P1 port (Zigbee, csak ha az áramszolgáltató engedélyezi)",
+   "Fotók, ha a kijelző mutatja az összesített kWh-állást. Home Assistant egy Rainforest EAGLE-lel, ahol az áramszolgáltató engedi. Québec (Hydro-Québec): csak fotók."
+  ],
+  [
+   "Máshol",
+   "Változó",
+   "Ha a Home Assistant leolvassa a mérődet, az A útvonal működik."
+  ]
+ ],
+ "country_close": "Nem vagy biztos benne? Nyisd meg a Home Assistantot, és keresd meg a mérődet itt: Developer tools → States. Ha ott van egy felfelé számoló kWh-érték, minden rendben. HomeWizard P1? Nézd meg a mérődet a <a href=\"https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter\">HomeWizard listáján</a>.",
+ "be_t": "🇧🇪 Belgium (Fluvius-mérők)",
+ "be_b": "A belga mérőkön a P1 port alapból ki van kapcsolva. A Fluviusnál ingyen bekapcsolhatod az online portáljukon; más hálózati szolgáltatónál kérdezd meg őket. Ezután minden ugyanúgy működik.",
+ "once_t": "Nincs olyan géped, amely mindig be van kapcsolva?",
+ "once_b": "Nem is kell. Ki volt kapcsolva a számítógép egy ütemezett időpontban? Akkor elküldi, amint újra bekapcsolod — vagyis elég egy laptop, amelyet néha kinyitsz. A kifizetés a beérkezéskor megtörténik, legfeljebb naponta egyszer.",
+ "th": [
+  "Ezt látod",
+  "Mit tegyél"
+ ],
+ "trouble": [
+  [
+   "'node' is not recognized",
+   "A Node.js nincs telepítve, vagy az ablak már nyitva volt, amikor telepítetted. Windowson: <span class=\"k\">winget install OpenJS.NodeJS.LTS</span>. Máshol: nodejs.org. Utána nyiss egy <strong>új</strong> terminált, és illeszd be újra a sort. Git nem kell hozzá."
+  ],
+  [
+   "Semmi sem történik — nincs kimenet, rögtön visszajön a parancssor",
+   "A szkript egy régi, szeptember 19. előtti példánya. Volt benne egy hiba, amely miatt Windowson semmit sem írt ki, és kilépett. Töltsd le újra a fenti sorral; az új verzió elkéri a tokenedet."
+  ],
+  [
+   "no HomeWizard found on the network",
+   "A hálózatod blokkolja az automatikus keresést — vendég Wi-Fin és VLAN-ok esetén gyakori. Nézd meg a P1-ed IP-címét a HomeWizard appban, és futtasd ezt: <span class=\"k\">node gul.js --install --ip=192.168.1.50</span>. A Home Assistant bővítményben ehelyett a <span class=\"k\">hw_ip</span> mezőt töltsd ki."
+  ],
+  [
+   "couldn't find a total import kWh",
+   "Elérte az eszközt, de semmi használhatót nem kapott vissza: a HomeWizard appban <strong>a Local API még ki van kapcsolva</strong>, vagy ez nem P1-mérő. Más gyártmányú leolvasóhoz használd a <span class=\"k\">--url=</span> kapcsolót."
+  ],
+  [
+   "couldn't find a kWh number at …",
+   "A leolvasód JSON-ja olyan nevet használ, amelyet a szkript nem ismer. Add hozzá a <span class=\"k\">--field=</span> kapcsolót az értékhez vezető, pontokkal tagolt útvonallal, pl. <span class=\"k\">--field=electricity.import_kwh</span>."
+  ],
+  [
+   "server said 401",
+   "A token hibás vagy hiányos. Másold ki újra az appból, és futtasd egyszer ezt: <span class=\"k\">node gul.js --ask-token --install</span>, hogy lecseréld a mentettet."
+  ],
+  [
+   "submit one photo reading first",
+   "A mérődnek még nincs kiindulási értéke. Küldj be az appban egy szokásos fotós mérőállást — az automatikus mérőállások soha nem állítják be az első értéket, hogy egy eszköz ne találhassa ki a saját kiindulási értékét. Ezután jön a kifizetés."
+  ],
+  [
+   "usage … is outside the plausible range",
+   "Szinte mindig <strong>kéttarifás mérőről</strong> van szó: a kijelző két regisztert vezet (<span class=\"k\">1.8.1</span> és <span class=\"k\">1.8.2</span>), és a fotód az egyiket rögzítette, a leolvasód viszont a kettő összegét jelenti — így a kiindulási érték és a leolvasó más skálán van. Az appban, az <span class=\"k\">⚡ Automatikus leolvasás</span> panelen nyomd meg ezt: <strong>&bdquo;Legyen ez a mérőállás a kiindulási értékem&rdquo;</strong>. Ez nem jár kifizetéssel, csak azt rögzíti, honnan indul a számolás. Az első automatikus kifizetésedig teheted meg."
+  ],
+  [
+   "this time photograph tariff register 2",
+   "A mérőd felváltva mutat két regisztert, és a fotóid is felváltva követik egymást: mindig azt fotózd le, amelyiket az előző fotód nem mutatta. Várd meg, amíg a kijelző az app által megnevezett regisztert mutatja (<span class=\"k\">1.8.1</span> vagy <span class=\"k\">1.8.2</span>), és akkor készítsd el a fotót."
+  ],
+  [
+   "tariff register 1 went down",
+   "Mindegyik regiszter csak felfelé számol. Ellenőrizd, hogy az alacsony és a normál tarifa külön mezőben van-e, ugyanabban a sorrendben, mint legutóbb."
+  ],
+  [
+   "the automatic reading is stale",
+   "A mérőállás az igényléskor legfeljebb 48 órás lehet. Az ütemezés óránként próbálkozik — a <span class=\"k\">gul.js</span> melletti <span class=\"k\">.gul-bridge.log</span> fájlban nézd meg, miért nem sikerült, vagy futtasd újra ezt: <span class=\"k\">node gul.js --install</span>. A kifizetés megtörténik, amint a naplóban megjelenik: <span class=\"k\">pushed … ✓</span>."
+  ],
+  [
+   "Nincs mérőállás az „⚡ Automatikus leolvasás” panelen",
+   "A szkript még nem tudott sikeresen küldeni. Nézd meg az ablakát, vagy nyisd meg a <span class=\"k\">.gul-bridge.log</span> fájlt a gul.js mappájában: minden futás vagy azt írja, hogy <span class=\"k\">pushed … ✓</span>, vagy a hiba okát."
+  ],
+  [
+   "Nem vagy biztos benne, hogy be van ütemezve?",
+   "Windows: futtasd a PowerShellben: <span class=\"k\">schtasks /Query /TN GreenUtilityLog</span> — ha látsz egy sort <em>GreenUtilityLog</em> névvel és a következő futás idejével, akkor be van ütemezve. Mac / Linux / Pi: a <span class=\"k\">crontab -l</span> parancsnak egy <em># GreenUtilityLog</em> végű sort kell mutatnia. Nincs ott semmi? Illeszd be még egyszer a beállító sort."
+  ],
+  [
+   "Szeptember 24. előtt állítottad be",
+   "Illeszd be még egyszer ugyanazt a sort. Az új szkript megvárja a még ébredő szervert ahelyett, hogy feladná, minden futást beír a <span class=\"k\">.gul-bridge.log</span> fájlba, és Windowson akkumulátorról is fut."
+  ],
+  [
+   "Powerfox didn't accept the e-mail and password",
+   "Pontosan azt az e-mail-címet és jelszót használd, amelyet a Powerfox appban (figyelj az elírásokra és a szóközökre). Megváltoztattad a Powerfox-jelszavadat? 1. lehetőség: nyomd meg újra a <strong>Connect Powerfox</strong> gombot az új jelszóval. 2. lehetőség: illeszd be újra a beállító sort — elkéri a jelszót."
+  ],
+  [
+   "switch on data transfer (Datenfreigabe)",
+   "A Powerfox nem hajlandó megosztani a mérőállásaidat. Kapcsold be a Powerfox appban az adatmegosztást (Datenfreigabe), és próbáld újra."
+  ],
+  [
+   "Powerfox only has an old reading",
+   "A poweropti egy ideje nem küldött semmit a Powerfoxnak. Ellenőrizd a Powerfox appban, hogy online van-e (Wi-Fi, akkumulátor). Amíg nincs friss mérőállás, semmi nem megy el, és nincs kifizetés."
+  ],
+  [
+   "Tibber didn't accept this token",
+   "Másold ki újra a tokent a developer.tibber.com oldalról, szóközök nélkül. Készítettél ott új tokent? Akkor a régi már nem működik: csatlakozz újra az újjal."
+  ],
+  [
+   "no Tibber Pulse found on this account",
+   "A Pulse-t a Tibber appban kell beállítani, ugyanabban a fiókban, amelyikhez a token tartozik."
+  ],
+  [
+   "your Pulse sends live data but no meter total",
+   "Nem minden mérő adja ki az összesített állását a HAN porton. Ilyenkor használj fotókat vagy másik leolvasót."
+  ],
+  [
+   "this phone is already used by 1 other wallet",
+   "Egy ember, egy tárca: egy telefonnal csak egy tárca kereshet. Az a tárca, amelyik ezen a telefonon először kapott kifizetést, továbbra is működik. Végleg új tárcára váltottál? Kérj segítséget egy admintól az app Visszajelzés küldése funkciójával."
+  ],
+  [
+   "automatic payouts are paused until you take one photo",
+   "Az olyan leolvasóhoz, amely a saját számait küldi (P1, Home Assistant, ez a szkript), 90 naponta kell egy fotó a mérődről; a Powerfoxhoz, a Tibberhez és a MojElektróhoz nem. Ugyanez a szünet egyszer akkor is bekövetkezik, ha a kiindulási értéket fotó nélkül javították. Készíts egy fotót a Mérő fülön, és a kifizetések újraindulnak. Az app egy héttel előtte szól."
+  ],
+  [
+   "already been corrected once",
+   "Egy mérő kiindulási értéke egyszer javítható — minden javítás törli az utolsó kifizetés óta mért fogyasztást. Ha megint hibás, kérj segítséget egy admintól az app Visszajelzés küldése funkciójával."
+  ]
+ ],
+ "close": "Még mindig elakadtál? Küldj egy üzenetet arról, mit mutat a Napló fül (vagy a terminál) — általában pontosan ott áll, mi hiányzik.",
+ "foot": "GreenUtilityLog · Útmutató tesztelőknek · Testnet béta — teszttokenek, még nincs valódi értékük.",
+ "s_pf": "D útvonal — Powerfox (poweropti)",
+ "pf_intro": "A poweropti leolvassa a mérődet, és elküldi az összesített állást a Powerfox felhőjébe. Lent három módját látod annak, hogyan jut el hozzánk — <strong>csak egy kell</strong>. Nem vagy biztos benne? Válaszd az 1. lehetőséget.",
+ "pf_first_t": "Először a Powerfox appban",
+ "pf_first_b": "Kapcsold be az <strong>adatmegosztást</strong> (Datenfreigabe). Enélkül a Powerfox senkivel nem osztja meg a mérőállásaidat — sem velünk, sem a Home Assistanttal.",
+ "pf1_t": "1. lehetőség — Mi kérjük le neked (legegyszerűbb)",
+ "pf1": [
+  [
+   "Nyisd meg a Powerfoxot az appban",
+   "Az appban: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Powerfox</span>, és válaszd ezt: <strong>„We fetch it for you”</strong>. Nincs ott? Akkor ez a verzió még nem kínálja — használd a 2. vagy a 3. lehetőséget.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Jelentkezz be a Powerfox-fiókoddal",
+   "Add meg azt az e-mail-címet és jelszót, amelyet a Powerfox appban használsz, jelöld be a négyzetet, és nyomd meg a <strong>Connect Powerfox</strong> gombot. A belépési adataidat titkosítva tároljuk, és csak a mérőd leolvasására használjuk. Tipp: olyan jelszót használj, amelyet máshol nem.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Kész — a számítógéped maradhat kikapcsolva",
+   "A szerverünk nagyjából óránként lekéri a mérőd összesített állását a Powerfoxtól, és ugyanúgy fizet érte, mint bármely mérőállásért. Le akarod állítani? A <strong>Disconnect Powerfox</strong> azonnal törli a belépési adataidat.",
+   "see",
+   "Ellenőrizd, hogy működik-e",
+   "A fenti állapotsor ezt mutatja: <span class=\"k\">✅ Csatlakoztatva — … kWh beérkezett</span>."
+  ]
+ ],
+ "pf2_t": "2. lehetőség — A saját számítógépeden",
+ "pf2": [
+  [
+   "Készítsd elő a terminált és a Node.js-t",
+   "Előbb csináld meg a B útvonal 2–4. lépését: nyisd meg a PowerShellt vagy egy terminált, és ellenőrizd, hogy a Node.js 22 vagy újabb telepítve van-e.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Illessz be egy sort a Powerfox e-mail-címeddel",
+   "A <span class=\"k\">YOUR_POWERFOX_EMAIL</span> helyére írd a Powerfox-fiókod e-mail-címét. Egyszer elkéri a tokenedet és a Powerfox-jelszavadat (a jelszó gépelés közben nem látszik), és mindkettőt egy privát fájlban tárolja a gul.js mellett. Ezután ütemezi magát, pont úgy, mint a B útvonalon. A számítógépnek legalább naponta egyszer be kell lennie kapcsolva.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Ellenőrizd, hogy működött-e",
+   "A szkript kiírja, mit küldött el.",
+   "see",
+   "Várt kimenet",
+   "<span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "pf3_t": "3. lehetőség — Home Assistanttal",
+ "pf3": [
+  [
+   "Add hozzá a Powerfoxot a Home Assistanthoz",
+   "A Home Assistantban: <span class=\"k\">Settings → Devices &amp; services → Add integration → Powerfox</span>. Jelentkezz be a Powerfox-fiókoddal.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Add hozzá az integrációnkat",
+   "Kövesd az A útvonal <em>„Az integrációnkkal”</em> részét: adj hozzá minket a HACS-hez, telepítsd, indítsd újra, és illeszd be a tokenedet.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Válaszd ki a Powerfox mérőérzékelőjét",
+   "Érzékelőként a Powerfox <strong>Energy usage</strong> (kWh) érzékelőjét válaszd. Kéttarifás a mérő, és ez üres marad? Hozz létre egy segédet, amely összeadja a csúcs- és völgyidőszaki tarifa érzékelőit (<span class=\"k\">Settings → Devices &amp; services → Helpers → Create helper → Group → Sensor group</span>, típus: <strong>Sum</strong>; ne a „Combine the state of several sensors” lehetőséget, mert azt az integrációnk nem fogadja el összesített mérőállásként), és azt válaszd.",
+   null,
+   null,
+   null
+  ]
+ ],
+ "s_tb": "E útvonal — Tibber Pulse",
+ "tb_intro": "A Tibber Pulse a mérőd HAN vagy P1 portját olvassa, és az összesített állást elküldi a Tibbernek. Két módja van, hogy eljusson hozzánk — <strong>csak egy kell</strong>.",
+ "tb1_t": "1. lehetőség — Mi kérjük le neked (legegyszerűbb)",
+ "tb1": [
+  [
+   "Másold ki a Tibber-tokenedet",
+   "Nyisd meg a <span class=\"k\">developer.tibber.com</span> oldalt, jelentkezz be a Tibber-fiókoddal, nyisd meg az <strong>Access token</strong> részt, és másold ki a személyes tokenedet.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Illeszd be az appba",
+   "Az appban: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Tibber → „We fetch it for you”</span>. Illeszd be a tokent, jelöld be a négyzetet, és nyomd meg a <strong>Connect Tibber</strong> gombot. Akár 30 másodpercig is tarthat. Nincs ott? Akkor ez a verzió még nem kínálja — használd a 2. lehetőséget.",
+   "see",
+   "Ellenőrizd, hogy működik-e",
+   "Az app ezt mutatja: <span class=\"k\">Csatlakoztatva — forrás: Tibber, jelentett érték: … kWh</span>. Ellenőrizd, hogy ez egyezik-e a mérőd összesített állásával."
+  ]
+ ],
+ "tb2_t": "2. lehetőség — Home Assistanttal",
+ "tb2": [
+  [
+   "Add hozzá a Tibbert a Home Assistanthoz",
+   "<span class=\"k\">Settings → Devices &amp; services → Add integration → Tibber</span>. Illeszd be a Tibber-tokenedet.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Add hozzá az integrációnkat, és válaszd ki az érzékelőt",
+   "Kövesd az A útvonal <em>„Az integrációnkkal”</em> részét, és érzékelőként a Tibber <strong>Last meter consumption</strong> (kWh) érzékelőjét válaszd — ez a mérő saját összesített állása.",
+   null,
+   null,
+   null
+  ]
+ ]
+}
