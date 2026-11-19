@@ -137,6 +137,7 @@ export default {
   "the automatic reading is stale — refresh your reader, then try again": "η αυτόματη ένδειξη είναι παλιά — ανανέωσε τη συσκευή ανάγνωσης και δοκίμασε ξανά",
   "submit one photo reading first to set this meter's baseline — then automatic readings pay out": "υπόβαλε πρώτα μία ένδειξη με φωτογραφία για να οριστεί το σημείο εκκίνησης αυτού του μετρητή — μετά οι αυτόματες ενδείξεις πληρώνονται",
   "submit one photo reading first to set this meter's baseline": "υπόβαλε πρώτα μία ένδειξη με φωτογραφία για να οριστεί το σημείο εκκίνησης αυτού του μετρητή",
+  "take one photo of your meter first — its starting point was set without one": "βγάλε πρώτα μία φωτογραφία του μετρητή σου — το σημείο εκκίνησής του ορίστηκε χωρίς φωτογραφία",
   "automatic payouts are paused until you take one photo of your meter — once every {days} days keeps them going": "οι αυτόματες πληρωμές έχουν παγώσει μέχρι να βγάλεις μία φωτογραφία του μετρητή σου — μία φορά κάθε {days} ημέρες τις κρατά ενεργές",
   "this reader has already paid out once, so its starting point is settled": "αυτή η συσκευή ανάγνωσης έχει ήδη πληρωθεί μία φορά, οπότε το σημείο εκκίνησής της έχει οριστικοποιηθεί",
   "this meter's starting point has already been corrected once — ask an admin if it is wrong again": "το σημείο εκκίνησης αυτού του μετρητή έχει ήδη διορθωθεί μία φορά — ρώτα έναν διαχειριστή αν είναι πάλι λάθος",

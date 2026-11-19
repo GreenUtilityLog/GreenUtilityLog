@@ -558,6 +558,17 @@ async function gmStatus(addr) {
   const person = has === true ? await personStatus(addr) : null;
   return { has, main: m.main, clean: m.clean, voted: m.voted, gm: has === false ? false : m.gm, level: m.level, person };
 }
+// A wallet let in whose signals the VeBetterDAO Foundation reset after KYC: one
+// flag for the admin (galaxy.js kycSignalReset), looked up after the answer so it
+// slows nothing down. Raised wherever access is granted — connect, a payout, an
+// automatic one — so a wallet paid only by its reader is flagged too.
+function flagKycReset(addr) {
+  const a = String(addr || "").toLowerCase(), flagKey = `kyc-reset:${a}`;
+  if (store.listFlags().some((f) => f.txid === flagKey)) return;
+  setImmediate(() => kycSignalReset(a).then((k) => {
+    if (k?.reset) store.addFlag(flagKey, a, `signals reset by the VeBetterDAO Foundation after KYC${k.txid ? ` (tx ${k.txid})` : ""} — allowed in, review if needed`);
+  }).catch(() => {}));
+}
 const gmPasses = (s) => s.has === true && s.main === true && s.clean === true && s.voted === true && s.gm === true && s.person === true;
 
 async function accessOk(addr) {
@@ -566,14 +577,17 @@ async function accessOk(addr) {
   if (isAdminWallet(addr)) return true;
   const mode = accessMode();
   if (mode === "everyone") return true;
-  if (mode === "gm") return gmPasses(await gmStatus(addr));
+  if (mode === "gm") { const ok = gmPasses(await gmStatus(addr)); if (ok) flagKycReset(addr); return ok; }
   if (store.hasPass(addr)) return true;
   return PASSPORT_GRANTS_ACCESS ? isPerson(addr) : false;
 }
 async function passBlock(addr) {
-  if (await accessOk(addr)) return null;
-  if (accessMode() === "gm") {
+  if (accessMode() === "gm" && !isAdminWallet(addr)) {
+    // One read of the chain for both the answer and the reason: reading it twice
+    // let a first read that failed and a second that worked fall through to
+    // "doesn't count it as a person" for a wallet that qualifies.
     const s = await gmStatus(addr);
+    if (gmPasses(s)) { flagKycReset(addr); return null; }
     // In order: the first check that says no (or couldn't be read) is the one told.
     const tryAgain = "couldn't check this wallet on VeBetterDAO right now — please try again in a minute";
     if (s.has === null) return "couldn't check this wallet's VeBetterDAO GM NFT right now — please try again in a minute";
@@ -586,6 +600,7 @@ async function passBlock(addr) {
     if (s.person === null) return "couldn't check this wallet's VeBetterDAO Passport right now — please try again in a minute";
     return "this wallet has a GM NFT, but its VeBetterDAO Passport doesn't count it as a person yet";
   }
+  if (await accessOk(addr)) return null;
   return PASSPORT_GRANTS_ACCESS
     ? "this wallet has no access pass yet — ask an admin for one (a VeBetterDAO passport that counts you as a person also works)"
     : "this wallet has no access pass yet — ask an admin for one";
@@ -733,9 +748,15 @@ const shortAddr = (a) => { const s = String(a || ""); return s.length > 12 ? `${
 // A payout went through for this wallet on this phone: its slot is kept even if
 // another attempt from the same phone, running at the same time, then fails.
 const deviceConfirmed = new Set();
+// Has this wallet been recorded on this phone (its install id)?
+function knownDevice(addr, device) {
+  const { install } = deviceKeys(device);
+  return store.readDeviceHas(install, addr);
+}
 function confirmDevice(addr, device) {
   const a = String(addr).toLowerCase();
   const { install, fp } = deviceKeys(device);
+  if (install) store.rememberReadDevice(install, a);
   if (install) deviceConfirmed.add(`${install}|${a}`);
   if (fp) deviceConfirmed.add(`${fp}|${a}`);
   if (deviceConfirmed.size > 20000) deviceConfirmed.clear();
@@ -874,6 +895,9 @@ app.post("/admin/set-baseline", async (req, res) => {
   // started its clock now: thirty days of readers' numbers with no photo ever.
   // Due at once instead, so the first automatic payout waits for a photo.
   if (store.photoAt(utility, meterKey) == null && AUTO_PHOTO_EVERY_MS > 0) store.setPhotoAt(utility, meterKey, Date.now() - AUTO_PHOTO_EVERY_MS - 1);
+  // And whatever the source (also a cloud account, which needs no repeat photo):
+  // a starting point set by hand is proven by the next photo first.
+  store.owePhoto(utility, meterKey);
   res.json({ ok: true, meterNo: meterKey, utility, baseline: reading, owner: store.meterOwner(utility, meterKey) });
 });
 
@@ -1140,7 +1164,9 @@ function dueRegister(utility, meterNo) {
 const inFlight = new Set();
 
 app.post("/reward", async (req, res) => {
-  // 0) Ban list — blocked wallets can never claim.
+  // 0) A real address first (otherwise the access check answered for "0xabc"),
+  // then the ban list — blocked wallets can never claim.
+  if (!isAddr(req.body.address)) return res.status(400).json({ error: "invalid wallet address" });
   if (banned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
   { const pb = await passBlock(req.body.address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
 
@@ -1464,12 +1490,16 @@ app.post("/meter/unpair", async (req, res) => {
 // Linking a cloud account tries the login against that cloud: a few tries per
 // wallet per hour, so the route can't be used to test stolen logins.
 const linkAttempts = new Map();   // address -> [times]
-function linkAttemptOk(address) {
+// Per wallet AND per network address: wallets cost nothing to make (testnet is open
+// to everyone), so a per-wallet limit alone didn't stop testing logins.
+function linkAttemptOk(address, ipKey = "") {
   const a = String(address).toLowerCase(), now = Date.now();
   const recent = (linkAttempts.get(a) || []).filter((t) => now - t < 3600000);
-  if (recent.length >= 6) return false;
+  const byIp = ipKey ? (linkAttempts.get(`ip:${ipKey}`) || []).filter((t) => now - t < 3600000) : [];
+  if (recent.length >= 6 || byIp.length >= 20) return false;
   recent.push(now);
   linkAttempts.set(a, recent);
+  if (ipKey) { byIp.push(now); linkAttempts.set(`ip:${ipKey}`, byIp); }
   if (linkAttempts.size > 5000) for (const [k, v] of linkAttempts) if (!v.some((t) => now - t < 3600000)) linkAttempts.delete(k);
   return true;
 }
@@ -1497,6 +1527,8 @@ function forgetCloudLink(address, source) {
 // reading the meter. The account feeds an ordinary meter link, so everything a
 // reader's reading goes through (baseline, cooldown, bounds, payout) applies.
 const powerfoxLinking = new Set();
+// Which wallet took a Powerfox account's reservation last, in this process.
+const pfAcctTakenBy = new Map();
 app.post("/meter/powerfox/link", async (req, res) => {
   if (!powerfoxEnabled()) return res.status(503).json({ error: "the Powerfox connection isn't switched on for this server yet" });
   if (!store.loaded()) return res.status(503).json({ error: notReadyMessage() });
@@ -1508,7 +1540,7 @@ app.post("/meter/powerfox/link", async (req, res) => {
     if (!c.ok) return res.status(c.code).json({ error: c.error });
   }
   { const pb = await passBlock(address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
-  if (!linkAttemptOk(address)) return res.status(429).json({ error: "too many attempts — try again in an hour" });
+  if (!linkAttemptOk(address, req.rateKey)) return res.status(429).json({ error: "too many attempts — try again in an hour" });
   const email = String(req.body.email || "").trim();
   const password = String(req.body.password || "");
   if (!email || email.length > 200 || !password || password.length > 200) {
@@ -1532,7 +1564,13 @@ app.post("/meter/powerfox/link", async (req, res) => {
   powerfoxLinking.add(acct);
   let r;
   try {
-    const held = await store.takeOnce(`pfacct:${acct}`, 120000);
+    // Kept for two minutes after a link, as for a Tibber home: another process picks
+    // up a new link only on its 30 s pull, and releasing at once let it link the
+    // same account to a second wallet in between. The same wallet relinking (or
+    // linking again right after an unlink) is let through.
+    const mine = store.allPowerfox().some((x) => x.acct === acct && x.address === address.toLowerCase())
+      || pfAcctTakenBy.get(acct) === address.toLowerCase();
+    const held = mine ? true : await store.takeOnce(`pfacct:${acct}`, 120000);
     if (held !== true) return res.status(held === null ? 503 : 409).json({ error: "this Powerfox account is being connected right now — try again in a minute" });
     try { r = await fetchPowerfoxReading(email, password); }
     catch (e) { r = { ok: false, code: "unreachable", error: "couldn't reach Powerfox — please try again later" }; }
@@ -1555,7 +1593,9 @@ app.post("/meter/powerfox/link", async (req, res) => {
   if (!r.outdated) store.setLinkReading(address, { reading: r.reading, meterNo, at: r.at, source: "powerfox" });
   await store.flush();
   // Released once the link is stored where every process reads it.
-  await store.releaseOnce(`pfacct:${acct}`);
+  // The reservation is kept (two minutes): see above.
+  pfAcctTakenBy.set(acct, address.toLowerCase());
+  if (pfAcctTakenBy.size > 5000) pfAcctTakenBy.delete(pfAcctTakenBy.keys().next().value);
   console.log(`[powerfox] ${shortAddr(address)} linked`);
   res.json({ ok: true, token, reading: r.reading, at: r.at, outdated: r.outdated });
   if (AUTO_CLAIM_ON_PUSH && !r.outdated) setImmediate(() => { autoSettle({ token, ...link }, "powerfox").catch(() => {}); });
@@ -1590,7 +1630,7 @@ app.post("/meter/tibber/link", async (req, res) => {
     if (!c.ok) return res.status(c.code).json({ error: c.error });
   }
   { const pb = await passBlock(address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
-  if (!linkAttemptOk(address)) return res.status(429).json({ error: "too many attempts — try again in an hour" });
+  if (!linkAttemptOk(address, req.rateKey)) return res.status(429).json({ error: "too many attempts — try again in an hour" });
   const tibberToken = String(req.body.tibberToken || "").trim();
   if (!/^[A-Za-z0-9._~+/=-]{20,400}$/.test(tibberToken)) {
     return res.status(400).json({ error: "paste the personal access token from developer.tibber.com" });
@@ -1673,7 +1713,7 @@ app.post("/meter/mojelektro/link", async (req, res) => {
     if (!c.ok) return res.status(c.code).json({ error: c.error });
   }
   { const pb = await passBlock(address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
-  if (!linkAttemptOk(address)) return res.status(429).json({ error: "too many attempts — try again in an hour" });
+  if (!linkAttemptOk(address, req.rateKey)) return res.status(429).json({ error: "too many attempts — try again in an hour" });
   const mojToken = String(req.body.mojToken || "").trim();
   const usagePoint = String(req.body.usagePoint || "").trim();
   if (!validMojToken(mojToken)) return res.status(400).json({ error: "paste the token you made under Moj profil on mojelektro.si" });
@@ -1810,16 +1850,6 @@ app.post("/wallet/seen", async (req, res) => {
   const address = String(req.body?.address || "");
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
   store.seenWallet(address, req.body?.meters);
-  // A wallet whose signals the Foundation reset after KYC gets in, but the admin
-  // sees it among the flags — once, after the answer (not slowing it down).
-  if (accessMode() === "gm") {
-    const flagKey = `kyc-reset:${address.toLowerCase()}`;
-    if (!store.listFlags().some((f) => f.txid === flagKey)) {
-      setImmediate(() => kycSignalReset(address).then((k) => {
-        if (k?.reset) store.addFlag(flagKey, address, `signals reset by the VeBetterDAO Foundation after KYC${k.txid ? ` (tx ${k.txid})` : ""} — allowed in, review if needed`);
-      }).catch(() => {}));
-    }
-  }
   // The app calls this on connect anyway, so it's the natural place to tell it whether
   // it holds a pass — no extra round-trip, and no separate endpoint that would leak
   // the whole pass list. Only ever reports on the wallet that asked.
@@ -1847,7 +1877,11 @@ app.post("/wallet/seen", async (req, res) => {
     // reading is measured from. A reading recorded without a reward never reaches
     // the chain, so another device could only guess it. (Readings and meter
     // numbers of paid readings are public on chain already.)
-    lastReadings: store.metersForWallet(address)
+    // Only to a phone this wallet has been paid on before (its install id, sent as
+    // `device`): the endpoint takes no signature, and a reading history per address
+    // is how someone learns when a household is away. A new phone gets them after
+    // its first submission; the server measures from its own record either way.
+    lastReadings: !knownDevice(address, req.body?.device) ? [] : store.metersForWallet(address)
       .filter((m) => ENABLED_UTILITIES.has(m.utility) && m.last != null)
       .map((m) => ({ utility: m.utility, meterNo: m.meterNo, reading: m.last, at: store.lastReadingAt(m.utility, m.meterNo) || null })),
   });
@@ -1907,7 +1941,10 @@ app.get("/meter/latest", (req, res) => {
     // When automatic payouts pause until the next photo (null: no limit, or no
     // photo-proven reading yet).
     photoDueAt: (() => {
-      if (!photoRuleApplies(r?.source || link?.source) || !link?.meterNo) return null;
+      if (!link?.meterNo) return null;
+      const owed = store.photoOwed(utility, String(link.meterNo).toLowerCase());
+      if (owed != null) return owed;
+      if (!photoRuleApplies(r?.source || link?.source)) return null;
       const shot = store.photoAt(utility, String(link.meterNo).toLowerCase());
       return shot == null ? null : shot + AUTO_PHOTO_EVERY_MS;
     })(),
@@ -1975,6 +2012,9 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
   }
   if (tooOld(latest)) {
     return { ok: false, code: 400, error: "the automatic reading is stale — refresh your reader/source, then try again" };
+  }
+  if (store.photoOwed(utility, meterNo.toLowerCase()) != null) {
+    return { ok: false, code: 400, needsPhoto: true, error: "take one photo of your meter first — its starting point was set without one" };
   }
   if (photoRuleApplies(latest.source)) {
     const mk = meterNo.toLowerCase();
@@ -2049,6 +2089,7 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
 }
 
 app.post("/reward-from-meter", async (req, res) => {
+  if (!isAddr(req.body.address)) return res.status(400).json({ error: "invalid wallet address" });
   if (banned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
   { const pb = await passBlock(req.body.address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
   if (!store.ready()) return res.status(503).json({ error: notReadyMessage() });
@@ -2148,6 +2189,9 @@ app.post("/meter/rebaseline", async (req, res) => {
   // from now rather than from a photo that may be weeks old.
   store.setLastReading(utility, key, reading, latest.meterTime && Number.isFinite(Number(latest.at)) ? Math.min(Number(latest.at), Date.now()) : Date.now());
   store.markRebased(utility, key, { from: prev, to: reading, by: address.toLowerCase() });
+  // No photo stands behind this starting point: the next automatic payout waits for
+  // one, for every source (store.photoOwed).
+  store.owePhoto(utility, key);
   const { token, ...rest } = link;
   store.setMeterLink(token, { ...rest, rebasedAt: Date.now(), rebasedFrom: prev, rebasedTo: reading });
   store.addFlag(
@@ -2287,8 +2331,13 @@ async function autoSettle(link, why = "timer") {
   const utility = pickUtility(link.utility);
   const latest = store.getLinkReading(link.address);
   if (!latest) return null;
-  // Only a reading newer than the last payout for this wallet+utility.
-  const lastPaid = store.getCooldown(`${String(link.address).toLowerCase()}:${utility}`);
+  // Only a reading newer than the last one paid. A late source (MojElektro) carries
+  // the meter's own time, a day or more behind the clock: it is compared with the
+  // time of the meter's last recorded reading, not with when that was paid — or
+  // every total arriving more than a day late was skipped.
+  const lastPaid = latest.meterTime
+    ? (store.lastReadingAt(utility, meterNo.toLowerCase()) || 0)
+    : store.getCooldown(`${String(link.address).toLowerCase()}:${utility}`);
   if ((latest.at || 0) <= lastPaid) return null;
   try {
     const r = await settleMeterReading({ address: link.address, utility, meterNo });
@@ -2344,7 +2393,12 @@ async function tibberTick(why = "timer") {
         store.setTibber(acc.address, { ...acc, lastPullAt: Date.now(), lastError: "reconnect Tibber in the app" });
         continue;
       }
-      const r = await fetchTibberReading(creds.pass);
+      let r = await fetchTibberReading(creds.pass);
+      // The account may now point at another Pulse home. One home feeds one wallet:
+      // a home another wallet has linked is not taken over here.
+      if (r.ok && r.homeId !== acc.homeId && store.allTibber().some((x) => x.homeId === r.homeId && x.address !== acc.address)) {
+        r = { ok: false, error: "this Tibber home is already connected to another wallet" };
+      }
       store.setTibber(acc.address, { cred: acc.cred, token: acc.token, homeId: r.ok ? r.homeId : acc.homeId, linkedAt: acc.linkedAt, lastPullAt: Date.now(), lastError: r.ok ? null : r.error });
       if (!r.ok) continue;
       store.setLinkReading(acc.address, { reading: r.reading, meterNo: link.meterNo || null, at: r.at, source: "tibber" });

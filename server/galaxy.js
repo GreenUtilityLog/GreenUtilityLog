@@ -85,10 +85,18 @@ const one = (out) => (Array.isArray(out) ? out[0] : (out && typeof out === "obje
 async function read(to, fn, args) {
   try { const out = await callView(to, fn, args); return out == null ? undefined : one(out); } catch { return undefined; }
 }
+// ownerOf reverts for a burned token: that is "not W's". A node that can't be
+// reached is "couldn't read" — told to try again, not refused (and not cached).
+const REVERTED = Symbol("reverted");
+async function readOwner(to, id) {
+  try { const out = await callView(to, MEMBER_ABI.ownerOf, [id]); return out == null ? REVERTED : one(out); } catch { return undefined; }
+}
 
 let roundCache = null; // { at, prev, start }
+// A minute, so a new round is seen soon after it starts (and the member cache below
+// is keyed to the round it was answered for).
 async function lastRound() {
-  if (roundCache && Date.now() - roundCache.at < 10 * 60 * 1000) return roundCache;
+  if (roundCache && Date.now() - roundCache.at < 60 * 1000) return roundCache;
   const cur = await read(CONTRACTS.XAllocationVoting, MEMBER_ABI.currentRoundId, []);
   if (cur === undefined) return null;
   const prev = BigInt(cur) - 1n;
@@ -108,11 +116,14 @@ export async function memberCheck(address) {
   const w = String(address || "").toLowerCase();
   const no = { main: false, clean: false, voted: false, gm: false, level: null };
   if (!/^0x[0-9a-f]{40}$/.test(w) || !memberCheckConfigured()) return no;
-  const hit = memberCache.get(w);
-  if (hit && Date.now() - hit.at < (hit.pass ? HOLDER_TTL : NON_HOLDER_TTL)) return hit.v;
   const P = CONTRACTS.VeBetterPassport, X = CONTRACTS.XAllocationVoting, G = CONTRACTS.GalaxyMember, R = CONTRACTS.VoterRewards;
+  const round = await lastRound();
+  // A remembered answer counts only for the round it was given in: at a round
+  // change a wallet that voted two rounds ago, not last round, is asked again.
+  const hit = memberCache.get(w);
+  if (hit && round && hit.round === String(round.prev) && Date.now() - hit.at < (hit.pass ? HOLDER_TTL : NON_HOLDER_TTL)) return hit.v;
 
-  const [entity, signals, round] = await Promise.all([read(P, MEMBER_ABI.isEntity, [w]), read(P, MEMBER_ABI.signaledCounter, [w]), lastRound()]);
+  const [entity, signals] = await Promise.all([read(P, MEMBER_ABI.isEntity, [w]), read(P, MEMBER_ABI.signaledCounter, [w])]);
   const main = entity === undefined ? null : entity !== true;
   const clean = signals === undefined ? null : BigInt(signals) === 0n;
 
@@ -132,12 +143,11 @@ export async function memberCheck(address) {
         for (const id of ids) {
           const [didVote, owner, lvl] = await Promise.all([
             read(R, MEMBER_ABI.hasTokenVoted, [id, round.start]),
-            read(G, MEMBER_ABI.ownerOf, [id]),
+            readOwner(G, id),
             read(G, MEMBER_ABI.levelOf, [id]),
           ]);
-          if (didVote === undefined || lvl === undefined) { unread = true; continue; }
-          // ownerOf reverts for a burned token: undefined is then "not W's".
-          const mine = String(owner || "").toLowerCase() === w;
+          if (didVote === undefined || lvl === undefined || owner === undefined) { unread = true; continue; }
+          const mine = owner !== REVERTED && String(owner || "").toLowerCase() === w;
           if (didVote === true && mine) {
             level = Math.max(level ?? 0, Number(lvl));
             if (Number(lvl) >= MIN_GM_LEVEL) gm = true;
@@ -150,7 +160,7 @@ export async function memberCheck(address) {
   const out = { main, clean, voted, gm, level };
   const known = [main, clean, voted, gm].every((x) => x !== null);
   if (known) {
-    memberCache.set(w, { v: out, at: Date.now(), pass: main && clean && voted && gm });
+    memberCache.set(w, { v: out, at: Date.now(), pass: main && clean && voted && gm, round: round ? String(round.prev) : null });
     if (memberCache.size > 5000) memberCache.delete(memberCache.keys().next().value);
   }
   return out;

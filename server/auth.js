@@ -24,8 +24,12 @@ export const REQUIRE_CERT = String(process.env.REQUIRE_CERT || "true").toLowerCa
 const CERT_DOMAINS = String(process.env.CERT_DOMAINS || "")
   .split(",").map((d) => d.trim().toLowerCase()).filter(Boolean);
 const seenDomains = new Map();
+// The 20 most used, from up to 200 recorded: with the first 20 only, a throwaway
+// wallet could fill the list after a restart and the real VeWorld domain never
+// showed up for the operator to copy into CERT_DOMAINS.
 export function certDomainsSeen() {
-  return { enforced: CERT_DOMAINS.length ? CERT_DOMAINS : null, seen: Object.fromEntries(seenDomains) };
+  const top = [...seenDomains.entries()].sort((a, b) => b[1] - a[1]).slice(0, 20);
+  return { enforced: CERT_DOMAINS.length ? CERT_DOMAINS : null, seen: Object.fromEntries(top) };
 }
 
 export function verifyWalletCertificate({ certificate, address }) {
@@ -46,7 +50,7 @@ export function verifyWalletCertificate({ certificate, address }) {
 
   // 1b) Signed for this app (only once CERT_DOMAINS is configured).
   const dom = String(domain || "").trim().toLowerCase();
-  if (seenDomains.size < 20 || seenDomains.has(dom)) seenDomains.set(dom, (seenDomains.get(dom) || 0) + 1);
+  if (seenDomains.size < 200 || seenDomains.has(dom)) seenDomains.set(dom, (seenDomains.get(dom) || 0) + 1);
   if (CERT_DOMAINS.length && !CERT_DOMAINS.includes(dom)) {
     return { ok: false, error: "this signature was made for a different site — please sign again in the app" };
   }

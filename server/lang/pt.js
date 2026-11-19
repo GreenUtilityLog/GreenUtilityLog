@@ -137,6 +137,7 @@ export default {
   "the automatic reading is stale — refresh your reader, then try again": "a leitura automática está desatualizada — atualiza o teu leitor e tenta de novo",
   "submit one photo reading first to set this meter's baseline — then automatic readings pay out": "envia primeiro uma leitura com foto para definir o ponto de partida deste contador — depois as leituras automáticas são pagas",
   "submit one photo reading first to set this meter's baseline": "envia primeiro uma leitura com foto para definir o ponto de partida deste contador",
+  "take one photo of your meter first — its starting point was set without one": "tira primeiro uma foto ao teu contador — o ponto de partida foi definido sem foto",
   "automatic payouts are paused until you take one photo of your meter — once every {days} days keeps them going": "os pagamentos automáticos estão em pausa até tirares uma foto ao teu contador — uma a cada {days} dias mantém-nos a funcionar",
   "this reader has already paid out once, so its starting point is settled": "este leitor já fez um pagamento, por isso o ponto de partida está fixado",
   "this meter's starting point has already been corrected once — ask an admin if it is wrong again": "o ponto de partida deste contador já foi corrigido uma vez — se voltar a estar errado, pede a um administrador",

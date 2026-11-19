@@ -5,6 +5,10 @@ import { REWARD_API, NETWORK } from "./network.js";
 import { fetchOnChainLeaderboard, fetchWalletHistory, fetchPoolBalance, fetchDiagnostics } from "./leaderboard.js";
 import { ACTIVE_NODE, CONTRACTS, VEBETTER_APP_ID, NETWORK_LABEL, EXPLORER, OVERLAY_INSET, UTILS, UTIL_ICONS, shortAddr, normDecimal, getColorBg, fmtDay, fetchT, useDialog } from "./App.jsx";
 
+// A reading typed in: an empty field is not 0 (Number("") is 0, and "Set" with an
+// emptied field used to set a meter's starting point to 0).
+const isReading = (v) => String(v ?? "").trim() !== "" && Number.isFinite(Number(v)) && Number(v) >= 0;
+
 // Read-only admin overlay: every on-chain participant for this app, aggregated
 // from RewardDistributed events. Monitoring only — payouts/blocking require the
 // reward-distributor role (a backend), never the frontend.
@@ -435,7 +439,7 @@ function WalletAdminActions({ T, address, meters, onAdminApi, onToast }) {
           <div style={{ fontSize:10, color: T.textSoft, marginBottom: 5 }}><span style={{ fontFamily: mono, color: T.text }}>{m.meterNo}</span> · {m.utility}{m.last != null ? ` · last ${m.last}` : ""}</div>
           <div style={{ display: "flex", gap: 8 }}>
             <input value={vals[m.meterNo] ?? ""} onChange={e => setVals(v => ({ ...v, [m.meterNo]: normDecimal(e.target.value) }))} type="text" inputMode="decimal" autoComplete="off" placeholder={`Fix reading${m.last != null ? ` (e.g. ${m.last})` : ""}`} style={inp} />
-            <button disabled={busy === "base" + i || !(Number(vals[m.meterNo]) >= 0)} onClick={() => run("base" + i, () => onAdminApi("/admin/set-baseline", { meterNo: m.meterNo, utility: m.utility, reading: Number(vals[m.meterNo]), targetWallet: address }), (d) => `✅ Baseline set: ${d.meterNo} → ${d.baseline}`)} style={btn(T.green3 || "#2e7d5b", "#fff", busy === "base" + i || !(Number(vals[m.meterNo]) >= 0))}>{busy === "base" + i ? "…" : "Set"}</button>
+            <button disabled={busy === "base" + i || !isReading(vals[m.meterNo])} onClick={() => run("base" + i, () => onAdminApi("/admin/set-baseline", { meterNo: m.meterNo, utility: m.utility, reading: Number(vals[m.meterNo]), targetWallet: address }), (d) => `✅ Baseline set: ${d.meterNo} → ${d.baseline}`)} style={btn(T.green3 || "#2e7d5b", "#fff", busy === "base" + i || !isReading(vals[m.meterNo]))}>{busy === "base" + i ? "…" : "Set"}</button>
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
             <input value={renameVals[m.meterNo] ?? ""} onChange={e => setRenameVals(v => ({ ...v, [m.meterNo]: e.target.value }))} placeholder="Change meter number →" spellCheck={false} style={inp} />
@@ -454,7 +458,7 @@ function WalletAdminActions({ T, address, meters, onAdminApi, onToast }) {
             {UTILS.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
           </select>
           <input value={add.reading} onChange={e => setAdd(a => ({ ...a, reading: normDecimal(e.target.value) }))} type="text" inputMode="decimal" autoComplete="off" placeholder="Current reading" style={{ ...inp, flex: "1 1 100px" }} />
-          <button disabled={busy === "add" || !add.meterNo.trim() || !(Number(add.reading) >= 0)} onClick={() => run("add", () => onAdminApi("/admin/set-baseline", { meterNo: add.meterNo.trim(), utility: add.utility, reading: Number(add.reading), targetWallet: address }), (d) => { const nm = { utility: add.utility, meterNo: add.meterNo.trim().toLowerCase(), last: Number(add.reading) }; setBackendMeters(prev => { const cur = prev || []; return cur.some(x => norm(x) === norm(nm)) ? cur : [...cur, nm]; }); setAdd({ meterNo: "", utility: "electric", reading: "" }); return `✅ Meter added: ${d.meterNo} (${d.utility})`; })} style={btn(T.green3 || "#2e7d5b", "#fff", busy === "add" || !add.meterNo.trim() || !(Number(add.reading) >= 0))}>{busy === "add" ? "…" : "Add"}</button>
+          <button disabled={busy === "add" || !add.meterNo.trim() || !isReading(add.reading)} onClick={() => run("add", () => onAdminApi("/admin/set-baseline", { meterNo: add.meterNo.trim(), utility: add.utility, reading: Number(add.reading), targetWallet: address }), (d) => { const nm = { utility: add.utility, meterNo: add.meterNo.trim().toLowerCase(), last: Number(add.reading) }; setBackendMeters(prev => { const cur = prev || []; return cur.some(x => norm(x) === norm(nm)) ? cur : [...cur, nm]; }); setAdd({ meterNo: "", utility: "electric", reading: "" }); return `✅ Meter added: ${d.meterNo} (${d.utility})`; })} style={btn(T.green3 || "#2e7d5b", "#fff", busy === "add" || !add.meterNo.trim() || !isReading(add.reading))}>{busy === "add" ? "…" : "Add"}</button>
         </div>
       </div>
 
@@ -619,7 +623,7 @@ export default function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRe
     let cancelled = false;
     const ctrl = new AbortController();
     fetchOnChainLeaderboard({ node: ACTIVE_NODE, contract: CONTRACTS.X2EarnRewardsPool, appId: VEBETTER_APP_ID, signal: ctrl.signal })
-      .then(res => { if (!cancelled) setChain(res.ok ? { status: "live", rows: res.rows } : { status: "empty", rows: [], reason: res.reason }); })
+      .then(res => { if (!cancelled) setChain(res.ok ? { status: "live", rows: res.rows, truncated: !!res.truncated } : { status: "empty", rows: [], reason: res.reason }); })
       .catch(() => { if (!cancelled) setChain({ status: "error", rows: [] }); });
     refreshPool(ctrl.signal);
     runDiagnostics(ctrl.signal).catch(() => {});
@@ -639,6 +643,7 @@ export default function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRe
   }, [selected, detailReload]);
 
   const totalB3tr = chain.rows.reduce((a, r) => a + (r.b3tr || 0), 0);
+  const bannedSet = new Set((knownWallets || []).filter((w) => w.banned).map((w) => String(w.address).toLowerCase()));
   const totalSubs = chain.rows.reduce((a, r) => a + (r.count || 0), 0);
 
   // The on-chain list only contains wallets that already earned. Merge in everything
@@ -650,7 +655,9 @@ export default function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRe
       .filter(w => !seenAddrs.has(String(w.address).toLowerCase()))
       .map(w => ({ addr: w.address, b3tr: 0, count: 0, isNew: true, meters: w.meters || [], banned: !!w.banned }))
       .sort((a, b) => a.addr.localeCompare(b.addr));
-    return [...chain.rows, ...extra];
+    // Rows from the chain carry the ban state too: a blocked wallet that already
+    // earned showed no BLOCKED badge.
+    return [...chain.rows.map((r) => (bannedSet.has(String(r.addr).toLowerCase()) ? { ...r, banned: true } : r)), ...extra];
   })();
 
   const q = query.trim().toLowerCase();
@@ -799,6 +806,11 @@ export default function AdminScreen({ onClose, T, wallet, onFundPool, onMoveToRe
             </div>
           ))}
         </div>
+        {chain.truncated && (
+          <div role="status" style={{fontSize:10.5,color:T.gas,background:T.gasBg,borderRadius:6,padding:"7px 9px",marginBottom:12,lineHeight:1.5}}>
+            ⚠️ More payouts exist than the chain query reads at once: the totals above and the oldest wallets are incomplete.
+          </div>
+        )}
 
         <AccessModePanel T={T} onAdminApi={onAdminApi} onToast={onToast} />
 

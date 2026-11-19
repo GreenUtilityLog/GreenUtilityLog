@@ -137,6 +137,7 @@ export default {
   "the automatic reading is stale — refresh your reader, then try again": "az automatikus mérőállás elavult — frissítsd a leolvasót, és próbáld újra",
   "submit one photo reading first to set this meter's baseline — then automatic readings pay out": "előbb küldj be egy fotós mérőállást, hogy beállítsd a mérő kiindulási értékét — utána az automatikus mérőállások is fizetnek",
   "submit one photo reading first to set this meter's baseline": "előbb küldj be egy fotós mérőállást, hogy beállítsd a mérő kiindulási értékét",
+  "take one photo of your meter first — its starting point was set without one": "előbb készíts egy fotót a mérődről — a kiindulási értéke fotó nélkül lett beállítva",
   "automatic payouts are paused until you take one photo of your meter — once every {days} days keeps them going": "az automatikus kifizetések szünetelnek, amíg nem készítesz egy fotót a mérődről — {days} naponta egy fotó elég a folytatáshoz",
   "this reader has already paid out once, so its starting point is settled": "ez a leolvasó már fizetett egyszer, így a kiindulási értéke végleges",
   "this meter's starting point has already been corrected once — ask an admin if it is wrong again": "ennek a mérőnek a kiindulási értékét már egyszer javították — ha megint hibás, fordulj egy adminhoz",

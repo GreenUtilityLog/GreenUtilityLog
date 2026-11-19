@@ -152,6 +152,19 @@ Met een foto kan elk land al meedoen. Voor elk nieuw land geldt eerst: een norm 
 - [ ] YouLess (NL) als eigen optie in de bridge; eerst de velden van het antwoord nakijken
 - Niet doen: tussenmeters zoals Shelly EM of stroomtangen (meten niet de officiële meter)
 
+## Volledige controle (19 november) — 4 reviewers, elke bevinding nagelopen
+- [x] Geld: MojElektro-standen die meer dan een dag laat binnenkomen werden automatisch overgeslagen (vergeleken met het moment van uitbetalen i.p.v. de metertijd)
+- [x] Geld: na een startpunt-herstel of een startpunt van de beheerder is eerst een foto nodig, ook voor Powerfox/Tibber/MojElektro — anders kon een cloud-account van een andere meter worden uitbetaald
+- [x] Toegang: één keer de blockchain lezen voor antwoord én reden (een haperende eerste lezing gaf "telt je niet als persoon"); een node-storing bij `ownerOf` is "probeer opnieuw", geen "nee"; het onthouden antwoord geldt alleen voor de ronde waarin het gegeven is; ongeldig adres → 400 i.p.v. "geen toegang"
+- [x] KYC-markering alleen bij een wallet die echt wordt toegelaten, en ook bij automatisch uitbetalen (niet alleen bij openen)
+- [x] Privacy: `/wallet/seen` geeft de laatste standen alleen nog aan een telefoon waarmee de wallet al eens instuurde
+- [x] Koppelingen: Powerfox-reservering 2 minuten vast (als Tibber); Tibber neemt geen huis over dat al aan een andere wallet hangt; koppelpogingen ook per netwerkadres beperkt (20/uur); `/health`-domeinlijst niet meer vol te spammen
+- [x] App: toetsenbord/schermlezer bleef vastzitten achter het walletscherm; offline wachtrij verloor een vastgelegde stand bij een verbindingswissel en probeerde "nog niet"-items nooit op tijd opnieuw; door de beheerder toegewezen meternummer verscheen niet in het formulier; taalwissel kon in de verkeerde taal eindigen; testnet-balk volgde de taal niet; weken/dagen rond zomer-/wintertijd; streak, kalender en "100 standen" tellen nu dezelfde standen; "eerste stand"-tekst gebruikt ook de stand van de server
+- [x] Uitlezerkaart: "Verbonden" alleen bij een verse stand (met datum); geen valse "startpunt klopt niet"-kaart zonder fotostand; geen claimknop tijdens wachttijd of bij een te oude stand; "laat de computer aan" niet bij Powerfox/Tibber/MojElektro; resterende Engelse zinnen vertaald (20 talen)
+- [x] Beheer: leeg veld zette een startpunt op 0; BLOCKED ook bij wallets van de blockchain; waarschuwing als de lijst afgekapt is
+- [x] gul.js: één tarief alleen is geen stand meer; Mac weigert installeren vanuit Bureaublad/Documenten/Downloads (cron mag daar niet lezen) met de juiste opdracht; waarschuwing bij nvm/snap-node; Windows `--uninstall` verwijdert alle eigen taken; add-on 1.5.5
+- Bewust zo gelaten: het maandrapport (PDF) blijft Engels — het PDF-lettertype heeft geen Griekse/Cyrillische letters. Een wallet-wissel stuurt heel even de oude meterlijst mee; die wordt direct overschreven
+
 ## Bewust zo gelaten
 - Tijdverschuiving bij automatische standen: geaccepteerd risico (zie `docs/MAINNET.md`)
 - Captcha staat uit

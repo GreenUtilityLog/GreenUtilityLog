@@ -668,3 +668,13 @@ test("running on, a refused token waits hours before asking again; other failure
     assert.ok(n >= 3, `a server error is tried again soon (${n} tries): ${out}`);
   } finally { homewizard.close(); be.close(); }
 });
+
+test("one tariff register alone is no reading: nothing is pushed", async () => {
+  const reader = await fake((req, res) => { res.setHeader("content-type", "application/json"); res.end(JSON.stringify({ total_power_import_t1_kwh: 100.5 })); });
+  let pushed = false;
+  const backend = await fake((req, res) => { pushed = true; res.end("{}"); });
+  const r = await run(["--token=t1", "--once", `--ip=127.0.0.1:${reader.address().port}`, `--ingest=http://127.0.0.1:${backend.address().port}/meter-ingest`]);
+  reader.close(); backend.close();
+  assert.notEqual(r.code, 0, r.out);
+  assert.equal(pushed, false, "half the total must not reach the server");
+});

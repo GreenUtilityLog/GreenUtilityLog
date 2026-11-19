@@ -137,6 +137,7 @@ export default {
   "the automatic reading is stale — refresh your reader, then try again": "automatický stav je zastaralý — obnov čtečku a zkus to znovu",
   "submit one photo reading first to set this meter's baseline — then automatic readings pay out": "nejdřív odešli jeden stav s fotkou, který nastaví výchozí stav elektroměru — pak se automatické stavy vyplácejí",
   "submit one photo reading first to set this meter's baseline": "nejdřív odešli jeden stav s fotkou, který nastaví výchozí stav elektroměru",
+  "take one photo of your meter first — its starting point was set without one": "nejdřív jednou vyfoť elektroměr — jeho výchozí stav byl nastaven bez fotky",
   "automatic payouts are paused until you take one photo of your meter — once every {days} days keeps them going": "automatické výplaty jsou pozastavené, dokud elektroměr jednou nevyfotíš — v chodu je udrží jedna fotka za {days} dní",
   "this reader has already paid out once, so its starting point is settled": "tato čtečka už jednou vyplácela, takže její výchozí stav je daný",
   "this meter's starting point has already been corrected once — ask an admin if it is wrong again": "výchozí stav tohoto elektroměru už byl jednou opraven — pokud je zase špatně, obrať se na admina",

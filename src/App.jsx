@@ -578,6 +578,23 @@ async function getUnsyncedSubmissions() {
   });
 }
 
+// The earliest time a queued item that was told "not yet" may be tried again (null
+// when none is waiting): the sync runs again then, rather than only on the next
+// reconnect or wallet change.
+async function nextRetryAt(wallet) {
+  const db = await initDB();
+  return new Promise((resolve) => {
+    const req = db.transaction("submissions", "readonly").objectStore("submissions").getAll();
+    req.onerror = () => resolve(null);
+    req.onsuccess = () => {
+      const w = String(wallet || "").toLowerCase();
+      const times = (req.result || []).filter((s) => !s.synced && !s.failed && s.retryAfter > Date.now()
+        && (!s.wallet || s.wallet.toLowerCase() === w)).map((s) => s.retryAfter);
+      resolve(times.length ? Math.min(...times) : null);
+    };
+  });
+}
+
 // Read-modify-write one queued submission.
 async function updateOfflineSubmission(id, patch) {
   const db = await initDB();
@@ -823,7 +840,8 @@ export function fmtDay(x) {
 }
 function computeStreak(subs){
   if (!subs || !subs.length) return 0;
-  const days = new Set(subs.map(s => s.date));
+  // The same readings the levels count: not a failed payout, not an old eco row.
+  const days = new Set(subs.filter((s) => s.type !== "eco" && s.status !== "failed").map(s => s.date));
   const d = new Date();
   if (!days.has(dayKey(d))) { d.setDate(d.getDate() - 1); if (!days.has(dayKey(d))) return 0; }
   let streak = 0;
@@ -917,7 +935,7 @@ function getCooldownRemaining(utilId) {
 }
 function fmtCooldown(ms) {
   const h = Math.floor(ms/3600000), m = Math.floor((ms%3600000)/60000);
-  return `${h}h ${m}m`;
+  return t("cd.hm", { h, m });
 }
 
 function checkFileMeta(file) {
@@ -1840,6 +1858,18 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
   const shown = (utils && utils.length) ? utils : UTILS.filter(u => !u.optional);
   const [baselines, setBaselines] = useState(existingBaselines || { electric:"", gas:"", water:"", solar:"" });
   const [meters, setMeters]       = useState(existingMeters || { electric:"", gas:"", water:"", solar:"" });
+  // A meter number the admin registered (/meter/registered) can arrive after this
+  // screen opened: it fills a field that is still empty, never one the user typed in.
+  useEffect(() => {
+    setMeters((m) => {
+      let changed = false;
+      const next = { ...m };
+      for (const [k, v] of Object.entries(existingMeters || {})) {
+        if (!String(next[k] || "").trim() && String(v || "").trim()) { next[k] = v; changed = true; }
+      }
+      return changed ? next : m;
+    });
+  }, [existingMeters]);
   // Which inputs the user has visited and left. Validation styling keys off this:
   // an empty field nobody has touched yet is simply empty, not wrong.
   const [touched, setTouched]     = useState({});
@@ -2209,7 +2239,8 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
     // previous reading (anchored), or the OCR read it with decent confidence.
     // Otherwise leave Current blank — better to type it than to fight a wrong guess.
     const hasAnchor = Number.isFinite(parseFloat(prevRead));
-    if (guess != null && (hasAnchor || (ocrResult.ocrConfidence || 0) >= 60)) onOcrReadingRef.current?.(String(guess));
+    const autoFilled = guess != null && (hasAnchor || (ocrResult.ocrConfidence || 0) >= 60);
+    if (autoFilled) onOcrReadingRef.current?.(String(guess));
     if (!ocrResult.matched && !ocrResult.ocrFailed) {
       fraudFlags.push("ocr_mismatch");
       fraudReason = fraudReason || ocrResult.reason;
@@ -2224,7 +2255,9 @@ function VerifyZone({ utilId, onVerified, onReset, onOcrReading, reading, prevRe
 
     // Plausibility/anomaly run on CONSUMPTION (current − previous), not the
     // absolute meter value, otherwise a normal reading like 3847 always trips.
-    const r = parseFloat(reading), p = parseFloat(prevRead);
+    // The reading as it stands now: in the usual order (photo first) the field was
+    // still empty when this check started, and only the photo's own number filled it.
+    const r = parseFloat(String(reading ?? "").trim() || (autoFilled ? String(guess) : "")), p = parseFloat(prevRead);
     const usageVal   = (Number.isFinite(r) && Number.isFinite(p) && r >= p) ? +(r - p).toFixed(2) : null;
     const plausCheck = usageVal != null ? checkPlausibility(utilId, usageVal) : { ok:true };
     const lastOfUtil = subs.filter(s => s.type === utilId && s.submittedAt).reduce((m, s) => Math.max(m, s.submittedAt), 0);
@@ -2401,7 +2434,7 @@ function StreakCalendar({ subs }) {
     dates.push(d);
   }
 
-  const dateStrs = new Set(subs.map(s => s.date));
+  const dateStrs = new Set(subs.filter((s) => s.type !== "eco" && s.status !== "failed").map(s => s.date));
   const todayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const currentStreak = computeStreak(subs);
 
@@ -2431,7 +2464,8 @@ function StreakCalendar({ subs }) {
   );
 }
 
-const ECO_APPLIANCE_LABELS = { washer: "Washing machine", dryer: "Dryer", dishwasher: "Dishwasher" };
+// Old eco-bonus rows (the bonus has ended) still show in the history.
+const ECO_APPLIANCE_LABELS = { washer: () => t("hist.eco.washer"), dryer: () => t("hist.eco.dryer"), dishwasher: () => t("hist.eco.dishwasher") };
 
 function HistItem({ s, T }) {
   const util = getUtil(s.type);
@@ -2440,7 +2474,7 @@ function HistItem({ s, T }) {
   // a dash, not "NaN kWh".
   const used = parseFloat(s.cur) - parseFloat(s.prev);
   const delta = isEco
-    ? (ECO_APPLIANCE_LABELS[s.appliance] || "Eco run")
+    ? (ECO_APPLIANCE_LABELS[s.appliance]?.() || t("hist.eco.run"))
     : (Number.isFinite(used) ? used.toFixed(2) : "—");
   // Tapping a paid submission opens the real transaction on the block explorer —
   // one-tap on-chain proof (VeWorld's own Activity tab won't show these, because
@@ -2507,20 +2541,22 @@ function TodayPanel({ subs, wallet, setTab, onOpenReader, T }) {
 
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const weekStart = todayStart - ((now.getDay() + 6) % 7) * 86400000;     // Monday
+  // Calendar days, not 24 h steps: a daylight-saving week has a 23 h or 25 h day.
+  const dayAt = (n) => new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7) + n).getTime();
+  const weekStart = dayAt(0);     // Monday
   const paid = (subs || []).filter(s => s.status === "confirmed" && (Number(s.b3tr) || 0) > 0);
   const today = paid.filter(s => subTs(s) >= todayStart);
   const todayB3tr = today.reduce((a, s) => a + (Number(s.b3tr) || 0), 0);
   const lastToday = today.reduce((m, s) => (subTs(s) > subTs(m || {}) ? s : m), null);
   const initials = weekdayInitials();
   const days = Array.from({ length: 7 }, (_, i) => {
-    const start = weekStart + i * 86400000;
-    const v = paid.filter(s => s.type !== "eco" && subTs(s) >= start && subTs(s) < start + 86400000).reduce((a, s) => a + (Number(s.b3tr) || 0), 0);
+    const start = dayAt(i), end = dayAt(i + 1);
+    const v = paid.filter(s => s.type !== "eco" && subTs(s) >= start && subTs(s) < end).reduce((a, s) => a + (Number(s.b3tr) || 0), 0);
     return { label: initials[i], name: new Date(start).toLocaleDateString(getLang(), { weekday: "long" }), v, past: start < todayStart, isToday: start === todayStart };
   });
   const weekB3tr = paid.filter(s => subTs(s) >= weekStart).reduce((a, s) => a + (Number(s.b3tr) || 0), 0);
   const weekDays = days.filter(d => d.v > 0).length;
-  const missed = days.filter(d => d.past && d.v === 0 && paid.some(s => s.type !== "eco" && subTs(s) < weekStart + days.indexOf(d) * 86400000));
+  const missed = days.filter(d => d.past && d.v === 0 && paid.some(s => s.type !== "eco" && subTs(s) < dayAt(days.indexOf(d))));
   const nextAt = Object.prototype.hasOwnProperty.call(SERVER_NEXT_AT, "electric")
     ? (Number(SERVER_NEXT_AT.electric) || 0)
     : (() => { const last = paid.filter(s => s.type === "electric").reduce((m, s) => Math.max(m, subTs(s)), 0); return last ? last + RULES.cooldownMs : 0; })();
@@ -2538,7 +2574,7 @@ function TodayPanel({ subs, wallet, setTab, onOpenReader, T }) {
             {todayB3tr > 0 ? `+${todayB3tr.toFixed(2)}` : "—"} <span style={{ fontSize: 13, fontWeight: 700 }}>B3TR</span>
           </div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,.75)", textAlign: "right", lineHeight: 1.4 }}>
-            {lastToday ? <>{t("today.paid", { time: new Date(subTs(lastToday)).toLocaleTimeString(getLang(), { hour: "2-digit", minute: "2-digit" }) })}<br />{lastToday.type === "eco" ? "eco bonus" : t("today.reading")}</> : t("today.nothing")}
+            {lastToday ? <>{t("today.paid", { time: new Date(subTs(lastToday)).toLocaleTimeString(getLang(), { hour: "2-digit", minute: "2-digit" }) })}<br />{lastToday.type === "eco" ? t("hist.eco") : t("today.reading")}</> : t("today.nothing")}
           </div>
         </div>
         <div style={{ height: 1, background: "rgba(255,255,255,.18)", margin: "12px 0" }} />
@@ -2668,7 +2704,7 @@ function HomeScreen({ b3tr, walletB3tr, streak, subs, setTab, wallet, onOpenRead
 // localStorage entry, an odd server answer — is never rendered or sent.
 export const validDeviceToken = (t) => /^[0-9a-f]{48}$/.test(String(t || ""));
 
-function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading, setReading, prevRead, setPrevRead,
+function SubmitScreen({ isFirst = false, rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk, setPhoto, reading, setReading, prevRead, setPrevRead,
   dualTariff, setDualTariff, regLow, setRegLow, regNormal, setRegNormal, photoRegister,
   fixBasis, fixBusy, runFixBasis, dismissFixBasis, busy, usage, reward, days, handleSubmit, verifyKey, wallet, setShowWallet, subs, meters, T, setTab, onMeterAutoSubmit, meterAutoBusy, onRegisterMeter, startOnReader = false, onStartedReader }) {
   const meterNo  = (meters?.[selUtil] || "").trim();
@@ -2931,7 +2967,9 @@ function SubmitScreen({ rewardFactor = 1, u, selUtil, setSelUtil, aiOk, setAiOk,
             <div className="reward-preview">
               <div>
                 <div className="rp-label">{t("m.estimate")}</div>
-                <div className="rp-rate">{subs.some(x => x.type === selUtil && x.status !== "failed")
+                {/* The same "first reading" as the reward itself (the server's record
+                    counts too): a new phone said "first" next to an amount. */}
+                <div className="rp-rate">{!isFirst
                   ? t("m.useLess", { rate: rateText })
                   : t("m.firstSets")}</div>
                 {rewardFactor < 1 && (
@@ -3141,12 +3179,14 @@ function ChartsScreen({ subs, T, part }) {
   // ── Weekly B3TR earnings, last 6 calendar weeks (Mon–Sun, local) ───────────
   const weekStartOf = (ts) => { const d = new Date(ts); d.setHours(0,0,0,0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.getTime(); };
   const thisWeek = weekStartOf(Date.now());
-  const WEEK = 7 * 24 * 60 * 60 * 1000;
-  const weeks = Array.from({ length: 6 }, (_, i) => ({ start: thisWeek - (5 - i) * WEEK, b3tr: 0, n: 0 }));
+  // Calendar weeks, not 7 × 24 h steps: across a daylight-saving change a week
+  // started at 01:00 and the first hour of a Monday fell into the week before.
+  const shiftDays = (ts, n) => { const d = new Date(ts); d.setDate(d.getDate() + n); return d.getTime(); };
+  const weeks = Array.from({ length: 6 }, (_, i) => { const start = shiftDays(thisWeek, -(5 - i) * 7); return { start, end: shiftDays(start, 7), b3tr: 0, n: 0 }; });
   for (const s of subs) {
     const ts = s.submittedAt || localDayTs(s.date);
     if (!Number.isFinite(ts)) continue;
-    const w = weeks.find(w => ts >= w.start && ts < w.start + WEEK);
+    const w = weeks.find(w => ts >= w.start && ts < w.end);
     if (w) { w.b3tr += paidAmount(s); w.n += 1; }
   }
   const weekMax = Math.max(...weeks.map(w => w.b3tr), 0);
@@ -3421,7 +3461,7 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
   const badges = [
     { id: "early", name: t("b.early"), icon: "🚀", how: t("b.early.how"), unlocked: subs.length > 0 },
     { id: "7day", name: t("b.week"), icon: "🔥", how: t("b.week.how"), unlocked: streak >= 7 },
-    { id: "100sub", name: t("b.century"), icon: "💯", how: t("b.century.how"), unlocked: subs.length >= 100 },
+    { id: "100sub", name: t("b.century"), icon: "💯", how: t("b.century.how"), unlocked: countReadings(subs) >= 100 },
     { id: "20day", name: t("b.legend"), icon: "👑", how: t("b.legend.how"), unlocked: streak >= 20 },
     { id: "250b3tr", name: t("b.whale"), icon: "🐋", how: t("b.whale.how"), unlocked: b3tr >= 250 },
     { id: "rank1", name: t("b.champ"), icon: "🏆", how: t("b.champ.how"), unlocked: isLive && board.length > 1 && myRank === 1 && myBoardB3tr > 0 },
@@ -3652,13 +3692,13 @@ function ProfileHero({ wallet, domain, summary, level, onToast, T }) {
     e.target.value = ""; // so picking the same file again still fires
     if (!f) return;
     const url = await profilePhotoFrom(f);
-    if (!url) { onToast?.("⚠️ Couldn't open that photo here — try a JPEG or PNG"); return; }
+    if (!url) { onToast?.(t("p.photoBad")); return; }
     setDraft(d => ({ ...d, photo: url }));
   };
   const shown = editing ? draft : profile;
   const save = () => {
     const next = { name: draft.name.trim().slice(0, PROFILE_NAME_MAX), avatar: draft.avatar, photo: draft.photo || "" };
-    if (!saveProfile(wallet, next)) onToast?.("⚠️ This browser won't let the app save it — try outside private mode");
+    if (!saveProfile(wallet, next)) onToast?.(t("p.saveBlocked"));
     setProfile(next); setEditing(false);
   };
   const mono = "'SF Mono',monospace";
@@ -4173,6 +4213,9 @@ if (typeof document !== "undefined") {
 }
 
 export function TestnetBanner() {
+  // Rendered next to <App> (main.jsx), so it follows a language change itself.
+  const [, setLangState] = useState(getLang);
+  useEffect(() => onLangChange(setLangState), []);
   if (!TESTNET_BANNER) return null;
   return (
     // One line, exactly BANNER_H tall: the header and overlays are offset by that.
@@ -4341,10 +4384,12 @@ export default function App() {
     // list) must not land: it would show that wallet's pass and cooldowns.
     let cancelled = false;
     const list = Object.entries(meters || {}).filter(([, v]) => String(v || "").trim()).map(([k, v]) => `${k}:${v}`);
-    fetchT(`${REWARD_API.replace(/\/$/, "")}/wallet/seen`, {
+    // The phone's install id: the server gives this wallet's last recorded readings
+    // only to a phone it was paid on before (they take no signature to ask for).
+    deviceInfo().catch(() => null).then((device) => fetchT(`${REWARD_API.replace(/\/$/, "")}/wallet/seen`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ address: wallet, meters: list }),
-    })
+      body: JSON.stringify({ address: wallet, meters: list, ...(device ? { device } : {}) }),
+    }))
       // The same call reports whether this wallet holds an access pass. Knowing it up
       // front means we can say so plainly, instead of letting the user photograph a
       // meter, submit, and only then hit a 403 they can't act on.
@@ -4636,9 +4681,13 @@ export default function App() {
   // reverts for a normal wallet). Items stored before this change (no photo) are
   // skipped — they can't be verified server-side.
   const syncingRef = useRef(false);
+  // Bumped to run the sync again: when a run was cut short (connection or wallet
+  // changed mid-way, while the next run was turned away as "already syncing"), and
+  // when a "not yet" item's wait is over.
+  const [syncTick, setSyncTick] = useState(0);
   useEffect(() => {
     if (!online || !wallet) return;
-    let cancelled = false;
+    let cancelled = false, retryTimer = null;
     (async () => {
       if (syncingRef.current) return;
       // Same rule as a live submission: an app and a server on different networks
@@ -4712,13 +4761,16 @@ export default function App() {
           }
           const paid = (data.amount != null && Number.isFinite(Number(data.amount))) ? Number(data.amount) : item.b3tr;
           await markSynced(item.id);
-          if (cancelled) break;
+          // Paid and out of the queue: it goes into the history even if the
+          // connection flipped meanwhile (a reading recorded without a reward is on
+          // no chain, so it would be gone for good). Not into another wallet's.
+          if (sessionWalletRef.current !== wallet.toLowerCase()) break;
           setSubs(prev => [{
             id: item.id, type: item.type, meterNo: item.meterNo || "",
             cur: item.cur, prev: item.prev, date: dayKey(new Date(item.id)),
             b3tr: data.recorded ? 0 : paid, status: data.recorded ? "recorded" : data.pending ? "pending" : "confirmed", txHash: data.txid || "", submittedAt: item.id,
             ...serverSaving(data),
-            ...(data.recorded ? { note: data.reason || "no saving to reward this time" } : {}),
+            ...(data.recorded ? { note: data.reason || t("s.noSavingNote") } : {}),
             // Carry the flag through. Without it this row had status "review" but no
             // `flagged`, so the history fell through to rendering the bare word
             // "review" — unstyled, unexplained, on a submission that was paid. The
@@ -4727,6 +4779,7 @@ export default function App() {
           }, ...prev]);
           if (data.pending) uncertain = true; else if (!data.recorded) setB3tr(b => b + (parseFloat(paid) || 0));
           synced++;
+          if (cancelled) break;
         }
         if (cancelled) return;
         if (uncertain) recheckPayout(wallet);
@@ -4736,12 +4789,17 @@ export default function App() {
         if (refused.length) {
           showToast(`${t("s.refused", { n: refused.length })}\n${refused.join("\n")}${syncedMsg ? `\n\n${syncedMsg}` : ""}`);
         } else if (syncedMsg) showToast(syncedMsg);
+        const at = await nextRetryAt(wallet).catch(() => null);
+        if (at && !cancelled) retryTimer = setTimeout(() => setSyncTick((n) => n + 1), Math.min(at - Date.now() + 1000, 2147483000));
       } finally {
         syncingRef.current = false;
+        // Cut short: run again for whatever is still queued (the run started by
+        // the change itself was turned away while this one was busy).
+        if (cancelled) setSyncTick((n) => n + 1);
       }
     })();
-    return () => { cancelled = true; };
-  }, [online, wallet, serverNetwork]);
+    return () => { cancelled = true; if (retryTimer) clearTimeout(retryTimer); };
+  }, [online, wallet, serverNetwork, syncTick]);
 
   // The best-known "previous reading" for a meter: the most recent submission's
   // reading, falling back to the registered baseline. This is what next time's
@@ -5251,7 +5309,7 @@ export default function App() {
       saving = serverSaving(data);
       onChainPending = !!data.pending;
       if (data.amount != null && Number.isFinite(Number(data.amount))) paidAmount = Number(data.amount);
-      if (data.recorded) { recordedOnly = data.reason || "no saving to reward this time"; paidAmount = 0; }
+      if (data.recorded) { recordedOnly = data.reason || t("s.noSavingNote"); paidAmount = 0; }
 
       // Switched wallets while this was paying: the payout belongs to the wallet it
       // was sent for and shows in its history (from chain) once that one is back.
@@ -5317,9 +5375,10 @@ export default function App() {
       <style>{CSS}</style>
       {showIntro && <IntroScreen onStart={() => { setShowIntro(false); try { localStorage.setItem('greenlog_seen_intro', 'true'); } catch { /* storage blocked */ } }} />}
       {!showIntro && !wallet && <WalletGate onConnect={openConnectModal} online={online} />}
-      {/* Not under the intro: its dialog took the keyboard focus and trapped Tab in
-          fields nobody could see, so Next and Skip on the intro were unreachable. */}
-      {needsBaselines && !showIntro && <BaselineOnboarding onDone={(bl, mtrs) => { setBaselines(bl); setMeters(mtrs); closeRegistration(); }} utils={regUtils} editMode={regEdit} existingBaselines={baselines} existingMeters={meters} T={T} />}
+      {/* Not under the intro, nor under the wallet screen: its dialog took the
+          keyboard focus and trapped Tab in fields nobody could see, so Next/Skip on
+          the intro — and "Connect wallet" — were unreachable by keyboard. */}
+      {needsBaselines && !showIntro && wallet && <BaselineOnboarding onDone={(bl, mtrs) => { setBaselines(bl); setMeters(mtrs); closeRegistration(); }} utils={regUtils} editMode={regEdit} existingBaselines={baselines} existingMeters={meters} T={T} />}
       {!onboarded && <Onboarding onDone={() => setOnboarded(true)} />}
       {showAdmin && isAdmin && <Suspense fallback={<div role="status" style={{position:"fixed",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.4)",color:"#fff",zIndex:400}}>Loading…</div>}><AdminScreen onClose={() => setShowAdmin(false)} T={T} wallet={wallet} onFundPool={handleFundPool} onMoveToRewardsPool={handleMoveToRewardsPool} onDisableRewardsPool={handleDisableRewardsPool} onSetDistributionPaused={handleSetDistributionPaused} onAssignSignaler={handleAssignSignaler} onClaimB3TR={FAUCET_ENABLED ? handleClaimB3TR : null} onAdminApi={adminApi} onToast={showToast} /></Suspense>}
       {showHelp && <HelpScreen onLang={changeLang} onClose={() => setShowHelp(false)} onFeedback={() => { setShowHelp(false); setShowFeedback(true); }} T={T} />}
@@ -5409,7 +5468,7 @@ export default function App() {
 
           {!noAccess && !checkingAccess && <>
           {tab==="home"      && <HomeScreen b3tr={b3tr} walletB3tr={walletB3tr} streak={streak} subs={subs} setTab={setTab} wallet={wallet} onOpenReader={() => { setStartOnReader(true); setTab("submit"); }} T={T}/>}
-          {tab==="submit"    && <SubmitScreen startOnReader={startOnReader} onStartedReader={() => setStartOnReader(false)} rewardFactor={rewardFactor} u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} dualTariff={dualTariff} fixBasis={fixBasis} fixBusy={fixBusy} runFixBasis={runFixBasis} dismissFixBasis={() => setFixBasis(null)} setDualTariff={setDualTariff} regLow={regLow} setRegLow={setRegLow} regNormal={regNormal} setRegNormal={setRegNormal} photoRegister={regHint[selUtil] || null} busy={busy} usage={usage} reward={reward} days={daysSinceLast()} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab} onMeterAutoSubmit={handleMeterAutoSubmit} meterAutoBusy={meterAutoBusy} onRegisterMeter={(utils) => openRegistration(utils, true)}/>}
+          {tab==="submit"    && <SubmitScreen isFirst={firstForUtil()} startOnReader={startOnReader} onStartedReader={() => setStartOnReader(false)} rewardFactor={rewardFactor} u={u} selUtil={selUtil} setSelUtil={handleSelUtil} aiOk={aiOk} setAiOk={setAiOk} setPhoto={setPhoto} reading={reading} setReading={setReading} prevRead={prevRead} setPrevRead={setPrevReadByUser} dualTariff={dualTariff} fixBasis={fixBasis} fixBusy={fixBusy} runFixBasis={runFixBasis} dismissFixBasis={() => setFixBasis(null)} setDualTariff={setDualTariff} regLow={regLow} setRegLow={setRegLow} regNormal={regNormal} setRegNormal={setRegNormal} photoRegister={regHint[selUtil] || null} busy={busy} usage={usage} reward={reward} days={daysSinceLast()} handleSubmit={handleSubmit} verifyKey={verifyKey} wallet={wallet} setShowWallet={openConnectModal} subs={subs} meters={meters} T={T} setTab={setTab} onMeterAutoSubmit={handleMeterAutoSubmit} meterAutoBusy={meterAutoBusy} onRegisterMeter={(utils) => openRegistration(utils, true)}/>}
           {tab==="progress"  && <ProgressScreen b3tr={b3tr} streak={streak} subs={subs} wallet={wallet} T={T}/>}
           {tab==="history"   && <HistoryScreen subs={subs} T={T}/>}
           {tab==="profile"   && <ProfileScreen b3tr={b3tr} subs={subs} wallet={wallet} walletDomain={accountDomain || null} setTab={setTab} onOpenSettings={()=>setTab("settings")} onOpenHelp={()=>setShowHelp(true)} onOpenFeedback={()=>setShowFeedback(true)} onToast={showToast} T={T}/>}

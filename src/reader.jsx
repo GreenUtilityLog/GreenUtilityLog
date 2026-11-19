@@ -54,7 +54,7 @@ function TibberSetup({ T, API, wallet, meterNo, token, latest, health, onLinked,
       const certificate = await sign(`Green Utility Log — link Tibber\nWallet: ${wallet}\nNetwork: ${NETWORK}\nTime: ${new Date().toISOString()}`);
       const r = await fetchT(`${API}/meter/tibber/link`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: wallet, meterNo, tibberToken: tibberToken.trim(), certificate }) }, 60000);
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error || `connecting failed (${r.status})`);
+      if (!r.ok) throw new Error(d.error || `${t("r.connectFailed")} (${r.status})`);
       setTibberToken("");
       setMsg({ ok: true, text: t("r.checkTotal", { who: "Tibber", n: d.reading }) });
       onLinked?.(d.token);
@@ -68,7 +68,7 @@ function TibberSetup({ T, API, wallet, meterNo, token, latest, health, onLinked,
     try {
       const certificate = await sign(`Green Utility Log — unlink Tibber\nWallet: ${wallet}\nNetwork: ${NETWORK}\nTime: ${new Date().toISOString()}`);
       const r = await fetchT(`${API}/meter/tibber/unlink`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: wallet, certificate }) });
-      if (!r.ok) throw new Error("couldn't disconnect — try again");
+      if (!r.ok) throw new Error(t("r.disconnectFailed"));
       setMsg({ ok: true, text: t("tb.off") });
       onLinked?.();
     } catch (e) { setMsg({ ok: false, text: e?.message || t("r.disconnectFailed") }); }
@@ -181,7 +181,7 @@ function MojElektroSetup({ T, API, wallet, meterNo, latest, onLinked, requestCer
       const certificate = await sign(`Green Utility Log — link MojElektro\nWallet: ${wallet}\nNetwork: ${NETWORK}\nTime: ${new Date().toISOString()}`);
       const r = await fetchT(`${API}/meter/mojelektro/link`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: wallet, meterNo, mojToken: mojToken.trim(), usagePoint: usagePoint.trim(), certificate }) }, 60000);
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error || `connecting failed (${r.status})`);
+      if (!r.ok) throw new Error(d.error || `${t("r.connectFailed")} (${r.status})`);
       setMojToken("");
       setMsg({ ok: true, text: t("r.checkTotal", { who: "MojElektro", n: d.reading }) });
       onLinked?.(d.token);
@@ -264,7 +264,7 @@ function PowerfoxSetup({ T, API, wallet, meterNo, token, latest, health, onLinke
       const certificate = await sign(`Green Utility Log — link Powerfox\nWallet: ${wallet}\nNetwork: ${NETWORK}\nTime: ${new Date().toISOString()}`);
       const r = await fetchT(`${API}/meter/powerfox/link`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: wallet, meterNo, email: email.trim(), password, certificate }) }, 60000);
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error || `connecting failed (${r.status})`);
+      if (!r.ok) throw new Error(d.error || `${t("r.connectFailed")} (${r.status})`);
       setPassword("");
       setMsg({ ok: true, text: d.outdated
         ? t("pf.old")
@@ -280,7 +280,7 @@ function PowerfoxSetup({ T, API, wallet, meterNo, token, latest, health, onLinke
     try {
       const certificate = await sign(`Green Utility Log — unlink Powerfox\nWallet: ${wallet}\nNetwork: ${NETWORK}\nTime: ${new Date().toISOString()}`);
       const r = await fetchT(`${API}/meter/powerfox/unlink`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: wallet, certificate }) });
-      if (!r.ok) throw new Error("couldn't disconnect — try again");
+      if (!r.ok) throw new Error(t("r.disconnectFailed"));
       setMsg({ ok: true, text: t("pf.off") });
       onLinked?.();
     } catch (e) { setMsg({ ok: false, text: e?.message || t("r.disconnectFailed") }); }
@@ -359,7 +359,7 @@ ${fetchCmd(`--ask-token --powerfox=YOUR_POWERFOX_EMAIL --install${INGEST_FLAG}`)
           </div>
           <div style={{ position: "relative" }}>
             <button type="button" onClick={() => copy(cmd, "pfcmd")} style={{ position: "absolute", top: 6, right: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, border: "none", borderRadius: 6, cursor: "pointer", background: copied === "pfcmd" ? T.green3 : T.textSoft, color: "#fff" }}>
-              {copied === "pfcmd" ? "✓ Copied" : "Copy"}
+              {copied === "pfcmd" ? t("r.copied") : t("r.copy")}
             </button>
             <pre style={{ fontFamily: "'SF Mono',Menlo,monospace", fontSize: 10, lineHeight: 1.5, color: T.text, background: T.card, border: `1px dashed ${T.border}`, padding: 10, borderRadius: 6, overflowX: "auto", margin: 0, whiteSpace: "pre" }}>{cmd}</pre>
           </div>
@@ -463,8 +463,8 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
     // which meter's baseline to measure this wallet's readings against.
     const r = await fetchT(`${API}/meter/pair`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: wallet, ...(meterNo ? { meterNo } : {}), certificate }) });
     const d = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(d.error || `pairing failed (${r.status})`);
-    if (!validDeviceToken(d.token)) throw new Error("pairing failed (the server sent an unexpected device token)");
+    if (!r.ok) throw new Error(d.error || `${t("r.pairFailed")} (${r.status})`);
+    if (!validDeviceToken(d.token)) throw new Error(t("r.pairFailed"));
     setToken(d.token);
     try { localStorage.setItem(tkKey, d.token); } catch { /* no storage */ }
     return d.token;
@@ -487,13 +487,13 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
         body: JSON.stringify({ address: wallet, ...(meterNo ? { meterNo } : {}), certificate }),
       });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error || `pairing failed (${r.status})`);
+      if (!r.ok) throw new Error(d.error || `${t("r.pairFailed")} (${r.status})`);
       if (!validDeviceToken(d.token)) throw new Error("re-linking failed (the server sent an unexpected device token)");
       const changed = d.token !== token;
       setToken(d.token);
       try { localStorage.setItem(tkKey, d.token); } catch { /* no storage */ }
       setRelinked(changed ? "new" : "same");
-    } catch (e) { setErr(e?.message || "could not re-link this device"); }
+    } catch (e) { setErr(e?.message || t("r.relinkFailed")); }
     finally { setBusy(""); }
   };
 
@@ -519,13 +519,13 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || `couldn't update the starting point (${r.status})`);
       await refreshLatest();
-    } catch (e) { setErr(e?.message || "updating the starting point failed"); }
+    } catch (e) { setErr(e?.message || t("r.rebaseFailed")); }
     finally { setBusy(""); }
   };
 
   const showToken = async () => {   // Advanced: reveal/create the device token for a reader
     setErr("");
-    try { await ensureToken(); } catch (e) { setErr(e?.message || "pairing failed"); }
+    try { await ensureToken(); } catch (e) { setErr(e?.message || t("r.pairFailed")); }
   };
 
   // writeText returns a promise; unawaited, a refusal (in-app browsers often have
@@ -545,7 +545,9 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
   // will ever count isn't usage at all — it means the stored starting point and the
   // reader are measuring different things. Derived from the same numbers the
   // plausibility check uses, so it cannot drift away from what the server enforces.
-  const gapKwh = (rd && Number.isFinite(Number(latest?.baseline)))
+  // baseline null (no photo yet) is not 0: Number(null) is 0, and the card then
+  // offered a "starting point mismatch" fix the server refuses.
+  const gapKwh = (rd && latest?.baseline != null && Number.isFinite(Number(latest.baseline)))
     ? +(Number(rd.reading) - Number(latest.baseline)).toFixed(3) : null;
   const scaleMismatch = !!latest?.canRebaseline && gapKwh != null
     && gapKwh > USAGE_RANGES.electric.max * MAX_SPAN_DAYS;
@@ -662,14 +664,18 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
                   </div>
                 </div>
               ))}
-              {!paidThis && !photoPaused && (
+              {/* Only when the server can pay it now: not during the cooldown (the
+                  timeline then says when), and not for a reading too old to pay. */}
+              {!paidThis && !photoPaused && !(nextAt > Date.now()) && readerFresh && (
                 <button disabled={busyAny} onClick={() => onAutoSubmit?.()} style={{ ...btn(T.eco || T.electric), width: "100%", marginTop: 10, opacity: busyAny ? .6 : 1 }}>
                   {busyAny ? t("r.submitting") : latest?.autoClaimOnPush ? t("r.claim") : t("r.submitNoPhoto")}
                 </button>
               )}
             </div>
 
-            {nextAt > Date.now() && !photoPaused && (
+            {/* A computer only matters for a reader that pushes; Powerfox, Tibber and
+                MojElektro are fetched by our server. */}
+            {nextAt > Date.now() && !photoPaused && !["powerfox", "tibber", "mojelektro"].includes(rd?.source) && (
               <div style={{ marginTop: 8, padding: "10px 12px", fontSize: 11, color: T.text, lineHeight: 1.55, background: T.green5 || T.bgAlt, border: `1px solid ${T.green4 || T.border}`, borderRadius: 10 }}>
                 {t("r.keepOn", { when: fmtWhen(nextAt) })}
               </div>
@@ -737,7 +743,9 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
                     <button onClick={showToken} style={btn(T.electric)}>{t("r.getToken")}</button>
                   ) : (() => {
                     // Live connection status — the card already polls /meter/latest.
-                    const connected = rd != null;
+                    // Connected only with a fresh reading: a reader that stopped days
+                    // ago said "Connected" with just a time on it.
+                    const connected = rd != null && readerFresh;
                     const statusBg = connected ? (T.ecoBg || T.waterBg) : T.bg;
                     const statusColor = connected ? (T.eco || T.green3 || T.text) : T.textSoft;
                     const DEVS = [
@@ -843,8 +851,10 @@ ${fetchCmd(`--ask-token --install --url=http://<reader-ip>/api/v1/data${INGEST_F
                         {/* Live connection status */}
                         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 11px", background: statusBg, border: `1px solid ${connected ? (T.ecoBorder || T.waterBorder) : (T.border || T.waterBorder)}`, borderRadius: 6, marginBottom: 10, fontSize: 11, fontWeight: 700, color: statusColor }}>
                           {connected
-                            ? `✅ Connected — ${rd.reading} kWh received${rd.at ? ` at ${new Date(rd.at).toLocaleTimeString()}` : ""}`
-                            : "⏳ Waiting for your first reading… (leave this open after you set it up)"}
+                            ? t("r.connectedAt", { n: rd.reading, when: rd.at ? fmtWhen(rd.at) : "—" })
+                            : rd != null
+                            ? t("r.lastStale", { n: rd.reading, when: rd.at ? fmtWhen(rd.at) : "—" })
+                            : t("r.waitingFirst")}
                         </div>
 
                         {/* Device picker */}

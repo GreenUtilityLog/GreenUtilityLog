@@ -137,6 +137,7 @@ export default {
   "the automatic reading is stale — refresh your reader, then try again": "автоматичното показание е остаряло — обнови четеца си и опитай пак",
   "submit one photo reading first to set this meter's baseline — then automatic readings pay out": "първо изпрати едно показание със снимка, за да зададеш началото на този електромер — след това автоматичните показания се изплащат",
   "submit one photo reading first to set this meter's baseline": "първо изпрати едно показание със снимка, за да зададеш началото на този електромер",
+  "take one photo of your meter first — its starting point was set without one": "първо снимай електромера си веднъж — началното му показание е зададено без снимка",
   "automatic payouts are paused until you take one photo of your meter — once every {days} days keeps them going": "автоматичните изплащания са спрени, докато не снимаш електромера си — една снимка на всеки {days} дни ги поддържа",
   "this reader has already paid out once, so its starting point is settled": "този четец вече е изплатил веднъж, така че началното му показание е окончателно",
   "this meter's starting point has already been corrected once — ask an admin if it is wrong again": "началното показание на този електромер вече е коригирано веднъж — питай администратор, ако пак е грешно",
