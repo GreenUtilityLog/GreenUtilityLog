@@ -1,0 +1,540 @@
+{
+ "_toc": "Pe această pagină",
+ "name": "English",
+ "kicker": "Ghid pentru testeri",
+ "h1": "Câștigă fără să-ți fotografiezi contorul",
+ "lede": "De obicei îți fotografiezi contorul ca să câștigi B3TR. Dacă ceva din casa ta îți poate citi deja contorul, poate trimite citirea în locul tău — și nu mai faci nicio poză. Începe prin a-ți găsi mai jos configurația.",
+ "s_routes": "Ce configurație ai?",
+ "s_token": "Toate variantele automate: obține-ți tokenul",
+ "s_a": "Varianta A — Home Assistant (orice contor)",
+ "s_b": "Varianta B — HomeWizard P1, fără Home Assistant",
+ "s_c": "Varianta C — Alt cititor (cititor P1, cap de citire Tasmota)",
+ "s_claim": "La final: plata vine singură",
+ "s_trouble": "Dacă ceva nu merge",
+ "routes": [
+  [
+   "Folosesc Home Assistant",
+   "Merge cu aproape orice contor pe care HA îl citește deja. Instalează integrarea noastră sau lipește câteva rânduri de YAML.",
+   1,
+   "Cel mai simplu"
+  ],
+  [
+   "Am un HomeWizard P1",
+   "Nu ai nevoie de Home Assistant. Merge în 🇳🇱 🇧🇪 🇱🇺 🇩🇰 🇸🇪 🇭🇺 — un mic script îți găsește singur contorul în rețea.",
+   2,
+   "Puțină tehnică"
+  ],
+  [
+   "Am alt cititor",
+   "P1 Monitor, un cap de citire Tasmota (Hichi) sau orice cititor care oferă în rețeaua ta totalul contorului în kWh ca JSON.",
+   3,
+   "Tehnic"
+  ],
+  [
+   "Am un Powerfox (poweropti)",
+   "Des întâlnit în Germania. Putem prelua citirea ta din cloudul Powerfox — nimic de instalat, nimic de ținut pornit.",
+   1,
+   "Cel mai simplu"
+  ],
+  [
+   "Am un Tibber Pulse",
+   "Des întâlnit în Suedia, Norvegia, Danemarca și Finlanda. Preluăm citirea ta de la Tibber cu tokenul tău personal — nimic de instalat.",
+   1,
+   "Cel mai simplu"
+  ],
+  [
+   "Niciuna dintre acestea",
+   "Atunci continuă să-ți fotografiezi contorul. Merge la fel de bine și aduce exact la fel. Nimic de configurat.",
+   0,
+   "Fără configurare"
+  ]
+ ],
+ "baseline_t": "Mai întâi, o singură dată: stabilește punctul de plecare",
+ "baseline_b": "Indiferent ce variantă alegi, trimite mai întâi în aplicație <strong>o citire obișnuită cu poză</strong>. Așa află aplicația de unde a pornit contorul tău — fără asta, citirile automate nu pot fi plătite.",
+ "token": [
+  [
+   "Copiază tokenul dispozitivului",
+   "În aplicație: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → „Get my device token”</span>. Copiază-l.",
+   "Ce este",
+   "Un cod lung care spune „aceste citiri aparțin portofelului meu”. Păstrează-l doar pentru tine — oricine îl are poate trimite citiri în numele tău."
+  ]
+ ],
+ "a_intro": "Două moduri. Integrarea noastră e cea mai simplă și merge cu <em>orice</em> contor pe care ți-l arată deja Home Assistant; YAML-ul face același lucru de mână, dacă preferi să nu instalezi nimic.",
+ "a1_t": "Cu integrarea noastră (recomandat)",
+ "a1": [
+  [
+   "Adaugă-ne în HACS",
+   "În Home Assistant: <span class=\"k\">HACS → ⋮ (dreapta sus) → Custom repositories</span>. Lipește adresa de mai jos, alege tipul <strong>Integration</strong> și apasă Add.",
+   "code",
+   "https://github.com/GreenUtilityLog/GreenUtilityLog",
+   "Adresa depozitului"
+  ],
+  [
+   "Instalează și repornește",
+   "Deschide <strong>GreenUtilityLog</strong> în lista HACS, apasă <strong>Download</strong>, apoi repornește Home Assistant.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Adaugă integrarea",
+   "Mergi la <span class=\"k\">Settings → Devices &amp; services → Add integration</span> și caută <strong>GreenUtilityLog</strong>. Lipește tokenul, alege senzorul cu <strong>kWh cumulați</strong> și stabilește cât de des se trimite.",
+   "see",
+   "Verifică dacă merge",
+   "Apare un senzor <span class=\"k\">Last sent reading</span> cu totalul contorului tău. Atributele lui arată ora trimiterii și eventualele erori."
+  ]
+ ],
+ "a2_t": "Cu propriul senzor (orice contor)",
+ "a2": [
+  [
+   "Găsește senzorul contorului",
+   "În Home Assistant: <span class=\"k\">Developer tools → States</span>. Filtrează după <em>import</em> și alege-l pe cel în kWh a cărui valoare tot crește — acela e totalul tău. ID-urile entităților diferă de la o instalare la alta, așa că folosește-l pe al tău.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Adaugă aceste rânduri",
+   "Pune asta în <span class=\"k\">configuration.yaml</span>, înlocuind entitatea și tokenul tău, apoi repornește Home Assistant.",
+   "code",
+   "rest_command:\n  gul_push:\n    url: \"https://greenutilitylog-rewards.onrender.com/meter-ingest\"\n    method: POST\n    content_type: \"application/json\"\n    timeout: 90  # seconds: the server can take a minute to wake up\n    payload: '{\"token\":\"YOUR_TOKEN\",\"reading\":{{ states(\"sensor.YOUR_ENTITY\") | float }}}'\n\n# automations.yaml — twice a day (you can claim once per 20h)\n- alias: Push meter to GreenUtilityLog\n  trigger: { platform: time_pattern, hours: \"/12\" }\n  # only a real kWh total: not 0 after a restart, not unavailable\n  condition:\n    - condition: template\n      value_template: '{{ is_number(states(\"sensor.YOUR_ENTITY\")) and states(\"sensor.YOUR_ENTITY\") | float > 0 and state_attr(\"sensor.YOUR_ENTITY\", \"unit_of_measurement\") == \"kWh\" }}'\n  action: { service: rest_command.gul_push }",
+   "configuration.yaml + automations.yaml"
+  ]
+ ],
+ "b": [
+  [
+   "Activează Local API",
+   "În aplicația <strong>HomeWizard Energy</strong>: <span class=\"k\">Settings → Meters → P1-ul tău → Local API → ON</span>. Astfel, propria ta rețea poate citi contorul.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Deschide PowerShell (sau un terminal)",
+   "<strong>Windows:</strong> apasă Start, tastează <em>PowerShell</em>, apasă Enter. <strong>Mac:</strong> deschide <em>Terminal</em>. <strong>Raspberry Pi / NAS:</strong> terminalul lui sau prin SSH. Tot ce urmează se tastează în acea fereastră. Pe Mac, rămâi în dosarul personal în care se deschide Terminal (vezi pasul 5).",
+   null,
+   null,
+   null
+  ],
+  [
+   "Verifică dacă ai deja Node",
+   "Tastează asta și apasă Enter. Un număr de versiune — orice de la <span class=\"k\">v22</span> în sus — înseamnă că totul e pregătit (la una mai veche fă și pasul următor, fiindcă nu mai primește actualizări de securitate) și poți sări peste pasul următor. Dacă în schimb apare o eroare, Node nu e instalat încă.",
+   "code",
+   "node -v",
+   "Windows · Mac · Linux"
+  ],
+  [
+   "Instalează Node.js, dacă a apărut o eroare",
+   "<strong>Windows:</strong> lipește rândul de mai jos; apasă <span class=\"k\">Y</span> dacă te întreabă dacă accepți condițiile sursei. <strong>Mac:</strong> programul de instalare LTS de pe nodejs.org sau <span class=\"k\">brew install node</span>. <strong>Raspberry Pi / Debian:</strong> <span class=\"k\">sudo apt install nodejs</span> (e nevoie de Node 22 sau mai nou — versiunile mai vechi nu mai primesc actualizări de securitate; Debian/Ubuntu vin des cu una mai veche — atunci folosește programul de instalare de pe nodesource.com). Apoi <strong>închide fereastra și deschide una nouă</strong> — o fereastră deja deschisă păstrează vechiul PATH, așa că <span class=\"k\">node</span> tot n-ar fi găsit. Verifică din nou cu <span class=\"k\">node -v</span>.",
+   "code",
+   "winget install OpenJS.NodeJS.LTS",
+   "Windows — PowerShell"
+  ],
+  [
+   "Lipește un singur rând, apasă Enter",
+   "Descarcă scriptul și trimite prima ta citire. Se și programează singur să raporteze de două ori pe zi (Windows: Task Scheduler · Mac / Linux / Pi: cron), așa că poți închide fereastra după aceea și continuă să meargă, chiar și după o repornire. E singura dată când îl rulezi. <strong>Mac:</strong> lipește-l într-un Terminal abia deschis, în dosarul personal — nu intra înainte cu <span class=\"k\">cd</span> în Desktop, Documents sau Downloads: macOS nu lasă programarea (cron) să citească fișiere de acolo, așa că n-ar rula niciodată.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Lipește tokenul când ți-l cere",
+   "Îl cere o singură dată și îl ține minte; de atunci programarea folosește tokenul salvat. Apoi configurează programarea, găsește contorul și trimite prima citire.",
+   "see",
+   "Ce ar trebui să vezi, în ordine",
+   "<span class=\"k\">Paste your device token…</span> → <span class=\"k\">Scheduled…</span> → <span class=\"k\">found HomeWizard at 192.168.…</span> → <span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "c_intro": "Același script citește orice dispozitiv din rețeaua ta care oferă totalul contorului în kWh ca JSON prin HTTP, fără autentificare — trebuie doar să-i spui unde. Nu orice cititor face asta: API-ul dsmr-reader cere o cheie, iar un Shelly își măsoară propria energie, nu registrul contorului. Fă mai întâi pașii 2–4 din Varianta B (terminal și Node); doar comanda de mai jos e diferită.",
+ "c": [
+  [
+   "Găsește adresa URL de date a cititorului",
+   "Deschide pagina web a cititorului tău și caută adresa care întoarce JSON brut (adesea ceva de genul <span class=\"k\">/api/v1/data</span> sau <span class=\"k\">/api/v2/sm/actual</span>). Căile exacte diferă de la o marcă la alta — uită-te în documentația cititorului tău.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Pornește scriptul cu acea adresă",
+   "Pune adresa ta în locul celei din exemplu; scriptul îți cere singur tokenul. Dacă nu găsește citirea automat, adaugă <span class=\"k\">--field=</span> cu calea cu puncte până la valoarea kWh din acel JSON. Doar două registre de tarif și niciun total (P1 Monitor, de exemplu)? Unește cele două căi cu <span class=\"k\">+</span> și trimite suma lor, de ex. <span class=\"k\">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install --url=http://192.168.1.60/api/v1/data"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Un cap de citire Tasmota (Hichi)?",
+   "Folosește <span class=\"k\">--tasmota=</span> cu IP-ul lui în loc de <span class=\"k\">--url=</span>. Scriptul citește singur totalul contorului (<span class=\"k\">Total_in</span>). Des întâlnit la contoarele din Germania, Austria și Elveția.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --tasmota=192.168.1.70 --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Verifică dacă merge",
+   "Scriptul afișează ce a trimis.",
+   "see",
+   "Ce ar trebui să apară",
+   "<span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "claim": [
+  [
+   "Citirea apare singură",
+   "În aplicație deschide <strong>Contor</strong>. Panoul <strong>⚡ Citire automată</strong> arată <span class=\"k\">Conectat — … kWh primiți</span>, cu totalul contorului și momentul în care a sosit.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Se plătește singură",
+   "Nimic de atins: fiecare citire se plătește automat când sosește, cel mult o dată pe zi, iar <strong>Cronologie</strong> din panou arată <span class=\"k\">Plătit +… B3TR</span>. Nu vrei să aștepți? <strong>Revendică acum</strong> face același lucru.",
+   null,
+   null,
+   null
+  ]
+ ],
+ "s_country": "Merge și acolo unde locuiești?",
+ "country_intro": "Portul de pe contor diferă de la o țară la alta, așa că nu orice cititor merge peste tot. Ce merge mereu: <strong>dacă Home Assistant îți arată deja totalul contorului, Varianta A merge</strong> — indiferent în ce țară locuiești.",
+ "country_th": [
+  "Țara",
+  "Contorul tău are",
+  "Ce să folosești"
+ ],
+ "country_rows": [
+  [
+   "🇳🇱 Țările de Jos",
+   "Port P1 (RJ12)",
+   "Orice variantă. HomeWizard merge imediat."
+  ],
+  [
+   "🇧🇪 Belgia",
+   "Port P1 (RJ12, oprit implicit)",
+   "Orice variantă, după ce portul e pornit: îl activezi gratuit în portalul Fluvius (la alți operatori de distribuție: întreabă-l pe al tău)."
+  ],
+  [
+   "🇱🇺 Luxemburg",
+   "Port P1 (Smarty, criptat)",
+   "HomeWizard P1: cere o dată cheia P1 de la operatorul de distribuție. Sau Home Assistant."
+  ],
+  [
+   "🇸🇪 Suedia · 🇫🇮 Finlanda",
+   "Port HAN (RJ12)",
+   "🇸🇪 HomeWizard P1 (Varianta B) — poate fi nevoie ca operatorul de distribuție să activeze întâi portul. Tibber Pulse: Varianta E. Altfel, un cititor P1/HAN sau Home Assistant."
+  ],
+  [
+   "🇩🇰 Danemarca",
+   "P1 (oprit implicit) sau HAN",
+   "HomeWizard P1 (Varianta B), după ce operatorul de distribuție activează portul P1 — un port HAN are nevoie de un convertor. Tibber Pulse: Varianta E. Altfel, un cititor cu conectorul potrivit sau Home Assistant."
+  ],
+  [
+   "🇭🇺 Ungaria",
+   "Port P1 (depinde de operatorul de distribuție)",
+   "HomeWizard P1 cu unele contoare — verifică întâi lista HomeWizard. Sau Home Assistant, sau poze."
+  ],
+  [
+   "🇳🇴 Norvegia",
+   "HAN (RJ45, M-BUS)",
+   "Tibber Pulse: Varianta E. Altfel, un cititor HAN norvegian + Home Assistant."
+  ],
+  [
+   "🇩🇪 Germania",
+   "Smart-Meter-Gateway / cap optic",
+   "Powerfox poweropti: Varianta D. Cap de citire Tasmota (Hichi): Varianta C. Altfel, Home Assistant."
+  ],
+  [
+   "🇸🇮 Slovenia",
+   "Port P1 la multe contoare (uneori criptat)",
+   "Probabil Home Assistant cu un cititor P1 — netestat încă."
+  ],
+  [
+   "🇬🇷 Grecia · 🇭🇷 Croația · 🇹🇷 Turcia",
+   "Niciun port pentru clienți găsit încă",
+   "Deocamdată poze."
+  ],
+  [
+   "🇷🇴 România · 🇧🇬 Bulgaria · restul Balcanilor",
+   "Niciun port pentru clienți găsit încă",
+   "Deocamdată poze."
+  ],
+  [
+   "🇦🇹 Austria",
+   "Interfață pentru clienți (M-Bus) / port optic",
+   "Tibber Pulse: Varianta E. Cap de citire Tasmota (Hichi): Varianta C. Altfel, Home Assistant."
+  ],
+  [
+   "🇨🇭 Elveția",
+   "Interfață pentru clienți / port optic",
+   "Cap de citire Tasmota (Hichi): Varianta C. Altfel, Home Assistant."
+  ],
+  [
+   "🇫🇷 Franța",
+   "Linky: port TIC",
+   "Fără port P1, deci deocamdată doar Home Assistant (de ex. cu un ZLinky). Sau poze."
+  ],
+  [
+   "🇬🇧 Regatul Unit",
+   "SMETS2: fără port (Zigbee)",
+   "Fără port P1, deci deocamdată doar Home Assistant (de ex. cu un Hildebrand Glow). Sau poze."
+  ],
+  [
+   "🇪🇸 Spania",
+   "Fără port",
+   "Fără port P1, deci deocamdată doar Home Assistant (de ex. cu Datadis). Sau poze."
+  ],
+  [
+   "🇮🇹 Italia",
+   "Chain 2 (e nevoie de un dispozitiv precum Sinapsi Alfa)",
+   "Fără port P1, deci deocamdată doar Home Assistant. Sau poze."
+  ],
+  [
+   "🇺🇸 🇨🇦 SUA și Canada",
+   "Fără port P1 (Zigbee, doar dacă furnizorul îl activează)",
+   "Poze, dacă afișajul arată totalul în kWh. Home Assistant cu un Rainforest EAGLE, acolo unde furnizorul permite. Quebec (Hydro-Québec): doar poze."
+  ],
+  [
+   "Oriunde altundeva",
+   "Variază",
+   "Dacă Home Assistant îți citește contorul, Varianta A merge."
+  ]
+ ],
+ "country_close": "Nu știi sigur? Deschide Home Assistant și caută-ți contorul la Developer tools → States. Dacă există acolo o valoare în kWh care tot crește, totul e pregătit. HomeWizard P1? Verifică-ți contorul pe <a href=\"https://helpdesk.homewizard.com/nl/articles/5935311-werkt-de-p1-meter-met-mijn-slimme-meter\">lista HomeWizard</a>.",
+ "be_t": "🇧🇪 Belgia (contoare Fluvius)",
+ "be_b": "Portul P1 de pe contoarele belgiene e oprit implicit. La Fluvius îl activezi gratuit în portalul lor online; la alt operator de distribuție, întreabă-i pe ei. După aceea totul merge la fel.",
+ "once_t": "Nu ai niciun aparat care să stea mereu pornit?",
+ "once_b": "Nici nu-ți trebuie. Calculatorul era oprit la ora programată? Citirea pleacă imediat ce calculatorul pornește din nou — așa că ajunge și un laptop pe care îl deschizi din când în când. Se plătește imediat ce sosește, cel mult o dată pe zi.",
+ "th": [
+  "Vezi",
+  "Ce să faci"
+ ],
+ "trouble": [
+  [
+   "'node' is not recognized",
+   "Node.js nu e instalat sau fereastra era deja deschisă când l-ai instalat. Pe Windows: <span class=\"k\">winget install OpenJS.NodeJS.LTS</span>. În altă parte: nodejs.org. Apoi deschide un terminal <strong>nou</strong> și lipește din nou rândul. Nu ai nevoie de git."
+  ],
+  [
+   "Absolut nimic — niciun mesaj, direct înapoi la prompt",
+   "O copie veche a scriptului, de dinainte de 19 septembrie. Avea o eroare care îl făcea să se închidă pe Windows fără să afișeze nimic. Descarcă-l din nou cu rândul de mai sus; cel nou îți cere tokenul."
+  ],
+  [
+   "no HomeWizard found on the network",
+   "Your network blocks auto-discovery — common on guest Wi-Fi and with VLANs. Look up your P1’s IP in the HomeWizard app and run <span class=\"k\">node gul.js --install --ip=192.168.1.50</span>. On the Home Assistant add-on, fill in <span class=\"k\">hw_ip</span> instead."
+  ],
+  [
+   "couldn't find a total import kWh",
+   "A ajuns la dispozitiv, dar n-a primit nimic utilizabil: <strong>Local API e încă oprit</strong> în aplicația HomeWizard sau acesta nu e un contor P1. Pentru un cititor de altă marcă, folosește <span class=\"k\">--url=</span>."
+  ],
+  [
+   "couldn't find a kWh number at …",
+   "JSON-ul cititorului tău nu folosește un nume pe care scriptul îl cunoaște. Adaugă <span class=\"k\">--field=</span> cu calea cu puncte până la valoare, de ex. <span class=\"k\">--field=electricity.import_kwh</span>."
+  ],
+  [
+   "server said 401",
+   "The token is wrong or incomplete. Copy it again from the app and run <span class=\"k\">node gul.js --ask-token --install</span> once to replace the saved one."
+  ],
+  [
+   "submit one photo reading first",
+   "Contorul tău nu are încă un punct de plecare. Trimite o citire obișnuită cu poză în aplicație — citirile automate nu stabilesc niciodată prima valoare, ca un dispozitiv să nu-și poată inventa propriul punct de plecare. După aceea se plătește."
+  ],
+  [
+   "usage … is outside the plausible range",
+   "Aproape mereu e un <strong>contor cu două tarife</strong>: afișajul ține două registre (<span class=\"k\">1.8.1</span> și <span class=\"k\">1.8.2</span>) și poza ta a prins unul dintre ele, în timp ce cititorul raportează totalul amândurora — așa că punctul tău de plecare și cititorul sunt pe scări diferite. În aplicație, în panoul <span class=\"k\">⚡ Citire automată</span>, apasă <strong>&bdquo;Folosește citirea asta ca punct de plecare&rdquo;</strong>. Nu plătește nimic și doar stabilește de unde începe numărătoarea. Posibil până la prima ta plată automată."
+  ],
+  [
+   "this time photograph tariff register 2",
+   "Contorul tău arată pe rând două registre, iar pozele tale alternează și ele: de fiecare dată, fotografiază-l pe cel pe care ultima poză nu l-a arătat. Așteaptă până când afișajul trece la registrul numit de aplicație (<span class=\"k\">1.8.1</span> sau <span class=\"k\">1.8.2</span>), apoi fă poza."
+  ],
+  [
+   "tariff register 1 went down",
+   "Fiecare registru numără doar în sus. Verifică dacă tariful redus și cel normal sunt fiecare în căsuța lui, în aceeași ordine ca data trecută."
+  ],
+  [
+   "the automatic reading is stale",
+   "A reading has to be under 48 hours old at the moment you claim it. The schedule tries every hour — look in <span class=\"k\">.gul-bridge.log</span> next to <span class=\"k\">gul.js</span> for why it failed, or run <span class=\"k\">node gul.js --install</span> again. It is paid as soon as the log says <span class=\"k\">pushed … ✓</span>."
+  ],
+  [
+   "Nicio citire în „⚡ Citire automată”",
+   "Scriptul n-a trimis încă nimic cu succes. Uită-te în fereastra lui sau deschide <span class=\"k\">.gul-bridge.log</span> din același dosar cu gul.js: fiecare rulare scrie fie <span class=\"k\">pushed … ✓</span>, fie motivul pentru care a eșuat."
+  ],
+  [
+   "Nu știi dacă e programat?",
+   "Windows: în PowerShell rulează <span class=\"k\">schtasks /Query /TN GreenUtilityLog</span> — un rând cu <em>GreenUtilityLog</em> și ora următoarei rulări înseamnă că este. Mac / Linux / Pi: <span class=\"k\">crontab -l</span> ar trebui să arate un rând care se termină cu <em># GreenUtilityLog</em>. Nu e nimic acolo? Lipește încă o dată rândul de configurare."
+  ],
+  [
+   "Ai configurat totul înainte de 24 septembrie",
+   "Lipește încă o dată același rând. Scriptul nou așteaptă un server care încă se trezește în loc să renunțe, scrie fiecare rulare în <span class=\"k\">.gul-bridge.log</span> și pe Windows merge și pe baterie."
+  ],
+  [
+   "Powerfox didn't accept the e-mail and password",
+   "Folosește exact e-mailul și parola din aplicația Powerfox (atenție la greșeli de tastare sau la spații). Ți-ai schimbat parola Powerfox? Opțiunea 1: apasă din nou <strong>Connect Powerfox</strong> cu parola nouă. Opțiunea 2: lipește din nou rândul de configurare — îți cere parola."
+  ],
+  [
+   "switch on data transfer (Datenfreigabe)",
+   "Powerfox refuză să-ți împartă citirile. În aplicația Powerfox activează transferul de date (Datenfreigabe), apoi încearcă din nou."
+  ],
+  [
+   "Powerfox only has an old reading",
+   "Poweropti-ul tău n-a mai trimis nimic la Powerfox de ceva vreme. Verifică în aplicația Powerfox dacă e online (Wi-Fi, baterie). Nu se trimite și nu se plătește nimic până nu există o citire nouă."
+  ],
+  [
+   "Tibber didn't accept this token",
+   "Copiază din nou tokenul de pe developer.tibber.com, fără spații. Ai făcut acolo un token nou? Atunci cel vechi nu mai merge: conectează-te din nou cu cel nou."
+  ],
+  [
+   "no Tibber Pulse found on this account",
+   "Pulse-ul trebuie configurat în aplicația Tibber, în același cont ca tokenul."
+  ],
+  [
+   "your Pulse sends live data but no meter total",
+   "Nu orice contor își raportează totalul prin portul HAN. Atunci folosește poze sau alt cititor."
+  ],
+  [
+   "this phone is already used by 1 other wallet",
+   "O persoană, un portofel: cu un telefon poate câștiga un singur portofel. Portofelul care a fost plătit primul pe acest telefon merge mai departe. Treci definitiv la un portofel nou? Cere ajutorul unui administrator prin „Trimite feedback” din aplicație."
+  ],
+  [
+   "automatic payouts are paused until you take one photo",
+   "Un cititor care trimite propriile cifre (P1, Home Assistant, acest script) are nevoie de o poză a contorului tău o dată la 90 de zile; Powerfox, Tibber și MojElektro nu. Aceeași pauză apare o dată și după ce punctul de plecare a fost corectat fără poză. Fă o poză în fila Contor și plățile pornesc din nou. Aplicația îți amintește cu o săptămână înainte."
+  ],
+  [
+   "already been corrected once",
+   "Punctul de plecare al unui contor poate fi corectat o singură dată — fiecare corectare șterge consumul de la ultima plată. Dacă e din nou greșit, cere ajutorul unui administrator prin „Trimite feedback” din aplicație."
+  ]
+ ],
+ "close": "Tot nu merge? Trimite un mesaj cu ce arată fila cu jurnalul (sau terminalul) — de obicei spune exact ce lipsește.",
+ "foot": "GreenUtilityLog · Ghid pentru testeri · Testnet beta — tokenuri de test, deocamdată fără valoare reală.",
+ "s_pf": "Varianta D — Powerfox (poweropti)",
+ "pf_intro": "Un poweropti îți citește contorul și trimite totalul în cloudul Powerfox. Mai jos sunt trei moduri prin care ajunge la noi — <strong>îți trebuie doar unul</strong>. Nu știi pe care? Alege opțiunea 1.",
+ "pf_first_t": "Mai întâi, în aplicația Powerfox",
+ "pf_first_b": "Activează <strong>transferul de date</strong> (Datenfreigabe). Fără el, Powerfox nu-ți împarte citirile cu nimeni — nici cu noi, nici cu Home Assistant.",
+ "pf1_t": "Opțiunea 1 — We fetch it for you (cel mai simplu)",
+ "pf1": [
+  [
+   "Deschide Powerfox în aplicație",
+   "În aplicație: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Powerfox</span> și alege <strong>„We fetch it for you”</strong>. Nu apare? Atunci versiunea asta nu-l oferă încă — folosește opțiunea 2 sau 3.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Intră cu contul tău Powerfox",
+   "Completează e-mailul și parola pe care le folosești în aplicația Powerfox, bifează căsuța și apasă <strong>Connect Powerfox</strong>. Datele tale de autentificare sunt păstrate criptat și folosite doar ca să-ți citim contorul. Sfat: folosește o parolă pe care nu o folosești în altă parte.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Gata — calculatorul poate rămâne oprit",
+   "Serverul nostru preia cam în fiecare oră totalul contorului tău de la Powerfox și îl plătește ca pe orice citire. Vrei să te oprești? <strong>Disconnect Powerfox</strong> îți șterge imediat datele de autentificare.",
+   "see",
+   "Verifică dacă merge",
+   "Starea de sus arată <span class=\"k\">✅ Conectat — … kWh primiți</span>."
+  ]
+ ],
+ "pf2_t": "Opțiunea 2 — Pe calculatorul tău",
+ "pf2": [
+  [
+   "Pregătește terminalul și Node.js",
+   "Fă mai întâi pașii 2–4 din Varianta B: deschide PowerShell sau un terminal și verifică dacă e instalat Node.js 22 sau mai nou.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Lipește un rând, cu e-mailul tău Powerfox",
+   "Pune e-mailul contului tău Powerfox în locul lui <span class=\"k\">YOUR_POWERFOX_EMAIL</span>. Îți cere o singură dată tokenul și parola Powerfox (parola nu se vede când tastezi) și le păstrează pe amândouă într-un fișier privat lângă gul.js. Apoi se programează singur, la fel ca în Varianta B. Calculatorul trebuie să fie pornit cel puțin o dată pe zi.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
+   "Verifică dacă merge",
+   "Scriptul afișează ce a trimis.",
+   "see",
+   "Ce ar trebui să apară",
+   "<span class=\"k\">pushed 8421.3 kWh ✓</span>"
+  ]
+ ],
+ "pf3_t": "Opțiunea 3 — Cu Home Assistant",
+ "pf3": [
+  [
+   "Adaugă Powerfox în Home Assistant",
+   "În Home Assistant: <span class=\"k\">Settings → Devices &amp; services → Add integration → Powerfox</span>. Intră cu contul tău Powerfox.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Adaugă integrarea noastră",
+   "Urmează Varianta A, <em>„Cu integrarea noastră”</em>: adaugă-ne în HACS, instalează, repornește și lipește tokenul.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Alege senzorul de contor Powerfox",
+   "Ca senzor, alege senzorul Powerfox <strong>Energy usage</strong> (kWh). Un contor cu două tarife la care acesta rămâne gol? Fă un helper care adună senzorii de tarif normal și redus (<span class=\"k\">Settings → Devices &amp; services → Helpers → Create helper → Group → Sensor group</span>, tipul <strong>Sum</strong>; nu „Combine the state of several sensors”, pe care integrarea noastră nu-l acceptă ca total de contor) și alege-l pe acela.",
+   null,
+   null,
+   null
+  ]
+ ],
+ "s_tb": "Varianta E — Tibber Pulse",
+ "tb_intro": "Un Tibber Pulse citește portul HAN sau P1 al contorului tău și trimite totalul la Tibber. Două moduri prin care ajunge la noi — <strong>îți trebuie doar unul</strong>.",
+ "tb1_t": "Opțiunea 1 — We fetch it for you (cel mai simplu)",
+ "tb1": [
+  [
+   "Copiază tokenul Tibber",
+   "Deschide <span class=\"k\">developer.tibber.com</span>, intră în contul tău Tibber, deschide <strong>Access token</strong> și copiază-ți tokenul personal.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Lipește-l în aplicație",
+   "În aplicație: <span class=\"k\">Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup → Tibber → „We fetch it for you”</span>. Lipește tokenul, bifează căsuța și apasă <strong>Connect Tibber</strong>. Poate dura până la 30 de secunde. Nu apare? Atunci versiunea asta nu-l oferă încă — folosește opțiunea 2.",
+   "see",
+   "Verifică dacă merge",
+   "Aplicația arată <span class=\"k\">Conectat — Tibber raportează … kWh</span>. Verifică dacă se potrivește cu totalul de pe contorul tău."
+  ]
+ ],
+ "tb2_t": "Opțiunea 2 — Cu Home Assistant",
+ "tb2": [
+  [
+   "Adaugă Tibber în Home Assistant",
+   "<span class=\"k\">Settings → Devices &amp; services → Add integration → Tibber</span>. Lipește tokenul tău Tibber.",
+   null,
+   null,
+   null
+  ],
+  [
+   "Adaugă integrarea noastră și alege senzorul",
+   "Urmează Varianta A, <em>„Cu integrarea noastră”</em>, și ca senzor alege senzorul Tibber <strong>Last meter consumption</strong> (kWh) — totalul propriu al contorului.",
+   null,
+   null,
+   null
+  ]
+ ]
+}
