@@ -11,6 +11,13 @@ permissions: {}
 jobs:
   tick:
     runs-on: ubuntu-latest
+    # At go-live this server becomes the mainnet server and the testnet moves to a
+    # new one (docs/MAINNET.md): put that one's address in TESTNET_SERVER then.
+    env:
+      TESTNET_SERVER: ""
     steps:
-      - name: Testnet server
+      - name: Reward server
         run: curl -fsS --max-time 150 https://greenutilitylog-rewards.onrender.com/cron/tick || echo "::warning title=wake::server did not answer"
+      - name: Testnet server (after go-live)
+        if: env.TESTNET_SERVER != ''
+        run: curl -fsS --max-time 150 "$TESTNET_SERVER/cron/tick" || echo "::warning title=wake::testnet server did not answer"

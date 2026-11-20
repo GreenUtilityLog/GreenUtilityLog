@@ -26,4 +26,5 @@ __pycache__/
 .gul-bridge*.tmp
 .claude/
 e2e-dist/
+e2e-dist-mainnet/
 e2e-out/

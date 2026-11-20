@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Add the mainnet server here once it exists.
+        # At go-live this server becomes mainnet; add the new testnet server then.
         server: ["https://greenutilitylog-rewards.onrender.com"]
     steps:
       - name: Fetch /health
@@ -55,6 +55,9 @@ jobs:
           if h.get("storeReady") is not True: err("storage not loaded (storeReady is not true): payouts are refused")
           if h.get("storeSaving") is False: err("last save to storage failed (storeSaving false): payouts paused")
           if h.get("durableState") is False: err("no durable storage configured: a restart forgets everything")
+          co = h.get("carryOver")
+          if co and co.get("problem"): err(f"carry-over from testnet can't run: {co['problem']}")
+          elif co and not co.get("done"): warn("carry-over from testnet hasn't run yet (see the server log, [carry-over])")
           if h.get("dryRun"): warn("DRY_RUN is on: nothing is actually paid")
           if h.get("payoutsPaused"): warn("payouts are paused (PAYOUTS_PAUSED): remove it in Render to resume")
           if h.get("chainConfirmed") is False: err("the server has not confirmed its node is on mainnet: payouts wait (check NODE_URL)")

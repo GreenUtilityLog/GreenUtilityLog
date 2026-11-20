@@ -19,7 +19,7 @@
 
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
-import { readFileSync, writeFileSync, mkdirSync, rmSync, mkdtempSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, rmSync, mkdtempSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -34,6 +34,13 @@ const OUT = join(ROOT, "e2e-out");
 rmSync(OUT, { recursive: true, force: true }); mkdirSync(OUT, { recursive: true });
 const API = "https://e2e-api.test";
 const API_PORT = 4390, APP_PORT = 4175;
+// The go-live step: the mainnet build of the app (E2E_DIST_MAINNET, built for
+// MAIN_API), on the same address as the testnet one, so it finds the testnet's
+// storage on the phone, as it will at go-live.
+const DIST_MAINNET = process.env.E2E_DIST_MAINNET || join(ROOT, "e2e-dist-mainnet");
+// Vite itself, not through npx: stopping npx left vite serving the old build.
+const VITE = join(ROOT, "node_modules", "vite", "bin", "vite.js");
+const MAIN_API = "https://e2e-mainnet-api.test", MAIN_API_PORT = 4393, UPSTASH_PORT = 4394;
 const STATE = join(mkdtempSync(join(tmpdir(), "gul-e2e-")), "state.json");
 const PRIV = await Secp256k1.generatePrivateKey();
 const ADDR = Address.ofPrivateKey(PRIV).toString();
@@ -82,16 +89,16 @@ const SERVER_ENV = {
 let server = proc(process.execPath, ["index.js"], SERVER_ENV, join(ROOT, "server"));
 // On 127.0.0.1 explicitly: vite's default "localhost" can resolve to ::1 only (as in
 // CI's Playwright container), and everything here talks to 127.0.0.1.
-const preview = proc(process.platform === "win32" ? "npx.cmd" : "npx", ["vite", "preview", "--outDir", DIST, "--host", "127.0.0.1", "--port", String(APP_PORT), "--strictPort"], {}, ROOT);
+let preview = proc(process.execPath, [VITE, "preview", "--outDir", DIST, "--host", "127.0.0.1", "--port", String(APP_PORT), "--strictPort"], {}, ROOT);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 async function up(url) {
   for (let i = 0; i < 90; i++) { try { const r = await fetch(url); if (r.status < 500) return; } catch {} await wait(500); }
   throw new Error(`not up: ${url}\n${server.out().slice(-2000)}\n${preview.out().slice(-2000)}`);
 }
-let browser;
+let browser, mainServer = null;
 async function finish(code) {
   try { await browser?.close(); } catch {}
-  server.kill("SIGTERM"); preview.kill("SIGTERM");
+  server.kill("SIGTERM"); preview.kill("SIGTERM"); mainServer?.kill("SIGTERM");
   process.exit(code);
 }
 try {
@@ -161,6 +168,14 @@ let photoOverdue = false;
 const GENESIS = { id: "0x000000000b2bce3c70bc649a02749e8687721b09ed2e15997f466536b20bb127", number: 0, timestamp: 1530014400, gasLimit: 10000000, parentID: "0xffffffff00000000000000000000000000000000000000000000000000000000", size: 170, beneficiary: "0x0000000000000000000000000000000000000000", gasUsed: 0, totalScore: 0, txsRoot: "0x" + "0".repeat(64), txsFeatures: 0, stateRoot: "0x" + "0".repeat(64), receiptsRoot: "0x" + "0".repeat(64), signer: "0x0000000000000000000000000000000000000000", isTrunk: true, transactions: [] };
 await ctx.route((url) => !/^http:\/\/(127\.0\.0\.1|localhost)[:/]/.test(url.href), async (route) => {
   const u = new URL(route.request().url());
+  // The go-live step's mainnet server (a testnet server here, saying "mainnet").
+  if (u.origin === MAIN_API) {
+    try {
+      const res = await route.fetch({ url: route.request().url().replace(MAIN_API, `http://127.0.0.1:${MAIN_API_PORT}`) });
+      if (u.pathname === "/health") return route.fulfill({ status: res.status(), contentType: "application/json", body: JSON.stringify({ ...(await res.json()), network: "mainnet" }) });
+      return route.fulfill({ response: res });
+    } catch { return route.abort(); }
+  }
   if (u.origin === API) {
     if (u.pathname === "/wallet/seen" && seenDelayMs) await wait(seenDelayMs);
     const local = route.request().url().replace(API, `http://127.0.0.1:${API_PORT}`);
@@ -651,9 +666,72 @@ await step("mainnet rule: VeBetterDAO's member check and the Passport", async ()
   } finally { node.close(); }
 });
 
+await step("go-live: the same phone on the mainnet app, everything carried over", async () => {
+  if (!existsSync(DIST_MAINNET)) throw new Error(`no mainnet build at ${DIST_MAINNET} (see e2e.yml)`);
+  // What testnet holds now, served by an Upstash stand-in as the testnet's database.
+  const old = server; const exited = new Promise((r) => old.on("exit", r));
+  old.kill("SIGTERM"); await exited;
+  const testnet = JSON.parse(readFileSync(STATE, "utf8"));
+  const kv = new Map([["greenutilitylog:state", JSON.stringify(testnet)]]);
+  const upstash = createServer((req, res) => {
+    let b = ""; req.on("data", (c) => (b += c)); req.on("end", () => {
+      const a = JSON.parse(b || "[]");
+      res.setHeader("content-type", "application/json");
+      res.end(JSON.stringify({ result: a[0] === "MGET" ? a.slice(1).map((k) => kv.get(k) ?? null) : null }));
+    });
+  }).listen(UPSTASH_PORT, "127.0.0.1");
+  try {
+    // "Mainnet": its own, empty state, open to everyone (the GM rule has its own step),
+    // carrying the testnet over at its first start.
+    const MAIN_STATE = join(mkdtempSync(join(tmpdir(), "gul-e2e-main-")), "state.json");
+    writeFileSync(MAIN_STATE, JSON.stringify({ settings: { access: "everyone" } }));
+    mainServer = proc(process.execPath, ["index.js"], { ...SERVER_ENV, PORT: String(MAIN_API_PORT), STATE_FILE: MAIN_STATE, MOJELEKTRO: "off",
+      CARRY_OVER_KEY: "greenutilitylog:state", CARRY_OVER_URL: `http://127.0.0.1:${UPSTASH_PORT}`, CARRY_OVER_TOKEN: "e2e" }, join(ROOT, "server"));
+    await up(`http://127.0.0.1:${MAIN_API_PORT}/health`);
+    for (let i = 0; i < 40 && !JSON.parse(readFileSync(MAIN_STATE, "utf8")).settings?.carriedOver; i++) await wait(250);
+    const carried = JSON.parse(readFileSync(MAIN_STATE, "utf8"));
+    assert.ok(carried.settings?.carriedOver?.meters >= 1, `carried over: ${JSON.stringify(carried.settings?.carriedOver)}`);
+    // The mainnet build replaces the testnet one at the same address.
+    const was = preview; const gone = new Promise((r) => was.on("exit", r));
+    was.kill("SIGTERM"); await gone;
+    preview = proc(process.execPath, [VITE, "preview", "--outDir", DIST_MAINNET, "--host", "127.0.0.1", "--port", String(APP_PORT), "--strictPort"], {}, ROOT);
+    await up(`http://127.0.0.1:${APP_PORT}/GreenUtilityLog/`);
+    const before = await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("mainnet:")));
+    assert.deepEqual(before, [], "nothing of mainnet's on the phone yet");
+    await page.goto(`http://127.0.0.1:${APP_PORT}/GreenUtilityLog/`, { waitUntil: "networkidle" }); await wait(3000);
+    await shot("14-mainnet-home");
+    const keys = await page.evaluate(() => Object.keys(localStorage));
+    const tk = `gul_mtoken_${ADDR.toLowerCase()}`;
+    for (const k of ["greenlog_meters", "greenlog_baselines", "gul_device_id", "gul_lang", tk]) assert.ok(keys.includes(`mainnet:${k}`), `carried on the phone: ${k}`);
+    // The mainnet app keeps its own history list; none of testnet's rows are in it.
+    // Raw reads (getItem is mapped to the mainnet copy in this build).
+    const subs = await page.evaluate((a) => [localStorage[`greenlog_subs_${a}`], localStorage[`mainnet:greenlog_subs_${a}`]], ADDR.toLowerCase());
+    const testnetRows = JSON.parse(subs[0] || "[]"), mainRows = JSON.parse(subs[1] || "[]");
+    assert.ok(testnetRows.length > 0, "testnet had history");
+    assert.equal(mainRows.filter((m) => testnetRows.some((t) => JSON.stringify(t) === JSON.stringify(m))).length, 0, "testnet history stays behind");
+    assert.ok(keys.includes(tk), "testnet keeps its own copy");
+    const t = await text();
+    // No intro, no registration, still in Dutch: the app opens on Home.
+    assert.doesNotMatch(t, /Register Your Meters|Registreer je meters/i, "no new registration");
+    assert.equal(await page.locator(".hero-amount").count(), 1, "Home is open");
+    assert.equal(await page.evaluate(() => document.documentElement.lang), "nl", "the language came along");
+    assert.doesNotMatch(t, /TESTNET/, "the mainnet build");
+    // The reader: the token installed on testnet sends to mainnet as it is, and the app
+    // shows that reading (it holds the same token).
+    const { token } = JSON.parse(lastCall("/meter/pair").body);
+    const r = await fetch(`http://127.0.0.1:${MAIN_API_PORT}/meter-ingest`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, reading: 1011.25 }) });
+    assert.equal(r.status, 200, await r.text());
+    await page.locator(".bnav button").nth(1).click(); await wait(800);
+    await page.getByRole("button", { name: /⚡/ }).first().click(); await wait(17000);
+    await shot("15-mainnet-reader");
+    assert.match(await text(), /1011[.,]25/, "the reader's new reading shows in the mainnet app");
+  } finally { upstash.close(); }
+});
+
 // ── result ───────────────────────────────────────────────────────────────────
 writeFileSync(join(OUT, "api.json"), JSON.stringify(api, null, 1));
 writeFileSync(join(OUT, "server.log"), server.out());
+if (mainServer) writeFileSync(join(OUT, "server-mainnet.log"), mainServer.out());
 for (const p of problems) log("PROBLEM", p);
 const ok = failed === 0 && problems.length === 0;
 console.log(ok ? "\nAll steps passed, no page errors, no CSP violations." : `\n${failed} step(s) failed, ${problems.length} problem(s). Screenshots and logs: e2e-out/`);
