@@ -143,10 +143,12 @@ async function readLeaderboard({ node, contract, appId, max }) {
       const receiver = ("0x" + log.topics[2].slice(-40)).toLowerCase();
       let wei = 0n;
       try { wei = BigInt(log.data.slice(0, 66)); } catch { wei = 0n; }
-      const cur = totals.get(receiver) || { wei: 0n, count: 0, last: 0 };
+      const cur = totals.get(receiver) || { wei: 0n, count: 0, last: 0, pays: [] };
       cur.wei  += wei;
       cur.count += 1;
       cur.last  = Math.max(cur.last, log.meta?.blockTimestamp || 0);
+      // Each payout's time (ms) and amount, for "this week" and the streak (board.js).
+      cur.pays.push([(log.meta?.blockTimestamp || 0) * 1000, Number(wei / 10n ** 14n) / 1e4]);
       totals.set(receiver, cur);
     }
 
@@ -162,6 +164,7 @@ async function readLeaderboard({ node, contract, appId, max }) {
       b3tr:  Number(v.wei / 10n ** 14n) / 1e4, // wei -> B3TR, 4-decimal safe
       count: v.count,
       last:  v.last,
+      pays:  v.pays,
     }))
     .sort((a, b) => b.b3tr - a.b3tr);
 

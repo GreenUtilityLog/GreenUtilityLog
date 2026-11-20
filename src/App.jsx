@@ -5,6 +5,7 @@ import { HELP_I18N, HELP_MAINNET } from "./help.js";
 import { NETWORK, REWARD_API, TESTNET_BANNER, MAIN_APP_URL, ownStorageKeys, IDB_NAME } from "./network.js";
 import { useWallet, useWalletModal } from "@vechain/dapp-kit-react";
 import { Clause, Address, ABIFunction } from "@vechain/sdk-core";
+import { rankBoard } from "./board.js";
 import { fetchOnChainLeaderboard, fetchWalletHistory, fetchIsAppAdmin, fetchTokenBalance, fetchGalaxyMember } from "./leaderboard.js";
 // The admin screen is for the app's owner only, and ~1,000 lines: loaded when it
 // is opened rather than for every visitor.
@@ -3434,29 +3435,36 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
 
   const meAddr = wallet ? wallet.toLowerCase() : null;
   const isLive = chain.status === "live" && chain.rows.length > 0;
+  // This week (default: a newcomer can lead it) or all time (board.js).
+  const [period, setPeriod] = useState("week");
 
+  // Rank the on-chain field; the connected wallet always appears, even with no
+  // rewards yet, so the user can see where they stand.
+  const ranked = (p) => rankBoard(chain.rows, { period: p, me: meAddr })
+    .map((r) => ({ ...r, name: r.isMe && !r.count ? "You" : shortAddr(r.addr), rawAddr: r.addr }));
   let board;
   if (isLive) {
-    // Rank the on-chain field; make sure the connected wallet always appears,
-    // even with no rewards yet, so the user can see where they stand.
-    const rows = chain.rows.map(r => ({
-      name: shortAddr(r.addr), addr: shortAddr(r.addr), rawAddr: r.addr,
-      b3tr: r.b3tr, count: r.count, isMe: meAddr && r.addr === meAddr,
-    }));
-    if (meAddr && !rows.some(r => r.isMe)) {
-      rows.push({ name: "You", addr: shortAddr(wallet), rawAddr: meAddr, b3tr: 0, count: 0, isMe: true });
-    }
-    board = rows.sort((a, b) => b.b3tr - a.b3tr).map((d, i) => ({ ...d, rank: i + 1 }));
+    board = ranked(period);
   } else {
     // No on-chain field (yet, or the node is unreachable): show only you. This used
     // to rank you against made-up players — "#10, 127.60 B3TR to reach #9" — which
     // is a claim about other people that isn't true.
     board = [{ name: "You", addr: shortAddr(wallet), b3tr: +b3tr.toFixed(2), streak, isMe: true, rank: 1 }];
   }
+  // The champion badge is about all time, whichever view is showing.
+  const allTimeFirst = isLive ? ranked("all") : board;
+  const periodSwitch = isLive && (
+    <div role="group" aria-label={t("p.period")} style={{ display: "inline-flex", gap: 2, padding: 2, background: T.bgAlt, borderRadius: 6 }}>
+      {[["week", t("p.week")], ["all", t("p.allTime")]].map(([id, name]) => (
+        <button key={id} type="button" aria-pressed={period === id} onClick={() => setPeriod(id)}
+          style={{ minHeight: 32, padding: "0 10px", border: "none", borderRadius: 5, cursor: "pointer", fontSize: 11, fontWeight: period === id ? 800 : 700, background: period === id ? T.card : "transparent", color: period === id ? T.text : T.textSoft }}>{name}</button>
+      ))}
+    </div>
+  );
+  const fire = (n) => (n >= 2 ? <span title={t("p.streakN", { n })} style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, whiteSpace: "nowrap" }}>🔥{n}</span> : null);
 
   const myIndex = board.findIndex(d => d.isMe);
   const myRank = myIndex + 1;
-  const myBoardB3tr = myIndex >= 0 ? board[myIndex].b3tr : b3tr;
   
   const badges = [
     { id: "early", name: t("b.early"), icon: "🚀", how: t("b.early.how"), unlocked: subs.length > 0 },
@@ -3464,7 +3472,7 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
     { id: "100sub", name: t("b.century"), icon: "💯", how: t("b.century.how"), unlocked: countReadings(subs) >= 100 },
     { id: "20day", name: t("b.legend"), icon: "👑", how: t("b.legend.how"), unlocked: streak >= 20 },
     { id: "250b3tr", name: t("b.whale"), icon: "🐋", how: t("b.whale.how"), unlocked: b3tr >= 250 },
-    { id: "rank1", name: t("b.champ"), icon: "🏆", how: t("b.champ.how"), unlocked: isLive && board.length > 1 && myRank === 1 && myBoardB3tr > 0 },
+    { id: "rank1", name: t("b.champ"), icon: "🏆", how: t("b.champ.how"), unlocked: isLive && allTimeFirst.length > 1 && !!allTimeFirst[0]?.isMe && allTimeFirst[0].b3tr > 0 },
   ];
   const [view, setView] = useState("usage");
   const label = { fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".8px", color: T.textSoft };
@@ -3517,13 +3525,20 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
       {/* The leaderboard sat in the third tab under four stat cards, though the intro
           promises "Climb the Leaderboard". The top three and your own place come
           first now; the full list stays in its tab. */}
-      {isLive && board.length > 1 && (
-        <div style={{ ...card, margin: "0 14px 12px", padding: 14 }}>
-          <div style={{ ...label, marginBottom: 10 }}>{t("p.board")}</div>
+      {isLive && (
+        <div data-board="top" style={{ ...card, margin: "0 14px 12px", padding: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10 }}>
+            <div style={label}>{t("p.board")}</div>
+            {periodSwitch}
+          </div>
+          {period === "week" && !board.some((b) => b.b3tr > 0) && (
+            <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 6 }}>{t("p.weekEmpty")}</div>
+          )}
           {[...board.slice(0, 3), ...(myRank > 3 ? board.filter((b) => b.isMe) : [])].map((item) => (
             <div key={item.isMe ? "me" : (item.rawAddr || item.name)} style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 36, fontSize: 13 }}>
               <span aria-hidden="true" style={{ width: 24, textAlign: "center", fontSize: item.rank <= 3 ? 18 : 13, fontWeight: 800, color: T.textSoft }}>{["🥇", "🥈", "🥉"][item.rank - 1] || item.rank}</span>
               <span style={{ flex: 1, minWidth: 0, fontWeight: item.isMe ? 800 : 600, color: T.text, fontFamily: item.isMe ? undefined : "'SF Mono',Menlo,monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.isMe ? t("p.youRank", { rank: item.rank }) : item.name}</span>
+              {fire(item.streak)}
               <span style={{ fontWeight: 800, color: T.text }}>{Number(item.b3tr).toFixed(2)} <span style={{ fontSize: 10, color: T.textSoft }}>B3TR</span></span>
             </div>
           ))}
@@ -3559,6 +3574,7 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
       {view === "usage" && <ChartsScreen subs={subs} T={T} part="charts" />}
 
       {view === "board" && (<>
+        {periodSwitch && <div style={{ margin: "0 14px 8px" }}>{periodSwitch}</div>}
         <div style={{ margin: "0 14px 8px", fontSize: 11, color: chain.status === "live" ? T.green3 : T.textSoft, fontWeight: 700 }}>
           {chain.status === "loading" ? t("p.loading")
             : chain.status === "live" ? `${t("p.live", { n: board.length })}${chain.truncated ? t("p.more") : ""}`
@@ -3571,7 +3587,7 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: item.isMe ? 13 : 12, fontWeight: 700, color: T.text, fontFamily: item.isMe ? undefined : "'SF Mono',Menlo,monospace" }}>{item.isMe ? t("p.you") : item.name}</div>
                 <div style={{ fontSize: 11, color: T.textSoft }}>
-                  {item.count != null ? t("p.rewards", { n: item.count }) : t("p.streakN", { n: streak })}{item.isMe ? ` · ${shortAddr(wallet)}` : ""}
+                  {item.count != null ? t("p.rewards", { n: item.count }) : t("p.streakN", { n: streak })}{item.count != null && item.streak >= 2 ? ` · 🔥 ${t("p.streakN", { n: item.streak })}` : ""}{item.isMe ? ` · ${shortAddr(wallet)}` : ""}
                 </div>
               </div>
               <div style={{ fontSize: 13, fontWeight: 800, color: T.text }}>{Number(item.b3tr).toFixed(2)}</div>
