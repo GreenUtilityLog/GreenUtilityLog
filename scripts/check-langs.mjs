@@ -23,6 +23,9 @@ function compare(where, en, tr) {
   const ue = urls(en), ut = urls(tr);
   for (const u of ue) if (!ut.includes(u)) bad(`${where}: link ${u} is missing`);
   if (lead(en) !== lead(tr)) bad(`${where}: starts with "${lead(tr)}" instead of "${lead(en)}"`);
+  // **bold** marks (the reader setup steps render them): as many as in English.
+  const stars = (s) => (s.match(/\*\*/g) || []).length;
+  if (stars(tr) !== stars(en)) bad(`${where}: ${stars(tr)} ** marks instead of ${stars(en)}`);
 }
 
 // Help: the same steps and answers as the English, in the same order.

@@ -1,10 +1,21 @@
 // Setting up an automatic reader: the HomeWizard/Home Assistant/Tasmota steps,
 // Tibber and Powerfox. Split out of App.jsx and loaded on demand (React.lazy).
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { useWallet } from "@vechain/dapp-kit-react";
 import { t, getLang } from "./i18n.js";
 import { NETWORK, REWARD_API, INGEST_FLAG } from "./network.js";
 import { DARK, GUIDE_URL, BRIDGE_JS_URL, USAGE_RANGES, RULES, MAX_SPAN_DAYS, SERVER_NEXT_AT, fetchT, fmtDay, fmtWhen, validDeviceToken } from "./App.jsx";
+
+// A t() text with **bold** parts and {name} slots filled with React nodes (a
+// token, an address), for the setup steps that mix the two.
+function rich(key, nodes = {}) {
+  return t(key).split(/(\*\*[^*]+\*\*|\{\w+\})/).map((part, i) => {
+    if (part.length > 4 && part.startsWith("**") && part.endsWith("**")) return <b key={i}>{part.slice(2, -2)}</b>;
+    const m = /^\{(\w+)\}$/.exec(part);
+    return m && m[1] in nodes ? <Fragment key={i}>{nodes[m[1]]}</Fragment> : part;
+  });
+}
+const MONO = { fontFamily: "'SF Mono',Menlo,monospace" };
 
 // Our Home Assistant integration sends to the bridge's default server unless told
 // otherwise. A build with its own backend (INGEST_FLAG set: mainnet, say) has to
@@ -12,9 +23,7 @@ import { DARK, GUIDE_URL, BRIDGE_JS_URL, USAGE_RANGES, RULES, MAX_SPAN_DAYS, SER
 function IngestUrlStep({ API }) {
   if (!INGEST_FLAG) return null;
   return (
-    <li>In the same setup screen, set <b>Server address</b> to{" "}
-      <span style={{ fontFamily: "'SF Mono',Menlo,monospace", wordBreak: "break-all" }}>{`${API}/meter-ingest`}</span>{" "}
-      — the integration's default is a different server.</li>
+    <li>{rich("r.ha.server", { url: <span style={{ ...MONO, wordBreak: "break-all" }}>{`${API}/meter-ingest`}</span> })}</li>
   );
 }
 
@@ -125,11 +134,11 @@ function TibberSetup({ T, API, wallet, meterNo, token, latest, health, onLinked,
       {route === "ha" && (
         <div style={card}>
           <ol style={{ margin: 0, paddingLeft: 18, fontSize: 11.5, color: T.textMid, lineHeight: 1.7 }}>
-            <li>In Home Assistant: <b>Settings → Devices &amp; services → Add integration → Tibber</b>. Paste your Tibber token.</li>
-            <li>Add <b>our</b> integration (HACS → custom repository <span style={{ fontFamily: "'SF Mono',Menlo,monospace" }}>GreenUtilityLog/GreenUtilityLog</span> → GreenUtilityLog).</li>
-            <li>Paste your device token: <span style={{ fontFamily: "'SF Mono',Menlo,monospace", wordBreak: "break-all" }}>{token}</span></li>
+            <li>{rich("r.ha.tb1")}</li>
+            <li>{rich("r.ha.ours", { repo: <span style={MONO}>GreenUtilityLog/GreenUtilityLog</span> })}</li>
+            <li>{rich("r.ha.token", { token: <span style={{ ...MONO, wordBreak: "break-all" }}>{token}</span> })}</li>
             <IngestUrlStep API={API} />
-            <li>Pick the Tibber sensor <b>Last meter consumption</b> (kWh) — the meter's own total.</li>
+            <li>{rich("r.ha.tb2")}</li>
           </ol>
           <button type="button" onClick={() => copy(token, "tbtok")} style={{ marginTop: 8, padding: "6px 10px", fontSize: 11, fontWeight: 700, borderRadius: 6, border: "none", background: copied === "tbtok" ? T.green3 : T.textSoft, color: "#fff", cursor: "pointer" }}>
             {copied === "tbtok" ? t("r.tokenCopied") : t("r.copyTokenShort")}
@@ -372,14 +381,14 @@ ${fetchCmd(`--ask-token --powerfox=YOUR_POWERFOX_EMAIL --install${INGEST_FLAG}`)
       {route === "ha" && (
         <div style={card}>
           <ol style={{ margin: 0, paddingLeft: 18, fontSize: 11.5, color: T.textMid, lineHeight: 1.7 }}>
-            <li>In Home Assistant: <b>Settings → Devices &amp; services → Add integration → Powerfox</b>. Log in with your Powerfox account.</li>
-            <li>Add <b>our</b> integration (HACS → custom repository <span style={{ fontFamily: "'SF Mono',Menlo,monospace" }}>GreenUtilityLog/GreenUtilityLog</span> → GreenUtilityLog).</li>
-            <li>Paste your device token: <span style={{ fontFamily: "'SF Mono',Menlo,monospace", wordBreak: "break-all" }}>{token}</span></li>
+            <li>{rich("r.ha.pf1")}</li>
+            <li>{rich("r.ha.ours", { repo: <span style={MONO}>GreenUtilityLog/GreenUtilityLog</span> })}</li>
+            <li>{rich("r.ha.token", { token: <span style={{ ...MONO, wordBreak: "break-all" }}>{token}</span> })}</li>
             <IngestUrlStep API={API} />
             {/* Not "Combine the state of several sensors": that helper's state_class
                 is measurement, and our integration refuses a sensor that can reset.
                 A sensor group of the two total_increasing registers stays one. */}
-            <li>Pick the Powerfox sensor <b>Energy usage</b> (kWh). Meter with two tariffs and that one stays empty? Add the high- and low-tariff sensors together with <b>Settings → Devices &amp; services → Helpers → Create helper → Group → Sensor group</b>, type <b>Sum</b>, and pick that group.</li>
+            <li>{rich("r.ha.pf2")}</li>
           </ol>
           <button type="button" onClick={() => copy(token, "pftok")} style={{ marginTop: 8, padding: "6px 10px", fontSize: 11, fontWeight: 700, borderRadius: 6, border: "none", background: copied === "pftok" ? T.green3 : T.textSoft, color: "#fff", cursor: "pointer" }}>
             {copied === "pftok" ? t("r.tokenCopied") : t("r.copyTokenShort")}
@@ -488,7 +497,7 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || `${t("r.pairFailed")} (${r.status})`);
-      if (!validDeviceToken(d.token)) throw new Error("re-linking failed (the server sent an unexpected device token)");
+      if (!validDeviceToken(d.token)) throw new Error(t("r.relinkBadToken"));
       const changed = d.token !== token;
       setToken(d.token);
       try { localStorage.setItem(tkKey, d.token); } catch { /* no storage */ }
@@ -517,7 +526,7 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
         body: JSON.stringify({ address: wallet, certificate, meterNo }),
       });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error || `couldn't update the starting point (${r.status})`);
+      if (!r.ok) throw new Error(d.error || `${t("r.rebaseFailed")} (${r.status})`);
       await refreshLatest();
     } catch (e) { setErr(e?.message || t("r.rebaseFailed")); }
     finally { setBusy(""); }

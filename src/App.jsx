@@ -1965,7 +1965,7 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
         })}
       </div>
       {/* Only while solar is offered (it is commented out of UTILS for now). */}
-      {SOLAR_UTILS.length > 0 && !isSolarOnly && !allLocked && <div style={{fontSize:11,color:T.textSoft,marginTop:16,textAlign:"center"}}>ℹ️ Got solar panels? Add them later in Settings.</div>}
+      {SOLAR_UTILS.length > 0 && !isSolarOnly && !allLocked && <div style={{fontSize:11,color:T.textSoft,marginTop:16,textAlign:"center"}}>{t("reg.solar")}</div>}
       {allLocked && <div style={{fontSize:11,color:T.textSoft,marginTop:16,textAlign:"center"}}>{t("reg.allLocked")}</div>}
       {!allMetersFilled && <div style={{fontSize:11,color:Object.keys(touched).length ? (T === DARK ? "#f08c78" : "#b3261e") : T.textSoft,marginTop:6,textAlign:"center"}}>{t("reg.missing")}</div>}
       <button className="ob-btn" onClick={handleDone} disabled={!allMetersFilled} style={!allMetersFilled?{opacity:.5,cursor:"not-allowed"}:undefined}>{allLocked ? t("reg.done.locked") : (isSolarOnly ? t("reg.done.solar") : t("reg.done"))}</button>
@@ -2675,7 +2675,7 @@ function HomeScreen({ b3tr, walletB3tr, streak, subs, setTab, wallet, onOpenRead
           return (
             <div role="button" tabIndex={0} key={u.id} className="ucard" onClick={() => setTab("progress")}>
               <div className="ucard-icon" style={{background:getColorBg(u.id, T),border:`1px solid ${T[u.id+"Border"]||T.green4}`,color:T[u.id]||T.green2}}>{UTIL_ICONS[u.id]}</div>
-              <div className="ucard-name">{u.label}</div>
+              <div className="ucard-name">{utilName(u.id)}</div>
               <div className="ucard-reads">{t("home.readingsLogged", { n: myS.length })}</div>
               <div className="ucard-b3tr" style={{color:T[u.id]||T.electric}}>+{tot.toFixed(2)} B3TR</div>
             </div>
@@ -2762,7 +2762,7 @@ function SubmitScreen({ isFirst = false, rewardFactor = 1, u, selUtil, setSelUti
             <button key={ut.id} className={`utab ${selUtil===ut.id?"active":""}`}
               style={{"--uc":T[ut.id]||T.electric,"--ubg":getColorBg(ut.id, T),"--uborder":T[ut.id+"Border"]||T.electricBorder}}
               onClick={() => setSelUtil(ut.id)}>
-              <span className="utab-icon">{UTIL_ICONS[ut.id]}</span>{ut.label}
+              <span className="utab-icon">{UTIL_ICONS[ut.id]}</span>{utilName(ut.id)}
             </button>
           ))}
         </div>
@@ -3222,8 +3222,8 @@ function ChartsScreen({ subs, T, part }) {
     <>
       {!part && (
         <div className="sub-header">
-          <div className="sub-title">Analytics</div>
-          <div className="sub-sub">Your impact and trends</div>
+          <div className="sub-title">{t("c.title")}</div>
+          <div className="sub-sub">{t("c.sub")}</div>
         </div>
       )}
       <div className="chart-card" style={{textAlign:"center",padding:"28px 16px"}}>
@@ -3238,8 +3238,8 @@ function ChartsScreen({ subs, T, part }) {
     <>
       {!part && (
         <div className="sub-header">
-          <div className="sub-title">Analytics</div>
-          <div className="sub-sub">Your impact and trends</div>
+          <div className="sub-title">{t("c.title")}</div>
+          <div className="sub-sub">{t("c.sub")}</div>
         </div>
       )}
 
@@ -5126,7 +5126,7 @@ export default function App() {
         body: JSON.stringify({ address: wallet, utility: "electric", meterNo, certificate, captchaToken }),
       }, PAYOUT_MS);
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw httpError(data.error || `service error ${res.status}`, res.status, data.errorEn);
+      if (!res.ok) throw httpError(data.error || t("s.serviceErr", { status: res.status }), res.status, data.errorEn);
       const paid = Number(data.amount) || 0;
       if (!sameWallet(payWallet)) { showToast(t("auto.otherWallet", { amount: paid, wallet: `${payWallet.slice(0, 6)}…${payWallet.slice(-4)}` })); return; }
       // The server answers with the reading and the usage it paid for, not the
@@ -5304,7 +5304,7 @@ export default function App() {
         body: JSON.stringify({ utility: selUtil, reading, prevRead, ...(registers ? { registers } : {}), meterNo, address: wallet, photo: photo?.base64 || "", photoMime: photo?.mime || "", certificate, clientFlagged: !photoConfirmed || anom.anomaly, flagReason, ocrNums: photo?.ocrNums || [], meterNoConfirmed: photo?.meterNoConfirmed ?? null, avgUsage: anom.avg ?? null, captchaToken, device }),
       }, PAYOUT_MS);
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw httpError(data.error || `Reward service error ${res.status}`, res.status, data.errorEn);
+      if (!res.ok) throw httpError(data.error || t("s.serviceErr", { status: res.status }), res.status, data.errorEn);
       txid = data.txid;
       saving = serverSaving(data);
       onChainPending = !!data.pending;
