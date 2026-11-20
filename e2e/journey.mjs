@@ -704,7 +704,8 @@ await step("go-live: the same phone on the mainnet app, everything carried over"
     const tk = `gul_mtoken_${ADDR.toLowerCase()}`;
     for (const k of ["greenlog_meters", "greenlog_baselines", "gul_device_id", "gul_lang", tk]) assert.ok(keys.includes(`mainnet:${k}`), `carried on the phone: ${k}`);
     // The mainnet app keeps its own history list; none of testnet's rows are in it.
-    const subs = await page.evaluate((a) => [localStorage.getItem(`greenlog_subs_${a}`), localStorage.getItem(`mainnet:greenlog_subs_${a}`)], ADDR.toLowerCase());
+    // Raw reads (getItem is mapped to the mainnet copy in this build).
+    const subs = await page.evaluate((a) => [localStorage[`greenlog_subs_${a}`], localStorage[`mainnet:greenlog_subs_${a}`]], ADDR.toLowerCase());
     const testnetRows = JSON.parse(subs[0] || "[]"), mainRows = JSON.parse(subs[1] || "[]");
     assert.ok(testnetRows.length > 0, "testnet had history");
     assert.equal(mainRows.filter((m) => testnetRows.some((t) => JSON.stringify(t) === JSON.stringify(m))).length, 0, "testnet history stays behind");
