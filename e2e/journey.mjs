@@ -703,7 +703,11 @@ await step("go-live: the same phone on the mainnet app, everything carried over"
     const keys = await page.evaluate(() => Object.keys(localStorage));
     const tk = `gul_mtoken_${ADDR.toLowerCase()}`;
     for (const k of ["greenlog_meters", "greenlog_baselines", "gul_device_id", "gul_lang", tk]) assert.ok(keys.includes(`mainnet:${k}`), `carried on the phone: ${k}`);
-    assert.ok(!keys.some((k) => k.startsWith("mainnet:greenlog_subs_")), "testnet history stays behind");
+    // The mainnet app keeps its own history list; none of testnet's rows are in it.
+    const subs = await page.evaluate((a) => [localStorage.getItem(`greenlog_subs_${a}`), localStorage.getItem(`mainnet:greenlog_subs_${a}`)], ADDR.toLowerCase());
+    const testnetRows = JSON.parse(subs[0] || "[]"), mainRows = JSON.parse(subs[1] || "[]");
+    assert.ok(testnetRows.length > 0, "testnet had history");
+    assert.equal(mainRows.filter((m) => testnetRows.some((t) => JSON.stringify(t) === JSON.stringify(m))).length, 0, "testnet history stays behind");
     assert.ok(keys.includes(tk), "testnet keeps its own copy");
     const t = await text();
     // No intro, no registration, still in Dutch: the app opens on Home.
