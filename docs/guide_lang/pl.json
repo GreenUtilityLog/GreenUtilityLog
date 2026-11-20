@@ -186,6 +186,19 @@
    ]
   ],
   [
+   "YouLess?",
+   "Użyj <span class=\"k\">--youless=</span> z jego adresem IP zamiast <span class=\"k\">--url=</span>. Program pomocniczy sam znajdzie stan licznika, na LS120 (na porcie P1 lub diodzie licznika) i na LS110. Najpierw wyłącz hasło w YouLess: program nie może się zalogować.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --youless=192.168.1.71 --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --youless=192.168.1.71 --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
    "Sprawdź, czy działa",
    "Skrypt wypisuje, co wysłał.",
    "see",

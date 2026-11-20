@@ -501,6 +501,7 @@ export default {
     "r.other": "Inny czytnik",
     "r.hint.hw": "Najpierw włącz \"Local API\" w aplikacji HomeWizard (Settings → Meters → twój P1). Most sam znajdzie twój P1 — jeśli twoja sieć blokuje mDNS, dodaj --ip=<IP twojego P1>. Wymaga Node 22+ lub Dockera — niczego nie klonujesz, bez gita.",
     "r.hint.tasmota": "Dla optycznej głowicy odczytowej z Tasmota (np. Hichi) na porcie optycznym licznika — popularne w Niemczech, Austrii i Szwajcarii. Jej IP znajdziesz w routerze lub na stronie Tasmota. Wymaga Node 22+ na komputerze w tej samej sieci.",
+    "r.hint.youless": "Dla monitora energii YouLess: LS120 na porcie P1 lub na diodzie licznika albo LS110. Adres IP znajdziesz w routerze lub w aplikacji YouLess; najpierw wyłącz hasło w YouLess. Wymaga Node 22+ na komputerze w tej samej sieci.",
     "r.hint.ha": "Najprostsza droga: zainstaluj naszą integrację przez HACS (zero YAML) — pierwsze linie poniżej pokazują jak. Albo skonfiguruj wszystko ręcznie w YAML; identyfikatory encji różnią się między instalacjami, więc znajdź swój w Developer tools → States (filtr \"import\", wybierz encję w kWh, która rośnie).",
     "r.hint.curl": "Dla każdej innej konfiguracji. Wysyłaj (POST) łączny stan w kWh z dowolnego urządzenia albo pozwól, by most odczytywał za ciebie dowolny czytnik HTTP/JSON przez --url=.",
     "r.runningOn": "Uruchamiane na",

@@ -792,6 +792,21 @@ for _c, (_step, _row) in TAS.items():
     _d["c"].insert(len(_d["c"]) - 1, _step)
     _d["country_rows"] = [(a, b, _row) if a.startswith("🇩🇪") else (a, b, x) for a, b, x in _d["country_rows"]]
 
+# ─────────────────────────────── YOULESS (Route C) ───────────────────────────────
+# A YouLess energy monitor (LS120 on the P1 port or the meter's LED, LS110), common in
+# the Netherlands and Belgium. gul.js reads it with --youless=<ip>.
+RUN_YOULESS = dl("--youless=192.168.1.71 --install")
+YL = {
+  "en": ("A YouLess?", 'Use <span class="k">--youless=</span> with its IP instead of <span class="k">--url=</span>. The helper finds the meter total by itself, on an LS120 (on the P1 port or the meter\'s LED) and an LS110. Switch off a YouLess password first: the helper can\'t log in.', "code2", RUN_YOULESS, CAPS),
+  "nl": ("Een YouLess?", 'Gebruik <span class="k">--youless=</span> met het IP-adres in plaats van <span class="k">--url=</span>. Het hulpprogramma vindt de meterstand zelf, op een LS120 (aan de P1-poort of het lampje van de meter) en een LS110. Zet een wachtwoord op de YouLess eerst uit: het hulpprogramma kan niet inloggen.', "code2", RUN_YOULESS, CAPS),
+  "de": ("Ein YouLess?", 'Nimm <span class="k">--youless=</span> mit seiner IP statt <span class="k">--url=</span>. Das Hilfsprogramm findet den Zählerstand selbst, auf einem LS120 (an der P1-Schnittstelle oder der LED des Zählers) und einem LS110. Schalte ein Passwort auf dem YouLess vorher aus: Das Hilfsprogramm kann sich nicht anmelden.', "code2", RUN_YOULESS, CAPS),
+  "fr": ("Un YouLess ?", 'Utilisez <span class="k">--youless=</span> avec son IP au lieu de <span class="k">--url=</span>. L\'utilitaire trouve le total du compteur tout seul, sur un LS120 (sur le port P1 ou la LED du compteur) et un LS110. Désactivez d\'abord le mot de passe du YouLess : l\'utilitaire ne peut pas se connecter.', "code2", RUN_YOULESS, CAPS),
+  "es": ("¿Un YouLess?", 'Usa <span class="k">--youless=</span> con su IP en lugar de <span class="k">--url=</span>. El programa encuentra el total del contador solo, en un LS120 (en el puerto P1 o el LED del contador) y un LS110. Quita antes la contraseña del YouLess: el programa no puede iniciar sesión.', "code2", RUN_YOULESS, CAPS),
+}
+for _c, _step in YL.items():
+    # Right after the Tasmota step, before "Check it worked".
+    L[_c]["c"].insert(len(L[_c]["c"]) - 1, _step)
+
 # ─────────────────────────────── REST OF EUROPE ───────────────────────────────
 # Route C also covers Tasmota reading heads; the country table gains the countries
 # where only some routes work; and the one-wallet-per-phone refusal is explained.

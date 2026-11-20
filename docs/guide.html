@@ -337,6 +337,11 @@
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copy</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copy</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
+      <li><p class="steptitle">A YouLess?</p>
+      <p>Use <span class="k">--youless=</span> with its IP instead of <span class="k">--url=</span>. The helper finds the meter total by itself, on an LS120 (on the P1 port or the meter's LED) and an LS110. Switch off a YouLess password first: the helper can't log in.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copy</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --youless=192.168.1.71 --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copy</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --youless=192.168.1.71 --install</pre></div>
+      </li>
       <li><p class="steptitle">Check it worked</p>
       <p>The helper prints what it pushed.</p>
       <div class="see"><b>Expected output</b><span class="k">pushed 8421.3 kWh ✓</span></div>
@@ -570,6 +575,11 @@
       <p>Gebruik <span class="k">--tasmota=</span> met het IP-adres in plaats van <span class="k">--url=</span>. Het hulpprogramma leest de meterstand (<span class="k">Total_in</span>) zelf. Veel gebruikt op Duitse, Oostenrijkse en Zwitserse meters.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieer</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieer</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      </li>
+      <li><p class="steptitle">Een YouLess?</p>
+      <p>Gebruik <span class="k">--youless=</span> met het IP-adres in plaats van <span class="k">--url=</span>. Het hulpprogramma vindt de meterstand zelf, op een LS120 (aan de P1-poort of het lampje van de meter) en een LS110. Zet een wachtwoord op de YouLess eerst uit: het hulpprogramma kan niet inloggen.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieer</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --youless=192.168.1.71 --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieer</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --youless=192.168.1.71 --install</pre></div>
       </li>
       <li><p class="steptitle">Controleer of het werkte</p>
       <p>Het hulpprogramma laat zien wat het verstuurd heeft.</p>
@@ -805,6 +815,11 @@
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieren</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieren</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
+      <li><p class="steptitle">Ein YouLess?</p>
+      <p>Nimm <span class="k">--youless=</span> mit seiner IP statt <span class="k">--url=</span>. Das Hilfsprogramm findet den Zählerstand selbst, auf einem LS120 (an der P1-Schnittstelle oder der LED des Zählers) und einem LS110. Schalte ein Passwort auf dem YouLess vorher aus: Das Hilfsprogramm kann sich nicht anmelden.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieren</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --youless=192.168.1.71 --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieren</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --youless=192.168.1.71 --install</pre></div>
+      </li>
       <li><p class="steptitle">Prüfen, ob es klappte</p>
       <p>Das Hilfsprogramm zeigt, was es gesendet hat.</p>
       <div class="see"><b>Erwartete Ausgabe</b><span class="k">pushed 8421.3 kWh ✓</span></div>
@@ -1038,6 +1053,11 @@
       <p>Utilisez <span class="k">--tasmota=</span> avec son IP au lieu de <span class="k">--url=</span>. L'utilitaire lit le total du compteur (<span class="k">Total_in</span>) tout seul. Courant sur les compteurs allemands, autrichiens et suisses.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copier</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copier</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      </li>
+      <li><p class="steptitle">Un YouLess ?</p>
+      <p>Utilisez <span class="k">--youless=</span> avec son IP au lieu de <span class="k">--url=</span>. L'utilitaire trouve le total du compteur tout seul, sur un LS120 (sur le port P1 ou la LED du compteur) et un LS110. Désactivez d'abord le mot de passe du YouLess : l'utilitaire ne peut pas se connecter.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copier</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --youless=192.168.1.71 --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copier</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --youless=192.168.1.71 --install</pre></div>
       </li>
       <li><p class="steptitle">Vérifiez que ça a marché</p>
       <p>L'utilitaire affiche ce qu'il a envoyé.</p>
@@ -1273,6 +1293,11 @@
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiar</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
+      <li><p class="steptitle">¿Un YouLess?</p>
+      <p>Usa <span class="k">--youless=</span> con su IP en lugar de <span class="k">--url=</span>. El programa encuentra el total del contador solo, en un LS120 (en el puerto P1 o el LED del contador) y un LS110. Quita antes la contraseña del YouLess: el programa no puede iniciar sesión.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --youless=192.168.1.71 --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiar</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --youless=192.168.1.71 --install</pre></div>
+      </li>
       <li><p class="steptitle">Comprueba que funcionó</p>
       <p>El programa muestra lo que ha enviado.</p>
       <div class="see"><b>Salida esperada</b><span class="k">pushed 8421.3 kWh ✓</span></div>
@@ -1506,6 +1531,11 @@
       <p>Usa <span class="k">--tasmota=</span> con il suo IP al posto di <span class="k">--url=</span>. Il programma legge da solo il totale del contatore (<span class="k">Total_in</span>). Diffusa sui contatori tedeschi, austriaci e svizzeri.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copia</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copia</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      </li>
+      <li><p class="steptitle">Uno YouLess?</p>
+      <p>Usa <span class="k">--youless=</span> con il suo IP al posto di <span class="k">--url=</span>. Il programma trova da solo il totale del contatore, su un LS120 (sulla porta P1 o sul LED del contatore) e su un LS110. Prima togli la password dello YouLess: il programma non può accedere.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copia</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --youless=192.168.1.71 --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copia</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --youless=192.168.1.71 --install</pre></div>
       </li>
       <li><p class="steptitle">Controlla che funzioni</p>
       <p>Il programma mostra cosa ha inviato.</p>
@@ -1741,6 +1771,11 @@
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Αντιγραφή</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Αντιγραφή</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
+      <li><p class="steptitle">Ένα YouLess;</p>
+      <p>Χρησιμοποίησε <span class="k">--youless=</span> με την IP του αντί για <span class="k">--url=</span>. Το βοηθητικό πρόγραμμα βρίσκει μόνο του την ένδειξη του μετρητή, σε LS120 (στη θύρα P1 ή στο LED του μετρητή) και σε LS110. Απενεργοποίησε πρώτα τον κωδικό του YouLess: το πρόγραμμα δεν μπορεί να συνδεθεί.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Αντιγραφή</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --youless=192.168.1.71 --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Αντιγραφή</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --youless=192.168.1.71 --install</pre></div>
+      </li>
       <li><p class="steptitle">Έλεγξε ότι δουλεύει</p>
       <p>Το βοηθητικό πρόγραμμα δείχνει τι έστειλε.</p>
       <div class="see"><b>Αναμενόμενο αποτέλεσμα</b><span class="k">pushed 8421.3 kWh ✓</span></div>
@@ -1974,6 +2009,11 @@
       <p><span class="k">--url=</span> yerine IP adresiyle birlikte <span class="k">--tasmota=</span> kullan. Yardımcı program sayaç toplamını (<span class="k">Total_in</span>) kendisi okur. Almanya, Avusturya ve İsviçre'deki sayaçlarda yaygındır.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopyala</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopyala</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      </li>
+      <li><p class="steptitle">YouLess mi var?</p>
+      <p><span class="k">--url=</span> yerine IP adresiyle <span class="k">--youless=</span> kullan. Yardımcı program sayaç toplamını kendisi bulur; LS120'de (P1 portunda veya sayacın LED'inde) ve LS110'da. Önce YouLess şifresini kapat: program oturum açamaz.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopyala</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --youless=192.168.1.71 --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopyala</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --youless=192.168.1.71 --install</pre></div>
       </li>
       <li><p class="steptitle">Çalıştığını kontrol et</p>
       <p>Yardımcı program ne gönderdiğini yazdırır.</p>
@@ -2209,6 +2249,11 @@
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiraj</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiraj</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
+      <li><p class="steptitle">YouLess?</p>
+      <p>Namesto <span class="k">--url=</span> uporabi <span class="k">--youless=</span> z njegovim IP-naslovom. Pomožni program sam najde stanje števca, na LS120 (na vratih P1 ali na lučki števca) in na LS110. Najprej izklopi geslo na YouLessu: program se ne more prijaviti.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiraj</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --youless=192.168.1.71 --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiraj</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --youless=192.168.1.71 --install</pre></div>
+      </li>
       <li><p class="steptitle">Preveri, ali deluje</p>
       <p>Skripta izpiše, kaj je poslala.</p>
       <div class="see"><b>Pričakovani izpis</b><span class="k">pushed 8421.3 kWh ✓</span></div>
@@ -2442,6 +2487,11 @@
       <p>Umjesto <span class="k">--url=</span> koristi <span class="k">--tasmota=</span> s njezinom IP adresom. Skripta sama očita ukupno stanje brojila (<span class="k">Total_in</span>). Česta na njemačkim, austrijskim i švicarskim brojilima.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiraj</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiraj</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      </li>
+      <li><p class="steptitle">YouLess?</p>
+      <p>Umjesto <span class="k">--url=</span> upotrijebi <span class="k">--youless=</span> s njegovom IP adresom. Pomoćni program sam pronalazi stanje brojila, na LS120 (na P1 priključku ili LED lampici brojila) i na LS110. Najprije isključi lozinku na YouLessu: program se ne može prijaviti.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiraj</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --youless=192.168.1.71 --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiraj</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --youless=192.168.1.71 --install</pre></div>
       </li>
       <li><p class="steptitle">Provjeri radi li</p>
       <p>Skripta ispiše što je poslala.</p>
@@ -2677,6 +2727,11 @@
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiază</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiază</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
+      <li><p class="steptitle">Un YouLess?</p>
+      <p>Folosește <span class="k">--youless=</span> cu IP-ul lui în loc de <span class="k">--url=</span>. Programul găsește singur indexul contorului, pe un LS120 (pe portul P1 sau pe LED-ul contorului) și pe un LS110. Dezactivează mai întâi parola YouLess: programul nu se poate autentifica.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiază</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --youless=192.168.1.71 --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiază</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --youless=192.168.1.71 --install</pre></div>
+      </li>
       <li><p class="steptitle">Verifică dacă merge</p>
       <p>Scriptul afișează ce a trimis.</p>
       <div class="see"><b>Ce ar trebui să apară</b><span class="k">pushed 8421.3 kWh ✓</span></div>
@@ -2910,6 +2965,11 @@
       <p>Използвай <span class="k">--tasmota=</span> с нейния IP вместо <span class="k">--url=</span>. Помощната програма сама чете общото показание на електромера (<span class="k">Total_in</span>). Често се среща при германски, австрийски и швейцарски електромери.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Копирай</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Копирай</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      </li>
+      <li><p class="steptitle">YouLess?</p>
+      <p>Използвай <span class="k">--youless=</span> с неговия IP вместо <span class="k">--url=</span>. Помощната програма сама намира показанието на уреда, на LS120 (на P1 порта или на светодиода на електромера) и на LS110. Първо изключи паролата на YouLess: програмата не може да влезе.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Копирай</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --youless=192.168.1.71 --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Копирай</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --youless=192.168.1.71 --install</pre></div>
       </li>
       <li><p class="steptitle">Провери дали работи</p>
       <p>Помощната програма показва какво е изпратила.</p>
@@ -3145,6 +3205,11 @@
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiera</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiera</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
+      <li><p class="steptitle">En YouLess?</p>
+      <p>Använd <span class="k">--youless=</span> med dess IP i stället för <span class="k">--url=</span>. Hjälpprogrammet hittar mätarställningen själv, på en LS120 (på P1-porten eller mätarens lysdiod) och en LS110. Stäng först av lösenordet på YouLess: programmet kan inte logga in.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiera</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --youless=192.168.1.71 --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiera</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --youless=192.168.1.71 --install</pre></div>
+      </li>
       <li><p class="steptitle">Kontrollera att det fungerar</p>
       <p>Hjälpprogrammet skriver ut vad det skickade.</p>
       <div class="see"><b>Förväntad utskrift</b><span class="k">pushed 8421.3 kWh ✓</span></div>
@@ -3378,6 +3443,11 @@
       <p>Brug <span class="k">--tasmota=</span> med dets IP i stedet for <span class="k">--url=</span>. Hjælpeprogrammet aflæser selv målerens total (<span class="k">Total_in</span>). Udbredt på tyske, østrigske og schweiziske målere.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiér</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiér</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      </li>
+      <li><p class="steptitle">En YouLess?</p>
+      <p>Brug <span class="k">--youless=</span> med dens IP i stedet for <span class="k">--url=</span>. Hjælpeprogrammet finder selv målerstanden, på en LS120 (på P1-porten eller målerens lysdiode) og en LS110. Slå først adgangskoden på YouLess fra: programmet kan ikke logge ind.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiér</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --youless=192.168.1.71 --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiér</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --youless=192.168.1.71 --install</pre></div>
       </li>
       <li><p class="steptitle">Tjek, at det virker</p>
       <p>Hjælpeprogrammet skriver, hvad det har sendt.</p>
@@ -3613,6 +3683,11 @@
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopier</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopier</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
+      <li><p class="steptitle">En YouLess?</p>
+      <p>Bruk <span class="k">--youless=</span> med IP-adressen i stedet for <span class="k">--url=</span>. Hjelpeprogrammet finner målerstanden selv, på en LS120 (på P1-porten eller målerens lysdiode) og en LS110. Slå først av passordet på YouLess: programmet kan ikke logge inn.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopier</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --youless=192.168.1.71 --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopier</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --youless=192.168.1.71 --install</pre></div>
+      </li>
       <li><p class="steptitle">Sjekk at det virket</p>
       <p>Skriptet viser hva det har sendt.</p>
       <div class="see"><b>Forventet utdata</b><span class="k">pushed 8421.3 kWh ✓</span></div>
@@ -3846,6 +3921,11 @@
       <p>Käytä <span class="k">--tasmota=</span> ja sen IP-osoitetta <span class="k">--url=</span>:n sijaan. Skripti lukee mittarin kokonaislukeman (<span class="k">Total_in</span>) itse. Yleinen saksalaisissa, itävaltalaisissa ja sveitsiläisissä mittareissa.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopioi</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopioi</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      </li>
+      <li><p class="steptitle">YouLess?</p>
+      <p>Käytä <span class="k">--youless=</span> sen IP-osoitteen kanssa <span class="k">--url=</span> sijaan. Apuohjelma löytää mittarilukeman itse, LS120:sta (P1-portista tai mittarin merkkivalosta) ja LS110:stä. Poista ensin YouLessin salasana käytöstä: ohjelma ei voi kirjautua.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopioi</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --youless=192.168.1.71 --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopioi</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --youless=192.168.1.71 --install</pre></div>
       </li>
       <li><p class="steptitle">Tarkista, että se toimi</p>
       <p>Skripti tulostaa, mitä se lähetti.</p>
@@ -4081,6 +4161,11 @@
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Másolás</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Másolás</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
+      <li><p class="steptitle">YouLess?</p>
+      <p>Használd a <span class="k">--youless=</span> kapcsolót az IP-címével a <span class="k">--url=</span> helyett. A segédprogram magától megtalálja a mérőállást LS120-on (a P1 porton vagy a mérő LED-jén) és LS110-en. Előbb kapcsold ki a YouLess jelszavát: a program nem tud bejelentkezni.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Másolás</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --youless=192.168.1.71 --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Másolás</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --youless=192.168.1.71 --install</pre></div>
+      </li>
       <li><p class="steptitle">Ellenőrizd, hogy működött-e</p>
       <p>A szkript kiírja, mit küldött el.</p>
       <div class="see"><b>Várt kimenet</b><span class="k">pushed 8421.3 kWh ✓</span></div>
@@ -4314,6 +4399,11 @@
       <p>Użyj <span class="k">--tasmota=</span> z jej adresem IP zamiast <span class="k">--url=</span>. Skrypt sam odczyta stan licznika (<span class="k">Total_in</span>). Popularne przy licznikach w Niemczech, Austrii i Szwajcarii.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiuj</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiuj</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      </li>
+      <li><p class="steptitle">YouLess?</p>
+      <p>Użyj <span class="k">--youless=</span> z jego adresem IP zamiast <span class="k">--url=</span>. Program pomocniczy sam znajdzie stan licznika, na LS120 (na porcie P1 lub diodzie licznika) i na LS110. Najpierw wyłącz hasło w YouLess: program nie może się zalogować.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiuj</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --youless=192.168.1.71 --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiuj</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --youless=192.168.1.71 --install</pre></div>
       </li>
       <li><p class="steptitle">Sprawdź, czy działa</p>
       <p>Skrypt wypisuje, co wysłał.</p>
@@ -4549,6 +4639,11 @@
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiar</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
+      <li><p class="steptitle">Um YouLess?</p>
+      <p>Usa <span class="k">--youless=</span> com o IP dele em vez de <span class="k">--url=</span>. O programa encontra sozinho a leitura do contador, num LS120 (na porta P1 ou no LED do contador) e num LS110. Desativa primeiro a palavra-passe do YouLess: o programa não consegue iniciar sessão.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --youless=192.168.1.71 --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiar</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --youless=192.168.1.71 --install</pre></div>
+      </li>
       <li><p class="steptitle">Confirma que funcionou</p>
       <p>O script mostra o que enviou.</p>
       <div class="see"><b>Resultado esperado</b><span class="k">pushed 8421.3 kWh ✓</span></div>
@@ -4782,6 +4877,11 @@
       <p>Použij <span class="k">--tasmota=</span> s její IP adresou místo <span class="k">--url=</span>. Skript si celkový stav elektroměru (<span class="k">Total_in</span>) přečte sám. Běžné u elektroměrů v Německu, Rakousku a Švýcarsku.</p>
       <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopírovat</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopírovat</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      </li>
+      <li><p class="steptitle">YouLess?</p>
+      <p>Místo <span class="k">--url=</span> použij <span class="k">--youless=</span> s jeho IP adresou. Pomocný program sám najde stav elektroměru, na LS120 (na portu P1 nebo na LED elektroměru) i na LS110. Nejdřív vypni heslo na YouLess: program se nemůže přihlásit.</p>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopírovat</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --youless=192.168.1.71 --install</pre></div>
+      <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopírovat</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --youless=192.168.1.71 --install</pre></div>
       </li>
       <li><p class="steptitle">Ověř, že to funguje</p>
       <p>Skript vypíše, co odeslal.</p>

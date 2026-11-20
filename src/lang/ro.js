@@ -501,6 +501,7 @@ export default {
     "r.other": "Orice alt cititor",
     "r.hint.hw": "Mai întâi activează „Local API” în aplicația HomeWizard (Settings → Meters → P1-ul tău). Bridge-ul îți găsește singur P1-ul — dacă rețeaua ta blochează mDNS, adaugă --ip=<IP-ul P1-ului tău>. Ai nevoie de Node 22+ sau Docker — nimic de clonat, fără git.",
     "r.hint.tasmota": "Pentru un cap de citire IR cu Tasmota (ex. Hichi) pe portul optic al contorului — des întâlnit în Germania, Austria și Elveția. Găsește-i IP-ul în router sau în pagina web Tasmota. Ai nevoie de Node 22+ pe un calculator din aceeași rețea.",
+    "r.hint.youless": "Pentru un monitor de energie YouLess: un LS120 pe portul P1 sau pe LED-ul contorului, ori un LS110. Găsește IP-ul în router sau în aplicația YouLess și dezactivează mai întâi parola YouLess. Necesită Node 22+ pe un calculator din aceeași rețea.",
     "r.hint.ha": "Cea mai simplă cale: instalează integrarea noastră prin HACS (deloc YAML) — primele rânduri de mai jos arată cum. Sau conecteaz-o singur cu YAML; ID-urile entităților diferă de la o instalare la alta, așa că găsește-l pe al tău la Developer tools → States (filtrează după „import”, alege-l pe cel în kWh care tot crește).",
     "r.hint.curl": "Pentru orice altă configurare. Trimite prin POST totalul cumulat în kWh de pe orice dispozitiv, sau lasă bridge-ul să citească pentru tine orice cititor HTTP/JSON cu --url=.",
     "r.runningOn": "Rulează pe",

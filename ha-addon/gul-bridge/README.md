@@ -34,6 +34,7 @@ a day), and the panel's **Timeline** shows **Paid +… B3TR** — nothing to tap
 | `read_field` | auto-detect | Dot-path to the kWh value in that JSON; several joined with `+` send their sum (for a reader that only reports the two tariff registers) |
 | `ingest_url` | empty = the app's server | Fill in only for the app's test copy or your own backend |
 | `tasmota_ip` | — | IP of a Tasmota IR reading head (e.g. Hichi) on the meter; the total is read from its `Total_in` value |
+| `youless_ip` | — | IP of a YouLess energy monitor (LS120 on the P1 port or the meter's LED, LS110); switch its password off first |
 | `powerfox_email` / `powerfox_password` | — | A Powerfox poweropti instead of a HomeWizard: your Powerfox login. The reading comes from the Powerfox cloud (switch on data transfer in the Powerfox app) |
 | `forget_last` | off | After a meter change: the new meter reads lower than the old one, and the add-on refuses a total that goes down. Switch on, restart the add-on once, then switch it off again |
 
@@ -41,7 +42,7 @@ a day), and the panel's **Timeline** shows **Paid +… B3TR** — nothing to tap
 
 Any reader on your network that serves the meter's kWh total as JSON over HTTP,
 without a login, works — set **read_url** to it (and **read_field** if the value isn't
-found automatically). A Tasmota reading head (Hichi): set **tasmota_ip** instead. Prefer to use Home Assistant's
+found automatically). A Tasmota reading head (Hichi): set **tasmota_ip** instead. A YouLess: set **youless_ip**. Prefer to use Home Assistant's
 own sensor instead? Then you don't need this add-on: use the `rest_command` snippet
 shown in the app under Meter → ⚡ Have a P1 reader? → ⚙️ Automatic setup.
 

@@ -186,6 +186,19 @@
    ]
   ],
   [
+   "Um YouLess?",
+   "Usa <span class=\"k\">--youless=</span> com o IP dele em vez de <span class=\"k\">--url=</span>. O programa encontra sozinho a leitura do contador, num LS120 (na porta P1 ou no LED do contador) e num LS110. Desativa primeiro a palavra-passe do YouLess: o programa não consegue iniciar sessão.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --youless=192.168.1.71 --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --youless=192.168.1.71 --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
    "Confirma que funcionou",
    "O script mostra o que enviou.",
    "see",

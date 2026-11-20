@@ -187,6 +187,19 @@
    ]
   ],
   [
+   "En YouLess?",
+   "Använd <span class=\"k\">--youless=</span> med dess IP i stället för <span class=\"k\">--url=</span>. Hjälpprogrammet hittar mätarställningen själv, på en LS120 (på P1-porten eller mätarens lysdiod) och en LS110. Stäng först av lösenordet på YouLess: programmet kan inte logga in.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --youless=192.168.1.71 --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --youless=192.168.1.71 --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
    "Kontrollera att det fungerar",
    "Hjälpprogrammet skriver ut vad det skickade.",
    "see",

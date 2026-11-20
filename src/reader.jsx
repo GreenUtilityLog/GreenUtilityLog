@@ -764,6 +764,7 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
                       // Off until tested; the server says when it is on.
                       ...(health?.mojelektro?.enabled ? [{ id: "mojelektro", label: "MojElektro" }] : []),
                       { id: "tasmota",    label: "Tasmota / Hichi" },
+                      { id: "youless",    label: "YouLess" },
                       { id: "ha",         label: "Home Assistant" },
                       { id: "curl",       label: t("r.other") },
                     ];
@@ -803,6 +804,16 @@ ${fetchCmd(`--ask-token --tasmota=TASMOTA_IP --install${INGEST_FLAG}`)}
 # That sends your first reading AND schedules it twice a day, so you can
 # close this window. Total not found? Add --field=StatusSNS.<group>.<name>
 # with the names from your meter script (Tasmota: Consoles → Console → status 10).`;
+                    const youlessCmd = `# A YouLess energy monitor (LS120 on the P1 port or the meter's LED, LS110).
+# The bridge reads its total over your home network. Switch a YouLess password
+# off first. Run it on a PC / Pi / NAS on the same network. Replace YOULESS_IP.
+${needNode}
+
+${fetchCmd(`--ask-token --youless=YOULESS_IP --install${INGEST_FLAG}`)}
+# It first asks for your device token: tap “Copy token only” and paste it.
+
+# That sends your first reading AND schedules it twice a day, so you can
+# close this window — it keeps working, even after a restart.`;
                     const haYaml = `# EASIEST: install our integration instead — no YAML at all.
 #   HACS → ⋮ → Custom repositories → add (type: Integration):
 #   https://github.com/GreenUtilityLog/GreenUtilityLog
@@ -847,11 +858,13 @@ ${postCmd}
 # Or let the bridge read any HTTP/JSON reader for you — one file, no install:
 ${fetchCmd(`--ask-token --install --url=http://<reader-ip>/api/v1/data${INGEST_FLAG}`)}
 # It first asks for your device token: tap “Copy token only” and paste it.`;
-                    const snip = device === "ha" ? haYaml : device === "curl" ? curlSnippet : device === "tasmota" ? tasmotaCmd : bridgeCmd;
+                    const snip = device === "ha" ? haYaml : device === "curl" ? curlSnippet : device === "tasmota" ? tasmotaCmd : device === "youless" ? youlessCmd : bridgeCmd;
                     const hint = device === "homewizard"
                       ? t("r.hint.hw")
                       : device === "tasmota"
                       ? t("r.hint.tasmota")
+                      : device === "youless"
+                      ? t("r.hint.youless")
                       : device === "ha"
                       ? t("r.hint.ha")
                       : t("r.hint.curl");

@@ -24,6 +24,7 @@ export INTERVAL_SEC="$(bashio::config 'interval_sec')"
 if bashio::config.has_value 'hw_ip'; then export HW_IP="$(bashio::config 'hw_ip')"; fi
 if bashio::config.has_value 'read_url'; then export READ_URL="$(bashio::config 'read_url')"; fi
 if bashio::config.has_value 'tasmota_ip'; then export TASMOTA_IP="$(bashio::config 'tasmota_ip')"; fi
+if bashio::config.has_value 'youless_ip'; then export YOULESS_IP="$(bashio::config 'youless_ip')"; fi
 if bashio::config.has_value 'read_field'; then export READ_FIELD="$(bashio::config 'read_field')"; fi
 if bashio::config.has_value 'ingest_url'; then export GUL_INGEST_URL="$(bashio::config 'ingest_url')"; fi
 if bashio::config.true 'forget_last'; then
@@ -37,6 +38,9 @@ fi
 
 if bashio::config.has_value 'powerfox_email'; then
   bashio::log.info "Reading Powerfox (${GUL_POWERFOX_USER}) from the Powerfox cloud"
+elif bashio::config.has_value 'youless_ip'; then
+  # youless_ip wins over read_url and tasmota_ip in the bridge (gul.js).
+  bashio::log.info "Reading the YouLess at ${YOULESS_IP}"
 elif bashio::config.has_value 'read_url'; then
   # read_url wins over tasmota_ip in the bridge (gul.js), so it is named first here.
   bashio::log.info "Reading from ${READ_URL}"

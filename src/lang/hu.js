@@ -501,6 +501,7 @@ export default {
     "r.other": "Bármilyen más leolvasó",
     "r.hint.hw": "Előbb kapcsold be a „Local API” opciót a HomeWizard appban (Settings → Meters → a P1-ed). A bridge magától megtalálja a P1-et — ha a hálózatod blokkolja az mDNS-t, add hozzá: --ip=<your P1 IP>. Node 22+ vagy Docker kell hozzá — nincs mit klónozni, git sem kell.",
     "r.hint.tasmota": "Tasmotás infravörös olvasófejhez (pl. Hichi) a mérő optikai portján — Németországban, Ausztriában és Svájcban gyakori. Az IP-címét a routeredben vagy a Tasmota weboldalán találod. Ugyanabban a hálózatban lévő számítógép kell hozzá, Node 22+ verzióval.",
+    "r.hint.youless": "YouLess energiamonitorhoz: P1 portra vagy a mérő LED-jére szerelt LS120, vagy LS110. Az IP-címét a routerben vagy a YouLess alkalmazásban találod; előbb kapcsold ki a YouLess jelszavát. Node 22+ kell egy azonos hálózaton lévő számítógépen.",
     "r.hint.ha": "A legegyszerűbb út: telepítsd az integrációnkat HACS-en keresztül (egyáltalán nem kell YAML) — az alábbi első sorok megmutatják, hogyan. Vagy kösd be magad a YAML-lel; az entitásazonosítók telepítésenként eltérnek, ezért a sajátodat a Developer tools → States alatt keresd (szűrj az „import” szóra, és válaszd a felfelé számoló kWh-értéket).",
     "r.hint.curl": "Bármilyen más beállításhoz. Küldd el POST-tal az összesített kWh-értékedet bármilyen eszközről, vagy hagyd, hogy a bridge olvasson ki neked bármilyen HTTP/JSON leolvasót a --url= kapcsolóval.",
     "r.runningOn": "Ezen futtatod:",

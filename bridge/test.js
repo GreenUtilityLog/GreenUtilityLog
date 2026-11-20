@@ -325,6 +325,59 @@ test("--tasmota reads Total_in from a Tasmota IR reading head", async () => {
   assert.deepEqual(got, { token: "t1", reading: 12345.6789 });
 });
 
+// YouLess: the LS120 (standard firmware, P1) answers /e?f=j with the two tariff
+// registers; the LS110 has no /e and answers /a?f=j with "cnt" as text with a
+// decimal comma.
+const backendFor = (seen) => fake((req, res) => { let b = ""; req.on("data", (c) => (b += c)); req.on("end", () => { seen.push(JSON.parse(b)); res.end("{}"); }); });
+test("--youless on an LS120 sends the sum of the low and normal tariff (p1 + p2)", async () => {
+  const paths = [];
+  const yl = await fake((req, res) => {
+    paths.push(req.url);
+    res.setHeader("content-type", "application/json");
+    if (req.url === "/e?f=j") return res.end(JSON.stringify([{ tm: 1763640000, net: 9876.5, pwr: 412, p1: 4321.125, p2: 5555.375, n1: 0, n2: 0, gas: 1234.5, gts: 0 }]));
+    res.statusCode = 404; res.end("not here");
+  });
+  const seen = []; const backend = await backendFor(seen);
+  const r = await run(["--token=t1", "--once", `--youless=127.0.0.1:${yl.address().port}`, `--ingest=http://127.0.0.1:${backend.address().port}/meter-ingest`]);
+  yl.close(); backend.close();
+  assert.equal(r.code, 0, r.out);
+  assert.deepEqual(seen, [{ token: "t1", reading: 9876.5 }]);
+  assert.deepEqual(paths, ["/e?f=j"]);
+  assert.match(r.out, /low 4321\.125 \+ normal 5555\.375/);
+});
+test("--youless on an LS110 reads cnt, a text with a decimal comma", async () => {
+  const yl = await fake((req, res) => {
+    if (req.url === "/a?f=j") { res.setHeader("content-type", "application/json"); return res.end(JSON.stringify({ cnt: "  12345,678", pwr: 250, lvl: 50, dev: "", det: "", con: "OK", sts: "", raw: 0 })); }
+    res.statusCode = 404; res.end("<html>404</html>");
+  });
+  const seen = []; const backend = await backendFor(seen);
+  const r = await run(["--token=t1", "--once", `--youless=http://127.0.0.1:${yl.address().port}/`, `--ingest=http://127.0.0.1:${backend.address().port}/meter-ingest`]);
+  yl.close(); backend.close();
+  assert.equal(r.code, 0, r.out);
+  assert.deepEqual(seen, [{ token: "t1", reading: 12345.678 }]);
+});
+test("--youless on an LS120 counting the meter's LED: p1/p2 are 0, so cnt is used", async () => {
+  const yl = await fake((req, res) => {
+    res.setHeader("content-type", "application/json");
+    if (req.url === "/e?f=j") return res.end(JSON.stringify([{ p1: 0, p2: 0, n1: 0, n2: 0, net: 0, pwr: 300 }]));
+    res.end(JSON.stringify({ cnt: "2222,5", pwr: 300 }));
+  });
+  const seen = []; const backend = await backendFor(seen);
+  const r = await run(["--token=t1", "--once", `--youless=127.0.0.1:${yl.address().port}`, `--ingest=http://127.0.0.1:${backend.address().port}/meter-ingest`]);
+  yl.close(); backend.close();
+  assert.equal(r.code, 0, r.out);
+  assert.deepEqual(seen, [{ token: "t1", reading: 2222.5 }]);
+});
+test("--youless with a password set: says so, sends nothing", async () => {
+  const yl = await fake((req, res) => { res.statusCode = 403; res.end("Forbidden"); });
+  const seen = []; const backend = await backendFor(seen);
+  const r = await run(["--token=t1", "--once", `--youless=127.0.0.1:${yl.address().port}`, `--ingest=http://127.0.0.1:${backend.address().port}/meter-ingest`]);
+  yl.close(); backend.close();
+  assert.notEqual(r.code, 0);
+  assert.equal(seen.length, 0);
+  assert.match(r.out, /asks for a password/);
+});
+
 test("--tasmota and --powerfox take their value after a space too, and a bare --powerfox leaves the next flag alone", async () => {
   let path = "";
   const tasmota = await fake((req, res) => { path = req.url; res.end(JSON.stringify({ StatusSNS: { SML: { Total_in: 4321.5 } } })); });
@@ -557,6 +610,27 @@ test("--install again with no reader named keeps the saved one (here a Tasmota h
     assert.equal(sb.cfg().read.tasmota, undefined);
     assert.equal(be.seen.at(-1).reading, 300.75);
   } finally { tasmota.close(); homewizard.close(); be.srv.close(); }
+});
+
+test("--install with --youless: saved, read again by a re-install and by the schedule", async () => {
+  if (process.platform === "win32") return;
+  const sb = sandbox("youless");
+  let hits = 0;
+  const yl = await fake((req, res) => { hits++; res.setHeader("content-type", "application/json"); res.end(JSON.stringify([{ p1: 100.25, p2: 200.5 }])); });
+  const be = await recorder();
+  try {
+    let r = await sb.run(["--install", "--token=t-yl", `--youless=127.0.0.1:${yl.address().port}`, `--ingest=${be.url}`]);
+    assert.equal(r.code, 0, r.out);
+    assert.equal(sb.cfg().read.youless, `127.0.0.1:${yl.address().port}`);
+    r = await sb.run(["--install", `--ingest=${be.url}`]);
+    assert.equal(r.code, 0, r.out);
+    assert.equal(sb.cfg().read.youless, `127.0.0.1:${yl.address().port}`, "still saved after a re-install");
+    sb.setCfg({ lastPushAt: Date.now() - 12 * 3600e3 });
+    r = await sb.runCron();
+    assert.equal(r.code, 0, r.out);
+    assert.equal(hits, 3, "read by both setups and the schedule");
+    assert.deepEqual(be.seen.map((x) => x.reading), [300.75, 300.75, 300.75]);
+  } finally { yl.close(); be.srv.close(); }
 });
 
 test("--install again keeps reading Powerfox, also after a setup made before 1.5.4", async () => {

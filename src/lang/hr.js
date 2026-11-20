@@ -501,6 +501,7 @@ export default {
     "r.other": "Bilo koji drugi čitač",
     "r.hint.hw": "Najprije u aplikaciji HomeWizard uključi \"Local API\" (Settings → Meters → tvoj P1). Most sam pronalazi tvoj P1 — ako tvoja mreža blokira mDNS, dodaj --ip=<IP tvog P1>. Potreban je Node 22+ ili Docker — ništa se ne klonira, bez gita.",
     "r.hint.tasmota": "Za IR glavu za očitavanje s Tasmotom (npr. Hichi) na optičkom priključku brojila — česta u Njemačkoj, Austriji i Švicarskoj. Njezinu IP adresu nađi u routeru ili na Tasmota web-stranici. Potreban je Node 22+ na računalu u istoj mreži.",
+    "r.hint.youless": "Za YouLess monitor energije: LS120 na P1 priključku ili LED lampici brojila, ili LS110. IP adresu nađi u routeru ili u aplikaciji YouLess i najprije isključi lozinku na YouLessu. Potreban je Node 22+ na računalu u istoj mreži.",
     "r.hint.ha": "Najlakši put: instaliraj našu integraciju preko HACS-a (bez imalo YAML-a) — prvi redci ispod pokazuju kako. Ili je poveži ručno pomoću YAML-a; ID-jevi entiteta razlikuju se od instalacije do instalacije, pa svoj nađi pod Developer tools → States (filtriraj \"import\" i odaberi onaj u kWh koji raste).",
     "r.hint.curl": "Za bilo koju drugu postavu. Pošalji (POST) svoj kumulativni zbroj kWh s bilo kojeg uređaja ili pusti most da za tebe čita bilo koji HTTP/JSON čitač pomoću --url=.",
     "r.runningOn": "Pokrećeš na",

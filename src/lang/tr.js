@@ -501,6 +501,7 @@ export default {
     "r.other": "Başka bir okuyucu",
     "r.hint.hw": "Önce HomeWizard uygulamasında \"Local API\"yi aç (Ayarlar → Sayaçlar → P1'in). Köprü P1'ini kendisi bulur — ağın mDNS'i engelliyorsa --ip=<P1 IP adresin> ekle. Node 22+ veya Docker gerekir — klonlanacak bir şey yok, git yok.",
     "r.hint.tasmota": "Sayacın optik portuna takılan, Tasmota yüklü bir IR okuma başlığı için (örn. Hichi) — Almanya, Avusturya ve İsviçre'de yaygındır. IP adresini modeminde veya Tasmota web sayfasında bulabilirsin. Aynı ağdaki bir bilgisayarda Node 22+ gerekir.",
+    "r.hint.youless": "YouLess enerji monitörü için: P1 portunda veya sayacın LED'inde bir LS120 ya da bir LS110. IP adresini modeminde veya YouLess uygulamasında bul ve önce YouLess şifresini kapat. Aynı ağdaki bir bilgisayarda Node 22+ gerekir.",
     "r.hint.ha": "En kolay yol: entegrasyonumuzu HACS üzerinden kur (hiç YAML yok) — aşağıdaki ilk satırlar nasıl yapılacağını gösteriyor. Ya da YAML ile kendin bağla; varlık kimlikleri (entity ID) her kurulumda farklıdır, seninkini Geliştirici araçları → Durumlar altında bul (\"import\" ile filtrele, artarak sayan kWh olanı seç).",
     "r.hint.curl": "Diğer tüm kurulumlar için. Kümülatif kWh toplamını herhangi bir cihazdan POST ile gönder ya da köprünün herhangi bir HTTP/JSON okuyucuyu senin için okumasını --url= ile sağla.",
     "r.runningOn": "Çalıştığı cihaz",

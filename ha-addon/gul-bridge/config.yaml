@@ -1,5 +1,5 @@
 name: GreenUtilityLog Meter Bridge
-version: "1.5.5"
+version: "1.5.6"
 slug: gul_bridge
 description: Sends your smart-meter reading to GreenUtilityLog automatically — no terminal, no scripts.
 url: https://github.com/GreenUtilityLog/GreenUtilityLog/tree/main/bridge
@@ -19,6 +19,7 @@ options:
   hw_ip: ""
   read_url: ""
   tasmota_ip: ""
+  youless_ip: ""
   read_field: ""
   ingest_url: ""
   powerfox_email: ""
@@ -36,6 +37,8 @@ schema:
   read_url: str?
   # Optional: IP of a Tasmota IR reading head (e.g. Hichi) on the meter.
   tasmota_ip: str?
+  # Optional: IP of a YouLess energy monitor (LS120, LS110), without a password.
+  youless_ip: str?
   # Optional: dot-path to the kWh value in that JSON (auto-detected when empty);
   # a.b+c.d sends the sum of both, for two tariff registers.
   read_field: str?

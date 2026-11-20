@@ -151,7 +151,8 @@ Met een foto kan elk land al meedoen. Voor elk nieuw land geldt eerst: een norm 
 - [ ] 🇹🇷 Turkije: optische poort mogelijk via een leeskop; eerst met Turkse bronnen nagaan welke meters er hangen en of de poort open staat
 - [ ] 🇷🇸 🇷🇴 🇧🇬 🇲🇰 🇲🇪 🇧🇦 🇦🇱 🇽🇰: geen klantpoort of dienst gevonden; voorlopig foto's
 - [ ] Officiële meterdata elders: Octopus Energy (VK, DE), inexogy (DE), Eloverblik (DK), Datadis (ES), Enedis/Linky (FR). Geven meestal verbruik per uur of dag, met vertraging; per dienst eerst uitzoeken
-- [ ] YouLess (NL) als eigen optie in de bridge; eerst de velden van het antwoord nakijken
+- [x] YouLess (NL) als eigen optie: `--youless=<ip>` in gul.js (LS120 `p1`+`p2`, LS110/lampje `cnt`), add-on `youless_ip` (1.5.6), keuze in de app en stap in de handleiding, 20 talen. Velden uit de Home Assistant-koppeling (gjong/youless-python-bridge); de site van YouLess was hier niet bereikbaar. Nog proberen met een echte YouLess
+- [ ] YouLess met wachtwoord (inloggen) — nu: wachtwoord uitzetten
 - Niet doen: tussenmeters zoals Shelly EM of stroomtangen (meten niet de officiële meter)
 
 ## Volledige controle (19 november) — 4 reviewers, elke bevinding nagelopen

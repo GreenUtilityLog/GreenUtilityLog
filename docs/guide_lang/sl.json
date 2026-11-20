@@ -187,6 +187,19 @@
    ]
   ],
   [
+   "YouLess?",
+   "Namesto <span class=\"k\">--url=</span> uporabi <span class=\"k\">--youless=</span> z njegovim IP-naslovom. Pomožni program sam najde stanje števca, na LS120 (na vratih P1 ali na lučki števca) in na LS110. Najprej izklopi geslo na YouLessu: program se ne more prijaviti.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --youless=192.168.1.71 --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --youless=192.168.1.71 --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
    "Preveri, ali deluje",
    "Skripta izpiše, kaj je poslala.",
    "see",

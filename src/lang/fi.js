@@ -501,6 +501,7 @@ export default {
     "r.other": "Mikä tahansa muu lukija",
     "r.hint.hw": "Ota ensin \"Local API\" käyttöön HomeWizard-sovelluksessa (Settings → Meters → P1-laitteesi). Silta löytää P1-laitteesi itse — jos verkkosi estää mDNS:n, lisää --ip=<P1-laitteesi IP>. Vaatii Node 22+ tai Dockerin — mitään ei tarvitse kloonata, ei gitiä.",
     "r.hint.tasmota": "IR-lukupäälle, jossa on Tasmota (esim. Hichi), mittarin optisessa portissa — yleinen Saksassa, Itävallassa ja Sveitsissä. Sen IP-osoite löytyy reitittimestäsi tai Tasmotan verkkosivulta. Vaatii Node 22+ samassa verkossa olevalla tietokoneella.",
+    "r.hint.youless": "YouLess-energiamittarille: LS120 P1-portissa tai mittarin merkkivalolla, tai LS110. Löydät sen IP-osoitteen reitittimestä tai YouLess-sovelluksesta; poista ensin YouLessin salasana käytöstä. Vaatii Node 22+:n samassa verkossa olevalla tietokoneella.",
     "r.hint.ha": "Helpoin tapa: asenna integraatiomme HACSin kautta (ei lainkaan YAMLia) — alla olevat ensimmäiset rivit näyttävät miten. Tai kytke se itse YAMLilla; entiteettien tunnukset vaihtelevat asennuksittain, joten etsi omasi kohdasta Developer tools → States (suodata \"import\", valitse kasvava kWh-entiteetti).",
     "r.hint.curl": "Kaikkiin muihin asennuksiin. Lähetä (POST) kumulatiivinen kWh-kokonaislukemasi mistä tahansa laitteesta, tai anna sillan lukea mikä tahansa HTTP/JSON-lukija puolestasi valinnalla --url=.",
     "r.runningOn": "Ajetaan laitteella",

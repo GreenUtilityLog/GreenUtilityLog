@@ -410,6 +410,11 @@ await step("a reader: pair, push, and its reading appears", async () => {
   await page.getByText(/Automatic setup/).first().click(); await wait(800);
   await page.getByRole("button", { name: /Get my device token/i }).click(); await wait(3000);
   await shot("06-token");
+  // YouLess is one of the readers to pick, with its own setup line.
+  await page.getByRole("button", { name: "YouLess", exact: true }).click(); await wait(300);
+  assert.match(await text(), /--youless=YOULESS_IP --install/, "the YouLess setup line");
+  assert.match(await text(), /YouLess energy monitor: an LS120/, "the YouLess hint");
+  await page.getByRole("button", { name: "HomeWizard P1", exact: true }).click(); await wait(300);
   const pair = lastCall("/meter/pair");
   assert.equal(pair?.status, 200, pair?.body);
   const { token } = JSON.parse(pair.body);

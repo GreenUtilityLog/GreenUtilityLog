@@ -501,6 +501,7 @@ export default {
     "r.other": "En anden aflæser",
     "r.hint.hw": "Slå først \"Local API\" til i HomeWizard-appen (Settings → Meters → din P1). Broen finder selv din P1 — hvis dit netværk blokerer mDNS, så tilføj --ip=<din P1-IP>. Kræver Node 22+ eller Docker — intet at klone, ingen git.",
     "r.hint.tasmota": "Til et IR-læsehoved med Tasmota (f.eks. Hichi) på målerens optiske port — udbredt i Tyskland, Østrig og Schweiz. Find dets IP i din router eller på Tasmotas webside. Kræver Node 22+ på en computer i samme netværk.",
+    "r.hint.youless": "Til en YouLess-energimåler: en LS120 på P1-porten eller på målerens lysdiode, eller en LS110. Find dens IP i routeren eller i YouLess-appen, og slå først adgangskoden på YouLess fra. Kræver Node 22+ på en computer i samme netværk.",
     "r.hint.ha": "Den nemmeste vej: installér vores integration via HACS (helt uden YAML) — de første linjer nedenfor viser hvordan. Eller sæt det selv op med YAML; entity-ID'er er forskellige fra installation til installation, så find dit under Developer tools → States (filtrér på \"import\", og vælg den kWh-sensor, der tæller op).",
     "r.hint.curl": "Til enhver anden opsætning. Send (POST) din samlede kWh-total fra en hvilken som helst enhed, eller lad broen læse en HTTP/JSON-aflæser for dig med --url=.",
     "r.runningOn": "Kører på",

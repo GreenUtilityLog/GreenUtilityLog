@@ -187,6 +187,19 @@
    ]
   ],
   [
+   "Un YouLess?",
+   "Folosește <span class=\"k\">--youless=</span> cu IP-ul lui în loc de <span class=\"k\">--url=</span>. Programul găsește singur indexul contorului, pe un LS120 (pe portul P1 sau pe LED-ul contorului) și pe un LS110. Dezactivează mai întâi parola YouLess: programul nu se poate autentifica.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --youless=192.168.1.71 --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --youless=192.168.1.71 --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
    "Verifică dacă merge",
    "Scriptul afișează ce a trimis.",
    "see",

@@ -186,6 +186,19 @@
    ]
   ],
   [
+   "YouLess?",
+   "Místo <span class=\"k\">--url=</span> použij <span class=\"k\">--youless=</span> s jeho IP adresou. Pomocný program sám najde stav elektroměru, na LS120 (na portu P1 nebo na LED elektroměru) i na LS110. Nejdřív vypni heslo na YouLess: program se nemůže přihlásit.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --youless=192.168.1.71 --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --youless=192.168.1.71 --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
    "Ověř, že to funguje",
    "Skript vypíše, co odeslal.",
    "see",

@@ -501,6 +501,7 @@ export default {
     "r.other": "Qualsiasi altro lettore",
     "r.hint.hw": "Prima attiva \"API locale\" nell'app HomeWizard (Impostazioni → Contatori → il tuo P1). Il bridge trova da solo il tuo P1 — se la tua rete blocca mDNS, aggiungi --ip=<IP del tuo P1>. Serve Node 22+ o Docker — niente da clonare, niente git.",
     "r.hint.tasmota": "Per una testina di lettura IR con Tasmota (ad es. Hichi) sulla porta ottica del contatore — diffusa in Germania, Austria e Svizzera. Trovi il suo IP nel router o nella pagina web di Tasmota. Serve Node 22+ su un computer nella stessa rete.",
+    "r.hint.youless": "Per un monitor di energia YouLess: un LS120 sulla porta P1 o sul LED del contatore, oppure un LS110. Trovi il suo IP nel router o nell'app YouLess; prima togli la password dello YouLess. Serve Node 22+ su un computer nella stessa rete.",
     "r.hint.ha": "La via più semplice: installa la nostra integrazione tramite HACS (zero YAML) — le prime righe qui sotto mostrano come. Oppure collegala tu con lo YAML; gli ID delle entità cambiano da un'installazione all'altra, quindi trova il tuo in Strumenti per sviluppatori → Stati (filtra \"import\", scegli quello in kWh che aumenta).",
     "r.hint.curl": "Per qualsiasi altra configurazione. Invia con POST il tuo totale cumulativo in kWh da qualsiasi dispositivo, oppure lascia che il bridge legga per te qualsiasi lettore HTTP/JSON con --url=.",
     "r.runningOn": "In esecuzione su",

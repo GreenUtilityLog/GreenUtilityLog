@@ -29,6 +29,7 @@
 //   --field=…     dot-path to the kWh number in that JSON, or several
 //                 joined with + to send their sum (a+b)          (READ_FIELD)
 //   --tasmota=…   IP of a Tasmota IR head (e.g. Hichi) on the meter (TASMOTA_IP)
+//   --youless=…   IP of a YouLess energy monitor (LS120, LS110)   (YOULESS_IP)
 //   --ingest=…    override the backend                            (GUL_INGEST_URL)
 //   --powerfox=…  read a Powerfox poweropti via the Powerfox cloud: your
 //                 Powerfox e-mail; asks for the password once and keeps it in
@@ -76,7 +77,7 @@ const { release, homedir } = require("node:os");
 // save the token "1" over the good one, and every push after that was refused.
 // Every flag that takes a value has to be listed here, or `--tasmota 1.2.3.4` reads
 // as a bare --tasmota and the IP is dropped as a stray argument.
-const VALUE_FLAGS = new Set(["token", "ip", "interval", "url", "field", "ingest", "tasmota", "powerfox-pass"]);
+const VALUE_FLAGS = new Set(["token", "ip", "interval", "url", "field", "ingest", "tasmota", "youless", "powerfox-pass"]);
 // A value that may also be left out: bare --powerfox means "the account saved by an
 // earlier run", and that is how the scheduled job calls it. Only a following word
 // that isn't itself a flag is taken, so `--powerfox --install` keeps its --install.
@@ -147,13 +148,13 @@ const SAVED = readSaved();
 // `%` in a --url (Tasmota's /cm?cmnd=Status%2010) cut the command off. Now they
 // live in the private settings file next to this script, like the token. A flag on
 // the command line still wins.
-const READ_FLAGS = ["ip", "url", "tasmota", "field", "interval"];
+const READ_FLAGS = ["ip", "url", "tasmota", "youless", "field", "interval"];
 // A source given now (a flag or its environment variable) replaces the saved
 // source as a whole: an --ip typed today used to lose to a --tasmota saved by an
 // earlier setup, and the old reader kept being read.
 // A Powerfox account counts too (--powerfox=<e-mail> or GUL_POWERFOX_USER), but a
 // bare --powerfox does not: that is the scheduled job asking for the saved account.
-const SOURCE_SETTINGS = { ip: "HW_IP", url: "READ_URL", tasmota: "TASMOTA_IP", powerfox: "GUL_POWERFOX_USER" };
+const SOURCE_SETTINGS = { ip: "HW_IP", url: "READ_URL", tasmota: "TASMOTA_IP", youless: "YOULESS_IP", powerfox: "GUL_POWERFOX_USER" };
 const sourceGivenNow = Object.entries(SOURCE_SETTINGS).some(([f, env]) => (FLAGS[f] && FLAGS[f] !== "1") || process.env[env]);
 const SAVED_READ = (() => {
   const r = SAVED.read && typeof SAVED.read === "object" ? { ...SAVED.read } : {};
@@ -164,7 +165,7 @@ const SAVED_READ = (() => {
 // came in this way just like a flag: a setup done as HW_IP=… node gul.js --install
 // used to read the meter once and then schedule a job that knew nothing of it,
 // because cron and Task Scheduler don't see the variables of that shell.
-const READ_ENV = { ip: "HW_IP", url: "READ_URL", tasmota: "TASMOTA_IP", field: "READ_FIELD", interval: "INTERVAL_SEC" };
+const READ_ENV = { ip: "HW_IP", url: "READ_URL", tasmota: "TASMOTA_IP", youless: "YOULESS_IP", field: "READ_FIELD", interval: "INTERVAL_SEC" };
 const pickRead = (flag, env, fallback = "") => pick(flag, env, SAVED_READ[flag] ?? fallback);
 
 let TOKEN = pick("token", "GUL_TOKEN", SAVED.token || "");
@@ -200,6 +201,11 @@ const TASMOTA_URL = TASMOTA ? `http://${TASMOTA}/cm?cmnd=Status%2010` : "";
 const READ_URL = (FLAGS.url ? pick("url", "READ_URL") : "") || (FLAGS.tasmota ? TASMOTA_URL : "")
   || pickRead("url", "READ_URL") || TASMOTA_URL;
 const READ_FIELD = pickRead("field", "READ_FIELD");
+// --youless=<ip>: a YouLess energy monitor (LS120 on the P1 port or on the meter's
+// LED, LS110). Its own reader below: the total sits in different places per firmware.
+// Given now, it wins over a saved --url (sourceGivenNow dropped that already); a
+// --url or --tasmota given now wins over a saved YouLess the same way.
+const YOULESS = (FLAGS.url || FLAGS.tasmota ? "" : pickRead("youless", "YOULESS_IP")).replace(/^https?:\/\//i, "").replace(/\/.*$/, "");
 // --powerfox=<e-mail> (or bare --powerfox: the account saved by an earlier run).
 // The password is never a flag in a scheduled task: it is asked once and kept in
 // the private settings file next to this script, like the device token.
@@ -211,7 +217,7 @@ const READ_FIELD = pickRead("field", "READ_FIELD");
 // takes that as Powerfox too. A reader given now (sourceGivenNow) replaces all this.
 const SAVED_POWERFOX = !sourceGivenNow && (SAVED_READ.powerfox === true || (
   SAVED_READ.powerfox === undefined && FLAGS.install === "1" && !!SAVED.powerfoxUser && !!SAVED.powerfoxPass
-  && !SAVED_READ.ip && !SAVED_READ.url && !SAVED_READ.tasmota));
+  && !SAVED_READ.ip && !SAVED_READ.url && !SAVED_READ.tasmota && !SAVED_READ.youless));
 const POWERFOX = FLAGS.powerfox !== undefined || !!process.env.GUL_POWERFOX_USER || SAVED_POWERFOX;
 const PF = {
   user: (FLAGS.powerfox && FLAGS.powerfox !== "1" ? FLAGS.powerfox : (process.env.GUL_POWERFOX_USER || SAVED.powerfoxUser || "")).trim(),
@@ -474,6 +480,33 @@ function readGeneric(data, field) {
   }
   return readTotal(data || {}); // fall back to HomeWizard-style t1+t2
 }
+// YouLess: two firmwares, two places for the meter total.
+//   /e?f=j  LS120 with the standard (Enelogic) firmware, on the P1 port: an array
+//           whose first entry has p1 and p2, the low and normal tariff registers in
+//           kWh (n1/n2 are what was delivered back, not used). Total = p1 + p2.
+//   /a?f=j  LS110, and the LS120 with the PVOutput firmware or on the meter's LED:
+//           "cnt", the kWh counter, as text with a decimal comma ("  12345,678").
+// Field names as the YouLess integration for Home Assistant reads them
+// (gjong/youless-python-bridge). A YouLess with a password set isn't supported.
+async function readYouless(host) {
+  const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  const refused = (e) => /said 40[13]/.test(String(e?.message)) ? new Error(`the YouLess at ${host} asks for a password — switch the password off in its settings (http://${host}/)`) : e;
+  let firstErr = null;
+  try {
+    const e = await getJson(`http://${host}/e?f=j`);
+    const d = Array.isArray(e) ? e[0] : e;
+    const p1 = num(d?.p1), p2 = num(d?.p2);
+    if (p1 != null && p2 != null && p1 + p2 > 0) return { reading: +(p1 + p2).toFixed(3), split: ` (low ${p1} + normal ${p2})` };
+  } catch (e) { firstErr = refused(e); if (firstErr !== e) throw firstErr; }
+  try {
+    const a = await getJson(`http://${host}/a?f=j`);
+    const cnt = String(a?.cnt ?? "").replace(/\s/g, "").replace(",", ".");
+    const v = cnt !== "" && Number.isFinite(+cnt) ? +cnt : null;
+    if (v != null) return { reading: v, split: "" };
+  } catch (e) { throw refused(e); }
+  if (firstErr) throw firstErr;
+  return { reading: null, split: "" };
+}
 // Powerfox (poweropti): the reading comes from the Powerfox cloud, with the
 // account's e-mail and password as basic auth. A_Plus is the meter total; some
 // meters only report the two tariff registers, then it is their sum. A refused
@@ -547,6 +580,9 @@ async function cycle() {
     if (POWERFOX) {
       ({ reading, split } = await readPowerfox(PF.user, PF.pass));
       if (!SAVED_PF_OK) { saveConfig({ powerfoxUser: PF.user, powerfoxPass: PF.pass }); SAVED_PF_OK = true; }
+    } else if (YOULESS) {
+      ({ reading, split } = await readYouless(YOULESS));
+      if (reading == null) { log(`couldn't find a kWh total at the YouLess ${YOULESS} — is it an LS120/LS110, and has it seen the meter yet?`); return false; }
     } else if (READ_URL) {
       // Generic mode — any HTTP/JSON reader.
       const data = await getJson(READ_URL);
@@ -597,7 +633,7 @@ async function cycle() {
       tokenRefused = true;
       log("the server does not accept this device token — asking again won't change that. Get a new one in the app (Meter → ⚡ Automatic setup) and put it in: --ask-token --install on a computer, the token field in the Home Assistant add-on, GUL_TOKEN in Docker.");
     }
-    if (!READ_URL && !POWERFOX) lastIp = FIXED_IP || null; // re-discover next time in case the IP changed
+    if (!READ_URL && !POWERFOX && !YOULESS) lastIp = FIXED_IP || null; // re-discover next time in case the IP changed
     return false;
   }
 }
@@ -855,7 +891,7 @@ async function main() {
     const dueAt = Math.min(last + DUE_AFTER_MS, next > last ? next : Infinity);
     if (DUE && ONCE && last <= Date.now() && Date.now() < dueAt) process.exit(0);
   }
-  const src = POWERFOX ? `Powerfox (${PF.user})` : READ_URL ? `reader ${READ_URL}` : (FIXED_IP ? `HomeWizard ${FIXED_IP}` : "HomeWizard (auto-discover)");
+  const src = POWERFOX ? `Powerfox (${PF.user})` : YOULESS ? `YouLess ${YOULESS}` : READ_URL ? `reader ${READ_URL}` : (FIXED_IP ? `HomeWizard ${FIXED_IP}` : "HomeWizard (auto-discover)");
   warnHttp();
   log(`GreenUtilityLog bridge starting — ${src}, pushing every ${INTERVAL_MS / 1000}s to ${INGEST}`);
   const ok = await cycle();

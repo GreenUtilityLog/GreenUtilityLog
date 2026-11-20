@@ -501,6 +501,7 @@ export default {
     "r.other": "Jakákoli jiná čtečka",
     "r.hint.hw": "Nejdřív zapni v aplikaci HomeWizard „Local API“ (Settings → Meters → tvůj P1). Most si P1 najde sám — pokud tvoje síť blokuje mDNS, přidej --ip=<IP tvého P1>. Potřebuje Node 22+ nebo Docker — nic se neklonuje, žádný git.",
     "r.hint.tasmota": "Pro optickou čtecí hlavu s Tasmota (např. Hichi) na optickém rozhraní elektroměru — běžné v Německu, Rakousku a Švýcarsku. Její IP najdeš v routeru nebo na webové stránce Tasmota. Potřebuje Node 22+ na počítači ve stejné síti.",
+    "r.hint.youless": "Pro energetický monitor YouLess: LS120 na portu P1 nebo na LED elektroměru, případně LS110. IP adresu najdeš v routeru nebo v aplikaci YouLess; nejdřív vypni heslo na YouLess. Potřebuje Node 22+ na počítači ve stejné síti.",
     "r.hint.ha": "Nejjednodušší cesta: nainstaluj naši integraci přes HACS (vůbec žádný YAML) — první řádky níže ukazují jak. Nebo to zapoj ručně přes YAML; ID entit se liší podle instalace, tvoje najdeš v Developer tools → States (filtruj „import“, vyber tu v kWh, která roste).",
     "r.hint.curl": "Pro jakékoli jiné nastavení. Posílej svůj kumulativní celkový stav v kWh metodou POST z libovolného zařízení, nebo nech most číst libovolnou čtečku HTTP/JSON pomocí --url=.",
     "r.runningOn": "Spuštění na",

@@ -9,7 +9,7 @@ Two modes:
   (mDNS) and reads it. No IP to look up.
 - **Any other reader** — point it at any device on your network that serves the
   meter's kWh total as JSON over HTTP, without a login (P1 Monitor, a custom
-  endpoint…), with `--url=`. A Tasmota IR reading head (Hichi): `--tasmota=<ip>`.
+  endpoint…), with `--url=`. A Tasmota IR reading head (Hichi): `--tasmota=<ip>`. A YouLess (LS120, LS110): `--youless=<ip>`.
   Not out of the box: dsmr-reader's API wants an `X-AUTHKEY` header, and a Shelly
   reports its own energy counter, not the meter's register.
 
@@ -86,6 +86,7 @@ then the token saved by a previous run.
 | `--url=` | `READ_URL` | — | Generic mode: read your kWh total from this HTTP/JSON endpoint (skips HomeWizard discovery) |
 | `--field=` | `READ_FIELD` | auto-detect | Dot-path to the number in that JSON (e.g. `data.total_kwh`). Several joined with `+` send their sum: `--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH` for a reader that only reports the two tariff registers |
 | `--tasmota=` | `TASMOTA_IP` | — | IP of a Tasmota IR reading head (e.g. Hichi); reads its `Total_in` |
+| `--youless=` | `YOULESS_IP` | — | IP of a YouLess energy monitor: LS120 (`/e?f=j`, low + normal tariff `p1`+`p2`) or LS110 / LED (`/a?f=j`, `cnt`). No password support: switch it off |
 | `--once` | `ONCE=1` | — | Push a single reading and exit (for a cron/systemd timer) |
 
 The token is saved to `.gul-bridge.json` next to the script, so it is never needed on

@@ -187,6 +187,19 @@
    ]
   ],
   [
+   "Ένα YouLess;",
+   "Χρησιμοποίησε <span class=\"k\">--youless=</span> με την IP του αντί για <span class=\"k\">--url=</span>. Το βοηθητικό πρόγραμμα βρίσκει μόνο του την ένδειξη του μετρητή, σε LS120 (στη θύρα P1 ή στο LED του μετρητή) και σε LS110. Απενεργοποίησε πρώτα τον κωδικό του YouLess: το πρόγραμμα δεν μπορεί να συνδεθεί.",
+   "code2",
+   [
+    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --youless=192.168.1.71 --install",
+    "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --youless=192.168.1.71 --install"
+   ],
+   [
+    "Windows — PowerShell",
+    "Mac · Linux · Raspberry Pi"
+   ]
+  ],
+  [
    "Έλεγξε ότι δουλεύει",
    "Το βοηθητικό πρόγραμμα δείχνει τι έστειλε.",
    "see",
