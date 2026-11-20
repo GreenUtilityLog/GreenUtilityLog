@@ -143,15 +143,9 @@ Met een foto kan elk land al meedoen. Voor elk nieuw land geldt eerst: een norm 
 - [x] Handleiding: schermnamen komen uit de app zelf (klopten in het Nederlands, Duits, Frans en Spaans niet: stonden in het Engels); fotoregel bijgewerkt (90 dagen, niet voor Powerfox/Tibber/MojElektro); extra talen als `docs/guide_lang/<code>.json`, door het script gecontroleerd op opbouw, opdrachten, links en HTML; taalkeuze als keuzelijst
 - [x] FAQ "Welke meters werken?" en de landentabel in de handleiding: Slovenië (P1, nog niet getest), Griekenland, Kroatië, Turkije, Roemenië, Bulgarije en de rest van de Balkan (voorlopig foto's), in 5 talen
 - [ ] Norm per land, vastgesteld door de beheerder of aan de hand van de meter (niet door de gebruiker zelf te kiezen)
-- [ ] 🇸🇮 Slovenië: P1-poort op Iskraemeco-meters (soms versleuteld; niet elke netbeheerder geeft de sleutel) en het portaal MojElektro (persoonlijke toegangscode). Eerst testen of de bestaande P1/Home Assistant-routes al werken
 - [x] 🇸🇮 MojElektro-koppeling gebouwd, **uitgeschakeld** tot een Sloveense tester hem probeert (aanzetten: `MOJELEKTRO=on` op Render, naast `POWERFOX_SECRET`). Gebruiker vult token (Moj profil → Kreiraj žeton) en meetpunt (EIMM) in; de server haalt elke 6 uur de dagstand A+ (`32.0.4.1.1.2.12.0.0.0.0.0.0.0.0.3.72.0`, anders VT+MT). Omdat de stand een dag later komt, rekent de uitbetaling de periode tot het tijdstip van de meter zelf, en een stand die niet nieuwer is dan de laatste wordt nooit betaald. Getest tegen een nagebootste API (servertests + browserreis), niet tegen de echte
 - [ ] MojElektro met een echte Sloveense meter proberen; de officiële Swagger (`docs.informatika.si/mojelektro/api`) nalezen op veldnamen en datumnotatie
-- [ ] 🇬🇷 Griekenland: geen klantpoort gevonden; koppeling met het HEDNO-portaal (`apps.deddie.gr/mdp`, toegangscode, data een dag later, alleen bij op afstand uitgelezen meters). Gemiddeld verbruik ± 4.500 kWh per jaar zonder verwarming: de norm is daar te laag. Niet gebouwd: de API geeft (voor zover te lezen) alleen verbruik per kwartier/uur, geen meterstand, en vraagt het fiscaal nummer (ΑΦΜ) van de gebruiker — dat willen we niet bewaren
-- [ ] 🇭🇷 Kroatië: HEP ODS test meters met P1; nog onbekend of klanten de poort of portaaldata mogen gebruiken
-- [ ] 🇹🇷 Turkije: optische poort mogelijk via een leeskop; eerst met Turkse bronnen nagaan welke meters er hangen en of de poort open staat
-- [ ] 🇷🇸 🇷🇴 🇧🇬 🇲🇰 🇲🇪 🇧🇦 🇦🇱 🇽🇰: geen klantpoort of dienst gevonden; voorlopig foto's
-- [ ] Officiële meterdata elders: Octopus Energy (VK, DE), inexogy (DE), Eloverblik (DK), Datadis (ES), Enedis/Linky (FR). Geven meestal verbruik per uur of dag, met vertraging; per dienst eerst uitzoeken
-- [ ] YouLess (NL) als eigen optie in de bridge; eerst de velden van het antwoord nakijken
+- Bronnen: foto, P1-meter en de bestaande koppelingen zijn genoeg — geen nieuwe bronnen of landkoppelingen bouwen (keuze eigenaar, 20-11-2026: eerst niet te moeilijk)
 - Niet doen: tussenmeters zoals Shelly EM of stroomtangen (meten niet de officiële meter)
 
 ## Volledige controle (19 november) — 4 reviewers, elke bevinding nagelopen
