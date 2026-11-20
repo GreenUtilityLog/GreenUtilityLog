@@ -721,7 +721,8 @@ await step("go-live: the same phone on the mainnet app, everything carried over"
     const { token } = JSON.parse(lastCall("/meter/pair").body);
     const r = await fetch(`http://127.0.0.1:${MAIN_API_PORT}/meter-ingest`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, reading: 1011.25 }) });
     assert.equal(r.status, 200, await r.text());
-    await page.locator(".bnav button").nth(1).click(); await wait(17000);
+    await page.locator(".bnav button").nth(1).click(); await wait(800);
+    await page.getByRole("button", { name: /⚡/ }).first().click(); await wait(17000);
     await shot("15-mainnet-reader");
     assert.match(await text(), /1011[.,]25/, "the reader's new reading shows in the mainnet app");
   } finally { upstash.close(); }
