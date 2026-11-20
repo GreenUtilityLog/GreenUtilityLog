@@ -107,7 +107,8 @@ Laatst bijgewerkt: 2026-11-01.
 - [ ] Antwoord aan VeBetterDAO (beoordeling) versturen en opvolgen
 - [x] Creator NFT ontvangen; app-aanvraag op mainnet ingediend (17-11-2026)
 - [ ] Goedkeuring en endorsement afwachten
-- [ ] Mainnet-stappen uit `docs/MAINNET.md` (Render-dienst, sleutels, `CERT_DOMAINS`, eerste week `MAX_PAYOUT_PER_SUBMISSION=1`)
+- [ ] Mainnet-stappen uit `docs/MAINNET.md` (serverwissel in Render, sleutels, `CERT_DOMAINS`, eerste week `MAX_PAYOUT_PER_SUBMISSION=1`)
+- [x] Testers hoeven bij de livegang niets opnieuw te doen (keuze eigenaar, 20-11-2026): de huidige server wordt mainnet (uitlezers blijven daarheen sturen), testnet krijgt een nieuwe server. De mainnet-server neemt bij de eerste start meters, beginstanden, uitlezer-tokens en cloudkoppelingen over (`CARRY_OVER_KEY`); de mainnet-app neemt op de telefoon meternummer, beginstand, token, telefoon-ID en taal over. Getest op de server (met tegenproef) en in de browser (testnet → zelfde telefoon op mainnet)
 - [ ] Grant-aanvraag VeBetter Grants (x2earn-spoor)
 - [x] Toegang mainnet volgens de regel van VeBetterDAO (morbidejs, 17-11-2026): hoofdwallet van het Passport (geen gekoppelde), geen signaleringen, gestemd in de vorige ronde met een GM NFT van niveau 2+ die nog in de wallet staat, plus Passport "is persoon". Elke regel apart getest; de app toont per regel wat ontbreekt (20 talen)
 - [x] Wallets waarvan de signaleringen na KYC door de Foundation zijn teruggezet (`UserSignalsReset` op VeBetterPassport, verstuurd door `0x12A7…B259`, reden "Resetting signal counter for KYC'ed wallet"): **toegelaten, wel gemarkeerd** (keuze eigenaar, 18-11-2026; morbidejs waarschuwde dat blokkeren bekende mensen uit de community raakt). De admin ziet een markering bij de wallet en een regel in het rollenpaneel, en kan zelf blokkeren

@@ -5,11 +5,23 @@ Twee versies van dezelfde app:
 | | Mainnet (echt) | Testnet (om te testen) |
 |---|---|---|
 | App | `https://greenutilitylog.github.io/GreenUtilityLog/` | `https://greenutilitylog.github.io/GreenUtilityLog/testnet/` |
-| Server | **nieuwe** Render-service | de huidige `greenutilitylog-rewards` |
-| Database | **eigen** Upstash-database, `STATE_KEY=greenutilitylog:mainnet` | zoals nu |
-| Wallets | admin: je bestaande admin-wallet · distributor: een **nieuwe** wallet, alleen voor mainnet | zoals nu |
+| Server | de **huidige** `greenutilitylog-rewards` (wordt bij de livegang mainnet) | een **nieuwe** Render-service |
+| Database | **eigen** Upstash-database, `STATE_KEY=greenutilitylog:mainnet` | de huidige (zoals nu) |
+| Wallets | zelfde als testnet (zie stap 2) | zoals nu |
 
-Tot de laatste stap draaien **beide** versies op testnet: er verandert niets voor testers.
+Tot de livegang draaien **beide** versies op testnet: er verandert niets voor testers.
+
+**Waarom de huidige server mainnet wordt:** elke geïnstalleerde uitlezer (gul.js, de
+Home Assistant-add-on en -integratie, de YAML uit de handleiding) stuurt naar
+`greenutilitylog-rewards.onrender.com`. Wordt díe server mainnet, dan blijven al die
+uitlezers werken zonder dat iemand iets aanpast. Bij de eerste mainnet-start neemt de
+server de testgegevens over (`server/carryover.js`): meternummers, beginstanden en
+laatste standen, uitlezer-tokens, Powerfox/Tibber/MojElektro-koppelingen, de fotoklok,
+blokkades en de vingerafdrukken van al gebruikte foto's. **Niet** mee: uitbetalingen,
+wachttijden, geschiedenis, rollen, meldingen en instellingen. De app op de telefoon neemt
+bij de eerste mainnet-start zelf meternummer, beginstand, uitlezer-token, telefoon-ID,
+taal en thema over (`src/network.js`). Testers hoeven alleen VeWorld op **Mainnet** te
+zetten en aan de toegangsregel te voldoen (GM NFT + Passport, zie stap 5).
 
 ---
 
@@ -44,10 +56,10 @@ deze al bezet)? Geef mij de nieuwe app-ID: dan krijgt de app een eigen ID per
 netwerk — dat is een codewijziging, niet alleen een instelling in Render.
 
 ## Stap 3 — Distributor-wallet (jij)
-- Maak een **nieuwe** wallet aan, alleen voor de mainnet-server. Nooit de testnet-sleutel
-  hergebruiken en nooit je admin-wallet: de sleutel staat op een server, en wie hem
-  heeft kan de hele pot uitbetalen. Lekt hij ooit: trek met je admin-wallet de
-  distributor-rol in (zie **Noodstop** onderaan).
+- De distributor is de server-wallet `0x1390…d7c2`, dezelfde als op testnet (keuze
+  eigenaar). De sleutel staat al in Render bij de huidige service en blijft daar; nooit je
+  admin-wallet gebruiken. Wie de sleutel heeft, kan de hele pot uitbetalen. Lekt hij ooit:
+  trek met je admin-wallet de distributor-rol in (zie **Noodstop** onderaan).
 - Zet wat **VTHO op mainnet** op de distributor-wallet (betaalt het gas van elke uitbetaling).
 - Voeg hem in VeBetterDAO mainnet toe als **Reward distributor** van de app.
 - Zet in de VeBetterDAO-app-admin de **rewards-pool-functie uit** (met je admin-wallet).
@@ -61,18 +73,34 @@ netwerk — dat is een codewijziging, niet alleen een instelling in Render.
 Staat al klaar: de app bouwt een mainnet- en een testnetversie, elk met eigen
 gegevens in de browser; de testnetversie toont een oranje strook “TESTNET”.
 
-## Stap 5 — Tweede Render-service (jij, ± 5 minuten)
-Render → **New → Web Service** → deze repository. **Niet via New → Blueprint**: de
-blueprint (`server/render.yaml`) beschrijft de testnet-service en zou die naam en
-`NETWORK=testnet` opleggen.
+## Stap 5 — De serverwissel in Render (jij, ± 15 minuten)
+Doe 5a en 5b vlak na elkaar, en stuur mij dan het adres van de nieuwe testnet-service:
+ik zet direct daarna stap 6 live. Tussen 5b en stap 6 zegt de app een paar minuten
+"server is mainnet, app is testnet" en weigert hij standen; dat is alles.
+
+### 5a — Een nieuwe service voor testnet
+Render → **New → Web Service** → deze repository, naam bijv. `greenutilitylog-testnet`.
+**Niet via New → Blueprint** (`server/render.yaml` beschrijft de huidige service).
 - **Root Directory:** `server` · **Build:** `npm install` · **Start:** `npm start`
-- **Health Check Path** (onder Advanced): `/livez` — `/health` wacht op de chain en kan te traag zijn voor Render
-- **Shutdown Delay** (onder Advanced / Settings): **120 seconden**. De server maakt een
+- **Health Check Path:** `/livez` · **Shutdown Delay:** 120 seconden · **Auto-Deploy: On**
+- **Environment:** neem de variabelen van de huidige service over (Render →
+  `greenutilitylog-rewards` → Environment; overtypen of kopiëren), **zelfde waarden**:
+  `NETWORK=testnet`, dezelfde Upstash-URL en -token (de testgegevens blijven dus
+  gewoon staan), dezelfde distributor-sleutel, je testnet-Anthropic-sleutel, enzovoort.
+  **Eén uitzondering:** `POWERFOX_SECRET` krijgt een **nieuwe** waarde. Dan haalt testnet
+  geen standen meer op bij de Powerfox- en Tibber-accounts die naar mainnet zijn
+  overgegaan (anders vragen twee servers hetzelfde account uit).
+- Open `<nieuw adres>/health`: `network` = `testnet`, `storeReady` = `true`, en
+  `passCount` zoals op de huidige server.
+
+### 5b — De huidige service wordt mainnet
+Render → `greenutilitylog-rewards`:
+- **Settings → Auto-Deploy: Off.** Elke wijziging in `main` gaat anders meteen naar echt geld.
+  Zo gaat een wijziging eerst live op testnet (dat deployt vanzelf); werkt het daar,
+  dan klik je bij mainnet op **Manual Deploy → Deploy latest commit**.
+- **Shutdown Delay** (onder Settings): **120 seconden**. De server maakt een
   uitbetaling die al verstuurd is eerst af en legt hem vast (tot 100 s). Met Render's
   standaard van 30 s wordt hij bij elke deploy afgekapt: de B3TR is weg, het record niet.
-- **Auto-Deploy: Off.** Elke wijziging in `main` gaat anders meteen naar echt geld.
-  Zo gaat een wijziging eerst live op testnet (dat deployt wel vanzelf); werkt het daar,
-  dan klik je bij mainnet op **Manual Deploy → Deploy latest commit**.
 - **Plan:** met echt geld raad ik een betaald plan aan (slaapt niet); gratis kan ook.
   **Let op bij gratis:** Render geeft **750 instance-uren per maand per workspace**, voor
   alle gratis services samen. Twee gratis services die allebei de hele dag wakker zijn
@@ -80,13 +108,22 @@ blueprint (`server/render.yaml`) beschrijft de testnet-service en zou die naam e
   **alle** gratis services in die workspace stil tot de nieuwe maand — testnet én
   mainnet. Mainnet op gratis? Zet testnet dan in een **andere workspace**, of zet
   mainnet op **Starter** zodra het gebruik groeit.
+- **Staat er bij de service "Blueprint"** (aangemaakt via New → Blueprint)? Zeg het mij:
+  dan zet ik in stap 6 ook `server/render.yaml` op mainnet, anders zet een
+  blueprint-synchronisatie `NETWORK` terug op testnet.
+- **Environment** (wijzigen, toevoegen of weghalen, dan **Save**; de server start opnieuw):
+
+| Sleutel | Waarde |
+|---|---|
+| `CARRY_OVER_KEY` | `greenutilitylog:state` — de `STATE_KEY` van testnet (stond `STATE_KEY` al ingevuld, neem dan die waarde). Zet het overnemen van de testgegevens aan; het gebeurt één keer |
+| `CARRY_OVER_URL` / `CARRY_OVER_TOKEN` | de **huidige** (testnet) `UPSTASH_REDIS_REST_URL` en `UPSTASH_REDIS_REST_TOKEN`: kopieer ze hierheen vóór je die twee hieronder vervangt |
 - **Environment:**
 
 | Sleutel | Waarde |
 |---|---|
 | `NETWORK` | `mainnet` |
-| `DISTRIBUTOR_PRIVATE_KEY` | sleutel van de distributor-wallet (of `DISTRIBUTOR_MNEMONIC`) |
-| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | van een **nieuwe, eigen** Upstash-database voor mainnet — niet die van testnet (zie hieronder). **Verplicht, allebei:** zonder start mainnet niet |
+| `DISTRIBUTOR_PRIVATE_KEY` | laten staan (dezelfde distributor-wallet als testnet) |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | **vervangen** door die van een **nieuwe, eigen** Upstash-database voor mainnet (zie hieronder). **Verplicht, allebei:** zonder start mainnet niet |
 | `STATE_KEY` | `greenutilitylog:mainnet` — **verplicht**: houdt test- en echte gegevens gescheiden; zonder "mainnet" in de sleutel weigert de mainnet-server te starten |
 | `ALLOWED_ORIGIN` | `https://greenutilitylog.github.io` |
 | `ANTHROPIC_API_KEY` | **verplicht**: controleert of de foto echt is en of stand + meternummer erop staan — zonder start mainnet niet (anders is de stand gewoon wat iemand intypt). Een **nieuwe** sleutel `greenutilitylog-mainnet` op platform.claude.com. Standaard met het goedkope model `claude-haiku-5-5`: per foto ± 3 aanroepen (vooraf invullen + echtheid + stand), samen een fractie van een cent; hooguit 5 pogingen per wallet per dag en 300 keer vooraf invullen per dag (`OCR_DAILY_MAX`, 15 per IP). Zet bij **Limits** een maandlimiet en een **e-mailwaarschuwing** bij bijna op: is het tegoed op, dan weigert de server elke foto-uitbetaling tot je bijkoopt |
@@ -98,7 +135,8 @@ blueprint (`server/render.yaml`) beschrijft de testnet-service en zou die naam e
 | `CERT_DOMAINS` | **verplicht** (zonder start mainnet niet): de site-naam waarmee handtekeningen binnenkomen — waarschijnlijk `greenutilitylog.github.io`. **Controleer hem vooraf op testnet**: open `https://greenutilitylog-rewards.onrender.com/health` en kijk onder `certDomains.seen` (beide app-versies staan op dezelfde site, dus het is dezelfde naam). Een verkeerde waarde sluit iedereen buiten, jou als admin ook |
 | `PAYOUTS_PAUSED` | **niet** invullen. Dit is de noodstop (zie onderaan): `true` stopt alle uitbetalingen |
 | `WALLET_CHECK` | niet invullen (= `base`): wallets die uit dezelfde bron gevuld zijn of door VeBetterDAO gesignaleerd, krijgen alleen het basisbedrag en komen bij de meldingen. `flag` = alleen melden |
-| `POWERFOX_SECRET` | een lange willekeurige sleutel (anders dan op testnet) — zet de Powerfox- én Tibber-koppeling aan |
+| `POWERFOX_SECRET` | **laten staan, niet veranderen**: de overgenomen Powerfox-, Tibber- en MojElektro-koppelingen zijn ermee versleuteld. Een andere waarde = die koppelingen werken niet meer |
+| `REQUIRE_PASS`, `TESTNET_*` en andere testinstellingen | weghalen als ze er staan |
 
 **Bewust geaccepteerd risico — automatische standen:** een automatische meter (gul.js,
 Home Assistant, Powerfox, Tibber) kan een tijd te weinig verbruik doorgeven en dat later in
@@ -147,8 +185,8 @@ version"**: *GM NFT + Passport*, *Only with a role* of *Everyone*. Elke versie (
 testnet op *Only with a role*. Iemand een rol geven (telt alleen bij *Only with a role*):
 zoek zijn wallet in het adminpaneel → **Role** → *Tester* of *User* → geven.
 
-Stuur mij daarna het **adres** van de nieuwe service (bijv. `https://….onrender.com`).
-Test: open `<adres>/health` en controleer:
+Stuur mij daarna het **adres** van de nieuwe testnet-service (5a).
+Test mainnet: open `https://greenutilitylog-rewards.onrender.com/health` en controleer:
 
 | Veld | Moet zijn |
 |---|---|
@@ -164,39 +202,36 @@ Test: open `<adres>/health` en controleer:
 | `adminWallets` | alleen jouw adres |
 | `certDomains.enforced` | jouw `CERT_DOMAINS` |
 | `rules.maxPayout` | `1` (de veilige eerste week) |
+| `carryOver.done` | ingevuld, met o.a. `meters` en `links` (hoeveel er is overgenomen); `carryOver.problem` = `null`. Leeg? Kijk in de Render-log naar `[carry-over]`: hij probeert het elke minuut opnieuw |
 
 ## Stap 6 — Live zetten (ik)
-In één pull request:
-- `.github/workflows/deploy.yml`: `MAIN_NETWORK: mainnet` en `MAINNET_API: <adres>`.
-- `bridge/index.js` + `src/network.js` (`BRIDGE_DEFAULT_API`): standaardserver → mainnet;
-  de testnetapp zet dan zelf `--ingest=<testnet>` in zijn installatieregel.
-- `.github/workflows/watchdog.yml`: het mainnet-adres in de lijst `server:` — dan krijg
-  je elke ochtend ook voor mainnet een melding (lege pot, weinig VTHO, rol kwijt, opslag).
-- `.github/workflows/wake.yml`: een tweede regel die ook de mainnet-server elk uur wekt
-  (nodig voor Powerfox zolang de server op het gratis plan staat). Let op: GitHub zet
-  geplande workflows in een publieke repository **uit na 60 dagen zonder commits**.
-  Wordt de server ineens niet meer gewekt, kijk dan in het tabblad **Actions** bij
-  *Wake the reward server*: daar staat de melding en de knop om hem weer aan te zetten.
-- Ook naar mainnet: `DEFAULT_INGEST_URL` in `custom_components/greenutilitylog/const.py`
-  en de YAML in `docs/build_guide.py` (alle 5 talen).
-- **Add-on:** die heeft een eigen kopie van gul.js (`ha-addon/gul-bridge/gul.js`,
-  bijgewerkt door `docs/build_guide.py`), en Home Assistant bouwt een add-on alleen opnieuw
-  als zijn **versie** verandert. Verhoog daarom `version` in `ha-addon/gul-bridge/config.yaml`
-  in dezelfde pull request; anders blijft iedereen met de add-on naar de oude server sturen. Add-on-testers die op testnet
-  willen blijven, vullen bij **ingest_url** het adres van de testnet-server in:
-  `https://greenutilitylog-rewards.onrender.com/meter-ingest`.
-- **Testers met een P1-reader:** hun geïnstalleerde `gul.js` verandert niet vanzelf (de
-  geplande taak draait het bestand op hun eigen computer), dus die blijft gewoon naar
-  testnet sturen — niets te doen. Maar: wie daarna een installatieregel uit de
-  **handleiding** plakt, downloadt de nieuwe `gul.js` over de oude heen, en die stuurt naar
-  **mainnet** (de regels in de handleiding hebben geen `--ingest`). Testers op testnet
-  gebruiken dus altijd de regel uit de **testnet-app**, die `--ingest=<testnet>` meegeeft.
-  Wie naar mainnet wil, plakt de regel uit de mainnet-app (met zijn mainnet-token).
-- **Testers met de Home Assistant-integratie** die op testnet blijven: onder
-  **Configure** het serveradres op de testnet-server zetten (zelfde adres als hierboven).
-- Home Assistant-integratie en add-on: standaardserver → mainnet.
-- Handleiding: “testnet / testtokens” eruit (ook de voettekst, in alle 5 talen), link naar
-  de testversie erin.
+In één pull request, zodra ik het adres uit 5a heb:
+- `.github/workflows/deploy.yml`: `MAIN_NETWORK: mainnet`, `MAINNET_API` = de huidige
+  server, `TESTNET_API` = de nieuwe testnet-server. De mainnet-app neemt bij de eerste
+  start de gegevens van de testnet-app op de telefoon over; de testnet-app zet voortaan
+  zelf `--ingest=<testnet>` in zijn installatieregel.
+- `.github/workflows/wake.yml`: `TESTNET_SERVER` = de nieuwe testnet-server (elk uur wekken).
+  Let op: GitHub zet geplande workflows in een publieke repository **uit na 60 dagen
+  zonder commits**. Wordt de server ineens niet meer gewekt, kijk dan in het tabblad
+  **Actions** bij *Wake the reward server*: daar staat de knop om hem weer aan te zetten.
+- `.github/workflows/watchdog.yml`: de testnet-server erbij in `server:`. De huidige staat er
+  al in en wordt vanzelf op mainnet bewaakt (lege pot, weinig VTHO, rol kwijt, opslag, en
+  of het overnemen gelukt is).
+- `server/render.yaml`: alleen als de huidige service een Blueprint is (zie 5b).
+- Handleiding: "testnet / testtokens" eruit (ook de voettekst, in alle talen), link naar de
+  testversie erin.
+- **Niet nodig:** gul.js, de Home Assistant-add-on en -integratie en de YAML in de
+  handleiding sturen al naar `greenutilitylog-rewards.onrender.com`, en dat blijft zo.
+
+**Wat testers merken:** niets aan hun uitlezer. Ze zetten VeWorld op **Mainnet**, openen
+de app (die opent gewoon op Home, met hun meter en uitlezer) en moeten aan de
+toegangsregel voldoen. De eerste mainnet-uitbetaling rekent vanaf hun laatste testnet-stand,
+hooguit 7 dagen (`MAX_SPAN_DAYS`) en hooguit `MAX_PAYOUT_PER_SUBMISSION`.
+
+**Wie op testnet blijft testen:** de testnet-app geeft een installatieregel mét
+`--ingest=<testnet>`; Home Assistant: bij **ingest_url** (add-on) of onder **Configure**
+(integratie) `<testnet-adres>/meter-ingest` invullen. Zonder dat stuurt een uitlezer naar
+mainnet. Powerfox/Tibber op testnet opnieuw koppelen (andere `POWERFOX_SECRET`).
 
 ## Stap 7 — De pot (jij)
 Pas **na** stap 6: daarvóór is ook de hoofd-app nog testnet, en dan zou "Fund rewards

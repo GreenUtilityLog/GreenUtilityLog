@@ -43,6 +43,12 @@ jobs:
       - run: npx vite build --outDir e2e-dist
         env:
           VITE_REWARD_API: https://e2e-api.test
+      # And the mainnet build, for the go-live step (the same phone carried over).
+      - run: npx vite build --outDir e2e-dist-mainnet
+        env:
+          VITE_NETWORK: mainnet
+          VITE_REWARD_API: https://e2e-mainnet-api.test
+          VITE_TESTNET_API: https://e2e-api.test
       - run: node e2e/journey.mjs
       - uses: actions/upload-artifact@v4
         if: always()

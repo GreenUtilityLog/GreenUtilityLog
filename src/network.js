@@ -3,13 +3,16 @@
 // /GreenUtilityLog/testnet/ (see .github/workflows/deploy.yml). The build sets
 // VITE_NETWORK and VITE_REWARD_API; a local `npm run dev` gets testnet.
 export const NETWORK = import.meta.env.VITE_NETWORK === "mainnet" ? "mainnet" : "testnet";
-// The testnet backend. A testnet build (and `npm run dev`) falls back to it.
-const TESTNET_API = "https://greenutilitylog-rewards.onrender.com";
+// The testnet backend. A testnet build (and `npm run dev`) falls back to it. At
+// go-live the testnet moves to a server of its own and the current one becomes
+// mainnet (docs/MAINNET.md), so deploy.yml tells every build which one it is.
+const TESTNET_API = String(import.meta.env.VITE_TESTNET_API || "https://greenutilitylog-rewards.onrender.com").trim().replace(/\/$/, "");
 const API_FROM_BUILD = String(import.meta.env.VITE_REWARD_API || "").trim().replace(/\/$/, "");
 // A mainnet build must never quietly talk to the testnet backend: payouts would go
 // out on the wrong chain (or not at all) while the app says "mainnet". deploy.yml
 // falls back to TESTNET_API when MAINNET_API is empty, so the testnet URL counts as
-// missing too. Refuse to start, visibly — main.jsx's error page isn't installed yet
+// missing too (the testnet's own URL, given by the build: after go-live the old
+// testnet URL IS the mainnet server). Refuse to start, visibly — main.jsx's error page isn't installed yet
 // when this module runs, so write the message into #root ourselves.
 if (NETWORK === "mainnet" && (!API_FROM_BUILD || API_FROM_BUILD === TESTNET_API)) {
   const msg = "Build misconfigured: this is a MAINNET build but VITE_REWARD_API is "
@@ -36,16 +39,44 @@ export const MAIN_APP_URL = import.meta.env.VITE_MAIN_APP_URL || "";
 // is already testing loses what's stored. Installed before the app module runs
 // (main.jsx imports this first), so no read ever sees the shared keys.
 const OURS = /^(greenlog_|gul_)/;
+let rawGet = null, rawSet = null;
 export const STORAGE_PREFIX = NETWORK === "mainnet" ? "mainnet:" : "";
 if (STORAGE_PREFIX && typeof Storage !== "undefined") {
   const p = Storage.prototype;
   const wrap = (fn) => function (key, ...rest) {
     return fn.call(this, OURS.test(String(key)) ? STORAGE_PREFIX + key : key, ...rest);
   };
+  rawGet = p.getItem; rawSet = p.setItem;
   p.getItem = wrap(p.getItem);
   p.setItem = wrap(p.setItem);
   p.removeItem = wrap(p.removeItem);
 }
+
+// At go-live the main address switches from testnet to mainnet, and the server
+// carries testers' meters, starting points and reader links over (server/
+// carryover.js). The phone's side comes along once, here: the meter numbers and
+// starting points (or the app asks to register again), the reader's device token,
+// this phone's install id (so it is recognised for its last readings), and the
+// look and language. Not the history, cooldowns or access answers: those are
+// testnet's. Only what isn't on mainnet yet, and only the first time.
+const CARRY_KEYS = ["greenlog_meters", "greenlog_baselines", "greenlog_wallet", "greenlog_used_hashes",
+  "greenlog_theme", "greenlog_seen_intro", "gul_device_id", "gul_lang", "gul_help_lang"];
+const CARRY_PREFIXES = ["gul_mtoken_", "greenlog_profile:"];
+const CARRIED = "carried_over";   // not one of OURS: "reset all app data" keeps it
+export function carryOverFromTestnet(ls, rawGet, rawSet) {
+  if (rawGet.call(ls, STORAGE_PREFIX + CARRIED)) return 0;
+  let n = 0;
+  for (const k of Object.keys(ls)) {
+    if (!CARRY_KEYS.includes(k) && !CARRY_PREFIXES.some((p) => k.startsWith(p))) continue;
+    const v = rawGet.call(ls, k);
+    if (v == null || rawGet.call(ls, STORAGE_PREFIX + k) != null) continue;
+    rawSet.call(ls, STORAGE_PREFIX + k, v);
+    n++;
+  }
+  rawSet.call(ls, STORAGE_PREFIX + CARRIED, String(Date.now()));
+  return n;
+}
+if (rawGet) { try { carryOverFromTestnet(localStorage, rawGet, rawSet); } catch { /* storage blocked */ } }
 // This build's own keys, for "reset all app data" (Object.keys sees raw names).
 export function ownStorageKeys() {
   try {

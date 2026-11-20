@@ -1172,4 +1172,67 @@ export const store = {
 
   // Flush any debounced write immediately (awaitable) — for graceful shutdown.
   flush,
+
+  // ── Carry-over from the testnet state (carryover.js) ────────────────────────
+  // Adds what `src` (another state, already read) holds and this one lacks, so
+  // testers keep their meters, starting points and reader links on mainnet. Never
+  // replaces an entry here: whatever was set up on mainnet itself wins. Grouped so
+  // nothing half-arrives: a meter's records come together, and only when nobody
+  // owns that meter here; a wallet's links only when it has none here.
+  // Payouts, cooldowns, history, roles, flags and settings are not carried over.
+  carryOver: (src) => {
+    const counts = { meters: 0, links: 0, cloud: 0, readDevices: 0, bans: 0, hashes: 0, prints: 0 };
+    const own = (o, k) => isMap(o) && Object.prototype.hasOwnProperty.call(o, k);
+    const meterOf = (k) => { const i = k.indexOf(":"); return i < 0 ? ["electric", k] : [k.slice(0, i), k.slice(i + 1)]; };
+    for (const [k, owner] of Object.entries(isMap(src.meterOwners) ? src.meterOwners : {})) {
+      if (own(state.meterOwners, k) || store.meterOwner(...meterOf(k)) != null) continue;
+      state.meterOwners[k] = owner;
+      for (const f of METER_FIELDS) if (own(src[f], k)) { if (!isMap(state[f])) state[f] = {}; state[f][k] = src[f][k]; }
+      counts.meters++;
+    }
+    // Reader tokens: only for a wallet that has none here, for a meter it owns here
+    // (now). The last payout shown on the reader card is a testnet transaction.
+    for (const [token, v] of Object.entries(isMap(src.meterLinks) ? src.meterLinks : {})) {
+      const a = String(v?.address || "").toLowerCase();
+      if (!a || own(state.meterLinks, token) || store.getLinkByAddress(a)) continue;
+      const owner = v.meterNo ? store.meterOwner(v.utility || "electric", String(v.meterNo)) : null;
+      if (owner != null && String(owner).toLowerCase() !== a) continue;
+      const { lastPayout, ...link } = v; void lastPayout;
+      state.meterLinks[token] = link;
+      if (own(src.linkReadings, a) && !own(state.linkReadings, a)) state.linkReadings[a] = src.linkReadings[a];
+      counts.links++;
+    }
+    for (const f of ["powerfox", "tibber", "mojelektro"]) {
+      for (const [a, v] of Object.entries(isMap(src[f]) ? src[f] : {})) {
+        if (own(state[f], a)) continue;
+        if (!isMap(state[f])) state[f] = {};
+        state[f][a] = v;
+        counts.cloud++;
+      }
+    }
+    for (const [k, list] of Object.entries(isMap(src.readDevices) ? src.readDevices : {})) {
+      if (!Array.isArray(list)) continue;
+      if (!isMap(state.readDevices)) state.readDevices = {};
+      const cur = Array.isArray(state.readDevices[k]) ? state.readDevices[k] : [];
+      const add = list.filter((a) => !cur.includes(a));
+      if (add.length) { state.readDevices[k] = [...cur, ...add].slice(-5); counts.readDevices++; }
+    }
+    for (const [a, t] of Object.entries(isMap(src.bans) ? src.bans : {})) {
+      if (!own(state.bans, a)) { state.bans[a] = t; counts.bans++; }
+    }
+    // A photo that earned on testnet can't earn again here.
+    for (const [h, t] of Object.entries(isMap(src.hashes) ? src.hashes : {})) {
+      if (!own(state.hashes, h)) { state.hashes[h] = t; counts.hashes++; }
+    }
+    if (Array.isArray(src.prints) && src.prints.length) {
+      const cur = Array.isArray(state.prints) ? state.prints : [];
+      const ids = new Set(cur.map((e) => JSON.stringify(e)));
+      const add = src.prints.filter((e) => e && !ids.has(JSON.stringify(e)));
+      if (add.length) { state.prints = [...cur, ...add].sort((a, b) => (a.t || 0) - (b.t || 0)).slice(-8000); counts.prints = add.length; }
+    }
+    persist();
+    return counts;
+  },
 };
+// The per-meter records that travel with a carried-over meter (keyed like meterOwners).
+const METER_FIELDS = ["readings", "readingAts", "photoAts", "photoOwed", "basisFixed", "rebased", "autoPaid", "meterRegs"];

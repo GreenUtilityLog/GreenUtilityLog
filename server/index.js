@@ -27,6 +27,7 @@ import { mojElektroSwitchedOn, fetchMojElektroReading, validUsagePoint, validTok
 import { rateKeyFor } from "./ratekey.js";
 import { pickLang, translateMessage } from "./messages.js";
 import { inspectWallet, judgeWallet } from "./walletcheck.js";
+import { startCarryOver, carryOverWanted, carryOverDone, carryOverProblem } from "./carryover.js";
 
 const app = express();
 
@@ -279,6 +280,8 @@ app.get("/health", async (req, res) => {
     // bundle) — surfaced so admin access is easy to verify.
     adminWallets: ADMIN_USER_WALLETS,
     durableState: store.isDurable(),
+    // Testers carried over from testnet (carryover.js): null = not switched on.
+    carryOver: carryOverWanted() ? { done: carryOverDone(), problem: carryOverProblem() } : null,
     // isDurable only says Redis is CONFIGURED. This says it was actually read: on a
     // load failure the store holds nothing, refuses payouts and writes nothing, and
     // from the outside that is indistinguishable from a quiet, empty service.
@@ -2611,6 +2614,9 @@ app.use((err, req, res, next) => {
   console.error(`[error] ${req.method} ${req.path}:`, err?.stack || err?.message || err);
   if (!res.headersSent) res.status(500).json({ error: "something went wrong on the server — please try again" });
 });
+
+// Testers carried over from testnet at go-live, once (carryover.js).
+startCarryOver();
 
 const server = app.listen(PORT, () => {
   console.log(`Reward distributor listening on :${PORT} (${NETWORK})`);
