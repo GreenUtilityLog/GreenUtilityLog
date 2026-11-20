@@ -24,7 +24,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
-import { Certificate, Secp256k1, Address, ABIFunction } from "@vechain/sdk-core";
+import { Certificate, Secp256k1, Address, ABIFunction, ABIEvent } from "@vechain/sdk-core";
 
 const { chromium, devices } = await import(process.env.PLAYWRIGHT_MODULE || "playwright");
 
@@ -159,6 +159,13 @@ const GM_ANSWERS = {
 // A 1×1 PNG, for the NFT's picture.
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64");
 
+// RewardDistributed, as the app's leaderboard reads it (src/leaderboard.js).
+const REWARD_TOPIC = new ABIEvent({ name: "RewardDistributed", type: "event", inputs: [
+  { name: "amount", type: "uint256", indexed: false }, { name: "appId", type: "bytes32", indexed: true },
+  { name: "receiver", type: "address", indexed: true }, { name: "proof", type: "string", indexed: false },
+  { name: "distributor", type: "address", indexed: true }] }).signatureHash;
+// Set by the leaderboard step: (appId topic) → the chain's RewardDistributed logs.
+let boardLogs = null;
 // The access answer can be held back (the GM step), to see the app wait for it.
 let seenDelayMs = 0;
 // When set, /meter/latest says automatic payouts wait for a photo (the 30-day rule).
@@ -196,7 +203,14 @@ await ctx.route((url) => !/^http:\/\/(127\.0\.0\.1|localhost)[:/]/.test(url.href
     const json = (o) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(o) });
     if (u.pathname.startsWith("/blocks/0") || u.pathname.startsWith("/blocks/0x000000000b2b")) return json(GENESIS);
     if (u.pathname.startsWith("/blocks/best")) return json({ ...GENESIS, id: "0x0100000a" + "1".repeat(56), number: 16777226, timestamp: Math.floor(Date.now() / 1000) });
-    if (u.pathname.startsWith("/logs/event")) return json([]);
+    if (u.pathname.startsWith("/logs/event")) {
+      // The leaderboard step: other wallets' payouts (the app's own history query
+      // asks with topic2, its wallet, and gets none).
+      const c = (() => { try { return JSON.parse(route.request().postData() || "{}"); } catch { return {}; } })();
+      const crit = c.criteriaSet?.[0] || {};
+      if (boardLogs && crit.topic0 === REWARD_TOPIC && !crit.topic2 && !(c.options?.offset > 0)) return json(boardLogs(crit.topic1));
+      return json([]);
+    }
     if (u.pathname.startsWith("/accounts/*")) return json([{ data: "0x" + "0".repeat(64), events: [], transfers: [], gasUsed: 0, reverted: false, vmError: "" }]);
     if (u.hostname === "mainnet.vechain.org" && u.pathname.toLowerCase() === `/accounts/${GM_CONTRACT}` && route.request().method() === "POST") {
       const data = String(JSON.parse(route.request().postData() || "{}").data || "");
@@ -579,6 +593,40 @@ await step("MojElektro (Slovenia): connect in the app; a total older than the la
   assert.ok(st.mojelektro && Object.values(st.mojelektro)[0].cred.startsWith("v1:"), "the token is kept sealed");
   assert.ok(!JSON.stringify(st).includes(MOJ.token), "the token itself is not in the state");
   await page.locator(".bnav button").nth(0).click(); await wait(500);
+});
+
+await step("leaderboard: this week puts a newcomer first, all time the long-timer, with streaks", async () => {
+  // Two other wallets on chain: one paid 40 B3TR a month ago (nothing this week),
+  // one paid 1.5 B3TR today and 1.5 yesterday (a 2-day streak). This wallet has no
+  // on-chain payouts here.
+  const WHALE = "0x" + "aa".repeat(20), NEW = "0x" + "bb".repeat(20), now = Date.now();
+  const pay = (appId, addr, b3tr, ms) => ({
+    address: "0x0", topics: [REWARD_TOPIC, appId, "0x" + addr.slice(2).padStart(64, "0"), "0x" + "0".repeat(64)],
+    data: "0x" + (BigInt(Math.round(b3tr * 1e4)) * 10n ** 14n).toString(16).padStart(64, "0") + word(64) + word(0),
+    meta: { blockTimestamp: Math.floor(ms / 1000), txID: "0x" + "1".repeat(64) },
+  });
+  boardLogs = (appId) => [pay(appId, NEW, 1.5, now - 60_000), pay(appId, NEW, 1.5, now - DAY), pay(appId, WHALE, 40, now - 30 * DAY)];
+  try {
+    await page.reload({ waitUntil: "networkidle" }); await wait(1500);
+    await page.locator(".bnav button").nth(2).click(); await wait(2500);
+    const top = page.locator('[data-board="top"]');
+    await top.waitFor({ timeout: 10000 });
+    await shot("13c-board-week");
+    // This week (the default): the newcomer first, the long-timer not in it, this wallet at 0.
+    assert.equal(await top.getByRole("button", { name: "Deze week" }).getAttribute("aria-pressed"), "true", "this week by default");
+    let rows = (await top.innerText()).split("\n").join(" | ");
+    assert.match(rows, /0xbbbb.*3\.00/, `the newcomer leads this week: ${rows}`);
+    assert.doesNotMatch(rows, /0xaaaa/, "no payout this week: not on this week's board");
+    assert.match(rows, /🔥2/, "the newcomer's 2-day streak");
+    // All time: the long-timer first.
+    await top.getByRole("button", { name: "Altijd" }).click(); await wait(400);
+    await shot("13d-board-all");
+    rows = (await top.innerText()).split("\n").join(" | ");
+    assert.match(rows, /🥇[\s|]*0xaaaa[^B]*40\.00/, `all time: the long-timer first: ${rows}`);
+    // The full list follows the same switch, and names the streak.
+    await page.getByRole("tab", { name: "Klassement" }).click(); await wait(400);
+    assert.match(await text(), /2 dagen op rij/, "the streak in the full list");
+  } finally { boardLogs = null; }
 });
 
 await step("mainnet rule: VeBetterDAO's member check and the Passport", async () => {

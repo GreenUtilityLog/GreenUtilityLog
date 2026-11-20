@@ -126,7 +126,7 @@ Laatst bijgewerkt: 2026-11-01.
 - [x] Enode verwijderd: nooit ingeschakeld, betaald, en P1/Home Assistant/Powerfox/Tibber dekken het (#165)
 
 ## Later, als de app loopt (ideeën uit HangnDry, november)
-- [ ] Klassement met "Deze week / Altijd" en een reeks-kolom (een nieuweling kan dan elke week meedoen)
+- [x] Klassement met "Deze week / Altijd" (standaard deze week, vanaf maandag 00:00) en per wallet de reeks (🔥 dagen op rij met een uitbetaling), uit de chain; in 20 talen
 - [ ] Live teller "Net uitbetaald +x B3TR · 1 min geleden" uit de chain
 - [ ] Eenmalige B3TR-bonus per niveau (Vonk, Vlam, Zonnestraal, Groene centrale), met plafond, via de bestaande uitbetaling; bedragen nog kiezen
 - [ ] Reeksbonus per week (bijv. +5–10%), binnen het weekbudget; anti-farming (één wallet per telefoon, meter, foto) moet overeind blijven

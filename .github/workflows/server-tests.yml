@@ -57,6 +57,8 @@ jobs:
       - run: npx eslint src
       # Every language complete: keys, {placeholders}, links, the ⚠️ a warning starts with, Help.
       - run: node scripts/check-langs.mjs
+      # The leaderboard's "this week" and streak (src/board.js).
+      - run: node scripts/test-board.mjs
       - run: npm run build
 
   # The bridge is downloaded as one loose gul.js and run on whatever Node the user
