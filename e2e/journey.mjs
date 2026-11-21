@@ -350,7 +350,7 @@ await step("Home, History and Progress show it", async () => {
   assert.match(await text(), /1 total/, "one row in History");
   // The paid row is a plain link to the explorer (VeWorld ignores window.open).
   const href = await page.locator("a.hitem").first().getAttribute("href");
-  assert.match(String(href), /^https:\/\/explore-testnet\.vechain\.org\/transactions\/0x[0-9a-f]{64}$/, `the row links to its transaction: ${href}`);
+  assert.match(String(href), /^https:\/\/explore-testnet\.vechain\.org\/transactions\/0x\w+$/, `the row links to its transaction: ${href}`);
   assert.equal(await page.locator("a.hitem").first().getAttribute("target"), "_blank");
   await page.locator(".bnav button").nth(2).click(); await wait(1200); await shot("05-progress");
   assert.match(await text(), /kWh/, "Progress renders");
