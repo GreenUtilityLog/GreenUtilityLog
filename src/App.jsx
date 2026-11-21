@@ -2481,9 +2481,12 @@ function HistItem({ s, T }) {
   // one-tap on-chain proof (VeWorld's own Activity tab won't show these, because
   // the user's wallet never signs the payout; the distributor does).
   const txUrl = s.txHash ? `${EXPLORER}/transactions/${s.txHash}` : null;
+  const Row = txUrl ? "a" : "div";
+  const rowLink = txUrl ? { href: txUrl, target: "_blank", rel: "noopener noreferrer", style: { color: "inherit", textDecoration: "none", cursor: "pointer" } } : {};
   return (
-    <div role="button" tabIndex={0} className="hitem" onClick={() => { if (txUrl) window.open(txUrl, "_blank", "noopener"); }}
-      style={txUrl ? { cursor: "pointer" } : undefined}
+    // A real link, not window.open: VeWorld's in-app browser ignores window.open,
+    // so tapping a row did nothing there. A plain link it opens.
+    <Row className="hitem" {...rowLink}
       title={txUrl ? t("h.viewTx") : undefined}>
       <div className="hicon" style={{background: getColorBg(s.type, T), color: T[s.type] || T.electric}}>{UTIL_ICONS[s.type]}</div>
       <div className="hinfo">
@@ -2500,7 +2503,7 @@ function HistItem({ s, T }) {
           : <div className="hb3tr" style={s.status === "failed" ? { color: T.textSoft, textDecoration: "line-through" } : undefined}>+{parseFloat(s.b3tr).toFixed(2)} <span style={{ fontSize: 10, fontWeight: 700 }}>B3TR</span></div>}
         <div className={`hstatus s-${s.status}`}>{["confirmed", "pending", "failed", "recorded"].includes(s.status) ? t(`h.st.${s.status}`) : s.status}</div>
       </div>
-    </div>
+    </Row>
   );
 }
 
@@ -3983,15 +3986,18 @@ function SettingsScreen({ lang, onLang, b3tr, subs, wallet, setShowWallet, dark,
           right={<span aria-hidden="true" className={`toggle ${dark ? "on" : ""}`} style={{display:"inline-block"}}><span className="toggle-dot"/></span>} />
       </div>
 
-      {group("🌐 " + t("set.language"))}
-      <div role="radiogroup" aria-label={t("set.language")} style={{ ...listCard(T), display: "flex", flexWrap: "wrap", gap: 8, padding: 12 }}>
-        {Object.entries(LANGS).map(([code, name]) => (
-          <button key={code} type="button" role="radio" aria-checked={lang === code} onClick={() => onLang(code)}
-            style={{ minHeight: 44, padding: "0 14px", borderRadius: 999, cursor: "pointer", fontSize: 13, fontWeight: 700,
-              border: `1px solid ${lang === code ? T.green3 : T.border}`, background: lang === code ? T.green5 : "transparent", color: lang === code ? T.green2 : T.textMid }}>
-            {name}
-          </button>
-        ))}
+      {group(t("set.language"))}
+      {/* One row with a dropdown, like the other settings: twenty buttons in a
+          wrapping block were a jumble. */}
+      <div style={listCard(T)}>
+        <label style={{display:"flex",alignItems:"center",gap:12,minHeight:56,padding:"0 14px",cursor:"pointer"}}>
+          <span aria-hidden="true" style={{width:32,height:32,flexShrink:0,borderRadius:6,background:T.bgAlt,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}}>🌐</span>
+          <span style={{flex:1,minWidth:0,fontSize:13,fontWeight:700,color:T.text}}>{t("set.language")}</span>
+          <select aria-label={t("set.language")} value={lang} onChange={(e) => onLang(e.target.value)}
+            style={{font:"inherit",fontSize:13,fontWeight:700,minHeight:40,maxWidth:"55%",padding:"4px 10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.card,color:T.text,cursor:"pointer"}}>
+            {Object.entries(LANGS).map(([code, name]) => <option key={code} value={code}>{name}</option>)}
+          </select>
+        </label>
       </div>
 
       {group(t("set.meter"))}
