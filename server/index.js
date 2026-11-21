@@ -1788,7 +1788,22 @@ app.get("/cron/tick", async (req, res) => {
   const pulled = await powerfoxTick("cron").catch(() => 0);
   const tibber = await tibberTick("cron").catch(() => 0);
   const mojelektro = await mojElektroTick("cron").catch(() => 0);
-  res.json({ ok: true, powerfox: pulled, tibber, mojelektro });
+  // And settle every reader's reading that is still unpaid. A payout tried on
+  // arrival can miss (the server busy, the chain slow, a restart mid-way) and
+  // otherwise waited for the reader's NEXT push, half a day later, while the app
+  // said "this happens by itself". autoSettle pays only a reading newer than the
+  // last payout, after the cooldown, through every usual check.
+  let settled = 0;
+  if (!autoTickBusy) {
+    autoTickBusy = true;
+    try {
+      for (const link of store.allMeterLinks()) {
+        const r = await autoSettle(link, "cron").catch(() => null);
+        if (r?.ok) settled++;
+      }
+    } finally { autoTickBusy = false; }
+  }
+  res.json({ ok: true, powerfox: pulled, tibber, mojelektro, settled });
 });
 
 const INGEST_MIN_INTERVAL_MS = Number(process.env.INGEST_MIN_INTERVAL_MS ?? 15000);

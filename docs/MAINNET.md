@@ -233,6 +233,21 @@ hooguit 7 dagen (`MAX_SPAN_DAYS`) en hooguit `MAX_PAYOUT_PER_SUBMISSION`.
 (integratie) `<testnet-adres>/meter-ingest` invullen. Zonder dat stuurt een uitlezer naar
 mainnet. Powerfox/Tibber op testnet opnieuw koppelen (andere `POWERFOX_SECRET`).
 
+## De wekker (jij, ± 3 minuten, nu al nodig — ook voor testnet)
+Op het gratis plan valt de server na 15 minuten zonder verkeer in slaap. Een slapende
+server haalt geen Powerfox/Tibber-standen op en betaalt een openstaande stand niet uit.
+De wekker in GitHub (`wake.yml`) is daarvoor niet betrouwbaar: GitHub draait geplande
+taken als het uitkomt, en "elk uur" werd zo'n drie keer per dag. Daarom een externe
+bewaking, die meteen ook mailt als de server plat ligt:
+1. Maak een gratis account op **uptimerobot.com**.
+2. **+ New monitor** → type **HTTP(s)**.
+3. **Friendly name:** `GUL wekker` · **URL:** `https://greenutilitylog-rewards.onrender.com/cron/tick`
+4. **Monitoring interval:** **5 minutes** · bij **Alert contacts** je e-mailadres → **Create monitor**.
+Elke wekbeurt haalt de cloud-standen op en betaalt standen die nog openstaan (na de
+wachttijd, met alle gewone controles). Na de livegang een tweede monitor voor de nieuwe
+testnet-server (zelfde stappen, het adres uit stap 5a). Let op de 750 gratis uren per
+maand (stap 5b): één wakkere gratis server past erin, twee niet.
+
 ## Stap 7 — De pot (jij)
 Pas **na** stap 6: daarvóór is ook de hoofd-app nog testnet, en dan zou "Fund rewards
 pool" test-B3TR storten. Vul de pot met echte B3TR (mainnet-app → adminpaneel → Fund

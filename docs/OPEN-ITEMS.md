@@ -107,6 +107,8 @@ Laatst bijgewerkt: 2026-11-01.
 - [ ] Antwoord aan VeBetterDAO (beoordeling) versturen en opvolgen
 - [x] Creator NFT ontvangen; app-aanvraag op mainnet ingediend (17-11-2026)
 - [ ] Goedkeuring en endorsement afwachten
+- [ ] Externe wekker instellen (UptimeRobot, elke 5 min `/cron/tick`, zie `docs/MAINNET.md` "De wekker") — de GitHub-wekker draait maar ± 3 keer per dag
+- [x] Elke wekbeurt betaalt ook standen die nog openstaan (een gemiste automatische uitbetaling wachtte tot de volgende push, een halve dag later)
 - [ ] Mainnet-stappen uit `docs/MAINNET.md` (serverwissel in Render, sleutels, `CERT_DOMAINS`, eerste week `MAX_PAYOUT_PER_SUBMISSION=1`)
 - [x] Testers hoeven bij de livegang niets opnieuw te doen (keuze eigenaar, 20-11-2026): de huidige server wordt mainnet (uitlezers blijven daarheen sturen), testnet krijgt een nieuwe server. De mainnet-server neemt bij de eerste start meters, beginstanden, uitlezer-tokens en cloudkoppelingen over (`CARRY_OVER_KEY`); de mainnet-app neemt op de telefoon meternummer, beginstand, token, telefoon-ID en taal over. Getest op de server (met tegenproef) en in de browser (testnet → zelfde telefoon op mainnet)
 - [ ] Grant-aanvraag VeBetter Grants (x2earn-spoor)
