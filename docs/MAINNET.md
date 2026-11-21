@@ -87,7 +87,8 @@ Render → **New → Web Service** → deze repository, naam bijv. `greenutility
   `greenutilitylog-rewards` → Environment; overtypen of kopiëren), **zelfde waarden**:
   `NETWORK=testnet`, dezelfde Upstash-URL en -token (de testgegevens blijven dus
   gewoon staan), dezelfde distributor-sleutel, je testnet-Anthropic-sleutel, enzovoort.
-  **Eén uitzondering:** `POWERFOX_SECRET` krijgt een **nieuwe** waarde. Dan haalt testnet
+  **Twee uitzonderingen:** `KEEP_AWAKE=off` erbij (anders zijn er twee servers altijd
+  wakker en is het gratis plan op, zie "De wekker"), en `POWERFOX_SECRET` krijgt een **nieuwe** waarde. Dan haalt testnet
   geen standen meer op bij de Powerfox- en Tibber-accounts die naar mainnet zijn
   overgegaan (anders vragen twee servers hetzelfde account uit).
 - Open `<nieuw adres>/health`: `network` = `testnet`, `storeReady` = `true`, en
@@ -233,20 +234,18 @@ hooguit 7 dagen (`MAX_SPAN_DAYS`) en hooguit `MAX_PAYOUT_PER_SUBMISSION`.
 (integratie) `<testnet-adres>/meter-ingest` invullen. Zonder dat stuurt een uitlezer naar
 mainnet. Powerfox/Tibber op testnet opnieuw koppelen (andere `POWERFOX_SECRET`).
 
-## De wekker (jij, ± 3 minuten, nu al nodig — ook voor testnet)
-Op het gratis plan valt de server na 15 minuten zonder verkeer in slaap. Een slapende
-server haalt geen Powerfox/Tibber-standen op en betaalt een openstaande stand niet uit.
-De wekker in GitHub (`wake.yml`) is daarvoor niet betrouwbaar: GitHub draait geplande
-taken als het uitkomt, en "elk uur" werd zo'n drie keer per dag. Daarom een externe
-bewaking, die meteen ook mailt als de server plat ligt:
-1. Maak een gratis account op **uptimerobot.com**.
-2. **+ New monitor** → type **HTTP(s)**.
-3. **Friendly name:** `GUL wekker` · **URL:** `https://greenutilitylog-rewards.onrender.com/cron/tick`
-4. **Monitoring interval:** **5 minutes** · bij **Alert contacts** je e-mailadres → **Create monitor**.
-Elke wekbeurt haalt de cloud-standen op en betaalt standen die nog openstaan (na de
-wachttijd, met alle gewone controles). Na de livegang een tweede monitor voor de nieuwe
-testnet-server (zelfde stappen, het adres uit stap 5a). Let op de 750 gratis uren per
-maand (stap 5b): één wakkere gratis server past erin, twee niet.
+## De wekker (klaar, niets te doen)
+Op het gratis plan valt een server na 15 minuten zonder verkeer in slaap; dan haalt hij
+geen Powerfox/Tibber-standen op en betaalt hij een openstaande stand niet uit. De server
+houdt zichzelf daarom wakker: elke 11 minuten roept hij zijn eigen `/cron/tick` aan (via
+het adres dat Render zelf meegeeft, `RENDER_EXTERNAL_URL`). Elke wekbeurt haalt de
+cloud-standen op en betaalt standen die nog openstaan, na de wachttijd en met alle gewone
+controles. `/health` → `keepAwake: true` laat zien dat het aan staat. De GitHub-wekker
+(`wake.yml`) blijft als reserve.
+
+**Let op de 750 gratis uren per maand** (per workspace): één server die altijd wakker is
+past erin, twee niet. Na de livegang zet je bij de **testnet**-service `KEEP_AWAKE=off`
+(stap 5a); die slaapt dan weer als niemand hem gebruikt. Mainnet blijft wakker.
 
 ## Stap 7 — De pot (jij)
 Pas **na** stap 6: daarvóór is ook de hoofd-app nog testnet, en dan zou "Fund rewards

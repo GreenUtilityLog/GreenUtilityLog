@@ -1,7 +1,7 @@
 # A BACKUP wake-up for the reward server. GitHub runs scheduled workflows when it
 # has room, not on time: "hourly" came out as about three runs a day (November
-# 2026). The real wake-up is an outside monitor calling /cron/tick every 5 minutes
-# (UptimeRobot, docs/MAINNET.md "De wekker"); this stays as a fallback.
+# 2026). The real wake-up is the server itself, calling its own /cron/tick every
+# 11 minutes (server/index.js "Staying awake"); this stays as a fallback.
 # On Render's free plan the service sleeps when nobody calls it, and a sleeping
 # server can't fetch Powerfox readings or pay a reading that is still unpaid.
 # /cron/tick only starts work the server would do on its own (cloud pulls, unpaid

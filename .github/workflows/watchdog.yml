@@ -107,6 +107,7 @@ jobs:
             "powerfoxLinked": (h.get("powerfox") or {}).get("linked"),
             "tibberLinked": (h.get("tibber") or {}).get("linked"),
             "aiPhotoCheck": h.get("aiPhotoCheck"),
+            "keepAwake": h.get("keepAwake"),
           }
           print("SNAPSHOT " + json.dumps(snap))
           # Also as an annotation: readable from the public API without a login.
