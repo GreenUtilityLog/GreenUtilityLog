@@ -48,7 +48,7 @@ const https = require("node:https");
 // Sent with every request as the User-Agent, so the server can tell which bridge
 // versions are still out there. The Home Assistant add-on carries the same number
 // (ha-addon/gul-bridge/config.yaml); CI checks they match.
-const BRIDGE_VERSION = "1.5.4";
+const BRIDGE_VERSION = "1.5.5";
 const USER_AGENT = `GreenUtilityLog-bridge/${BRIDGE_VERSION} (node ${process.versions.node}; ${process.platform})`;
 // No meter, reader or server answer is anywhere near this. A device or proxy that
 // streams without end used to fill the bridge's memory.
