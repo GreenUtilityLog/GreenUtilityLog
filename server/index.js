@@ -280,6 +280,8 @@ app.get("/health", async (req, res) => {
     // bundle) — surfaced so admin access is easy to verify.
     adminWallets: ADMIN_USER_WALLETS,
     durableState: store.isDurable(),
+    // Whether this server keeps itself awake (see "Staying awake").
+    keepAwake: KEEP_AWAKE && !!SELF_URL,
     // Testers carried over from testnet (carryover.js): null = not switched on.
     carryOver: carryOverWanted() ? { done: carryOverDone(), problem: carryOverProblem() } : null,
     // isDurable only says Redis is CONFIGURED. This says it was actually read: on a
@@ -1788,7 +1790,22 @@ app.get("/cron/tick", async (req, res) => {
   const pulled = await powerfoxTick("cron").catch(() => 0);
   const tibber = await tibberTick("cron").catch(() => 0);
   const mojelektro = await mojElektroTick("cron").catch(() => 0);
-  res.json({ ok: true, powerfox: pulled, tibber, mojelektro });
+  // And settle every reader's reading that is still unpaid. A payout tried on
+  // arrival can miss (the server busy, the chain slow, a restart mid-way) and
+  // otherwise waited for the reader's NEXT push, half a day later, while the app
+  // said "this happens by itself". autoSettle pays only a reading newer than the
+  // last payout, after the cooldown, through every usual check.
+  let settled = 0;
+  if (!autoTickBusy) {
+    autoTickBusy = true;
+    try {
+      for (const link of store.allMeterLinks()) {
+        const r = await autoSettle(link, "cron").catch(() => null);
+        if (r?.ok) settled++;
+      }
+    } finally { autoTickBusy = false; }
+  }
+  res.json({ ok: true, powerfox: pulled, tibber, mojelektro, settled });
 });
 
 const INGEST_MIN_INTERVAL_MS = Number(process.env.INGEST_MIN_INTERVAL_MS ?? 15000);
@@ -2617,6 +2634,27 @@ app.use((err, req, res, next) => {
 
 // Testers carried over from testnet at go-live, once (carryover.js).
 startCarryOver();
+
+// ── Staying awake ─────────────────────────────────────────────────────────────
+// On Render's free plan a service sleeps after 15 minutes without a request, and a
+// sleeping server pulls no Powerfox/Tibber readings and pays no unpaid reading.
+// GitHub's hourly wake-up (wake.yml) ran about three times a day, and the owner
+// wants no outside service for it. So the server calls its own /cron/tick through
+// its public address (Render sets RENDER_EXTERNAL_URL), every 11 minutes: that
+// keeps it awake and settles what is due. One always-awake free service fits
+// Render's 750 free hours a month, two don't: KEEP_AWAKE=off switches it off (the
+// testnet service after go-live, docs/MAINNET.md).
+const SELF_URL = String(process.env.RENDER_EXTERNAL_URL || "").trim().replace(/\/$/, "");
+const KEEP_AWAKE = !/^(0|false|off|no)$/i.test(String(process.env.KEEP_AWAKE || "on").trim());
+const KEEP_AWAKE_MS = Math.max(1000, Number(process.env.KEEP_AWAKE_MS || 11 * 60 * 1000));
+if (KEEP_AWAKE && SELF_URL) {
+  setInterval(() => {
+    if (shuttingDown) return;
+    fetch(`${SELF_URL}/cron/tick`, { signal: AbortSignal.timeout(120000) })
+      .catch((e) => console.warn("[keep-awake] couldn't reach", SELF_URL, "—", e?.message || e));
+  }, KEEP_AWAKE_MS).unref();
+  console.log(`[keep-awake] calling ${SELF_URL}/cron/tick every ${Math.round(KEEP_AWAKE_MS / 60000)} min`);
+}
 
 const server = app.listen(PORT, () => {
   console.log(`Reward distributor listening on :${PORT} (${NETWORK})`);
