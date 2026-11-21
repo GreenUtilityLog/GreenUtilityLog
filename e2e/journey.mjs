@@ -460,7 +460,12 @@ await step("offline: a reading is queued, and sent when back online", async () =
 await step("Dutch: the app, and the server's messages", async () => {
   await page.locator(".bnav button").nth(3).click(); await wait(600);
   await page.getByRole("button", { name: /settings/i }).first().click(); await wait(800);
-  await page.getByText("Nederlands", { exact: true }).first().click(); await wait(1000);
+  // One dropdown with every language, like the other settings rows.
+  const picker = page.locator("select[aria-label]").first();
+  assert.equal(await picker.locator("option").count(), 20, "20 languages in the dropdown");
+  assert.equal(await page.getByRole("radio").count(), 0, "no wall of language buttons");
+  await shot("09b-settings-language");
+  await page.locator('select[aria-label]').first().selectOption("nl"); await wait(1000);
   await page.locator(".bnav button").nth(0).click(); await wait(800);
   assert.match(await text(), /VOORTGANG|Voortgang/, "the menu is Dutch");
   // The GM badge on Profile, in Dutch too: the level's name and the level line.
@@ -530,7 +535,7 @@ await step("Italian: a language in its own file, fetched when picked and after a
     await page.locator(".bnav button").nth(3).click(); await wait(600);
     await page.getByRole("button", { name: /Instellingen/ }).first().click(); await wait(800);
     assert.equal(files.length, 0, "not fetched before it is picked");
-    await page.getByText("Italiano", { exact: true }).first().click(); await wait(1500);
+    await page.locator('select[aria-label]').first().selectOption("it"); await wait(1500);
     assert.equal(files.length, 1, "the Italian file was fetched once");
     assert.equal(await page.evaluate(() => document.documentElement.lang), "it");
     assert.match(await page.locator(".bnav").innerText(), re(IT.texts["nav.progress"]), "the menu is Italian");
@@ -558,7 +563,7 @@ await step("Italian: a language in its own file, fetched when picked and after a
     // Back to Dutch for the rest of the journey: a built-in language again, at once.
     await page.locator(".bnav button").nth(3).click(); await wait(600);
     await page.getByRole("button", { name: re(IT.texts["pr.settings"]) }).first().click(); await wait(800);
-    await page.getByText("Nederlands", { exact: true }).first().click(); await wait(800);
+    await page.locator('select[aria-label]').first().selectOption("nl"); await wait(800);
     assert.match(await page.locator(".bnav").innerText(), /VOORTGANG|Voortgang/, "Dutch again");
     await page.locator(".bnav button").nth(0).click(); await wait(500);
   } finally { page.off("response", onResponse); page.off("request", onRequest); }
