@@ -2481,9 +2481,12 @@ function HistItem({ s, T }) {
   // one-tap on-chain proof (VeWorld's own Activity tab won't show these, because
   // the user's wallet never signs the payout; the distributor does).
   const txUrl = s.txHash ? `${EXPLORER}/transactions/${s.txHash}` : null;
+  const Row = txUrl ? "a" : "div";
+  const rowLink = txUrl ? { href: txUrl, target: "_blank", rel: "noopener noreferrer", style: { color: "inherit", textDecoration: "none", cursor: "pointer" } } : {};
   return (
-    <div role="button" tabIndex={0} className="hitem" onClick={() => { if (txUrl) window.open(txUrl, "_blank", "noopener"); }}
-      style={txUrl ? { cursor: "pointer" } : undefined}
+    // A real link, not window.open: VeWorld's in-app browser ignores window.open,
+    // so tapping a row did nothing there. A plain link it opens.
+    <Row className="hitem" {...rowLink}
       title={txUrl ? t("h.viewTx") : undefined}>
       <div className="hicon" style={{background: getColorBg(s.type, T), color: T[s.type] || T.electric}}>{UTIL_ICONS[s.type]}</div>
       <div className="hinfo">
@@ -2500,7 +2503,7 @@ function HistItem({ s, T }) {
           : <div className="hb3tr" style={s.status === "failed" ? { color: T.textSoft, textDecoration: "line-through" } : undefined}>+{parseFloat(s.b3tr).toFixed(2)} <span style={{ fontSize: 10, fontWeight: 700 }}>B3TR</span></div>}
         <div className={`hstatus s-${s.status}`}>{["confirmed", "pending", "failed", "recorded"].includes(s.status) ? t(`h.st.${s.status}`) : s.status}</div>
       </div>
-    </div>
+    </Row>
   );
 }
 

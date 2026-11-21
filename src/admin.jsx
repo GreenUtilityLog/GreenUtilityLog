@@ -525,9 +525,7 @@ function SubmissionRow({ r, T, onAdminApi, onToast, archiveOn }) {
 
   return (
     <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:10,marginBottom:6,overflow:"hidden"}}>
-      <div role="button" tabIndex={0} onClick={() => txUrl && window.open(txUrl, "_blank", "noopener")}
-        title={txUrl ? "View this transaction on the VeChain explorer" : undefined}
-        style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",cursor:txUrl?"pointer":"default"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px"}}>
         <span style={{fontSize:16}}>{isEco ? "🌿" : (UTIL_ICONS[r.type] || "⚡")}</span>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:12,fontWeight:700,color:T.text}}>
@@ -547,7 +545,7 @@ function SubmissionRow({ r, T, onAdminApi, onToast, archiveOn }) {
               ? (r.appliance ? `${r.appliance} on eco mode` : "appliance on eco mode")
               : (usage != null ? `${r.prev} → ${r.cur} · ${usage} ${unit} used` : (r.cur !== "" ? `reading ${r.cur}` : "reading"))}
           </div>
-          <div style={{fontSize:10.5,color:T.textSoft,marginTop:2}}>{fmtDay(r.date)}{txUrl ? " · tx ↗" : ""}</div>
+          <div style={{fontSize:10.5,color:T.textSoft,marginTop:2}}>{fmtDay(r.date)}{txUrl ? <> · <a href={txUrl} target="_blank" rel="noopener noreferrer" title="View this transaction on the VeChain explorer" style={{color:"inherit"}}>tx ↗</a></> : ""}</div>
         </div>
         {canPhoto && photo.status !== "deleted" && (
           <span onClick={(e) => e.stopPropagation()} style={{display:"flex",gap:4}}>
