@@ -103,9 +103,11 @@ jobs:
       matrix:
         os: [windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    # A test that hangs fails the job instead of holding it for hours.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: node --test bridge/test.js
+      - run: node --test --test-force-exit --test-timeout=120000 bridge/test.js

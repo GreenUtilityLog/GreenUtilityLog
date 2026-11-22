@@ -293,6 +293,8 @@ test("a wrong Powerfox password is said plainly and not saved", async () => {
 });
 
 test("the scheduled job says --powerfox but never carries the password", async () => {
+  // A stand-in crontab on PATH: on Windows --install would make a real scheduled task.
+  if (process.platform === "win32") return;
   const pf = await fakePowerfox();
   const backend = await fake((req, res) => { req.resume(); req.on("end", () => res.end("{}")); });
   const tabFile = join(dir, "crontab-pf.txt");
