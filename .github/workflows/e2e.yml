@@ -37,7 +37,7 @@ jobs:
       - run: npm install --omit=optional
         working-directory: server
       # The photo checks decode real images with sharp (as in the server tests).
-      - run: npm install --no-save sharp
+      - run: npm install --no-save sharp@0.35.5   # the version in server/package-lock.json
         working-directory: server
       # The app built for a test API host, which the journey routes to the local server.
       - run: npx vite build --outDir e2e-dist

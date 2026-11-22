@@ -135,7 +135,7 @@
    "Κατεβάζει το βοηθητικό πρόγραμμα και στέλνει την πρώτη σου ένδειξη. Προγραμματίζει επίσης τον εαυτό του να στέλνει δύο φορές την ημέρα (Windows: Χρονοδιάγραμμα εργασιών · Mac / Linux / Pi: cron), οπότε μετά μπορείς να κλείσεις το παράθυρο και συνεχίζει να δουλεύει, ακόμη και μετά από επανεκκίνηση. Είναι η μόνη φορά που το εκτελείς. <strong>Mac:</strong> επικόλλησέ τη σε ένα Terminal που μόλις άνοιξες, στον αρχικό σου φάκελο — μην κάνεις πρώτα <span class=\"k\">cd</span> στην Επιφάνεια εργασίας, στα Έγγραφα ή στις Λήψεις: το macOS δεν επιτρέπει στον προγραμματισμό (cron) να διαβάζει αρχεία εκεί, οπότε δεν θα έτρεχε ποτέ.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install"
    ],
    [
@@ -165,7 +165,7 @@
    "Βάλε τη δική σου διεύθυνση στη θέση του παραδείγματος· το token σου το ζητά μόνο του. Αν η ένδειξη δεν βρεθεί αυτόματα, πρόσθεσε <span class=\"k\">--field=</span> με τη διαδρομή (με τελείες) προς την τιμή kWh σε εκείνο το JSON. Μόνο δύο ζώνες χρέωσης και κανένα σύνολο (όπως στο P1 Monitor); Ένωσε τις δύο διαδρομές με <span class=\"k\">+</span> και θα στέλνει το άθροισμά τους, π.χ. <span class=\"k\">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install --url=http://192.168.1.60/api/v1/data"
    ],
    [
@@ -178,7 +178,7 @@
    "Χρησιμοποίησε <span class=\"k\">--tasmota=</span> με την IP της αντί για <span class=\"k\">--url=</span>. Το βοηθητικό πρόγραμμα διαβάζει μόνο του το σύνολο του μετρητή (<span class=\"k\">Total_in</span>). Συνηθισμένη σε μετρητές στη Γερμανία, την Αυστρία και την Ελβετία.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --tasmota=192.168.1.70 --install"
    ],
    [
@@ -461,7 +461,7 @@
    "Βάλε το e-mail του λογαριασμού σου στο Powerfox στη θέση του <span class=\"k\">YOUR_POWERFOX_EMAIL</span>. Σου ζητά μία φορά το token και τον κωδικό του Powerfox (ο κωδικός δεν φαίνεται όσο πληκτρολογείς) και τα κρατά και τα δύο σε ένα ιδιωτικό αρχείο δίπλα στο gul.js. Μετά προγραμματίζει τον εαυτό του, όπως ακριβώς στη Διαδρομή B. Ο υπολογιστής πρέπει να είναι ανοιχτός τουλάχιστον μία φορά την ημέρα.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install"
    ],
    [

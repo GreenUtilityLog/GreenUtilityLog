@@ -27,7 +27,7 @@ every run after that is just `node gul.js`.
 
 **Windows (PowerShell):**
 ```powershell
-iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js
+iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js
 ```
 
 **Mac · Linux · Raspberry Pi:**

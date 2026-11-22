@@ -135,7 +135,7 @@
    "Prenese skripto in pošlje tvoj prvi odčitek. Poleg tega se sama nastavi, da poroča dvakrat na dan (Windows: Task Scheduler · Mac / Linux / Pi: cron), zato lahko okno nato zapreš in deluje naprej, tudi po ponovnem zagonu. To zaženeš samo tokrat. <strong>Mac:</strong> prilepi jo v na novo odprt Terminal, v domači mapi — prej ne pojdi s <span class=\"k\">cd</span> v Desktop, Documents ali Downloads: macOS urniku (cron) ne dovoli brati datotek tam, zato se ne bi nikoli zagnal.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install"
    ],
    [
@@ -165,7 +165,7 @@
    "Namesto primera vpiši svoj naslov; za žeton te skripta vpraša sama. Če odčitka ne najde samodejno, dodaj <span class=\"k\">--field=</span> s potjo s pikami do vrednosti kWh v tem JSON. Samo dva tarifna registra in nobenega skupnega stanja (na primer P1 Monitor)? Obe poti združi s <span class=\"k\">+</span> in poslala bo njuno vsoto, npr. <span class=\"k\">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install --url=http://192.168.1.60/api/v1/data"
    ],
    [
@@ -178,7 +178,7 @@
    "Namesto <span class=\"k\">--url=</span> uporabi <span class=\"k\">--tasmota=</span> z njenim IP-jem. Skripta sama prebere skupno stanje števca (<span class=\"k\">Total_in</span>). Pogosto pri nemških, avstrijskih in švicarskih števcih.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --tasmota=192.168.1.70 --install"
    ],
    [
@@ -461,7 +461,7 @@
    "Namesto <span class=\"k\">YOUR_POWERFOX_EMAIL</span> vpiši e-poštni naslov svojega računa Powerfox. Enkrat te vpraša za žeton in geslo za Powerfox (geslo se med tipkanjem ne prikaže) in oboje hrani v zasebni datoteki poleg gul.js. Nato se sama nastavi v urnik, tako kot pri poti B. Računalnik mora biti vklopljen vsaj enkrat na dan.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install"
    ],
    [

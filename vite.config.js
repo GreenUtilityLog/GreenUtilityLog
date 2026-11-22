@@ -67,8 +67,8 @@ const selfHostTesseract = () => {
 
 // Content-Security-Policy, as a meta tag (GitHub Pages can't send headers). The part
 // that matters is script-src: only this site's own files, the two inline scripts in
-// index.html (by hash, computed here so an edit can't silently break them), jsPDF
-// from cdnjs (also pinned by SRI) and Cloudflare's captcha. An injected <script> or
+// index.html (by hash, computed here so an edit can't silently break them) and
+// Cloudflare's captcha. (jsPDF is bundled now; cdnjs is no longer allowed.) An injected <script> or
 // a script from anywhere else is refused. Connections stay open to any https/wss
 // host: wallets, nodes and WalletConnect relays vary per user and per network.
 // Build only — the dev server injects inline scripts of its own.
@@ -82,7 +82,7 @@ const contentSecurityPolicy = () => ({
         .map((m) => `'sha256-${createHash('sha256').update(m[1]).digest('base64')}'`)
       const policy = [
         "default-src 'self'",
-        `script-src 'self' ${hashes.join(' ')} https://cdnjs.cloudflare.com https://challenges.cloudflare.com 'wasm-unsafe-eval'`,
+        `script-src 'self' ${hashes.join(' ')} https://challenges.cloudflare.com 'wasm-unsafe-eval'`,
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' data: https://fonts.gstatic.com",
         "img-src 'self' data: blob: https:",

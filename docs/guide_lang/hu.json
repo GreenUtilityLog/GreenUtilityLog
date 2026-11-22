@@ -135,7 +135,7 @@
    "Ez letölti a szkriptet, és elküldi az első mérőállásodat. Ütemezi is magát, hogy naponta kétszer jelentsen (Windows: Feladatütemező · Mac / Linux / Pi: cron), így utána bezárhatod az ablakot, és tovább működik, újraindítás után is. Csak most az egyszer kell futtatnod. <strong>Mac:</strong> egy frissen megnyitott Terminalba illeszd be, a saját mappádban — előtte ne lépj be <span class=\"k\">cd</span>-vel az Íróasztal, Dokumentumok vagy Letöltések mappába: a macOS nem engedi, hogy az ütemezés (cron) ott fájlokat olvasson, így soha nem futna le.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install"
    ],
    [
@@ -165,7 +165,7 @@
    "A példacím helyére a sajátodat írd; a tokent magától kéri. Ha nem találja meg automatikusan a mérőállást, add hozzá a <span class=\"k\">--field=</span> kapcsolót a JSON-ban lévő kWh-értékhez vezető, pontokkal tagolt útvonallal. Csak két tarifaregiszter van, és nincs összesített érték (például a P1 Monitornál)? Kapcsold össze a két útvonalat <span class=\"k\">+</span> jellel, és az összegüket küldi, pl. <span class=\"k\">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install --url=http://192.168.1.60/api/v1/data"
    ],
    [
@@ -178,7 +178,7 @@
    "A <span class=\"k\">--url=</span> helyett használd a <span class=\"k\">--tasmota=</span> kapcsolót az IP-címével. A szkript magától kiolvassa a mérő összesített állását (<span class=\"k\">Total_in</span>). Német, osztrák és svájci mérőkön gyakori.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --tasmota=192.168.1.70 --install"
    ],
    [
@@ -461,7 +461,7 @@
    "A <span class=\"k\">YOUR_POWERFOX_EMAIL</span> helyére írd a Powerfox-fiókod e-mail-címét. Egyszer elkéri a tokenedet és a Powerfox-jelszavadat (a jelszó gépelés közben nem látszik), és mindkettőt egy privát fájlban tárolja a gul.js mellett. Ezután ütemezi magát, pont úgy, mint a B útvonalon. A számítógépnek legalább naponta egyszer be kell lennie kapcsolva.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install"
    ],
    [

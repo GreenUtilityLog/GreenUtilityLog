@@ -135,7 +135,7 @@
    "Den henter hjælpeprogrammet og sender din første aflæsning. Den planlægger også sig selv til at melde ind to gange om dagen (Windows: Opgavestyring · Mac / Linux / Pi: cron), så du kan lukke vinduet bagefter, og det bliver ved med at virke, også efter en genstart. Det er den eneste gang, du kører det. <strong>Mac:</strong> indsæt den i en nyåbnet Terminal, i din hjemmemappe — gå ikke først med <span class=\"k\">cd</span> ind i Skrivebord, Dokumenter eller Overførsler: macOS lader ikke planen (cron) læse filer der, så den ville aldrig køre.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install"
    ],
    [
@@ -165,7 +165,7 @@
    "Skriv din egen adresse i stedet for eksemplets; den spørger selv efter dit token. Hvis aflæsningen ikke findes automatisk, så tilføj <span class=\"k\">--field=</span> med punktstien til kWh-værdien i den JSON. Kun to tarif-tælleværker og ingen total (som fx P1 Monitor)? Sæt begge stier sammen med <span class=\"k\">+</span>, så sender den summen, fx <span class=\"k\">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install --url=http://192.168.1.60/api/v1/data"
    ],
    [
@@ -178,7 +178,7 @@
    "Brug <span class=\"k\">--tasmota=</span> med dets IP i stedet for <span class=\"k\">--url=</span>. Hjælpeprogrammet aflæser selv målerens total (<span class=\"k\">Total_in</span>). Udbredt på tyske, østrigske og schweiziske målere.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --tasmota=192.168.1.70 --install"
    ],
    [
@@ -461,7 +461,7 @@
    "Skriv e-mailen til din Powerfox-konto i stedet for <span class=\"k\">YOUR_POWERFOX_EMAIL</span>. Den spørger én gang efter dit token og din Powerfox-adgangskode (adgangskoden vises ikke, mens du skriver) og gemmer begge i en privat fil ved siden af gul.js. Derefter planlægger den sig selv, ligesom i vej B. Computeren skal være tændt mindst én gang om dagen.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install"
    ],
    [

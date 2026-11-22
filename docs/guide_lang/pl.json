@@ -134,7 +134,7 @@
    "Pobiera skrypt i wysyła twój pierwszy odczyt. Do tego sam ustawia się w harmonogramie, żeby wysyłać odczyty dwa razy dziennie (Windows: Harmonogram zadań · Mac / Linux / Pi: cron), więc potem możesz zamknąć okno, a wszystko działa dalej, nawet po restarcie. Uruchamiasz go tylko ten jeden raz. <strong>Mac:</strong> wklej go w świeżo otwartym Terminalu, w folderze domowym — nie przechodź wcześniej przez <span class=\"k\">cd</span> do Biurka, Dokumentów ani Pobranych: macOS nie pozwala harmonogramowi (cron) czytać tam plików, więc skrypt nigdy by się nie uruchomił.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install"
    ],
    [
@@ -164,7 +164,7 @@
    "Wstaw własny adres w miejsce przykładowego; o token skrypt zapyta sam. Jeśli odczyt nie zostanie znaleziony automatycznie, dodaj <span class=\"k\">--field=</span> ze ścieżką (z kropkami) do wartości kWh w tym JSON-ie. Tylko dwa rejestry taryf i brak sumy (tak jest np. w P1 Monitor)? Połącz obie ścieżki znakiem <span class=\"k\">+</span>, a skrypt wyśle ich sumę, np. <span class=\"k\">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install --url=http://192.168.1.60/api/v1/data"
    ],
    [
@@ -177,7 +177,7 @@
    "Użyj <span class=\"k\">--tasmota=</span> z jej adresem IP zamiast <span class=\"k\">--url=</span>. Skrypt sam odczyta stan licznika (<span class=\"k\">Total_in</span>). Popularne przy licznikach w Niemczech, Austrii i Szwajcarii.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --tasmota=192.168.1.70 --install"
    ],
    [
@@ -460,7 +460,7 @@
    "Wstaw e-mail swojego konta Powerfox w miejsce <span class=\"k\">YOUR_POWERFOX_EMAIL</span>. Skrypt raz zapyta o token i hasło Powerfox (hasło nie jest widoczne podczas wpisywania) i zapisze oba w prywatnym pliku obok gul.js. Potem sam ustawi się w harmonogramie, tak jak w drodze B. Komputer musi być włączony przynajmniej raz dziennie.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install"
    ],
    [

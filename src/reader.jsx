@@ -772,7 +772,7 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
                     // time — `VAR=x cmd` and `&&` are bash, and PowerShell answers "The term
                     // 'GUL_TOKEN=…' is not recognized" rather than doing anything useful.
                     const fetchCmd = (args) => os === "win"
-                      ? `iwr ${BRIDGE_JS_URL} -OutFile gul.js; node gul.js ${args}`
+                      ? `iwr -UseBasicParsing ${BRIDGE_JS_URL} -OutFile gul.js; node gul.js ${args}`
                       : `curl -fsSL ${BRIDGE_JS_URL} -o gul.js && node gul.js ${args}`;
                     // The one thing still needed beforehand is Node. Named right here,
                     // as a # comment (a comment in both shells, so pasting the whole

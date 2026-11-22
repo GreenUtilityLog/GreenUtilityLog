@@ -138,6 +138,7 @@ Render → `greenutilitylog-rewards`:
 | `WALLET_CHECK` | niet invullen (= `base`): wallets die uit dezelfde bron gevuld zijn of door VeBetterDAO gesignaleerd, krijgen alleen het basisbedrag en komen bij de meldingen. `flag` = alleen melden |
 | `POWERFOX_SECRET` | **laten staan, niet veranderen**: de overgenomen Powerfox-, Tibber- en MojElektro-koppelingen zijn ermee versleuteld. Een andere waarde = die koppelingen werken niet meer |
 | `REQUIRE_PASS`, `TESTNET_*` en andere testinstellingen | weghalen als ze er staan |
+| `NODE_URL`, `DELEGATION_URL` | weghalen als ze naar een **testnet**-node of -sponsor wijzen (anders standaard mainnet). Een testnet-`NODE_URL` laat de mainnet-server weigeren te starten (verkeerde chain) |
 
 **Bewust geaccepteerd risico — automatische standen:** een automatische meter (gul.js,
 Home Assistant, Powerfox, Tibber) kan een tijd te weinig verbruik doorgeven en dat later in

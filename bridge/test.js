@@ -32,7 +32,7 @@ function forgetLast() {
   const { readdirSync, writeFileSync } = require("node:fs");
   for (const f of readdirSync(dir)) {
     if (!/^\.gul-bridge.*\.json$/.test(f)) continue;
-    try { const c = JSON.parse(readFileSync(join(dir, f), "utf8")); if ("lastReading" in c) { delete c.lastReading; writeFileSync(join(dir, f), JSON.stringify(c)); } } catch {}
+    try { const c = JSON.parse(readFileSync(join(dir, f), "utf8")); if ("lastReading" in c || "prevReading" in c) { delete c.lastReading; delete c.prevReading; writeFileSync(join(dir, f), JSON.stringify(c)); } } catch {}
   }
 }
 function run(args, env = {}, { keepLast = false } = {}) {
@@ -127,7 +127,7 @@ test("--install on Mac/Linux adds one cron line, keeps the rest, and --uninstall
   let tab = readFileSync(cronFile, "utf8");
   assert.match(tab, /MAILTO=me\n5 4 \* \* \* \/usr\/bin\/backup\n/, "the user's own lines stay");
   assert.equal((tab.match(/# GreenUtilityLog/g) || []).length, 1);
-  assert.match(tab, /^0 \* \* \* \* .* --once --due '--ingest=/m, "hourly, pushing only when due, to the same server");
+  assert.match(tab, /^[0-5]?[0-9] \* \* \* \* .* --once --due '--ingest=/m, "hourly, pushing only when due, to the same server");
   assert.doesNotMatch(tab, /--ip=/, "where to read is in the settings file, not the cron line");
   const cfg = JSON.parse(readFileSync(join(dir, ".gul-bridge-127.json"), "utf8"));
   assert.equal(cfg.read.ip, `127.0.0.1:${reader.address().port}`);
@@ -518,7 +518,7 @@ function sandbox(name) {
     // \% turned back into %, and none of this shell's GUL_*/HW_IP variables.
     runCron: () => {
       const line = readFileSync(cronFile, "utf8").split("\n").find((l) => /# GreenUtilityLog/.test(l));
-      const cmd = line.replace(/^0 \* \* \* \* /, "").replace(/ >\/dev\/null 2>&1 # GreenUtilityLog.*$/, "").replace(/\\%/g, "%");
+      const cmd = line.replace(/^[0-5]?[0-9] \* \* \* \* /, "").replace(/ >\/dev\/null 2>&1 # GreenUtilityLog.*$/, "").replace(/\\%/g, "%");
       return exec("sh", ["-c", cmd]);
     },
   };
@@ -625,6 +625,31 @@ test("--ip with http:// and a path pasted in still reads the meter", async () =>
   } finally { homewizard.close(); be.srv.close(); }
 });
 
+// One misread telegram (ten times the real total) used to be remembered as the last
+// total sent, and every real reading after it was refused — for good.
+async function sequence(values) {
+  let n = 0;
+  const reader = await fake((req, res) => { res.setHeader("content-type", "application/json"); res.end(JSON.stringify({ total_power_import_kwh: values[n++] })); });
+  const got = [];
+  const backend = await fake((req, res) => { let b = ""; req.on("data", (c) => (b += c)); req.on("end", () => { got.push(JSON.parse(b).reading); res.end("{}"); }); });
+  const flags = ["--token=t-seq", "--once", `--ip=127.0.0.1:${reader.address().port}`, `--ingest=http://127.0.0.1:${backend.address().port}/meter-ingest`];
+  const outs = [];
+  forgetLast();
+  for (let i = 0; i < values.length; i++) outs.push(await run(flags, {}, { keepLast: true }));
+  reader.close(); backend.close();
+  return { got, outs };
+}
+test("a single misread total doesn't silence the bridge: the next real one goes through", async () => {
+  const { got, outs } = await sequence([8421.3, 84213, 8421.9, 8422.4]);
+  assert.deepEqual(got, [8421.3, 84213, 8421.9, 8422.4]);
+  assert.match(outs[2].out, /84213 kWh sent last time looks misread/);
+});
+test("a new meter (lower than both totals before it) is still refused without --forget-last", async () => {
+  const { got, outs } = await sequence([1000, 1001, 5]);
+  assert.deepEqual(got, [1000, 1001]);
+  assert.match(outs[2].out, /lower than the 1001 kWh sent last time/);
+});
+
 test("GUL_FORGET_LAST=1 lets a new meter's lower total through, like --forget-last", async () => {
   const sb = sandbox("forget");
   let total = 5000.5;
@@ -677,4 +702,20 @@ test("one tariff register alone is no reading: nothing is pushed", async () => {
   reader.close(); backend.close();
   assert.notEqual(r.code, 0, r.out);
   assert.equal(pushed, false, "half the total must not reach the server");
+});
+
+test("the log is readable by its owner only, and an address's user:password is blanked", async () => {
+  if (process.platform === "win32") return;
+  const { statSync } = require("node:fs");
+  const reader = await fake(hw);
+  const backend = await fake((req, res) => res.end("{}"));
+  const r = await run(["--token=t-log", "--once", `--url=http://me:secretpw@127.0.0.1:${reader.address().port}/api/v1/data`, `--ingest=http://127.0.0.1:${backend.address().port}/meter-ingest`]);
+  reader.close(); backend.close();
+  assert.equal(r.code, 0, r.out);
+  assert.doesNotMatch(r.out, /secretpw/);
+  const logs = require("node:fs").readdirSync(dir).filter((f) => /^\.gul-bridge.*\.log$/.test(f));
+  for (const f of logs) {
+    assert.equal(statSync(join(dir, f)).mode & 0o077, 0, `${f} is private`);
+    assert.doesNotMatch(readFileSync(join(dir, f), "utf8"), /secretpw/, `${f} has no password`);
+  }
 });

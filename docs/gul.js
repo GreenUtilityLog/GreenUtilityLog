@@ -48,7 +48,7 @@ const https = require("node:https");
 // Sent with every request as the User-Agent, so the server can tell which bridge
 // versions are still out there. The Home Assistant add-on carries the same number
 // (ha-addon/gul-bridge/config.yaml); CI checks they match.
-const BRIDGE_VERSION = "1.5.5";
+const BRIDGE_VERSION = "1.5.6";
 const USER_AGENT = `GreenUtilityLog-bridge/${BRIDGE_VERSION} (node ${process.versions.node}; ${process.platform})`;
 // No meter, reader or server answer is anywhere near this. A device or proxy that
 // streams without end used to fill the bridge's memory.
@@ -298,14 +298,18 @@ async function ensurePowerfox() {
 // doesn't arrive. Kept small: rotated to .old at 256 KB. A read-only folder
 // (Docker) just means no log file, never a failure.
 const LOG_FILE = join(HERE, `.gul-bridge${SUFFIX}.log`);
+// Readable by this user only (it names the Powerfox account and the reader's
+// address), and a "user:password@" inside a logged address is blanked out.
+const noUserinfo = (t) => String(t).replace(/(\b[a-z][a-z0-9+.-]*:\/\/)[^/\s@]+@/gi, "$1***@");
 function toFile(line) {
   try {
     try { if (statSync(LOG_FILE).size > 256 * 1024) renameSync(LOG_FILE, LOG_FILE + ".old"); } catch {}
-    appendFileSync(LOG_FILE, line + "\n");
+    appendFileSync(LOG_FILE, noUserinfo(line) + "\n", { mode: 0o600 });
+    if (process.platform !== "win32") { try { if ((statSync(LOG_FILE).mode & 0o077) !== 0) chmodSync(LOG_FILE, 0o600); } catch {} }
   } catch {}
 }
 const log = (...a) => {
-  const line = [new Date().toISOString(), ...a].join(" ");
+  const line = noUserinfo([new Date().toISOString(), ...a].join(" "));
   console.log(line);
   toFile(line);
 };
@@ -571,21 +575,33 @@ async function cycle() {
       log(`the reader gave ${reading} — not a meter total, nothing sent`); return false;
     }
     if (forgetLast) {
-      saveConfig({ lastReading: null });
+      saveConfig({ lastReading: null, prevReading: null });
       forgetLast = false;
       log("forgot the total sent last time (forget-last) — this reading counts as the new starting point");
     }
-    const prevSent = Number(readSaved().lastReading);
+    const saved = readSaved();
+    const prevSent = Number(saved.lastReading);
+    // The one sent before that: tells a misread total from a new meter. A single bad
+    // telegram (ten times the real total, say) used to be remembered as the "last"
+    // and every real reading after it refused, for good.
+    const beforeThat = Number(saved.prevReading);
+    let next = { lastReading: reading, prevReading: Number.isFinite(prevSent) && prevSent > 0 ? prevSent : null };
     if (Number.isFinite(prevSent) && prevSent > 0 && reading < prevSent - 0.001) {
-      log(`the reader gave ${reading} kWh, lower than the ${prevSent} kWh sent last time — a meter never goes down, so nothing was sent. A new meter? Run once with --forget-last (Home Assistant add-on: switch on forget_last and restart it).`);
-      return false;
+      if (Number.isFinite(beforeThat) && beforeThat > 0 && reading >= beforeThat - 0.001) {
+        // Between the two: the last one was the odd one out.
+        log(`the ${prevSent} kWh sent last time looks misread: ${reading} kWh follows on from the ${beforeThat} kWh before it — sending this one`);
+        next = { lastReading: reading, prevReading: beforeThat };
+      } else {
+        log(`the reader gave ${reading} kWh, lower than the ${prevSent} kWh sent last time — a meter never goes down, so nothing was sent. A new meter? Run once with --forget-last (Home Assistant add-on: switch on forget_last and restart it).`);
+        return false;
+      }
     }
     const body = await push(reading);
     // The server says when a reading can next be paid (its cooldown). --due then
     // pushes at that hour instead of up to 11 hours later.
     let nextAt = null;
     try { const n = Number(JSON.parse(body || "{}").nextAt); if (Number.isFinite(n) && n > 0) nextAt = n; } catch {}
-    saveConfig({ lastPushAt: Date.now(), nextAt, lastReading: reading });
+    saveConfig({ lastPushAt: Date.now(), nextAt, ...next });
     log(`pushed ${reading} kWh ✓${split}`);
     return true;
   } catch (e) {
@@ -685,6 +701,11 @@ function warnVersionedNode(nodePath) {
   if (/[\/]\.nvm[\/]versions[\/]|[\/]snap[\/]node[\/]\d/.test(nodePath)) {
     log(`NOTE: cron will run ${nodePath}, a node that an nvm/snap upgrade removes. After upgrading Node, run --install again (or install Node from nodejs.org).`);
   }
+  // fnm's per-shell directory is removed when that shell's session is cleaned up:
+  // the scheduled job would then find no node at all.
+  if (/fnm_multishells|[\/]fnm[\/]node-versions[\/]/.test(nodePath)) {
+    log(`NOTE: cron will run ${nodePath}, a node managed by fnm that can disappear. Install Node from nodejs.org (or point cron at a fixed node) and run --install again.`);
+  }
 }
 // macOS doesn't let cron read files in Desktop, Documents or Downloads (privacy
 // protection): every scheduled run then fails with "Operation not permitted", and
@@ -718,7 +739,10 @@ function manageCron(action) {
   // input, so --url=…/cm?cmnd=Status%2010 would arrive cut off at the %. Escaped as
   // \% here only: cron takes the backslash out again, and the Windows task has no
   // such rule.
-  const line = `0 * * * * ${cmd.replace(/%/g, "\\%")} >/dev/null 2>&1 ${CRON_MARK}`;
+  // A minute of its own (picked at install), not :00 — every install pushing at the
+  // same moment met a server still waking up, and got 503s and retries.
+  const minute = Math.floor(Math.random() * 60);
+  const line = `${minute} * * * * ${cmd.replace(/%/g, "\\%")} >/dev/null 2>&1 ${CRON_MARK}`;
   const manual = () => {
     log(`Add it yourself: run  crontab -e  and paste this line:\n  ${line}`);
     return 1;

@@ -135,7 +135,7 @@
    "Yardımcı programı indirir ve ilk okumanı gönderir. Ayrıca kendini günde iki kez gönderim yapacak şekilde zamanlar (Windows: Görev Zamanlayıcı · Mac / Linux / Pi: cron); böylece pencereyi daha sonra kapatabilirsin, yeniden başlatmadan sonra bile çalışmaya devam eder. Bunu yalnızca bir kez çalıştırırsın. <strong>Mac:</strong> yeni açılmış bir Terminal'e, ana klasöründeyken yapıştır — önce <span class=\"k\">cd</span> ile Masaüstü, Belgeler veya İndirilenler'e geçme: macOS zamanlamanın (cron) oradaki dosyaları okumasına izin vermez, bu yüzden hiç çalışmaz.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install"
    ],
    [
@@ -165,7 +165,7 @@
    "Örnek adresin yerine kendi adresini yaz; token'ını kendisi sorar. Okuma otomatik bulunamazsa, o JSON'daki kWh değerine giden noktalı yolla birlikte <span class=\"k\">--field=</span> ekle. Toplam yok da yalnızca iki tarife değeri mi var (örneğin P1 Monitor'da)? İki yolu <span class=\"k\">+</span> ile birleştir, toplamlarını gönderir; örn. <span class=\"k\">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install --url=http://192.168.1.60/api/v1/data"
    ],
    [
@@ -178,7 +178,7 @@
    "<span class=\"k\">--url=</span> yerine IP adresiyle birlikte <span class=\"k\">--tasmota=</span> kullan. Yardımcı program sayaç toplamını (<span class=\"k\">Total_in</span>) kendisi okur. Almanya, Avusturya ve İsviçre'deki sayaçlarda yaygındır.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --tasmota=192.168.1.70 --install"
    ],
    [
@@ -461,7 +461,7 @@
    "<span class=\"k\">YOUR_POWERFOX_EMAIL</span> yerine Powerfox hesabının e-posta adresini yaz. Token'ını ve Powerfox şifreni bir kez sorar (şifre yazarken görünmez) ve ikisini de gul.js'in yanındaki gizli bir dosyada saklar. Ardından tıpkı Yol B'deki gibi kendini zamanlar. Bilgisayarın günde en az bir kez açık olması gerekir.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install"
    ],
    [

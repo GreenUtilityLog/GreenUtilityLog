@@ -134,7 +134,7 @@
    "Stáhne skript a odešle tvůj první stav. Navíc se sám naplánuje, aby stav hlásil dvakrát denně (Windows: Plánovač úloh · Mac / Linux / Pi: cron), takže pak můžeš okno zavřít a dál to poběží, i po restartu. Spouštíš ho jen tentokrát. <strong>Mac:</strong> vlož ho do čerstvě otevřeného Terminalu, v domovské složce — nepřecházej předtím pomocí <span class=\"k\">cd</span> do Plochy, Dokumentů ani Stažených souborů: macOS tam plánovači (cron) nedovolí číst soubory, takže by se nikdy nespustil.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install"
    ],
    [
@@ -164,7 +164,7 @@
    "Místo ukázkové adresy dej svou vlastní; o token si skript řekne sám. Pokud se stav nenajde automaticky, přidej <span class=\"k\">--field=</span> s cestou (oddělenou tečkami) k hodnotě kWh v tom JSONu. Jen dva tarifní registry a žádný součet (třeba u P1 Monitor)? Spoj obě cesty znakem <span class=\"k\">+</span> a skript pošle jejich součet, např. <span class=\"k\">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install --url=http://192.168.1.60/api/v1/data"
    ],
    [
@@ -177,7 +177,7 @@
    "Použij <span class=\"k\">--tasmota=</span> s její IP adresou místo <span class=\"k\">--url=</span>. Skript si celkový stav elektroměru (<span class=\"k\">Total_in</span>) přečte sám. Běžné u elektroměrů v Německu, Rakousku a Švýcarsku.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --tasmota=192.168.1.70 --install"
    ],
    [
@@ -460,7 +460,7 @@
    "Místo <span class=\"k\">YOUR_POWERFOX_EMAIL</span> dej e-mail svého účtu Powerfox. Skript se jednou zeptá na tvůj token a heslo k Powerfox (heslo se při psaní nezobrazuje) a obojí uloží do soukromého souboru vedle gul.js. Pak se sám naplánuje, stejně jako u cesty B. Počítač musí být zapnutý aspoň jednou denně.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install"
    ],
    [

@@ -313,7 +313,7 @@
       </li>
       <li><p class="steptitle">Paste one line, press Enter</p>
       <p>It downloads the helper and sends your first reading. It also schedules itself to report twice a day (Windows: Task Scheduler · Mac / Linux / Pi: cron), so you can close the window afterwards and it keeps working, even after a restart. This is the only time you run it. <strong>Mac:</strong> paste it in a freshly opened Terminal, in your home folder — don’t <span class="k">cd</span> into Desktop, Documents or Downloads first: macOS doesn’t let the schedule (cron) read files there, so it would never run.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copy</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copy</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copy</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
       <li><p class="steptitle">Paste your token when it asks</p>
@@ -329,12 +329,12 @@
       </li>
       <li><p class="steptitle">Start the helper with that URL</p>
       <p>Put your own address in place of the example one; it asks for your token itself. If the reading isn't found automatically, add <span class="k">--field=</span> with the dot-path to the kWh value in that JSON. Only two tariff registers and no total (P1 Monitor, for one)? Join both paths with <span class="k">+</span> and it sends their sum, e.g. <span class="k">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copy</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copy</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copy</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">A Tasmota reading head (Hichi)?</p>
       <p>Use <span class="k">--tasmota=</span> with its IP instead of <span class="k">--url=</span>. The helper reads the meter total (<span class="k">Total_in</span>) by itself. Common on German, Austrian and Swiss meters.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copy</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copy</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copy</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
       <li><p class="steptitle">Check it worked</p>
@@ -365,7 +365,7 @@
       </li>
       <li><p class="steptitle">Paste one line, with your Powerfox e-mail</p>
       <p>Put the e-mail of your Powerfox account in place of <span class="k">YOUR_POWERFOX_EMAIL</span>. It asks for your token and your Powerfox password once (the password is not shown as you type) and keeps both in a private file next to gul.js. Then it schedules itself, just like Route B. The computer has to be on at least once a day.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copy</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copy</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copy</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       </li>
       <li><p class="steptitle">Check it worked</p>
@@ -547,7 +547,7 @@
       </li>
       <li><p class="steptitle">Plak één regel, druk op Enter</p>
       <p>Die haalt de helper op en stuurt meteen je eerste stand. Hij plant zichzelf ook in om twee keer per dag te rapporteren (Windows: Taakplanner · Mac / Linux / Pi: cron), dus je kunt het venster daarna gewoon sluiten — ook na een herstart blijft hij werken. Dit hoef je maar één keer te doen. <strong>Mac:</strong> plak hem in een net geopende Terminal, in je thuismap — ga niet eerst met <span class="k">cd</span> naar Bureaublad, Documenten of Downloads: macOS laat de planning (cron) daar geen bestanden lezen, en dan draait hij nooit.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieer</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieer</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieer</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
       <li><p class="steptitle">Plak je token als hij erom vraagt</p>
@@ -563,12 +563,12 @@
       </li>
       <li><p class="steptitle">Start het hulpprogramma met die URL</p>
       <p>Zet je eigen adres op de plek van het voorbeeld; om je token vraagt hij zelf. Wordt de stand niet automatisch gevonden, zet er dan <span class="k">--field=</span> bij met het pad naar de kWh-waarde in die JSON. Alleen twee tariefstanden en geen totaal (zoals bij P1 Monitor)? Zet beide paden aan elkaar met <span class="k">+</span>, dan stuurt hij de som, bijvoorbeeld <span class="k">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieer</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieer</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieer</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">Een Tasmota-leeskop (Hichi)?</p>
       <p>Gebruik <span class="k">--tasmota=</span> met het IP-adres in plaats van <span class="k">--url=</span>. Het hulpprogramma leest de meterstand (<span class="k">Total_in</span>) zelf. Veel gebruikt op Duitse, Oostenrijkse en Zwitserse meters.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieer</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieer</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieer</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
       <li><p class="steptitle">Controleer of het werkte</p>
@@ -599,7 +599,7 @@
       </li>
       <li><p class="steptitle">Plak één regel, met je Powerfox-e-mailadres</p>
       <p>Zet het e-mailadres van je Powerfox-account op de plek van <span class="k">YOUR_POWERFOX_EMAIL</span>. Hij vraagt één keer om je token en je Powerfox-wachtwoord (het wachtwoord zie je niet terwijl je typt) en bewaart ze in een privébestand naast gul.js. Daarna plant hij zichzelf in, net als bij Route B. De computer moet minstens één keer per dag aan staan.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieer</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieer</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieer</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       </li>
       <li><p class="steptitle">Controleren of het werkt</p>
@@ -781,7 +781,7 @@
       </li>
       <li><p class="steptitle">Eine Zeile einfügen, Enter drücken</p>
       <p>Sie lädt das Hilfsprogramm und sendet sofort deinen ersten Stand. Es plant sich außerdem selbst, zweimal täglich zu melden (Windows: Aufgabenplanung · Mac / Linux / Pi: cron) — du kannst das Fenster danach schließen, auch nach einem Neustart läuft es weiter. Das machst du nur ein einziges Mal. <strong>Mac:</strong> in einem frisch geöffneten Terminal einfügen, in deinem Benutzerordner — nicht vorher mit <span class="k">cd</span> in Schreibtisch, Dokumente oder Downloads wechseln: macOS lässt die Planung (cron) dort keine Dateien lesen, dann läuft sie nie.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieren</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieren</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieren</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
       <li><p class="steptitle">Token einfügen, wenn er danach fragt</p>
@@ -797,12 +797,12 @@
       </li>
       <li><p class="steptitle">Hilfsprogramm mit dieser URL starten</p>
       <p>Setz deine eigene Adresse anstelle der Beispiel-URL; nach dem Token fragt es selbst. Wird der Stand nicht automatisch gefunden, ergänze <span class="k">--field=</span> mit dem Pfad zum kWh-Wert in diesem JSON. Nur zwei Tarifregister und keine Summe (etwa bei P1 Monitor)? Verbinde beide Pfade mit <span class="k">+</span>, dann sendet es die Summe, z. B. <span class="k">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieren</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieren</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieren</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">Ein Tasmota-Lesekopf (Hichi)?</p>
       <p>Nimm <span class="k">--tasmota=</span> mit seiner IP statt <span class="k">--url=</span>. Das Hilfsprogramm liest den Zählerstand (<span class="k">Total_in</span>) selbst. Verbreitet an deutschen, österreichischen und Schweizer Zählern.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieren</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieren</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieren</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
       <li><p class="steptitle">Prüfen, ob es klappte</p>
@@ -833,7 +833,7 @@
       </li>
       <li><p class="steptitle">Eine Zeile einfügen, mit deiner Powerfox-E-Mail</p>
       <p>Ersetze <span class="k">YOUR_POWERFOX_EMAIL</span> durch die E-Mail-Adresse deines Powerfox-Kontos. Es fragt einmal nach deinem Token und deinem Powerfox-Passwort (das Passwort wird beim Tippen nicht angezeigt) und speichert beides in einer privaten Datei neben gul.js. Danach plant es sich selbst ein, genau wie bei Route B. Der Computer muss mindestens einmal am Tag an sein.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieren</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopieren</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopieren</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       </li>
       <li><p class="steptitle">Prüfen, ob es klappt</p>
@@ -1015,7 +1015,7 @@
       </li>
       <li><p class="steptitle">Collez une ligne, appuyez sur Entrée</p>
       <p>Elle télécharge l’utilitaire et envoie tout de suite votre premier relevé. Il se planifie aussi pour envoyer deux fois par jour (Windows : Planificateur de tâches · Mac / Linux / Pi : cron) — vous pouvez fermer la fenêtre ensuite, même après un redémarrage il continue. Vous ne le faites qu’une seule fois. <strong>Mac :</strong> collez-la dans un Terminal tout juste ouvert, dans votre dossier personnel — sans <span class="k">cd</span> vers Bureau, Documents ou Téléchargements : macOS ne laisse pas la planification (cron) y lire des fichiers, et elle ne tournerait jamais.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copier</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copier</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copier</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
       <li><p class="steptitle">Collez votre jeton quand il le demande</p>
@@ -1031,12 +1031,12 @@
       </li>
       <li><p class="steptitle">Lancez l'utilitaire avec cette URL</p>
       <p>Mettez votre propre adresse à la place de l'exemple ; il demande votre jeton lui-même. Si le relevé n'est pas trouvé automatiquement, ajoutez <span class="k">--field=</span> avec le chemin vers la valeur kWh dans ce JSON. Seulement deux registres tarifaires et pas de total (P1 Monitor, par exemple) ? Reliez les deux chemins par <span class="k">+</span> et il envoie leur somme, p. ex. <span class="k">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copier</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copier</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copier</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">Une tête de lecture Tasmota (Hichi) ?</p>
       <p>Utilisez <span class="k">--tasmota=</span> avec son IP au lieu de <span class="k">--url=</span>. L'utilitaire lit le total du compteur (<span class="k">Total_in</span>) tout seul. Courant sur les compteurs allemands, autrichiens et suisses.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copier</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copier</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copier</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
       <li><p class="steptitle">Vérifiez que ça a marché</p>
@@ -1067,7 +1067,7 @@
       </li>
       <li><p class="steptitle">Collez une ligne, avec votre e-mail Powerfox</p>
       <p>Remplacez <span class="k">YOUR_POWERFOX_EMAIL</span> par l'e-mail de votre compte Powerfox. Il demande une fois votre jeton et votre mot de passe Powerfox (le mot de passe ne s'affiche pas pendant la saisie) et les garde dans un fichier privé à côté de gul.js. Ensuite il se planifie tout seul, comme pour la Route B. L'ordinateur doit être allumé au moins une fois par jour.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copier</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copier</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copier</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       </li>
       <li><p class="steptitle">Vérifier</p>
@@ -1249,7 +1249,7 @@
       </li>
       <li><p class="steptitle">Pega una línea y pulsa Enter</p>
       <p>Descarga el programa y envía tu primera lectura al momento. Además se programa para enviar dos veces al día (Windows: Programador de tareas · Mac / Linux / Pi: cron), así que puedes cerrar la ventana después — sigue funcionando incluso tras reiniciar. Solo tienes que hacerlo una vez. <strong>Mac:</strong> pégala en un Terminal recién abierto, en tu carpeta de inicio — sin hacer antes <span class="k">cd</span> a Escritorio, Documentos o Descargas: macOS no deja que la programación (cron) lea archivos allí, y nunca se ejecutaría.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiar</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
       <li><p class="steptitle">Pega tu token cuando lo pida</p>
@@ -1265,12 +1265,12 @@
       </li>
       <li><p class="steptitle">Inicia el programa con esa URL</p>
       <p>Pon tu propia dirección en lugar del ejemplo; el token te lo pide él mismo. Si la lectura no se encuentra automáticamente, añade <span class="k">--field=</span> con la ruta al valor kWh en ese JSON. ¿Solo dos registros de tarifa y ningún total (como P1 Monitor)? Une ambas rutas con <span class="k">+</span> y envía su suma, p. ej. <span class="k">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiar</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">¿Un cabezal de lectura Tasmota (Hichi)?</p>
       <p>Usa <span class="k">--tasmota=</span> con su IP en lugar de <span class="k">--url=</span>. El programa lee el total del contador (<span class="k">Total_in</span>) solo. Habitual en contadores alemanes, austriacos y suizos.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiar</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
       <li><p class="steptitle">Comprueba que funcionó</p>
@@ -1301,7 +1301,7 @@
       </li>
       <li><p class="steptitle">Pega una línea, con tu correo de Powerfox</p>
       <p>Cambia <span class="k">YOUR_POWERFOX_EMAIL</span> por el correo de tu cuenta de Powerfox. Te pide una vez tu token y tu contraseña de Powerfox (la contraseña no se ve al escribir) y los guarda en un archivo privado junto a gul.js. Después se programa solo, igual que en la Ruta B. El ordenador tiene que encenderse al menos una vez al día.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiar</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       </li>
       <li><p class="steptitle">Comprueba que funciona</p>
@@ -1483,7 +1483,7 @@
       </li>
       <li><p class="steptitle">Incolla una riga e premi Invio</p>
       <p>Scarica il programma di supporto e invia la tua prima lettura. Si pianifica anche da solo per inviare due volte al giorno (Windows: Utilità di pianificazione · Mac / Linux / Pi: cron), quindi dopo puoi chiudere la finestra e continua a funzionare, anche dopo un riavvio. È l'unica volta che lo avvii tu. <strong>Mac:</strong> incollala in una finestra di Terminal appena aperta, nella tua cartella Inizio — non entrare prima con <span class="k">cd</span> in Scrivania, Documenti o Download: macOS non permette alla pianificazione (cron) di leggere file lì, e così non partirebbe mai.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copia</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copia</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copia</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
       <li><p class="steptitle">Incolla il tuo token quando te lo chiede</p>
@@ -1499,12 +1499,12 @@
       </li>
       <li><p class="steptitle">Avvia il programma con quell'URL</p>
       <p>Metti il tuo indirizzo al posto di quello d'esempio; il token te lo chiede lui. Se la lettura non viene trovata in automatico, aggiungi <span class="k">--field=</span> con il percorso a punti del valore in kWh in quel JSON. Solo due registri tariffari e nessun totale (come con P1 Monitor)? Unisci i due percorsi con <span class="k">+</span> e invierà la somma, ad es. <span class="k">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copia</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copia</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copia</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">Una testina di lettura Tasmota (Hichi)?</p>
       <p>Usa <span class="k">--tasmota=</span> con il suo IP al posto di <span class="k">--url=</span>. Il programma legge da solo il totale del contatore (<span class="k">Total_in</span>). Diffusa sui contatori tedeschi, austriaci e svizzeri.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copia</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copia</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copia</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
       <li><p class="steptitle">Controlla che funzioni</p>
@@ -1535,7 +1535,7 @@
       </li>
       <li><p class="steptitle">Incolla una riga, con la tua email Powerfox</p>
       <p>Metti l'email del tuo account Powerfox al posto di <span class="k">YOUR_POWERFOX_EMAIL</span>. Ti chiede una volta il token e la password di Powerfox (la password non si vede mentre scrivi) e li conserva entrambi in un file privato accanto a gul.js. Poi si pianifica da solo, proprio come nella Via B. Il computer deve essere acceso almeno una volta al giorno.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copia</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copia</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copia</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       </li>
       <li><p class="steptitle">Controlla che funzioni</p>
@@ -1717,7 +1717,7 @@
       </li>
       <li><p class="steptitle">Επικόλλησε μία γραμμή, πάτα Enter</p>
       <p>Κατεβάζει το βοηθητικό πρόγραμμα και στέλνει την πρώτη σου ένδειξη. Προγραμματίζει επίσης τον εαυτό του να στέλνει δύο φορές την ημέρα (Windows: Χρονοδιάγραμμα εργασιών · Mac / Linux / Pi: cron), οπότε μετά μπορείς να κλείσεις το παράθυρο και συνεχίζει να δουλεύει, ακόμη και μετά από επανεκκίνηση. Είναι η μόνη φορά που το εκτελείς. <strong>Mac:</strong> επικόλλησέ τη σε ένα Terminal που μόλις άνοιξες, στον αρχικό σου φάκελο — μην κάνεις πρώτα <span class="k">cd</span> στην Επιφάνεια εργασίας, στα Έγγραφα ή στις Λήψεις: το macOS δεν επιτρέπει στον προγραμματισμό (cron) να διαβάζει αρχεία εκεί, οπότε δεν θα έτρεχε ποτέ.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Αντιγραφή</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Αντιγραφή</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Αντιγραφή</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
       <li><p class="steptitle">Επικόλλησε το token σου όταν σου το ζητήσει</p>
@@ -1733,12 +1733,12 @@
       </li>
       <li><p class="steptitle">Ξεκίνα το βοηθητικό πρόγραμμα με αυτό το URL</p>
       <p>Βάλε τη δική σου διεύθυνση στη θέση του παραδείγματος· το token σου το ζητά μόνο του. Αν η ένδειξη δεν βρεθεί αυτόματα, πρόσθεσε <span class="k">--field=</span> με τη διαδρομή (με τελείες) προς την τιμή kWh σε εκείνο το JSON. Μόνο δύο ζώνες χρέωσης και κανένα σύνολο (όπως στο P1 Monitor); Ένωσε τις δύο διαδρομές με <span class="k">+</span> και θα στέλνει το άθροισμά τους, π.χ. <span class="k">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Αντιγραφή</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Αντιγραφή</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Αντιγραφή</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">Κεφαλή ανάγνωσης Tasmota (Hichi);</p>
       <p>Χρησιμοποίησε <span class="k">--tasmota=</span> με την IP της αντί για <span class="k">--url=</span>. Το βοηθητικό πρόγραμμα διαβάζει μόνο του το σύνολο του μετρητή (<span class="k">Total_in</span>). Συνηθισμένη σε μετρητές στη Γερμανία, την Αυστρία και την Ελβετία.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Αντιγραφή</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Αντιγραφή</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Αντιγραφή</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
       <li><p class="steptitle">Έλεγξε ότι δουλεύει</p>
@@ -1769,7 +1769,7 @@
       </li>
       <li><p class="steptitle">Επικόλλησε μία γραμμή, με το e-mail σου στο Powerfox</p>
       <p>Βάλε το e-mail του λογαριασμού σου στο Powerfox στη θέση του <span class="k">YOUR_POWERFOX_EMAIL</span>. Σου ζητά μία φορά το token και τον κωδικό του Powerfox (ο κωδικός δεν φαίνεται όσο πληκτρολογείς) και τα κρατά και τα δύο σε ένα ιδιωτικό αρχείο δίπλα στο gul.js. Μετά προγραμματίζει τον εαυτό του, όπως ακριβώς στη Διαδρομή B. Ο υπολογιστής πρέπει να είναι ανοιχτός τουλάχιστον μία φορά την ημέρα.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Αντιγραφή</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Αντιγραφή</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Αντιγραφή</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       </li>
       <li><p class="steptitle">Έλεγξε ότι δουλεύει</p>
@@ -1951,7 +1951,7 @@
       </li>
       <li><p class="steptitle">Tek bir satır yapıştır, Enter'a bas</p>
       <p>Yardımcı programı indirir ve ilk okumanı gönderir. Ayrıca kendini günde iki kez gönderim yapacak şekilde zamanlar (Windows: Görev Zamanlayıcı · Mac / Linux / Pi: cron); böylece pencereyi daha sonra kapatabilirsin, yeniden başlatmadan sonra bile çalışmaya devam eder. Bunu yalnızca bir kez çalıştırırsın. <strong>Mac:</strong> yeni açılmış bir Terminal'e, ana klasöründeyken yapıştır — önce <span class="k">cd</span> ile Masaüstü, Belgeler veya İndirilenler'e geçme: macOS zamanlamanın (cron) oradaki dosyaları okumasına izin vermez, bu yüzden hiç çalışmaz.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopyala</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopyala</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopyala</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
       <li><p class="steptitle">Sorduğunda token'ını yapıştır</p>
@@ -1967,12 +1967,12 @@
       </li>
       <li><p class="steptitle">Yardımcı programı bu URL ile başlat</p>
       <p>Örnek adresin yerine kendi adresini yaz; token'ını kendisi sorar. Okuma otomatik bulunamazsa, o JSON'daki kWh değerine giden noktalı yolla birlikte <span class="k">--field=</span> ekle. Toplam yok da yalnızca iki tarife değeri mi var (örneğin P1 Monitor'da)? İki yolu <span class="k">+</span> ile birleştir, toplamlarını gönderir; örn. <span class="k">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopyala</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopyala</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopyala</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">Tasmota okuma başlığı (Hichi) mı?</p>
       <p><span class="k">--url=</span> yerine IP adresiyle birlikte <span class="k">--tasmota=</span> kullan. Yardımcı program sayaç toplamını (<span class="k">Total_in</span>) kendisi okur. Almanya, Avusturya ve İsviçre'deki sayaçlarda yaygındır.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopyala</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopyala</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopyala</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
       <li><p class="steptitle">Çalıştığını kontrol et</p>
@@ -2003,7 +2003,7 @@
       </li>
       <li><p class="steptitle">Powerfox e-posta adresinle tek bir satır yapıştır</p>
       <p><span class="k">YOUR_POWERFOX_EMAIL</span> yerine Powerfox hesabının e-posta adresini yaz. Token'ını ve Powerfox şifreni bir kez sorar (şifre yazarken görünmez) ve ikisini de gul.js'in yanındaki gizli bir dosyada saklar. Ardından tıpkı Yol B'deki gibi kendini zamanlar. Bilgisayarın günde en az bir kez açık olması gerekir.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopyala</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopyala</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopyala</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       </li>
       <li><p class="steptitle">Çalıştığını kontrol et</p>
@@ -2185,7 +2185,7 @@
       </li>
       <li><p class="steptitle">Prilepi eno vrstico in pritisni Enter</p>
       <p>Prenese skripto in pošlje tvoj prvi odčitek. Poleg tega se sama nastavi, da poroča dvakrat na dan (Windows: Task Scheduler · Mac / Linux / Pi: cron), zato lahko okno nato zapreš in deluje naprej, tudi po ponovnem zagonu. To zaženeš samo tokrat. <strong>Mac:</strong> prilepi jo v na novo odprt Terminal, v domači mapi — prej ne pojdi s <span class="k">cd</span> v Desktop, Documents ali Downloads: macOS urniku (cron) ne dovoli brati datotek tam, zato se ne bi nikoli zagnal.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiraj</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiraj</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiraj</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
       <li><p class="steptitle">Ko te vpraša, prilepi svoj žeton</p>
@@ -2201,12 +2201,12 @@
       </li>
       <li><p class="steptitle">Zaženi skripto s tem URL-jem</p>
       <p>Namesto primera vpiši svoj naslov; za žeton te skripta vpraša sama. Če odčitka ne najde samodejno, dodaj <span class="k">--field=</span> s potjo s pikami do vrednosti kWh v tem JSON. Samo dva tarifna registra in nobenega skupnega stanja (na primer P1 Monitor)? Obe poti združi s <span class="k">+</span> in poslala bo njuno vsoto, npr. <span class="k">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiraj</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiraj</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiraj</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">Čitalna glava Tasmota (Hichi)?</p>
       <p>Namesto <span class="k">--url=</span> uporabi <span class="k">--tasmota=</span> z njenim IP-jem. Skripta sama prebere skupno stanje števca (<span class="k">Total_in</span>). Pogosto pri nemških, avstrijskih in švicarskih števcih.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiraj</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiraj</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiraj</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
       <li><p class="steptitle">Preveri, ali deluje</p>
@@ -2237,7 +2237,7 @@
       </li>
       <li><p class="steptitle">Prilepi eno vrstico z e-poštnim naslovom za Powerfox</p>
       <p>Namesto <span class="k">YOUR_POWERFOX_EMAIL</span> vpiši e-poštni naslov svojega računa Powerfox. Enkrat te vpraša za žeton in geslo za Powerfox (geslo se med tipkanjem ne prikaže) in oboje hrani v zasebni datoteki poleg gul.js. Nato se sama nastavi v urnik, tako kot pri poti B. Računalnik mora biti vklopljen vsaj enkrat na dan.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiraj</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiraj</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiraj</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       </li>
       <li><p class="steptitle">Preveri, ali deluje</p>
@@ -2419,7 +2419,7 @@
       </li>
       <li><p class="steptitle">Zalijepi jedan redak i pritisni Enter</p>
       <p>Preuzme skriptu i pošalje tvoje prvo očitanje. Osim toga, sama se zakaže da javlja dvaput dnevno (Windows: Task Scheduler · Mac / Linux / Pi: cron), pa poslije možeš zatvoriti prozor, a ona i dalje radi, čak i nakon ponovnog pokretanja. Ovo pokrećeš samo ovaj put. <strong>Mac:</strong> zalijepi ga u tek otvoreni Terminal, u početnoj mapi — nemoj prije toga s <span class="k">cd</span> ići u Desktop, Documents ili Downloads: macOS rasporedu (cron) ne dopušta čitanje datoteka ondje, pa se nikad ne bi pokrenuo.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiraj</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiraj</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiraj</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
       <li><p class="steptitle">Kad te pita, zalijepi svoj token</p>
@@ -2435,12 +2435,12 @@
       </li>
       <li><p class="steptitle">Pokreni skriptu s tim URL-om</p>
       <p>Umjesto primjera upiši svoju adresu; token će skripta sama zatražiti. Ako ne pronađe očitanje automatski, dodaj <span class="k">--field=</span> s putanjom s točkama do vrijednosti kWh u tom JSON-u. Samo dva tarifna registra i nema ukupnog stanja (npr. P1 Monitor)? Spoji obje putanje s <span class="k">+</span> i poslat će njihov zbroj, npr. <span class="k">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiraj</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiraj</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiraj</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">Tasmota glava za očitavanje (Hichi)?</p>
       <p>Umjesto <span class="k">--url=</span> koristi <span class="k">--tasmota=</span> s njezinom IP adresom. Skripta sama očita ukupno stanje brojila (<span class="k">Total_in</span>). Česta na njemačkim, austrijskim i švicarskim brojilima.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiraj</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiraj</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiraj</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
       <li><p class="steptitle">Provjeri radi li</p>
@@ -2471,7 +2471,7 @@
       </li>
       <li><p class="steptitle">Zalijepi jedan redak sa svojom Powerfox e-poštom</p>
       <p>Umjesto <span class="k">YOUR_POWERFOX_EMAIL</span> upiši e-poštu svog Powerfox računa. Jednom će tražiti tvoj token i Powerfox lozinku (lozinka se ne prikazuje dok tipkaš) i oboje čuva u privatnoj datoteci pokraj gul.js. Zatim se sama zakaže, baš kao kod puta B. Računalo mora biti uključeno barem jednom dnevno.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiraj</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiraj</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiraj</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       </li>
       <li><p class="steptitle">Provjeri radi li</p>
@@ -2653,7 +2653,7 @@
       </li>
       <li><p class="steptitle">Lipește un singur rând, apasă Enter</p>
       <p>Descarcă scriptul și trimite prima ta citire. Se și programează singur să raporteze de două ori pe zi (Windows: Task Scheduler · Mac / Linux / Pi: cron), așa că poți închide fereastra după aceea și continuă să meargă, chiar și după o repornire. E singura dată când îl rulezi. <strong>Mac:</strong> lipește-l într-un Terminal abia deschis, în dosarul personal — nu intra înainte cu <span class="k">cd</span> în Desktop, Documents sau Downloads: macOS nu lasă programarea (cron) să citească fișiere de acolo, așa că n-ar rula niciodată.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiază</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiază</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiază</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
       <li><p class="steptitle">Lipește tokenul când ți-l cere</p>
@@ -2669,12 +2669,12 @@
       </li>
       <li><p class="steptitle">Pornește scriptul cu acea adresă</p>
       <p>Pune adresa ta în locul celei din exemplu; scriptul îți cere singur tokenul. Dacă nu găsește citirea automat, adaugă <span class="k">--field=</span> cu calea cu puncte până la valoarea kWh din acel JSON. Doar două registre de tarif și niciun total (P1 Monitor, de exemplu)? Unește cele două căi cu <span class="k">+</span> și trimite suma lor, de ex. <span class="k">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiază</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiază</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiază</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">Un cap de citire Tasmota (Hichi)?</p>
       <p>Folosește <span class="k">--tasmota=</span> cu IP-ul lui în loc de <span class="k">--url=</span>. Scriptul citește singur totalul contorului (<span class="k">Total_in</span>). Des întâlnit la contoarele din Germania, Austria și Elveția.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiază</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiază</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiază</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
       <li><p class="steptitle">Verifică dacă merge</p>
@@ -2705,7 +2705,7 @@
       </li>
       <li><p class="steptitle">Lipește un rând, cu e-mailul tău Powerfox</p>
       <p>Pune e-mailul contului tău Powerfox în locul lui <span class="k">YOUR_POWERFOX_EMAIL</span>. Îți cere o singură dată tokenul și parola Powerfox (parola nu se vede când tastezi) și le păstrează pe amândouă într-un fișier privat lângă gul.js. Apoi se programează singur, la fel ca în Varianta B. Calculatorul trebuie să fie pornit cel puțin o dată pe zi.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiază</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiază</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiază</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       </li>
       <li><p class="steptitle">Verifică dacă merge</p>
@@ -2887,7 +2887,7 @@
       </li>
       <li><p class="steptitle">Постави един ред и натисни Enter</p>
       <p>Той изтегля помощната програма и изпраща първото ти показание. Освен това тя сама се насрочва да докладва два пъти на ден (Windows: Task Scheduler · Mac / Linux / Pi: cron), така че после можеш да затвориш прозореца и тя продължава да работи, дори след рестарт. Това е единственият път, когато я пускаш. <strong>Mac:</strong> постави го в току-що отворен Terminal, в домашната си папка — не влизай преди това с <span class="k">cd</span> в Desktop, Documents или Downloads: macOS не позволява на графика (cron) да чете файлове там и той никога няма да се изпълни.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Копирай</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Копирай</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Копирай</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
       <li><p class="steptitle">Постави токена си, когато го поиска</p>
@@ -2903,12 +2903,12 @@
       </li>
       <li><p class="steptitle">Пусни помощната програма с този адрес</p>
       <p>Сложи своя адрес на мястото на примерния; токена ще го поиска сама. Ако показанието не се намери автоматично, добави <span class="k">--field=</span> с пътя (с точки) до стойността в kWh в този JSON. Само два тарифни регистъра и никакъв общ сбор (както при P1 Monitor например)? Свържи двата пътя с <span class="k">+</span> и тя ще изпраща сбора им, напр. <span class="k">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Копирай</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Копирай</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Копирай</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">Четяща глава с Tasmota (Hichi)?</p>
       <p>Използвай <span class="k">--tasmota=</span> с нейния IP вместо <span class="k">--url=</span>. Помощната програма сама чете общото показание на електромера (<span class="k">Total_in</span>). Често се среща при германски, австрийски и швейцарски електромери.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Копирай</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Копирай</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Копирай</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
       <li><p class="steptitle">Провери дали работи</p>
@@ -2939,7 +2939,7 @@
       </li>
       <li><p class="steptitle">Постави един ред с имейла си за Powerfox</p>
       <p>Сложи имейла на профила си в Powerfox на мястото на <span class="k">YOUR_POWERFOX_EMAIL</span>. Програмата веднъж пита за токена ти и за паролата ти за Powerfox (паролата не се вижда, докато пишеш) и пази и двете в личен файл до gul.js. После сама се насрочва, точно както при начин B. Компютърът трябва да е включен поне веднъж на ден.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Копирай</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Копирай</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Копирай</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       </li>
       <li><p class="steptitle">Провери дали работи</p>
@@ -3121,7 +3121,7 @@
       </li>
       <li><p class="steptitle">Klistra in en rad och tryck på Enter</p>
       <p>Den laddar ner hjälpprogrammet och skickar din första avläsning. Den schemalägger sig också själv att rapportera två gånger om dagen (Windows: Schemaläggaren · Mac / Linux / Pi: cron), så du kan stänga fönstret efteråt och det fortsätter att fungera, även efter en omstart. Det här är enda gången du kör det. <strong>Mac:</strong> klistra in den i en nyöppnad Terminal, i din hemmapp — gå inte först med <span class="k">cd</span> till Skrivbord, Dokument eller Hämtade filer: macOS låter inte schemat (cron) läsa filer där, så det skulle aldrig köras.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiera</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiera</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiera</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
       <li><p class="steptitle">Klistra in din token när den frågar</p>
@@ -3137,12 +3137,12 @@
       </li>
       <li><p class="steptitle">Starta hjälpprogrammet med den URL:en</p>
       <p>Byt ut exempeladressen mot din egen; den frågar själv efter din token. Hittas avläsningen inte automatiskt, lägg till <span class="k">--field=</span> med punktsökvägen till kWh-värdet i den JSON:en. Bara två tariffräkneverk och ingen total (som hos P1 Monitor)? Sätt ihop båda sökvägarna med <span class="k">+</span> så skickar den summan, t.ex. <span class="k">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiera</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiera</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiera</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">Ett Tasmota-läshuvud (Hichi)?</p>
       <p>Använd <span class="k">--tasmota=</span> med dess IP i stället för <span class="k">--url=</span>. Hjälpprogrammet läser av mätarens total (<span class="k">Total_in</span>) av sig självt. Vanligt på tyska, österrikiska och schweiziska mätare.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiera</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiera</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiera</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
       <li><p class="steptitle">Kontrollera att det fungerar</p>
@@ -3173,7 +3173,7 @@
       </li>
       <li><p class="steptitle">Klistra in en rad, med din Powerfox-e-post</p>
       <p>Byt ut <span class="k">YOUR_POWERFOX_EMAIL</span> mot e-postadressen till ditt Powerfox-konto. Den frågar en gång efter din token och ditt Powerfox-lösenord (lösenordet syns inte medan du skriver) och sparar båda i en privat fil bredvid gul.js. Sedan schemalägger den sig själv, precis som i väg B. Datorn måste vara på minst en gång per dag.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiera</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiera</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiera</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       </li>
       <li><p class="steptitle">Kontrollera att det fungerar</p>
@@ -3355,7 +3355,7 @@
       </li>
       <li><p class="steptitle">Indsæt én linje, og tryk på Enter</p>
       <p>Den henter hjælpeprogrammet og sender din første aflæsning. Den planlægger også sig selv til at melde ind to gange om dagen (Windows: Opgavestyring · Mac / Linux / Pi: cron), så du kan lukke vinduet bagefter, og det bliver ved med at virke, også efter en genstart. Det er den eneste gang, du kører det. <strong>Mac:</strong> indsæt den i en nyåbnet Terminal, i din hjemmemappe — gå ikke først med <span class="k">cd</span> ind i Skrivebord, Dokumenter eller Overførsler: macOS lader ikke planen (cron) læse filer der, så den ville aldrig køre.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiér</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiér</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiér</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
       <li><p class="steptitle">Indsæt dit token, når den spørger</p>
@@ -3371,12 +3371,12 @@
       </li>
       <li><p class="steptitle">Start hjælpeprogrammet med den URL</p>
       <p>Skriv din egen adresse i stedet for eksemplets; den spørger selv efter dit token. Hvis aflæsningen ikke findes automatisk, så tilføj <span class="k">--field=</span> med punktstien til kWh-værdien i den JSON. Kun to tarif-tælleværker og ingen total (som fx P1 Monitor)? Sæt begge stier sammen med <span class="k">+</span>, så sender den summen, fx <span class="k">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiér</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiér</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiér</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">Et Tasmota-læsehoved (Hichi)?</p>
       <p>Brug <span class="k">--tasmota=</span> med dets IP i stedet for <span class="k">--url=</span>. Hjælpeprogrammet aflæser selv målerens total (<span class="k">Total_in</span>). Udbredt på tyske, østrigske og schweiziske målere.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiér</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiér</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiér</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
       <li><p class="steptitle">Tjek, at det virker</p>
@@ -3407,7 +3407,7 @@
       </li>
       <li><p class="steptitle">Indsæt én linje, med din Powerfox-e-mail</p>
       <p>Skriv e-mailen til din Powerfox-konto i stedet for <span class="k">YOUR_POWERFOX_EMAIL</span>. Den spørger én gang efter dit token og din Powerfox-adgangskode (adgangskoden vises ikke, mens du skriver) og gemmer begge i en privat fil ved siden af gul.js. Derefter planlægger den sig selv, ligesom i vej B. Computeren skal være tændt mindst én gang om dagen.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiér</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiér</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiér</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       </li>
       <li><p class="steptitle">Tjek, at det virker</p>
@@ -3589,7 +3589,7 @@
       </li>
       <li><p class="steptitle">Lim inn én linje og trykk Enter</p>
       <p>Den laster ned skriptet og sender den første målerstanden din. Den planlegger seg også selv til å rapportere to ganger om dagen (Windows: Oppgaveplanlegging · Mac / Linux / Pi: cron), så du kan lukke vinduet etterpå, og den fortsetter å virke, også etter en omstart. Dette er den eneste gangen du kjører den. <strong>Mac:</strong> lim den inn i et nyåpnet Terminal-vindu, i hjemmemappen – ikke bruk <span class="k">cd</span> til Skrivebord, Dokumenter eller Nedlastinger først: macOS lar ikke planleggingen (cron) lese filer der, så den ville aldri kjørt.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopier</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopier</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopier</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
       <li><p class="steptitle">Lim inn tokenet når du blir spurt</p>
@@ -3605,12 +3605,12 @@
       </li>
       <li><p class="steptitle">Start skriptet med den URL-en</p>
       <p>Bytt ut eksempeladressen med din egen; tokenet ber den om selv. Blir ikke målerstanden funnet automatisk, legger du til <span class="k">--field=</span> med punktstien til kWh-verdien i den JSON-en. Bare to tariff-telleverk og ingen total (som i P1 Monitor)? Sett sammen begge stiene med <span class="k">+</span>, så sender den summen, f.eks. <span class="k">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopier</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopier</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopier</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">Et Tasmota-lesehode (Hichi)?</p>
       <p>Bruk <span class="k">--tasmota=</span> med IP-adressen i stedet for <span class="k">--url=</span>. Skriptet leser målertotalen (<span class="k">Total_in</span>) av seg selv. Vanlig på tyske, østerrikske og sveitsiske målere.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopier</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopier</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopier</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
       <li><p class="steptitle">Sjekk at det virket</p>
@@ -3641,7 +3641,7 @@
       </li>
       <li><p class="steptitle">Lim inn én linje, med Powerfox-e-posten din</p>
       <p>Bytt ut <span class="k">YOUR_POWERFOX_EMAIL</span> med e-postadressen til Powerfox-kontoen din. Den ber om tokenet ditt og Powerfox-passordet ditt én gang (passordet vises ikke mens du skriver) og lagrer begge i en privat fil ved siden av gul.js. Deretter planlegger den seg selv, akkurat som i rute B. Datamaskinen må være på minst én gang om dagen.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopier</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopier</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopier</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       </li>
       <li><p class="steptitle">Sjekk at det virket</p>
@@ -3823,7 +3823,7 @@
       </li>
       <li><p class="steptitle">Liitä yksi rivi ja paina Enter</p>
       <p>Se lataa skriptin ja lähettää ensimmäisen lukemasi. Lisäksi se ajastaa itsensä raportoimaan kahdesti päivässä (Windows: Tehtävien ajoitus · Mac / Linux / Pi: cron), joten voit sulkea ikkunan sen jälkeen, ja se toimii edelleen, myös uudelleenkäynnistyksen jälkeen. Tämä on ainoa kerta, kun ajat sen. <strong>Mac:</strong> liitä se juuri avattuun Terminal-ikkunaan kotikansiossasi — älä siirry ensin <span class="k">cd</span>-komennolla Työpöytä-, Dokumentit- tai Lataukset-kansioon: macOS ei anna ajastuksen (cron) lukea niissä olevia tiedostoja, joten se ei koskaan käynnistyisi.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopioi</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopioi</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopioi</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
       <li><p class="steptitle">Liitä tokenisi, kun sitä kysytään</p>
@@ -3839,12 +3839,12 @@
       </li>
       <li><p class="steptitle">Käynnistä skripti sillä URL-osoitteella</p>
       <p>Laita oma osoitteesi esimerkkiosoitteen tilalle; tokenia skripti kysyy itse. Jos lukemaa ei löydy automaattisesti, lisää <span class="k">--field=</span> ja pistein erotettu polku JSONin kWh-arvoon. Onko vain kaksi tariffirekisteriä eikä kokonaislukemaa (esimerkiksi P1 Monitorissa)? Yhdistä molemmat polut merkillä <span class="k">+</span>, niin skripti lähettää niiden summan, esim. <span class="k">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopioi</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopioi</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopioi</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">Tasmota-lukupää (Hichi)?</p>
       <p>Käytä <span class="k">--tasmota=</span> ja sen IP-osoitetta <span class="k">--url=</span>:n sijaan. Skripti lukee mittarin kokonaislukeman (<span class="k">Total_in</span>) itse. Yleinen saksalaisissa, itävaltalaisissa ja sveitsiläisissä mittareissa.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopioi</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopioi</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopioi</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
       <li><p class="steptitle">Tarkista, että se toimi</p>
@@ -3875,7 +3875,7 @@
       </li>
       <li><p class="steptitle">Liitä yksi rivi Powerfox-sähköpostiosoitteesi kanssa</p>
       <p>Laita Powerfox-tilisi sähköpostiosoite kohdan <span class="k">YOUR_POWERFOX_EMAIL</span> tilalle. Skripti kysyy kerran tokeniasi ja Powerfox-salasanaasi (salasana ei näy kirjoittaessa) ja säilyttää molemmat yksityisessä tiedostossa gul.js:n vieressä. Sitten se ajastaa itsensä, aivan kuten reitillä B. Tietokoneen on oltava päällä vähintään kerran päivässä.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopioi</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopioi</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopioi</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       </li>
       <li><p class="steptitle">Tarkista, että se toimi</p>
@@ -4057,7 +4057,7 @@
       </li>
       <li><p class="steptitle">Illessz be egy sort, és nyomj Entert</p>
       <p>Ez letölti a szkriptet, és elküldi az első mérőállásodat. Ütemezi is magát, hogy naponta kétszer jelentsen (Windows: Feladatütemező · Mac / Linux / Pi: cron), így utána bezárhatod az ablakot, és tovább működik, újraindítás után is. Csak most az egyszer kell futtatnod. <strong>Mac:</strong> egy frissen megnyitott Terminalba illeszd be, a saját mappádban — előtte ne lépj be <span class="k">cd</span>-vel az Íróasztal, Dokumentumok vagy Letöltések mappába: a macOS nem engedi, hogy az ütemezés (cron) ott fájlokat olvasson, így soha nem futna le.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Másolás</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Másolás</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Másolás</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
       <li><p class="steptitle">Illeszd be a tokenedet, amikor kéri</p>
@@ -4073,12 +4073,12 @@
       </li>
       <li><p class="steptitle">Indítsd el a szkriptet ezzel az URL-lel</p>
       <p>A példacím helyére a sajátodat írd; a tokent magától kéri. Ha nem találja meg automatikusan a mérőállást, add hozzá a <span class="k">--field=</span> kapcsolót a JSON-ban lévő kWh-értékhez vezető, pontokkal tagolt útvonallal. Csak két tarifaregiszter van, és nincs összesített érték (például a P1 Monitornál)? Kapcsold össze a két útvonalat <span class="k">+</span> jellel, és az összegüket küldi, pl. <span class="k">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Másolás</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Másolás</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Másolás</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">Tasmota olvasófejed (Hichi) van?</p>
       <p>A <span class="k">--url=</span> helyett használd a <span class="k">--tasmota=</span> kapcsolót az IP-címével. A szkript magától kiolvassa a mérő összesített állását (<span class="k">Total_in</span>). Német, osztrák és svájci mérőkön gyakori.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Másolás</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Másolás</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Másolás</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
       <li><p class="steptitle">Ellenőrizd, hogy működött-e</p>
@@ -4109,7 +4109,7 @@
       </li>
       <li><p class="steptitle">Illessz be egy sort a Powerfox e-mail-címeddel</p>
       <p>A <span class="k">YOUR_POWERFOX_EMAIL</span> helyére írd a Powerfox-fiókod e-mail-címét. Egyszer elkéri a tokenedet és a Powerfox-jelszavadat (a jelszó gépelés közben nem látszik), és mindkettőt egy privát fájlban tárolja a gul.js mellett. Ezután ütemezi magát, pont úgy, mint a B útvonalon. A számítógépnek legalább naponta egyszer be kell lennie kapcsolva.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Másolás</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Másolás</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Másolás</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       </li>
       <li><p class="steptitle">Ellenőrizd, hogy működött-e</p>
@@ -4291,7 +4291,7 @@
       </li>
       <li><p class="steptitle">Wklej jedną linijkę i naciśnij Enter</p>
       <p>Pobiera skrypt i wysyła twój pierwszy odczyt. Do tego sam ustawia się w harmonogramie, żeby wysyłać odczyty dwa razy dziennie (Windows: Harmonogram zadań · Mac / Linux / Pi: cron), więc potem możesz zamknąć okno, a wszystko działa dalej, nawet po restarcie. Uruchamiasz go tylko ten jeden raz. <strong>Mac:</strong> wklej go w świeżo otwartym Terminalu, w folderze domowym — nie przechodź wcześniej przez <span class="k">cd</span> do Biurka, Dokumentów ani Pobranych: macOS nie pozwala harmonogramowi (cron) czytać tam plików, więc skrypt nigdy by się nie uruchomił.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiuj</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiuj</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiuj</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
       <li><p class="steptitle">Wklej token, gdy skrypt o niego zapyta</p>
@@ -4307,12 +4307,12 @@
       </li>
       <li><p class="steptitle">Uruchom skrypt z tym adresem URL</p>
       <p>Wstaw własny adres w miejsce przykładowego; o token skrypt zapyta sam. Jeśli odczyt nie zostanie znaleziony automatycznie, dodaj <span class="k">--field=</span> ze ścieżką (z kropkami) do wartości kWh w tym JSON-ie. Tylko dwa rejestry taryf i brak sumy (tak jest np. w P1 Monitor)? Połącz obie ścieżki znakiem <span class="k">+</span>, a skrypt wyśle ich sumę, np. <span class="k">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiuj</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiuj</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiuj</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">Głowica odczytowa z Tasmota (Hichi)?</p>
       <p>Użyj <span class="k">--tasmota=</span> z jej adresem IP zamiast <span class="k">--url=</span>. Skrypt sam odczyta stan licznika (<span class="k">Total_in</span>). Popularne przy licznikach w Niemczech, Austrii i Szwajcarii.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiuj</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiuj</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiuj</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
       <li><p class="steptitle">Sprawdź, czy działa</p>
@@ -4343,7 +4343,7 @@
       </li>
       <li><p class="steptitle">Wklej jedną linijkę z e-mailem Powerfox</p>
       <p>Wstaw e-mail swojego konta Powerfox w miejsce <span class="k">YOUR_POWERFOX_EMAIL</span>. Skrypt raz zapyta o token i hasło Powerfox (hasło nie jest widoczne podczas wpisywania) i zapisze oba w prywatnym pliku obok gul.js. Potem sam ustawi się w harmonogramie, tak jak w drodze B. Komputer musi być włączony przynajmniej raz dziennie.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiuj</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopiuj</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopiuj</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       </li>
       <li><p class="steptitle">Sprawdź, czy działa</p>
@@ -4525,7 +4525,7 @@
       </li>
       <li><p class="steptitle">Cola uma linha e carrega em Enter</p>
       <p>Transfere o script e envia a tua primeira leitura. Também se agenda para enviar duas vezes por dia (Windows: Agendador de Tarefas · Mac / Linux / Pi: cron), por isso podes fechar a janela a seguir e continua a funcionar, mesmo depois de reiniciar. Só o executas esta vez. <strong>Mac:</strong> cola-a num Terminal acabado de abrir, na tua pasta pessoal — não faças antes <span class="k">cd</span> para Secretária, Documentos ou Transferências: o macOS não deixa o agendamento (cron) ler ficheiros aí, por isso nunca correria.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiar</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
       <li><p class="steptitle">Cola o teu token quando for pedido</p>
@@ -4541,12 +4541,12 @@
       </li>
       <li><p class="steptitle">Inicia o script com esse URL</p>
       <p>Põe o teu próprio endereço no lugar do exemplo; o token é pedido pelo próprio script. Se a leitura não for encontrada automaticamente, junta <span class="k">--field=</span> com o caminho (separado por pontos) até ao valor em kWh nesse JSON. Só tens dois registos de tarifa e nenhum total (como no P1 Monitor, por exemplo)? Junta os dois caminhos com <span class="k">+</span> e o script envia a soma, p. ex. <span class="k">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiar</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">Uma cabeça de leitura Tasmota (Hichi)?</p>
       <p>Usa <span class="k">--tasmota=</span> com o IP dela em vez de <span class="k">--url=</span>. O script lê sozinho o total do contador (<span class="k">Total_in</span>). Comum em contadores na Alemanha, Áustria e Suíça.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiar</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
       <li><p class="steptitle">Confirma que funcionou</p>
@@ -4577,7 +4577,7 @@
       </li>
       <li><p class="steptitle">Cola uma linha, com o teu e-mail da Powerfox</p>
       <p>Põe o e-mail da tua conta Powerfox no lugar de <span class="k">YOUR_POWERFOX_EMAIL</span>. O script pede uma vez o teu token e a tua palavra-passe da Powerfox (a palavra-passe não aparece enquanto escreves) e guarda os dois num ficheiro privado ao lado do gul.js. Depois agenda-se sozinho, tal como na Via B. O computador tem de estar ligado pelo menos uma vez por dia.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Copiar</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Copiar</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       </li>
       <li><p class="steptitle">Confirma que funcionou</p>
@@ -4759,7 +4759,7 @@
       </li>
       <li><p class="steptitle">Vlož jeden řádek a stiskni Enter</p>
       <p>Stáhne skript a odešle tvůj první stav. Navíc se sám naplánuje, aby stav hlásil dvakrát denně (Windows: Plánovač úloh · Mac / Linux / Pi: cron), takže pak můžeš okno zavřít a dál to poběží, i po restartu. Spouštíš ho jen tentokrát. <strong>Mac:</strong> vlož ho do čerstvě otevřeného Terminalu, v domovské složce — nepřecházej předtím pomocí <span class="k">cd</span> do Plochy, Dokumentů ani Stažených souborů: macOS tam plánovači (cron) nedovolí číst soubory, takže by se nikdy nespustil.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopírovat</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopírovat</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopírovat</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install</pre></div>
       </li>
       <li><p class="steptitle">Až se zeptá, vlož svůj token</p>
@@ -4775,12 +4775,12 @@
       </li>
       <li><p class="steptitle">Spusť skript s touto URL</p>
       <p>Místo ukázkové adresy dej svou vlastní; o token si skript řekne sám. Pokud se stav nenajde automaticky, přidej <span class="k">--field=</span> s cestou (oddělenou tečkami) k hodnotě kWh v tom JSONu. Jen dva tarifní registry a žádný součet (třeba u P1 Monitor)? Spoj obě cesty znakem <span class="k">+</span> a skript pošle jejich součet, např. <span class="k">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopírovat</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopírovat</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopírovat</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --install --url=http://192.168.1.60/api/v1/data</pre></div>
       </li>
       <li><p class="steptitle">Čtecí hlava s Tasmota (Hichi)?</p>
       <p>Použij <span class="k">--tasmota=</span> s její IP adresou místo <span class="k">--url=</span>. Skript si celkový stav elektroměru (<span class="k">Total_in</span>) přečte sám. Běžné u elektroměrů v Německu, Rakousku a Švýcarsku.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopírovat</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopírovat</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopírovat</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --tasmota=192.168.1.70 --install</pre></div>
       </li>
       <li><p class="steptitle">Ověř, že to funguje</p>
@@ -4811,7 +4811,7 @@
       </li>
       <li><p class="steptitle">Vlož jeden řádek se svým e-mailem Powerfox</p>
       <p>Místo <span class="k">YOUR_POWERFOX_EMAIL</span> dej e-mail svého účtu Powerfox. Skript se jednou zeptá na tvůj token a heslo k Powerfox (heslo se při psaní nezobrazuje) a obojí uloží do soukromého souboru vedle gul.js. Pak se sám naplánuje, stejně jako u cesty B. Počítač musí být zapnutý aspoň jednou denně.</p>
-      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopírovat</button><pre>iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
+      <div class="code"><span class="cap">Windows — PowerShell</span><button class="copy">Kopírovat</button><pre>iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       <div class="code"><span class="cap">Mac · Linux · Raspberry Pi</span><button class="copy">Kopírovat</button><pre>curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js &amp;&amp; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install</pre></div>
       </li>
       <li><p class="steptitle">Ověř, že to funguje</p>
