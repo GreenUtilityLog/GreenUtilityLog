@@ -36,7 +36,7 @@ jobs:
         working-directory: server
       # sharp IS needed: the photo-likeness check (one meter, many wallets) decodes
       # real images, and its test does too. It ships prebuilt for this runner.
-      - run: npm install --no-save sharp
+      - run: npm install --no-save sharp@0.35.5   # the version in server/package-lock.json
         working-directory: server
       - run: npm test
         working-directory: server
@@ -59,19 +59,27 @@ jobs:
       - run: node scripts/check-langs.mjs
       # The leaderboard's "this week" and streak (src/board.js).
       - run: node scripts/test-board.mjs
-      # The same checks the Pages deploy makes before it publishes (deploy.yml): run
-      # on every PR too. They only ran at deploy, so a missed version bump in #200
-      # stopped every deploy from then on, unnoticed until the failure mails.
-      - name: Guide, helper copies and add-on version are in step
+      # The same checks the Pages deploy makes before it publishes (deploy.yml), on
+      # every PR too: a missed version bump in #200 stopped every deploy, unnoticed
+      # until the failure mails. scripts/check-release.sh says what is checked.
+      - run: bash scripts/check-release.sh
+      # A changed helper needs a new add-on version, or Home Assistant never offers it.
+      - name: Add-on version bumped with its helper
+        if: github.event_name == 'pull_request'
         run: |
-          python3 docs/build_guide.py
-          git diff --exit-code docs/gul.js docs/guide.html \
-            || (echo "docs/gul.js or docs/guide.html is out of date — run docs/build_guide.py and commit" && exit 1)
-          cmp bridge/index.js ha-addon/gul-bridge/gul.js \
-            || (echo "ha-addon/gul-bridge/gul.js differs from bridge/index.js — copy it and bump the add-on version" && exit 1)
-          grep -q "const BRIDGE_VERSION = \"$(sed -n 's/^version: "\(.*\)"/\1/p' ha-addon/gul-bridge/config.yaml)\";" bridge/index.js \
-            || (echo "BRIDGE_VERSION in bridge/index.js differs from the add-on version in ha-addon/gul-bridge/config.yaml" && exit 1)
+          git fetch --no-tags --depth=1 origin ${{ github.base_ref }}
+          bash scripts/check-addon-bump.sh FETCH_HEAD
       - run: npm run build
+      # Everything else the deploy does: the testnet copy, and the static files it
+      # publishes alongside (a renamed one would only fail the deploy otherwise).
+      - name: Testnet copy and published files, as the deploy builds them
+        run: |
+          npx vite build --outDir /tmp/pages/testnet
+          bash scripts/pages-assets.sh /tmp/pages
+        env:
+          VITE_BASE: /GreenUtilityLog/testnet/
+          VITE_NETWORK: testnet
+          VITE_TESTNET_BANNER: "1"
 
   # The bridge is downloaded as one loose gul.js and run on whatever Node the user
   # has — Debian/Raspberry Pi OS ship 18. It once failed to even start there.
@@ -86,3 +94,20 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - run: node --test bridge/test.js
+
+  # Windows and macOS are where most people run the helper, and Linux was all CI
+  # ever ran it on. (The install tests that need cron skip themselves on Windows.)
+  bridge-desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    # A test that hangs fails the job instead of holding it for hours.
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node --test --test-force-exit --test-timeout=120000 bridge/test.js

@@ -604,6 +604,60 @@ await step("MojElektro (Slovenia): connect in the app; a total older than the la
   await page.locator(".bnav button").nth(0).click(); await wait(500);
 });
 
+await step("an older web view without AbortSignal.timeout still opens the app", async () => {
+  const p2 = await ctx.newPage();
+  const errs = [];
+  p2.on("pageerror", (e) => errs.push(e.message));
+  await p2.addInitScript(() => { try { delete AbortSignal.timeout; AbortSignal.timeout = undefined; } catch {} });
+  try {
+    await p2.goto(`http://127.0.0.1:${APP_PORT}/GreenUtilityLog/`, { waitUntil: "networkidle" }); await wait(2500);
+    const body = await p2.locator("#root").innerText();
+    assert.doesNotMatch(body, /Something went wrong|Er ging iets mis/, "no crash page");
+    assert.equal(await p2.locator(".bnav").count(), 1, "the app is there");
+    assert.deepEqual(errs.filter((m) => /AbortSignal/.test(m)), [], "no AbortSignal error");
+  } finally { await p2.close(); }
+});
+
+await step("a part of the app that fails to load: a message in its place, the app stays", async () => {
+  const p2 = await ctx.newPage();
+  await p2.route(/\/assets\/reader-[^/]+\.js$/, (r) => r.fulfill({ status: 404, body: "gone" }));
+  try {
+    await p2.goto(`http://127.0.0.1:${APP_PORT}/GreenUtilityLog/`, { waitUntil: "networkidle" }); await wait(1500);
+    await p2.locator(".bnav button").nth(1).click(); await wait(800);
+    await p2.getByRole("button", { name: /⚡ Automatisch/ }).first().click(); await wait(4000);
+    const body = await p2.locator("#root").innerText();
+    assert.match(body, /Dit deel van de app kon niet laden/, "the in-place message");
+    assert.equal(await p2.getByRole("button", { name: "Opnieuw laden" }).count(), 1, "a reload button");
+    assert.equal(await p2.locator(".bnav").count(), 1, "the rest of the app is still there");
+    await p2.screenshot({ path: join(OUT, "13e-chunk-failed.png") }).catch(() => {});
+  } finally { await p2.close(); }
+});
+
+await step("back on this wallet after another one: its own meter comes back, the other's is kept aside", async () => {
+  // As the phone looks after wallet B was used last: B's meter in the live keys, and
+  // this wallet's (A's) put aside under its address when B came in.
+  const OTHERW = "0x" + "b".repeat(40), a = ADDR.toLowerCase();
+  const p2 = await ctx.newPage();
+  try {
+    await p2.goto(`http://127.0.0.1:${APP_PORT}/GreenUtilityLog/`, { waitUntil: "networkidle" }); await wait(800);
+    const mine = await p2.evaluate(() => [localStorage.getItem("greenlog_meters"), localStorage.getItem("greenlog_baselines")]);
+    assert.match(String(mine[0]), /E1000/, "this wallet's meter is registered");
+    await p2.evaluate(([a, b, m, bl]) => {
+      localStorage.setItem(`greenlog_meters_${a}`, m); localStorage.setItem(`greenlog_baselines_${a}`, bl);
+      localStorage.setItem("greenlog_meters", JSON.stringify({ electric: "B9999", gas: "", water: "", solar: "" }));
+      localStorage.setItem("greenlog_baselines", JSON.stringify({ electric: "5", gas: "", water: "", solar: "" }));
+      localStorage.setItem("greenlog_wallet", b);
+    }, [a, OTHERW, mine[0], mine[1]]);
+    // The app connects this wallet (A) again.
+    await p2.reload({ waitUntil: "networkidle" }); await wait(2500);
+    assert.doesNotMatch(await p2.locator("#root").innerText(), /Registreer je meters|Register Your Meters/i, "no new registration");
+    const after = await p2.evaluate((b) => [localStorage.getItem("greenlog_meters"), localStorage.getItem(`greenlog_meters_${b}`), localStorage.getItem("greenlog_wallet")], OTHERW);
+    assert.match(String(after[0]), /E1000/, "A's meter is back");
+    assert.match(String(after[1]), /B9999/, "B's is kept for when B comes back");
+    assert.equal(String(after[2]).toLowerCase(), a);
+  } finally { await p2.close(); }
+});
+
 await step("leaderboard: this week puts a newcomer first, all time the long-timer, with streaks", async () => {
   // Two other wallets on chain: one paid 40 B3TR a month ago (nothing this week),
   // one paid 1.5 B3TR today and 1.5 yesterday (a 2-day streak). This wallet has no

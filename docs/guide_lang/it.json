@@ -135,7 +135,7 @@
    "Scarica il programma di supporto e invia la tua prima lettura. Si pianifica anche da solo per inviare due volte al giorno (Windows: Utilità di pianificazione · Mac / Linux / Pi: cron), quindi dopo puoi chiudere la finestra e continua a funzionare, anche dopo un riavvio. È l'unica volta che lo avvii tu. <strong>Mac:</strong> incollala in una finestra di Terminal appena aperta, nella tua cartella Inizio — non entrare prima con <span class=\"k\">cd</span> in Scrivania, Documenti o Download: macOS non permette alla pianificazione (cron) di leggere file lì, e così non partirebbe mai.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install"
    ],
    [
@@ -165,7 +165,7 @@
    "Metti il tuo indirizzo al posto di quello d'esempio; il token te lo chiede lui. Se la lettura non viene trovata in automatico, aggiungi <span class=\"k\">--field=</span> con il percorso a punti del valore in kWh in quel JSON. Solo due registri tariffari e nessun totale (come con P1 Monitor)? Unisci i due percorsi con <span class=\"k\">+</span> e invierà la somma, ad es. <span class=\"k\">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install --url=http://192.168.1.60/api/v1/data"
    ],
    [
@@ -178,7 +178,7 @@
    "Usa <span class=\"k\">--tasmota=</span> con il suo IP al posto di <span class=\"k\">--url=</span>. Il programma legge da solo il totale del contatore (<span class=\"k\">Total_in</span>). Diffusa sui contatori tedeschi, austriaci e svizzeri.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --tasmota=192.168.1.70 --install"
    ],
    [
@@ -461,7 +461,7 @@
    "Metti l'email del tuo account Powerfox al posto di <span class=\"k\">YOUR_POWERFOX_EMAIL</span>. Ti chiede una volta il token e la password di Powerfox (la password non si vede mentre scrivi) e li conserva entrambi in un file privato accanto a gul.js. Poi si pianifica da solo, proprio come nella Via B. Il computer deve essere acceso almeno una volta al giorno.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install"
    ],
    [

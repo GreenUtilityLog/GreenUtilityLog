@@ -135,7 +135,7 @@
    "Se lataa skriptin ja lähettää ensimmäisen lukemasi. Lisäksi se ajastaa itsensä raportoimaan kahdesti päivässä (Windows: Tehtävien ajoitus · Mac / Linux / Pi: cron), joten voit sulkea ikkunan sen jälkeen, ja se toimii edelleen, myös uudelleenkäynnistyksen jälkeen. Tämä on ainoa kerta, kun ajat sen. <strong>Mac:</strong> liitä se juuri avattuun Terminal-ikkunaan kotikansiossasi — älä siirry ensin <span class=\"k\">cd</span>-komennolla Työpöytä-, Dokumentit- tai Lataukset-kansioon: macOS ei anna ajastuksen (cron) lukea niissä olevia tiedostoja, joten se ei koskaan käynnistyisi.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install"
    ],
    [
@@ -165,7 +165,7 @@
    "Laita oma osoitteesi esimerkkiosoitteen tilalle; tokenia skripti kysyy itse. Jos lukemaa ei löydy automaattisesti, lisää <span class=\"k\">--field=</span> ja pistein erotettu polku JSONin kWh-arvoon. Onko vain kaksi tariffirekisteriä eikä kokonaislukemaa (esimerkiksi P1 Monitorissa)? Yhdistä molemmat polut merkillä <span class=\"k\">+</span>, niin skripti lähettää niiden summan, esim. <span class=\"k\">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install --url=http://192.168.1.60/api/v1/data"
    ],
    [
@@ -178,7 +178,7 @@
    "Käytä <span class=\"k\">--tasmota=</span> ja sen IP-osoitetta <span class=\"k\">--url=</span>:n sijaan. Skripti lukee mittarin kokonaislukeman (<span class=\"k\">Total_in</span>) itse. Yleinen saksalaisissa, itävaltalaisissa ja sveitsiläisissä mittareissa.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --tasmota=192.168.1.70 --install"
    ],
    [
@@ -461,7 +461,7 @@
    "Laita Powerfox-tilisi sähköpostiosoite kohdan <span class=\"k\">YOUR_POWERFOX_EMAIL</span> tilalle. Skripti kysyy kerran tokeniasi ja Powerfox-salasanaasi (salasana ei näy kirjoittaessa) ja säilyttää molemmat yksityisessä tiedostossa gul.js:n vieressä. Sitten se ajastaa itsensä, aivan kuten reitillä B. Tietokoneen on oltava päällä vähintään kerran päivässä.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install"
    ],
    [

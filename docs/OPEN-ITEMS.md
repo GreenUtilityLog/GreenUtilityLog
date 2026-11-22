@@ -163,6 +163,18 @@ Met een foto kan elk land al meedoen. Voor elk nieuw land geldt eerst: een norm 
 - [x] gul.js: één tarief alleen is geen stand meer; Mac weigert installeren vanuit Bureaublad/Documenten/Downloads (cron mag daar niet lezen) met de juiste opdracht; waarschuwing bij nvm/snap-node; Windows `--uninstall` verwijdert alle eigen taken; add-on 1.5.5
 - Bewust zo gelaten: het maandrapport (PDF) blijft Engels — het PDF-lettertype heeft geen Griekse/Cyrillische letters. Een wallet-wissel stuurt heel even de oude meterlijst mee; die wordt direct overschreven
 
+## Buitenstaander-audit (22 november) — 4 reviewers, elke bevinding gereproduceerd en nagelopen
+- [x] Geld: een automatische stand werd gemeten tot het moment van uitbetalen i.p.v. het moment van meten (0,5 kWh in 1 uur leverde ±3,9 B3TR op); nu tot de tijd van de stand zelf
+- [x] Geld: betalingslogboek — een uitbetaling wordt vóór het versturen vastgelegd; stopt de server halverwege, dan wordt hij na de herstart vanuit de chain afgerond (geen dubbele betaling meer; niet aangekomen → meter weer vrij); verloren/teruggedraaide uitbetalingen worden ook na een herstart gemeld
+- [x] Geld: het slot "kort geleden al uitbetaald" kon 20 uur blijven staan zonder betaling (verloren antwoord van Upstash, stoppen tijdens het nemen); nu kort slot (15 min) dat pas na de uitbetaling wordt verlengd, en wordt teruggegeven als het antwoord zoekraakt; afsluiten wacht ook daarop
+- [x] Overzetten testnet→mainnet: geen oude automatische standen, geen cloud-account dat al aan een andere wallet hangt, geen overlappend meternummer
+- [x] Server: 6 trage uploads blokkeerden alle foto-uitbetalingen; open `/wallet/seen` kon de opslag laten groeien; wegwerpwallets lieten gebruikte handtekeningen groeien; handtekening wordt nu eerst gecontroleerd, pas na de toegangscheck verbruikt, met plafond
+- [x] App: geen crash meer op oudere iPhones/Android (AbortSignal.timeout) of als een onderdeel niet laadt; crashscherm vertaald met herlaadknop; tijdlijn en Home-tegel van de uitlezer eerlijk; wisselen van wallet bewaart ieders meter; offline-wachtrij vraagt geen handtekeningen meer binnen de wachttijd; PDF via het deelmenu en jsPDF in de app zelf (cdnjs uit het beveiligingsbeleid); "Vergeet deze telefoon" voor iedereen; geen inzoomen op iOS; grotere tikvlakken; privacytekst noemt het walletadres
+- [x] Bridge: één foute meting legde de bridge voorgoed stil; logbestand nu privé zonder wachtwoorden; cron op een eigen minuut; waarschuwing bij fnm; `iwr -UseBasicParsing` voor Windows; versie 1.5.6
+- [x] CI: de add-on-controle kon nooit falen; nu vóór het buildscript, plus versieophoging verplicht bij een gewijzigde helper, standaardserver overal gelijk, testnet-build en gepubliceerde bestanden al bij de PR; `gul.js` wordt gepubliceerd vanuit een stap zonder npm; bridge-tests ook op Windows en macOS; sharp vastgepind
+- [ ] Bewust niet gedaan / restpunten: `/ocr` zonder handtekening (max 300 per dag, schade beperkt); foto's: meten tot de EXIF-tijd (te omzeilen door EXIF te strippen); negatieve besparing doorrekenen (keuze eigenaar: beloningsregel); overgezette meters een mainnet-foto laten maken (botst met "testers hoeven niets opnieuw"); domeinlijst op testnet-`/health` kan vervuild worden (alleen informatief); HA-YAML in de handleiding met `!secret` (20 talen); `/wallet/seen` wordt bij het laden twee keer aangeroepen; meterLinks-plafond alleen relevant in de stand "iedereen"
+- [ ] Op een echte telefoon nalopen: PDF delen in VeWorld, bevestigingsvensters (`window.confirm`) in VeWorld, Windows-installatie van `gul.js`
+
 ## Bewust zo gelaten
 - Tijdverschuiving bij automatische standen: geaccepteerd risico (zie `docs/MAINNET.md`)
 - Captcha staat uit

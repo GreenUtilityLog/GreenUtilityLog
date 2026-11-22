@@ -98,7 +98,7 @@ describe("carried over: a tester's reader keeps working on mainnet", () => {
     assert.equal(s.meterLinks[TOKEN].address, w(WALLET));
     assert.equal(s.meterLinks[TOKEN].autoPaidAt > 0, true, "keeps what the pairing went through");
     assert.equal(s.meterLinks[TOKEN].lastPayout, undefined, "a testnet payout isn't shown as a mainnet one");
-    assert.equal(s.linkReadings[w(WALLET)].reading, 1000);
+    assert.equal(s.linkReadings?.[w(WALLET)], undefined, "the reader's last testnet reading isn't carried (it would be paid at once)");
     assert.equal(s.tibber[w(OTHER)].homeId, "h1");
     assert.deepEqual(s.readDevices["i:0123456789abcdef0123456789abcdef"], [w(WALLET)]);
     assert.ok(s.bans[w("0x4444444444444444444444444444444444444444")]);
@@ -137,6 +137,28 @@ describe("carried over: a tester's reader keeps working on mainnet", () => {
     assert.equal(c.done.meters, 2);
     assert.equal(c.done.links, 1);
     assert.equal(c.done.cloud, 1);
+  });
+});
+
+describe("not carried: a cloud account another mainnet wallet holds, or a meter number overlapping one owned here", () => {
+  let srv, up;
+  const B = "0x5555555555555555555555555555555555555555";
+  before(async () => {
+    const st = testnetState();
+    st.meterOwners["electric:12345678"] = w(THIRD);
+    st.readings["electric:12345678"] = 10;
+    up = await upstash(kvFor(st));
+    // On mainnet, B already has Tibber home h1 and owns meter E12345678.
+    srv = await startServer({ state: { tibber: { [w(B)]: { sealed: "y", homeId: "h1" } }, meterOwners: { "electric:e12345678": w(B) }, readings: { "electric:e12345678": 50 } },
+      env: { CARRY_OVER_KEY: KEY, CARRY_OVER_URL: up.url, CARRY_OVER_TOKEN: "tok" } });
+    await srv.waitForState((s) => s.settings?.carriedOver, 6000);
+  });
+  after(async () => { await srv.stop(); up.srv.close(); });
+  test("the Tibber home stays B's alone, and the overlapping meter isn't carried", () => {
+    const s = srv.readState();
+    assert.equal(s.tibber[w(OTHER)], undefined, "OTHER's link to the same home isn't carried");
+    assert.equal(s.meterOwners["electric:12345678"], undefined, "12345678 sits inside B's E12345678");
+    assert.equal(s.meterOwners["electric:e1000"], w(WALLET), "the rest still comes over");
   });
 });
 

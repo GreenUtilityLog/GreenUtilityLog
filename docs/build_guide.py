@@ -18,7 +18,9 @@ def dl(args="", win_args=None):
     w = win_args if win_args is not None else args
     wt = f" {w}" if w else ""
     ut = f" {args}" if args else ""
-    return (f"iwr {GUL_JS} -OutFile gul.js; node gul.js{wt}",
+    # -UseBasicParsing: Windows PowerShell 5.1 asks for confirmation before running a
+    # page's script content without it (a late-2025 security update).
+    return (f"iwr -UseBasicParsing {GUL_JS} -OutFile gul.js; node gul.js{wt}",
             f"curl -fsSL {GUL_JS} -o gul.js && node gul.js{ut}")
 # --install schedules the helper twice a day (Task Scheduler on Windows, cron elsewhere) and sends one reading
 # straight away, so nobody has to keep a PowerShell window open — closing that

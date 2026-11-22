@@ -2,8 +2,9 @@
 // At go-live this server switches from testnet to mainnet (docs/MAINNET.md). So
 // that nobody has to set up again, the first mainnet start reads the testnet
 // state and adds what testers had set up: meter numbers and owners, starting
-// points and last readings, reader tokens, Powerfox/Tibber/MojElektro links, the
-// photo clock, bans, and the hashes of photos that already earned (store.carryOver
+// points, reader tokens, Powerfox/Tibber/MojElektro links, the photo clock, bans,
+// and the hashes of photos that already earned (not the readers' last testnet
+// readings: the first mainnet reading starts afresh) (store.carryOver
 // says what, and that mainnet's own entries always win). Payouts, cooldowns,
 // history, roles, flags and settings stay behind.
 //

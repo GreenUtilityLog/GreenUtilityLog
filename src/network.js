@@ -61,7 +61,7 @@ if (STORAGE_PREFIX && typeof Storage !== "undefined") {
 // testnet's. Only what isn't on mainnet yet, and only the first time.
 const CARRY_KEYS = ["greenlog_meters", "greenlog_baselines", "greenlog_wallet", "greenlog_used_hashes",
   "greenlog_theme", "greenlog_seen_intro", "gul_device_id", "gul_lang", "gul_help_lang"];
-const CARRY_PREFIXES = ["gul_mtoken_", "greenlog_profile:"];
+const CARRY_PREFIXES = ["gul_mtoken_", "greenlog_profile:", "greenlog_meters_", "greenlog_baselines_"];
 const CARRIED = "carried_over";   // not one of OURS: "reset all app data" keeps it
 export function carryOverFromTestnet(ls, rawGet, rawSet) {
   if (rawGet.call(ls, STORAGE_PREFIX + CARRIED)) return 0;

@@ -135,7 +135,7 @@
    "Той изтегля помощната програма и изпраща първото ти показание. Освен това тя сама се насрочва да докладва два пъти на ден (Windows: Task Scheduler · Mac / Linux / Pi: cron), така че после можеш да затвориш прозореца и тя продължава да работи, дори след рестарт. Това е единственият път, когато я пускаш. <strong>Mac:</strong> постави го в току-що отворен Terminal, в домашната си папка — не влизай преди това с <span class=\"k\">cd</span> в Desktop, Documents или Downloads: macOS не позволява на графика (cron) да чете файлове там и той никога няма да се изпълни.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install"
    ],
    [
@@ -165,7 +165,7 @@
    "Сложи своя адрес на мястото на примерния; токена ще го поиска сама. Ако показанието не се намери автоматично, добави <span class=\"k\">--field=</span> с пътя (с точки) до стойността в kWh в този JSON. Само два тарифни регистъра и никакъв общ сбор (както при P1 Monitor например)? Свържи двата пътя с <span class=\"k\">+</span> и тя ще изпраща сбора им, напр. <span class=\"k\">--field=0.CONSUMPTION_KWH_LOW+0.CONSUMPTION_KWH_HIGH</span>.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --install --url=http://192.168.1.60/api/v1/data",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --install --url=http://192.168.1.60/api/v1/data"
    ],
    [
@@ -178,7 +178,7 @@
    "Използвай <span class=\"k\">--tasmota=</span> с нейния IP вместо <span class=\"k\">--url=</span>. Помощната програма сама чете общото показание на електромера (<span class=\"k\">Total_in</span>). Често се среща при германски, австрийски и швейцарски електромери.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --tasmota=192.168.1.70 --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --tasmota=192.168.1.70 --install"
    ],
    [
@@ -461,7 +461,7 @@
    "Сложи имейла на профила си в Powerfox на мястото на <span class=\"k\">YOUR_POWERFOX_EMAIL</span>. Програмата веднъж пита за токена ти и за паролата ти за Powerfox (паролата не се вижда, докато пишеш) и пази и двете в личен файл до gul.js. После сама се насрочва, точно както при начин B. Компютърът трябва да е включен поне веднъж на ден.",
    "code2",
    [
-    "iwr https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
+    "iwr -UseBasicParsing https://greenutilitylog.github.io/GreenUtilityLog/gul.js -OutFile gul.js; node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install",
     "curl -fsSL https://greenutilitylog.github.io/GreenUtilityLog/gul.js -o gul.js && node gul.js --powerfox=YOUR_POWERFOX_EMAIL --install"
    ],
    [
