@@ -28,7 +28,7 @@ const REDIS_KEY = process.env.STATE_KEY || "greenutilitylog:state";
 // `passes` is the access-pass registry (address → pass); `passesInit` records that the
 // one-time grandfathering has run, so turning REQUIRE_PASS on can't silently cut off
 // every existing tester — and can't re-grant a pass an admin has since revoked.
-const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {}, autoPaid: {}, payLog: [], prints: [], payDays: {}, meterRegs: {}, settings: {}, powerfox: {}, tibber: {}, mojelektro: {}, photoOwed: {}, readDevices: {}, devices: {}, photoAts: {}, walletChecks: {} };
+const EMPTY = { cooldowns: {}, hashes: {}, meterOwners: {}, readings: {}, ecoClaims: {}, meterLinks: {}, linkReadings: {}, bans: {}, photos: {}, usedCerts: {}, seen: {}, passes: {}, passesInit: 0, passSeq: 0, flags: {}, readingAts: {}, basisFixed: {}, rebased: {}, autoPaid: {}, payLog: [], prints: [], payDays: {}, meterRegs: {}, settings: {}, powerfox: {}, tibber: {}, mojelektro: {}, photoOwed: {}, readDevices: {}, devices: {}, photoAts: {}, walletChecks: {}, payouts: {} };
 // A fresh copy each time. Spreading EMPTY copies only its top level: every
 // "empty" state then shared EMPTY's own maps, so writing to one wrote to all of
 // them — and to the next "empty" state read from Redis.
@@ -230,17 +230,39 @@ if (USE_REDIS && loadError) {
 // in Redis (SET NX), which both processes see at once. Without Redis there is one
 // process, and a Map does the same job.
 const localOnce = new Map();
+let onceSeq = 0;
 async function takeOnce(key, ttlMs) {
   const ms = Math.max(1000, Math.floor(ttlMs));
   if (USE_REDIS) {
-    try { return (await redisCmd(["SET", `${REDIS_KEY}:once:${key}`, String(Date.now()), "NX", "PX", String(ms)])) === "OK"; }
-    catch (e) { console.error("[store] once-guard unavailable:", e?.message || e); return null; } // unknown: caller refuses
+    // Each take writes its own value. When the answer is lost (a timeout, a 5xx after
+    // Redis ran the SET), the key may be ours although we were told nothing; it used
+    // to stay taken for the whole TTL — a wallet refused "already paid recently" for
+    // 20 hours with nothing paid. Now it is read back, and removed if it is ours.
+    const mine = `${PROCESS_ID}:${Date.now()}:${++onceSeq}`;
+    const k = `${REDIS_KEY}:once:${key}`;
+    try { return (await redisCmd(["SET", k, mine, "NX", "PX", String(ms)])) === "OK"; }
+    catch (e) {
+      console.error("[store] once-guard unavailable:", e?.message || e);
+      try { if ((await redisCmd(["GET", k])) === mine) await redisCmd(["DEL", k]); }
+      catch { /* the attempt TTL (index.js guardPayout) bounds it */ }
+      return null; // unknown: caller refuses
+    }
   }
   const now = Date.now();
   const until = localOnce.get(key);
   if (until && until > now) return false;
   localOnce.set(key, now + ms);
   if (localOnce.size > 20000) for (const [k, t] of localOnce) if (t <= now) localOnce.delete(k);
+  return true;
+}
+// Lengthen a guard that was taken for a short attempt, once what it guards is done.
+async function extendOnce(key, ttlMs) {
+  const ms = Math.max(1000, Math.floor(ttlMs));
+  if (USE_REDIS) {
+    try { await redisCmd(["PEXPIRE", `${REDIS_KEY}:once:${key}`, String(ms)]); return true; }
+    catch (e) { console.error(`[store] could not extend guard "${key}":`, e?.message || e); return false; }
+  }
+  if (localOnce.has(key)) localOnce.set(key, Date.now() + ms);
   return true;
 }
 // A release that fails leaves an honest user blocked (20 h cooldown, 60 days on a
@@ -1135,6 +1157,23 @@ export const store = {
   prints: () => (Array.isArray(state.prints) ? state.prints : []),
   takeOnce,
   releaseOnce,
+  extendOnce,
+  // ── The payout journal (index.js "Payout journal") ──────────────────────────
+  // A payout is written here with its transaction id after signing and before it
+  // is sent, and removed once it is recorded and confirmed on chain. Whatever is
+  // left after a restart is settled from the chain.
+  putPayout: (txid, rec) => { if (!isMap(state.payouts)) state.payouts = {}; state.payouts[txid] = rec; persist(); },
+  getPayout: (txid) => (isMap(state.payouts) && Object.prototype.hasOwnProperty.call(state.payouts, txid) ? state.payouts[txid] : null),
+  delPayout: (txid) => { if (isMap(state.payouts) && Object.prototype.hasOwnProperty.call(state.payouts, txid)) { delete state.payouts[txid]; persist(); } },
+  allPayouts: () => Object.entries(isMap(state.payouts) ? state.payouts : {}).map(([txid, r]) => ({ ...r, txid })),
+  // A payout for this meter sent but not yet recorded: its result isn't known.
+  openPayoutFor: (utility, meterKey) => {
+    const k = String(meterKey || "").toLowerCase();
+    for (const r of Object.values(isMap(state.payouts) ? state.payouts : {})) {
+      if (r && !r.applied && r.utility === utility && r.meterKey === k) return r;
+    }
+    return null;
+  },
   // Admin-set switches that must survive restarts (e.g. who may use this version).
   getSetting: (k) => (isMap(state.settings) && Object.prototype.hasOwnProperty.call(state.settings, k) ? state.settings[k] : undefined),
   setSetting: (k, v) => { if (!isMap(state.settings)) state.settings = {}; state.settings[k] = v; persist(); },
@@ -1186,6 +1225,9 @@ export const store = {
     const meterOf = (k) => { const i = k.indexOf(":"); return i < 0 ? ["electric", k] : [k.slice(0, i), k.slice(i + 1)]; };
     for (const [k, owner] of Object.entries(isMap(src.meterOwners) ? src.meterOwners : {})) {
       if (own(state.meterOwners, k) || store.meterOwner(...meterOf(k)) != null) continue;
+      // A number that contains, or is contained in, a meter someone owns here would
+      // pass that owner's meter-number-on-photo check: not carried.
+      if (store.meterOverlapOwner(...meterOf(k), owner) != null) continue;
       state.meterOwners[k] = owner;
       for (const f of METER_FIELDS) if (own(src[f], k)) { if (!isMap(state[f])) state[f] = {}; state[f][k] = src[f][k]; }
       counts.meters++;
@@ -1199,12 +1241,19 @@ export const store = {
       if (owner != null && String(owner).toLowerCase() !== a) continue;
       const { lastPayout, ...link } = v; void lastPayout;
       state.meterLinks[token] = link;
-      if (own(src.linkReadings, a) && !own(state.linkReadings, a)) state.linkReadings[a] = src.linkReadings[a];
+      // The reader's last testnet reading is NOT carried: it was measured on testnet
+      // and would be paid on mainnet at once. The first mainnet push starts afresh.
       counts.links++;
     }
+    // One cloud account, home or metering point per wallet: one already linked to
+    // another wallet here is not carried, or one meter would pay two wallets.
+    const ACCOUNT_ID = { powerfox: "acct", tibber: "homeId", mojelektro: "usagePoint" };
     for (const f of ["powerfox", "tibber", "mojelektro"]) {
+      const idOf = (v) => String(v?.[ACCOUNT_ID[f]] ?? "").toLowerCase();
       for (const [a, v] of Object.entries(isMap(src[f]) ? src[f] : {})) {
         if (own(state[f], a)) continue;
+        const id = idOf(v);
+        if (id && Object.entries(isMap(state[f]) ? state[f] : {}).some(([b, w]) => b !== a && idOf(w) === id)) continue;
         if (!isMap(state[f])) state[f] = {};
         state[f][a] = v;
         counts.cloud++;

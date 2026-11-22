@@ -12,7 +12,7 @@ import { validateSubmission, validMeterNo } from "./verify.js";
 import { verifyPhoto, checkReadingOnPhoto, readingCheckMode, meterNoOnPhoto, meterNoCheckMode, photoPrint, printDistance } from "./media.js";
 import { store } from "./store.js";
 import { putPhoto, getPhotoDataUrl, deletePhoto, photoStoreEnabled } from "./photostore.js";
-import { distributeReward, savingOf, distributorAddress, chainDiagnostics, moveToRewardsPool, DRY_RUN, hasDistributorKey, payoutPending, pendingPayoutCount, recheckPendingPayouts } from "./reward.js";
+import { distributeReward, savingOf, distributorAddress, chainDiagnostics, moveToRewardsPool, DRY_RUN, hasDistributorKey, payoutPending, pendingPayoutCount, recheckPendingPayouts, txStatus } from "./reward.js";
 import { signalStatus, passportFor, signalUser, passportVouches } from "./passport.js";
 import { holdsGalaxyMember, memberCheck, kycSignalReset } from "./galaxy.js";
 import { budgetState, scaledAmount, recordPayout, autoClaimAllocation, autoMoveToRewardsPool } from "./budget.js";
@@ -359,21 +359,30 @@ const DAY_MS = 86400000;
 const PAYOUTS_PAUSED = /^(1|true|yes|on)$/i.test(String(process.env.PAYOUTS_PAUSED || "").trim());
 // Mainnet sets this false at boot until the node's genesis block confirms the chain.
 let chainConfirmed = true;
+// Taken first for the length of one attempt only, and lengthened to the full time
+// (a cooldown, 60 days for a reading) once the payout is done and recorded. A guard
+// left behind by an attempt that never finished — the process stopped, an answer
+// from storage lost — so blocks for minutes, not the 20 hours it used to; the
+// payout journal (below) covers what a guard can't: a payout that was sent.
+const GUARD_ATTEMPT_MS = Number(process.env.GUARD_ATTEMPT_MS || 15 * 60 * 1000);
 async function guardPayout(keys) {
   if (PAYOUTS_PAUSED) return { code: 503, error: "payouts are paused for maintenance — nothing was used up, please try again later" };
   if (!chainConfirmed) return { code: 503, error: "the server is still confirming which blockchain it is connected to — nothing was used up, please try again in a minute" };
   const taken = [];
   for (const [key, ttl, msg] of keys) {
-    const ok = await store.takeOnce(key, ttl);
+    const ok = await store.takeOnce(key, Math.min(ttl, GUARD_ATTEMPT_MS));
     if (ok !== true) {
-      for (const t of taken) await store.releaseOnce(t);
+      for (const [t] of taken) await store.releaseOnce(t);
       return ok === null
         ? { code: 503, error: "the server can't confirm right now that this isn't a duplicate — nothing was used up, please try again in a minute" }
         : { code: 400, error: msg };
     }
-    taken.push(key);
+    taken.push([key, ttl]);
   }
-  return { release: async () => { for (const t of taken) await store.releaseOnce(t); } };
+  return {
+    release: async () => { for (const [t] of taken) await store.releaseOnce(t); },
+    commit: async () => { for (const [t, ttl] of taken) if (ttl > GUARD_ATTEMPT_MS) await store.extendOnce(t, ttl); },
+  };
 }
 // One photo pays once. The hash list in the state blob already says so, but each
 // process reads its own copy — during a deploy's overlap the same photo sent to
@@ -450,10 +459,90 @@ async function walletCappedAmount(addr, utility, amount) {
 
 // Payouts between "sent" and "recorded". Shutdown waits for these to finish:
 // cut off in between, the B3TR is gone and the record of it is not.
+// Counted from the moment the guard is taken until it is committed or released, not
+// only while the transaction is out: a shutdown in between left the guard taken.
 let payoutsInFlight = 0;
-async function trackPayout(p) {
-  payoutsInFlight++;
-  try { return await p; } finally { payoutsInFlight--; }
+
+// ── Payout journal ───────────────────────────────────────────────────────────
+// A payout is written to storage with its transaction id after signing and BEFORE
+// it is sent (reward.js onSigned). If the process dies after sending but before the
+// cooldown and the new starting point are recorded, the chain has the payout and
+// the server doesn't — the next reading was paid the same days again. Whatever the
+// journal still holds is settled from the chain, at boot and every minute:
+//   sent and included   → recorded now (cooldown, starting point), flagged;
+//   reverted / unknown to the node well past expiry → dropped, nothing was paid;
+//   recorded, then reverted / lost → flagged for the admin (as before, but now also
+//   after a restart; it used to live in memory only).
+// While a payout for a meter is unresolved, that meter takes no new payout.
+const PROC = randomBytes(4).toString("hex");
+const activeTx = new Set();           // signed by this process, still being handled
+const JOURNAL_SETTLE_AFTER_MS = Number(process.env.JOURNAL_SETTLE_AFTER_MS || 4 * 60 * 1000);
+const JOURNAL_GIVE_UP_MS = Number(process.env.JOURNAL_GIVE_UP_MS || 15 * 60 * 1000);
+// `holder.txid` tells the caller which transaction was signed, for its clean-up.
+function journalOnSigned(entry, holder = {}) {
+  return async (txid) => {
+    holder.txid = txid;
+    activeTx.add(txid);
+    store.putPayout(txid, { ...entry, signedAt: Date.now(), pid: PROC, applied: false });
+    await store.flush();
+    if (!store.saveOk()) {
+      store.delPayout(txid);
+      activeTx.delete(txid);
+      const e = new Error("the payout couldn't be recorded before sending it — nothing was sent, please try again in a minute");
+      e.public = true;
+      throw e;
+    }
+  };
+}
+// After the payout is recorded: kept until the chain confirms it.
+function journalApplied(txid) {
+  const r = txid && store.getPayout(txid);
+  if (r) store.putPayout(txid, { ...r, applied: true, appliedAt: Date.now() });
+  activeTx.delete(txid);
+}
+const openPayoutMessage = "a payout for this meter is still being confirmed on the chain — try again in a few minutes";
+let reconciling = false;
+async function reconcilePayouts() {
+  if (reconciling || shuttingDown || !store.ready()) return;
+  reconciling = true;
+  try {
+    for (const r of store.allPayouts()) {
+      if (activeTx.has(r.txid)) continue;
+      const age = Date.now() - (Number(r.signedAt) || 0);
+      const st = await txStatus(r.txid).catch(() => null);
+      const lost = st === "reverted" || (st === "unknown" && age > JOURNAL_GIVE_UP_MS);
+      if (r.applied) {
+        if (st === "included") store.delPayout(r.txid);
+        else if (lost) {
+          const why = st === "reverted" ? "reverted on-chain" : "never landed (expired)";
+          console.error(`[payout] ${r.txid} ${why} — ${shortAddr(r.addr)} was not paid ${r.amount} B3TR; check and compensate`);
+          store.addFlag(`lost-${String(r.txid).slice(2, 12)}`, r.addr, `payout ${why}: ${r.amount} B3TR not received (tx ${r.txid}) — the reading was used up; compensate or reset this meter's cooldown`);
+          store.delPayout(r.txid);
+        }
+        continue;
+      }
+      if (st === "included") {
+        // Give a payout still running in another process (a deploy's overlap) time to
+        // record itself first.
+        if (age < JOURNAL_SETTLE_AFTER_MS) continue;
+        store.setCooldown(`${String(r.addr).toLowerCase()}:${r.utility}`, Number(r.signedAt) || Date.now());
+        store.bindMeter(r.utility, r.meterKey, r.addr);
+        const cur = store.lastReading(r.utility, r.meterKey);
+        if (cur == null || Number(r.reading) > Number(cur)) store.setLastReading(r.utility, r.meterKey, Number(r.reading), Number(r.readAt) || Number(r.signedAt) || Date.now());
+        if (r.source && r.source !== "photo") store.markAutoPaid(r.utility, r.meterKey);
+        if (r.full > 0) recordPayout(r.full);
+        console.warn(`[payout] ${r.txid} was sent but not recorded (the server stopped mid-payout) — recorded now`);
+        store.addFlag(`recovered-${String(r.txid).slice(2, 12)}`, r.addr, `payout of ${r.amount} B3TR (tx ${r.txid}) was sent but not recorded when the server stopped — recorded afterwards from the chain`);
+        store.delPayout(r.txid);
+      } else if (lost) {
+        console.warn(`[payout] ${r.txid} ${st === "reverted" ? "reverted" : "never arrived"} — nothing was paid, the meter is free again`);
+        store.delPayout(r.txid);
+      }
+    }
+    await store.flush();
+  } catch (e) {
+    console.error("[payout] journal check failed:", e?.message || e);
+  } finally { reconciling = false; }
 }
 
 // Error text can carry the gas-sponsor URL (the VeChain SDK puts it in its
@@ -1237,7 +1326,8 @@ app.post("/reward", async (req, res) => {
   const lockKey = `${String(req.body.address).toLowerCase()}:${req.body.utility}`;
   if (inFlight.has(lockKey)) { for (const u of deviceUndo) u(); return res.status(429).json({ error: "a submission for this meter is already processing" }); }
   inFlight.add(lockKey);
-  let photo = null, committed = false, guard = null;
+  let photo = null, committed = false, guard = null, counted = false;
+  const signed = {};
   try {
     { const busy = photoCheckBudget(req.body.address); if (busy) return res.status(429).json({ error: busy }); }
     // 2) Photo check — real image, not a reused one (and optional OCR match). This
@@ -1311,9 +1401,13 @@ app.post("/reward", async (req, res) => {
     // The checks above can take a minute or two. A shutdown or a failed save that
     // began meanwhile must stop the payout here, before anything is sent.
     if (shuttingDown || !store.ready()) return res.status(503).json({ error: shuttingDown ? "the server is restarting — nothing was used up, please try again in a minute" : notReadyMessage() });
+    if (store.openPayoutFor(req.body.utility, String(req.body.meterNo).trim().toLowerCase())) return res.status(409).json({ error: openPayoutMessage });
+    // Counted from here: a shutdown waits for the guard to be taken and the payout
+    // to finish, instead of leaving the guard behind.
+    payoutsInFlight++; counted = true;
     guard = await guardPayout([...meterPayoutKeys(req.body.address, req.body.utility, req.body.meterNo, req.body.reading), photoPayoutKey(photo.hash)]);
     if (guard.error) { const g = guard; guard = null; return res.status(g.code).json({ error: g.error }); }
-    const txid = recordOnly ? null : await trackPayout(distributeReward({
+    const txid = recordOnly ? null : await distributeReward({
       utility:  req.body.utility,
       meterNo:  req.body.meterNo,
       reading:  req.body.reading,
@@ -1324,7 +1418,9 @@ app.post("/reward", async (req, res) => {
       receiver: req.body.address,
       source:   "photo",
       noImpact: !!(v.firstReading || v.nearZero),
-    }));
+      onSigned: journalOnSigned({ addr: String(req.body.address).toLowerCase(), utility: req.body.utility, meterKey: String(req.body.meterNo).trim().toLowerCase(),
+        reading: Number(req.body.reading), readAt: null, amount: pay.amount, full: v.amount, source: "photo" }, signed),
+    });
     // Flags and the photo archive are keyed by the payout's txid; a reading without
     // one gets its own id.
     const recordId = txid || `rec-${String(req.body.address).toLowerCase().slice(2, 10)}-${Date.now()}`;
@@ -1337,9 +1433,11 @@ app.post("/reward", async (req, res) => {
     if (regSeen) store.setMeterRegs(req.body.utility, String(req.body.meterNo).trim().toLowerCase(), registers, regSeen);
     if (!recordOnly) recordPayout(v.amount);
     store.addPrint(req.body.address, "meter", print);
+    journalApplied(txid);
     // Make the anti-farming state (cooldown, burnt hash, baseline) durable BEFORE
     // responding, so a hard crash in the debounce window can't replay this payout.
     await store.flush();
+    await guard.commit();
     // Archive the photo for admin review (opt-in via R2 creds). Fire-and-forget —
     // must never delay or fail the payout. Keyed by txid so it lines up with the
     // on-chain history row shown in admin.
@@ -1393,6 +1491,9 @@ app.post("/reward", async (req, res) => {
     if (!committed && photo?.ok) photo.unreserve();
     if (!committed && guard?.release) await guard.release();
     if (!committed) for (const u of deviceUndo) u();
+    // Not recorded here: the journal check settles it from the chain.
+    if (!committed && signed.txid) activeTx.delete(signed.txid);
+    if (counted) payoutsInFlight--;
     inFlight.delete(lockKey);
   }
 });
@@ -2051,14 +2152,21 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
     return { ok: false, code: 400, error: "submit one photo reading first to set this meter's baseline — then automatic readings pay out" };
   }
 
+  // Measured to when the reading was TAKEN, for every source — not to when it is
+  // settled. A reading kept through the cooldown and settled hours later (on a
+  // tap, a tick, the next push) was measured to "now": usage of one hour against a
+  // target of twenty, a saving of several kWh that never happened. The reader's
+  // own time for Powerfox/Tibber/MojElektro, the arrival time for a push.
   const v = validateSubmission({ utility, reading: Number(latest.reading), meterNo, address: addr },
-    latest.meterTime ? { readAt: Number(latest.at) } : {});
+    Number.isFinite(Number(latest.at)) && Number(latest.at) > 0 ? { readAt: Number(latest.at) } : {});
   if (!v.ok) return { ok: false, code: 400, error: v.error };
 
   const lockKey = `${addr.toLowerCase()}:${utility}`;
   if (inFlight.has(lockKey)) return { ok: false, code: 429, error: "a submission for this meter is already processing" };
+  if (store.openPayoutFor(utility, meterNo.toLowerCase())) return { ok: false, code: 409, error: openPayoutMessage };
   inFlight.add(lockKey);
-  let guard = null, paid = false;
+  let guard = null, paid = false, counted = false;
+  const signed = {};
   try {
     // As in /reward: a reading that saves nothing is recorded without a payout.
     const full = await walletCappedAmount(addr, utility, v.amount);
@@ -2066,9 +2174,10 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
     const pay = recordOnly ? { amount: 0, factor: null } : await scaledAmount(full);
     if (pay.error) return { ok: false, code: 503, error: pay.error };
     if (shuttingDown || !store.ready()) return { ok: false, code: 503, error: shuttingDown ? "the server is restarting — nothing was used up, please try again in a minute" : notReadyMessage() };
+    payoutsInFlight++; counted = true;
     guard = await guardPayout(meterPayoutKeys(addr, utility, meterNo, latest.reading));
     if (guard.error) { const g = guard; guard = null; return { ok: false, code: g.code, error: g.error }; }
-    const txid = recordOnly ? null : await trackPayout(distributeReward({
+    const txid = recordOnly ? null : await distributeReward({
       utility, meterNo,
       reading:  Number(latest.reading),
       prevRead: v.prev,
@@ -2079,7 +2188,9 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
       // "push" for a reader, "powerfox"/"tibber" for a cloud source; no photo either way.
       source:   latest.source || "reader",
       noImpact: !!(v.firstReading || v.nearZero),
-    }));
+      onSigned: journalOnSigned({ addr: addr.toLowerCase(), utility, meterKey: meterNo.toLowerCase(), reading: Number(latest.reading),
+        readAt: Number(latest.at) || null, amount: pay.amount, full: v.amount, source: latest.source || "reader" }, signed),
+    });
     paid = true;
     v.markPaid();
     if (!recordOnly) recordPayout(v.amount);
@@ -2093,7 +2204,9 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
     // writing back the copy from before would bring a revoked device token back.
     const cur = link?.token ? store.getMeterLink(link.token) : null;
     if (cur) store.setMeterLink(link.token, { ...cur, autoPaidAt: Date.now(), lastPayout: { amount: pay.amount, txid, at: Date.now(), reading: Number(latest.reading) } });
+    journalApplied(txid);
     await store.flush(); // durable before returning, so a crash can't replay this reading
+    await guard.commit();
     return { ok: true, txid, amount: pay.amount, fullAmount: recordOnly ? 0 : v.amount, factor: pay.factor, usage: v.usage, ...savingOf({ utility, usage: v.usage, days: v.days, noImpact: recordOnly || !!(v.firstReading || v.nearZero), firstReading: !!v.firstReading }), reading: Number(latest.reading), source: latest.source || "meter",
       pending: txid ? payoutPending(txid) : false, ...(recordOnly ? { recorded: true, reason: v.noReward || "recorded, no reward this time" } : {}) };
   } catch (e) {
@@ -2104,6 +2217,8 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
     return { ok: false, code: 502, committed: true, error: "the reward was sent, but recording it hit a problem — check your wallet before trying again" };
   } finally {
     if (!paid && guard?.release) await guard.release();
+    if (!paid && signed.txid) activeTx.delete(signed.txid);
+    if (counted) payoutsInFlight--;
     inFlight.delete(lockKey);
   }
 }
@@ -2207,7 +2322,7 @@ app.post("/meter/rebaseline", async (req, res) => {
 
   // setLastReading also stamps the time, so the next submission's span is measured
   // from now rather than from a photo that may be weeks old.
-  store.setLastReading(utility, key, reading, latest.meterTime && Number.isFinite(Number(latest.at)) ? Math.min(Number(latest.at), Date.now()) : Date.now());
+  store.setLastReading(utility, key, reading, Number.isFinite(Number(latest.at)) && Number(latest.at) > 0 ? Math.min(Number(latest.at), Date.now()) : Date.now());
   store.markRebased(utility, key, { from: prev, to: reading, by: address.toLowerCase() });
   // No photo stands behind this starting point: the next automatic payout waits for
   // one, for every source (store.photoOwed).
@@ -2362,6 +2477,9 @@ async function autoSettle(link, why = "timer") {
   try {
     const r = await settleMeterReading({ address: link.address, utility, meterNo });
     if (r.ok) console.log(`[auto-pay:${why}] ${shortAddr(link.address)} ${r.recorded ? `recorded, no reward (${r.reason})` : `+${r.amount} B3TR (${r.txid})`}`);
+    // A server-side refusal (storage, chain, journal) is worth a line; the ordinary
+    // skips (cooldown, nothing new) are not.
+    else if (r.code >= 409) console.warn(`[auto-pay:${why}] ${shortAddr(link.address)} not paid: ${r.error}`);
     // Non-ok results (cooldown / no baseline / budget) are normal skips, not errors.
     return r;
   } catch (e) {
@@ -2617,6 +2735,12 @@ setInterval(() => {
     await store.flush().catch(() => {});
   }).catch(() => {});
 }, 60 * 1000).unref();
+
+// The payout journal: settle what a stopped process left behind, soon after boot
+// and then every minute. JOURNAL_CHECK_MS is for the tests.
+const JOURNAL_CHECK_MS = Math.max(1000, Number(process.env.JOURNAL_CHECK_MS || 60 * 1000));
+setTimeout(() => { reconcilePayouts().catch(() => {}); }, Math.min(20000, JOURNAL_CHECK_MS)).unref();
+setInterval(() => { reconcilePayouts().catch(() => {}); }, JOURNAL_CHECK_MS).unref();
 
 // Last in line: turns a thrown/rejected handler into a plain 500, without the
 // error's text (which can carry node or provider internals) going to the client.

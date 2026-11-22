@@ -305,7 +305,10 @@ export async function simulateClause(clause, caller) {
 // Generalised over the target contract so other modules (passport.js) can reuse the
 // distributor signer, gas estimation and receipt handling. sendClause below keeps the
 // original rewards-pool-only signature for every existing caller.
-export async function sendClauseTo(to, abi, args, comment) {
+// `opts.onSigned(txid)` runs after signing and BEFORE anything is broadcast: the
+// payout journal (index.js) records the id there, so a payout whose process dies
+// mid-way can still be found on chain and settled. If it throws, nothing is sent.
+export async function sendClauseTo(to, abi, args, comment, opts = {}) {
   if (!signer) throw new Error("distributor key not configured");
   const clause = Clause.callFunction(Address.of(to), new ABIFunction(abi), args);
   // Sign first, broadcast second. With one call doing both, a broadcast whose
@@ -320,6 +323,7 @@ export async function sendClauseTo(to, abi, args, comment) {
     ...(DELEGATION_URL ? { delegationUrl: DELEGATION_URL } : {}),
   });
   const txid = Transaction.decode(HexUInt.of(String(raw).replace(/^0x/, "")).bytes, true).id.toString();
+  if (opts.onSigned) await opts.onSigned(txid);
   // A broadcast that failed is sent again AS IS — same signature, same id, so the
   // chain can include it at most once. Only when the node still doesn't know it
   // after the last try is it "not sent"; the caller's retry then signs a new one.
@@ -353,7 +357,10 @@ export async function sendClauseTo(to, abi, args, comment) {
       lastErr = null;
     }
   }
-  if (lastErr) throw lastErr; // never arrived: nothing was sent
+  // Never arrived as far as the nodes can tell — but it was signed, and a node
+  // behind the load balancer may still hold it until it expires. The id goes with
+  // the error, so the caller can keep its journal entry until that is known.
+  if (lastErr) { lastErr.txid = txid; lastErr.notSent = true; throw lastErr; }
   let receipt = null;
   try {
     receipt = await thor.transactions.waitForTransaction(txid, { timeoutMs: RECEIPT_WAIT_MS, intervalMs: Math.min(2000, RECEIPT_WAIT_MS) });
@@ -377,8 +384,23 @@ async function nodeHasTransaction(txid) {
   } catch { return null; }
 }
 
-const sendClause = (abi, args, comment) =>
-  sendClauseTo(CONTRACTS.X2EarnRewardsPool, abi, args, comment);
+const sendClause = (abi, args, comment, opts) =>
+  sendClauseTo(CONTRACTS.X2EarnRewardsPool, abi, args, comment, opts);
+
+// Where a transaction stands: "included", "reverted", "pending" (known to the
+// node, not in a block yet), "unknown" (the node has never heard of it), or null
+// when the node can't be asked. A dry-run id counts as included.
+export async function txStatus(txid) {
+  if (/^0xdry/.test(String(txid))) return "included";
+  try {
+    const res = await fetch(`${NODE_URL.replace(/\/$/, "")}/transactions/${txid}/receipt`, { signal: AbortSignal.timeout(15000) });
+    if (!res.ok) return null;
+    const receipt = await res.json();
+    if (receipt) return receipt.reverted ? "reverted" : "included";
+  } catch { return null; }
+  const known = await nodeHasTransaction(txid);
+  return known === true ? "pending" : known === false ? "unknown" : null;
+}
 
 // Sign + broadcast the payout. Preferred path: distributeRewardWithProofAndMetadata
 // (the contract builds the standard VeBetter proof that wallets recognise, and our
@@ -446,10 +468,11 @@ if (DRY_RUN) {
   console.warn("[reward] DISTRIBUTOR_DRY_RUN is on — rewards are NOT sent on-chain.");
 }
 
-async function sendProofReward({ amount, receiver, proofText, impacts, description, metadata, comment }) {
+async function sendProofReward({ amount, receiver, proofText, impacts, description, metadata, comment, onSigned }) {
   if (DRY_RUN) {
     // Shaped like a real txid so callers, logs and stored history need no special case.
     const fake = "0xdry" + Buffer.from(`${receiver}:${amount}:${Date.now()}`).toString("hex").slice(0, 61);
+    if (onSigned) await onSigned(fake);
     // The metadata too: it is what an admin later reads off the chain, and the only
     // way a test can check what would have been written without a chain to write to.
     console.warn(`[reward] DRY RUN — would send ${amount} B3TR to ${receiver} (${fake}) metadata=${metadata || ""}`);
@@ -509,7 +532,7 @@ async function sendProofReward({ amount, receiver, proofText, impacts, descripti
   }
   if (chosen !== variants[0]) console.warn(`[reward] "${variants[0].name}" reverts ("${reasons[0]}") — sending "${chosen.name}"`);
 
-  const attempt = await sendClause(chosen.abi, chosen.args, chosen === variants[0] ? comment : `${comment} (${chosen.name})`);
+  const attempt = await sendClause(chosen.abi, chosen.args, chosen === variants[0] ? comment : `${comment} (${chosen.name})`, { onSigned });
   // Who and how much, for the report if this payout never lands.
   if (unconfirmed.has(String(attempt.txid))) Object.assign(unconfirmed.get(String(attempt.txid)), { receiver, amount });
   if (attempt.reverted) {
@@ -529,7 +552,7 @@ const proofNum = (v) => (Number.isFinite(Number(v)) ? String(Number(v)) : "?");
 // `noImpact`: a payout held to the base amount (a meter's first reading, almost no
 // usage) claims no saving — its "usage" is the submitter's word or a stale value,
 // and the chain record shouldn't present it as kilograms of CO2 avoided.
-export async function distributeReward({ utility, meterNo, reading, prevRead, usage, days = 1, amount, receiver, source, noImpact = false }) {
+export async function distributeReward({ utility, meterNo, reading, prevRead, usage, days = 1, amount, receiver, source, noImpact = false, onSigned }) {
   const label = UTILITY_LABELS[utility] || utility;
   const u = Math.max(0, Number(usage) || 0);
   // Units as VeBetterDAO defines them (vechain-ai-skills, sustainability-proofs):
@@ -568,6 +591,7 @@ export async function distributeReward({ utility, meterNo, reading, prevRead, us
     description: `${label} meter reading logged via Green Utility Log`,
     metadata,
     comment:     `Green Utility Log — ${utility} reward (${amount} B3TR)`,
+    onSigned,
   });
 }
 
