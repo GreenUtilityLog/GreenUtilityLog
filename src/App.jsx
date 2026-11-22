@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, Fragment, lazy, Suspense } from "react";
+import { useState, useRef, useEffect, Fragment, lazy, Suspense, Component } from "react";
 import { createPortal } from "react-dom";
 import { t, getLang, setLang, LANGS, langPack, onLangChange, weekdayInitials } from "./i18n.js";
 import { HELP_I18N, HELP_MAINNET } from "./help.js";
@@ -9,10 +9,29 @@ import { rankBoard } from "./board.js";
 import { fetchOnChainLeaderboard, fetchWalletHistory, fetchIsAppAdmin, fetchTokenBalance, fetchGalaxyMember } from "./leaderboard.js";
 // The admin screen is for the app's owner only, and ~1,000 lines: loaded when it
 // is opened rather than for every visitor.
-const AdminScreen = lazy(() => import("./admin.jsx"));
+// A part loaded on demand can fail to arrive: a deploy replaced the files while the
+// app was open, or the connection dropped. Tried once more after a moment; if it
+// still fails, ChunkBoundary says so in place, instead of the whole app giving way
+// to the crash page.
+const lazyRetry = (load) => lazy(() => load().catch(() => new Promise((r) => setTimeout(r, 1500)).then(load)));
+class ChunkBoundary extends Component {
+  constructor(props) { super(props); this.state = { failed: false }; }
+  static getDerivedStateFromError() { return { failed: true }; }
+  render() {
+    if (!this.state.failed) return this.props.children;
+    const T = this.props.T || {};
+    return (
+      <div role="alert" style={{ margin: "14px", padding: "16px", textAlign: "center", fontSize: 13, color: T.text, background: T.card, border: `1px solid ${T.border}`, borderRadius: 10 }}>
+        <div style={{ marginBottom: 10 }}>{t("load.failed")}</div>
+        <button type="button" onClick={() => window.location.reload()} style={{ minHeight: 44, padding: "0 18px", borderRadius: 8, border: "none", background: T.green3 || "#2d6a4f", color: "#fff", fontWeight: 700, cursor: "pointer" }}>{t("load.reload")}</button>
+      </div>
+    );
+  }
+}
+const AdminScreen = lazyRetry(() => import("./admin.jsx"));
 // Setting up an automatic reader (P1, Home Assistant, Tibber, Powerfox…) is a
 // once-only path for some users: its ~850 lines load when that card is opened.
-const SmartMeterCard = lazy(() => import("./reader.jsx"));
+const SmartMeterCard = lazyRetry(() => import("./reader.jsx"));
 
 // ════════════════════════════════════════════════════════════════════════════
 // APP VERSION & VECHAIN KIT
@@ -2591,11 +2610,13 @@ function TodayPanel({ subs, wallet, setTab, onOpenReader, T }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
         <button type="button" onClick={onOpenReader} style={{ ...card, textAlign: "left", cursor: "pointer", font: "inherit", color: T.text }}>
           <div style={{ ...label, display: "flex", alignItems: "center", gap: 6 }}>
-            <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "50%", background: !reader?.paired ? T.border : reader.fresh || reader.needsToken ? T.green3 : T.electric }} />
+            <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "50%", background: !reader?.paired ? T.border : reader.fresh ? T.green3 : reader.needsToken && !reader.at ? T.border : T.electric }} />
             {t("today.reader")}
           </div>
           <div style={{ fontSize: 14, fontWeight: 800, marginTop: 6 }}>
-            {!reader ? "…" : !reader.paired ? t("today.reader.none") : reader.needsToken ? t("today.reader.ok") : reader.fresh ? t("today.reader.ok") : t("today.reader.stale")}
+            {/* Paired on another phone: this one sees only the last payout, so "connected"
+                only when that is recent — it said "Connected" for a reader dead a week. */}
+            {!reader ? "…" : !reader.paired ? t("today.reader.none") : reader.fresh ? t("today.reader.ok") : reader.needsToken && !reader.at ? t("today.reader.other") : t("today.reader.stale")}
           </div>
           <div style={{ fontSize: 10.5, color: T.textSoft, marginTop: 2 }}>
             {!reader?.paired ? t("today.reader.setup") : reader.at ? t("today.reader.last", { when: fmtWhen(reader.at) }) : t("today.reader.other")}
@@ -3043,9 +3064,9 @@ function SubmitScreen({ isFirst = false, rewardFactor = 1, u, selUtil, setSelUti
         </div>
       )}
       </>) : (
-        <Suspense fallback={<div role="status" style={{margin:"14px",padding:"18px",textAlign:"center",fontSize:12,color:T.textSoft}}>…</div>}>
+        <ChunkBoundary T={T}><Suspense fallback={<div role="status" style={{margin:"14px",padding:"18px",textAlign:"center",fontSize:12,color:T.textSoft}}>…</div>}>
           <SmartMeterCard embedded wallet={wallet} setReading={setReading} T={T} onAutoSubmit={onMeterAutoSubmit} autoBusy={meterAutoBusy} meterNo={meterNo} />
-        </Suspense>
+        </Suspense></ChunkBoundary>
       )}
     </>
   );
@@ -4476,7 +4497,9 @@ export default function App() {
   const networkMismatch = !!serverNetwork && serverNetwork !== NETWORK;
   useEffect(() => {
     let stop = false;
-    const read = () => fetch(`${REWARD_API.replace(/\/$/, "")}/health`, { signal: AbortSignal.timeout(20000) })
+    // fetchT, not AbortSignal.timeout directly: older iOS/Android web views lack it,
+    // and the bare call threw during the first render — the crash page, no app.
+    const read = () => fetchT(`${REWARD_API.replace(/\/$/, "")}/health`, {}, 20000)
       .then(r => (r.ok ? r.json() : null))
       .then(h => {
         if (stop || !h) return;
@@ -4486,11 +4509,18 @@ export default function App() {
         // A build pointed at the other network's server would pay (or not) on a
         // chain the user isn't looking at. Say so, and refuse to submit.
         setServerNetwork(typeof h.network === "string" ? h.network : null);
+        return true;
       })
-      .catch(() => {});
-    read();
-    const t = setInterval(read, 10 * 60 * 1000);
-    return () => { stop = true; clearInterval(t); };
+      .catch(() => false);
+    // Every ten minutes once answered; every half minute until then. A server still
+    // waking up (free plan) used to hold queued readings back for ten minutes.
+    let timer = null;
+    const loop = async () => {
+      const ok = await read();
+      if (!stop) timer = setTimeout(loop, ok ? 10 * 60 * 1000 : 30 * 1000);
+    };
+    loop();
+    return () => { stop = true; clearTimeout(timer); };
   }, []);
   const [subs, setSubs]             = useState([]);    // no demo data — start empty until hydrated
   const streak = computeStreak(subs); // derived from real submission dates
@@ -4577,17 +4607,33 @@ export default function App() {
     setTab("home");
 
     if (storedWallet && storedWallet !== addr) {
-      // Genuinely switching to a DIFFERENT wallet on this browser: reset the
-      // account setup — a new wallet must not inherit the previous one's meters
-      // or baselines (the latter being the real anti-fraud guard).
-      setBaselines({ electric:"", gas:"", water:"", solar:"" });
-      setMeters({ electric:"", gas:"", water:"", solar:"" });
-      setRegUtils(null); setRegEdit(false);   // first-setup mode: required meters only
-      setNeedsBaselines(true);
+      // Genuinely switching to a DIFFERENT wallet on this browser: a new wallet must
+      // not inherit the previous one's meters or baselines (the latter being the real
+      // anti-fraud guard). The previous wallet's are put aside under its address and
+      // this wallet's own come back — switching A → B → A asked A to register its
+      // meter all over again.
+      const blank = { electric:"", gas:"", water:"", solar:"" };
+      const perWallet = (kind, w) => `greenlog_${kind}_${String(w).toLowerCase()}`;
+      let ownM = null, ownB = null;
       try {
-        localStorage.removeItem('greenlog_baselines');
-        localStorage.removeItem('greenlog_meters');
-      } catch {}
+        const m = localStorage.getItem('greenlog_meters'), b = localStorage.getItem('greenlog_baselines');
+        if (m) localStorage.setItem(perWallet("meters", storedWallet), m);
+        if (b) localStorage.setItem(perWallet("baselines", storedWallet), b);
+        ownM = JSON.parse(localStorage.getItem(perWallet("meters", addr)) || "null");
+        ownB = JSON.parse(localStorage.getItem(perWallet("baselines", addr)) || "null");
+      } catch { ownM = ownB = null; }
+      const complete = ownM && ownB && UTILS.filter(u => !u.optional).every(u => String(ownM[u.id] || "").trim());
+      setRegUtils(null); setRegEdit(false);   // first-setup mode: required meters only
+      if (complete) {
+        setMeters(ownM); setBaselines(ownB); setNeedsBaselines(false);
+        try { localStorage.setItem('greenlog_meters', JSON.stringify(ownM)); localStorage.setItem('greenlog_baselines', JSON.stringify(ownB)); } catch {}
+      } else {
+        setBaselines(blank); setMeters(blank); setNeedsBaselines(true);
+        try {
+          localStorage.removeItem('greenlog_baselines');
+          localStorage.removeItem('greenlog_meters');
+        } catch {}
+      }
     }
     // Record the wallet for this browser. Reconnecting the SAME wallet — or a
     // fresh / cache-cleared browser — keeps whatever meters & baselines are
@@ -4727,6 +4773,12 @@ export default function App() {
           // wallet was stored (or while none was connected) go to whoever is
           // connected, as they always did.
           if (item.wallet && item.wallet.toLowerCase() !== wallet.toLowerCase()) continue;
+          // Still in the cooldown (as the server last said, or a reading paid just
+          // now in this same run): wait for it, and ask for no signature yet. Each
+          // queued reading used to ask for one, be refused "cooldown", and ask again
+          // two hours later — ten unasked signature requests over a cooldown.
+          const wait = getCooldownRemaining(item.type);
+          if (wait > 0) { await markLater(item.id, wait + 60000, "cooldown"); continue; }
           // Sign first: a declined or dropped signature sends nothing, so the item
           // simply stays queued — no flag to get stuck on.
           let certificate;
@@ -4759,7 +4811,9 @@ export default function App() {
             const notYet = data.needsPass || /cooldown|already processing/i.test(String(data.errorEn || data.error || ""));
             if (notYet) {
               // Kept for later: after the cooldown, or once an admin gives the pass.
-              await markLater(item.id, data.needsPass ? 12 * 3600000 : 2 * 3600000, data.error);
+              // A cooldown: until it ends (as far as this device knows), else two hours.
+              const until = data.needsPass ? 12 * 3600000 : (getCooldownRemaining(item.type) + 60000 > 60000 ? getCooldownRemaining(item.type) + 60000 : 2 * 3600000);
+              await markLater(item.id, until, data.error);
               continue;
             }
             // A signature problem (signed by another account in the wallet, expired,
@@ -4783,6 +4837,9 @@ export default function App() {
           }
           const paid = (data.amount != null && Number.isFinite(Number(data.amount))) ? Number(data.amount) : item.b3tr;
           await markSynced(item.id);
+          // The cooldown starts now: the next queued reading of this meter waits for
+          // it without asking for a signature.
+          if (sessionWalletRef.current === wallet.toLowerCase()) setCooldown(item.type);
           // Paid and out of the queue: it goes into the history even if the
           // connection flipped meanwhile (a reading recorded without a reward is on
           // no chain, so it would be gone for good). Not into another wallet's.
@@ -5402,7 +5459,7 @@ export default function App() {
           the intro — and "Connect wallet" — were unreachable by keyboard. */}
       {needsBaselines && !showIntro && wallet && <BaselineOnboarding onDone={(bl, mtrs) => { setBaselines(bl); setMeters(mtrs); closeRegistration(); }} utils={regUtils} editMode={regEdit} existingBaselines={baselines} existingMeters={meters} T={T} />}
       {!onboarded && <Onboarding onDone={() => setOnboarded(true)} />}
-      {showAdmin && isAdmin && <Suspense fallback={<div role="status" style={{position:"fixed",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.4)",color:"#fff",zIndex:400}}>Loading…</div>}><AdminScreen onClose={() => setShowAdmin(false)} T={T} wallet={wallet} onFundPool={handleFundPool} onMoveToRewardsPool={handleMoveToRewardsPool} onDisableRewardsPool={handleDisableRewardsPool} onSetDistributionPaused={handleSetDistributionPaused} onAssignSignaler={handleAssignSignaler} onClaimB3TR={FAUCET_ENABLED ? handleClaimB3TR : null} onAdminApi={adminApi} onToast={showToast} /></Suspense>}
+      {showAdmin && isAdmin && <ChunkBoundary T={T}><Suspense fallback={<div role="status" style={{position:"fixed",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.4)",color:"#fff",zIndex:400}}>Loading…</div>}><AdminScreen onClose={() => setShowAdmin(false)} T={T} wallet={wallet} onFundPool={handleFundPool} onMoveToRewardsPool={handleMoveToRewardsPool} onDisableRewardsPool={handleDisableRewardsPool} onSetDistributionPaused={handleSetDistributionPaused} onAssignSignaler={handleAssignSignaler} onClaimB3TR={FAUCET_ENABLED ? handleClaimB3TR : null} onAdminApi={adminApi} onToast={showToast} /></Suspense></ChunkBoundary>}
       {showHelp && <HelpScreen onLang={changeLang} onClose={() => setShowHelp(false)} onFeedback={() => { setShowHelp(false); setShowFeedback(true); }} T={T} />}
       {showFeedback && <FeedbackScreen onClose={() => setShowFeedback(false)} onToast={showToast} wallet={wallet} tab={tab} T={T} />}
       {toast && (toast.sticky ? (

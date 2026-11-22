@@ -593,7 +593,7 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
     if (photoPaused) steps.push({ day: "", time: t("today.now"), title: t("r.photoFirst.t"), sub: t("r.photoFirst.s"), done: false });
     else steps.push(nextAt > Date.now()
       ? { ...dayTime(nextAt), title: t("r.nextReward"), sub: t("r.sendsAfter"), done: false }
-      : { day: "", time: t("today.now"), title: t("r.nextReward"), sub: paidThis || !rd ? t("r.paidNext") : t("r.canPay"), done: false });
+      : { day: "", time: t("today.now"), title: t("r.nextReward"), sub: paidThis || !rd || !readerFresh ? t("r.paidNext") : t("r.canPay"), done: false });
     return steps;
   })();
   const box = { margin: "0 14px 12px", padding: 12, background: T.ecoBg || T.waterBg, border: `1px solid ${T.ecoBorder || T.waterBorder}`, borderRadius: 10 };

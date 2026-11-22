@@ -4,7 +4,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { DAppKitProvider } from '@vechain/dapp-kit-react'
 import App, { ACTIVE_NODE, TestnetBanner } from './App.jsx'
-import { getLang, langReady } from './i18n.js'
+import { getLang, langReady, t } from './i18n.js'
 
 // ════════════════════════════════════════════════════════════════════════════
 // WALLETCONNECT PROJECT ID  (free, from https://cloud.reown.com)
@@ -51,6 +51,10 @@ function showError(label, err) {
 window.addEventListener('error', (e) => showError('window.onerror:', e.error || e.message))
 window.addEventListener('unhandledrejection', (e) => showError('unhandledrejection:', e.reason))
 
+// The crash page's text, with English when even the texts are what broke.
+function say(key, fallback) {
+  try { const v = t(key); return v && v !== key ? v : fallback } catch { return fallback }
+}
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props)
@@ -69,11 +73,16 @@ class ErrorBoundary extends React.Component {
     if (!this.state.error) return this.props.children
     return (
       <div style={{ font: '14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif', maxWidth: 900, margin: '24px auto', padding: 20, border: '2px solid #b00020', borderRadius: 10, background: '#fff5f5', color: '#1a1a1a' }}>
-        <h2 style={{ margin: '0 0 8px', color: '#b00020' }}>Something went wrong</h2>
-        <p style={{ margin: '0 0 12px' }}>The app ran into an error. Please reload the page.</p>
-        <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', background: '#fff', border: '1px solid #f0c0c0', borderRadius: 6, padding: 12, margin: 0, font: '12px/1.4 monospace', color: '#b00020' }}>
-          {describeError(this.state.error)}
-        </pre>
+        {/* In the app's language, with a way out; the stack only under "details". */}
+        <h2 style={{ margin: '0 0 8px', color: '#b00020' }}>{say('crash.title', 'Something went wrong')}</h2>
+        <p style={{ margin: '0 0 12px' }}>{say('crash.body', 'The app ran into an error. Reload to continue.')}</p>
+        <button type="button" onClick={() => window.location.reload()} style={{ minHeight: 44, padding: '0 18px', marginBottom: 12, borderRadius: 8, border: 'none', background: '#b00020', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>{say('load.reload', 'Reload')}</button>
+        <details>
+          <summary style={{ cursor: 'pointer', fontSize: 12 }}>{say('crash.details', 'Technical details')}</summary>
+          <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', background: '#fff', border: '1px solid #f0c0c0', borderRadius: 6, padding: 12, margin: '8px 0 0', font: '12px/1.4 monospace', color: '#b00020' }}>
+            {describeError(this.state.error)}
+          </pre>
+        </details>
       </div>
     )
   }
