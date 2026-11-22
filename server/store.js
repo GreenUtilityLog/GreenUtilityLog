@@ -37,6 +37,8 @@ const fresh = (over = {}) => ({ ...JSON.parse(JSON.stringify(EMPTY)), ...over })
 // Cap the "seen wallets" roster so an open endpoint can't grow state without bound.
 // When exceeded we drop the least-recently-seen entries.
 const SEEN_MAX = 2000;
+// Certificates remembered as spent (about 80 bytes each), for half an hour.
+const USED_CERTS_MAX = Number(process.env.USED_CERTS_MAX || 8000);
 
 // Same reasoning for the flagged-submission log: one entry per flagged payout,
 // forever, would grow state without bound.
@@ -133,7 +135,7 @@ async function loadState() {
       const core = blobs[0] ? JSON.parse(blobs[0]) : {};
       const out = fresh(core);
       parts.forEach((part, i) => {
-        blobBytes.set(part, blobs[i] ? blobs[i].length : 0);
+        blobBytes.set(part, blobs[i] ? Buffer.byteLength(blobs[i]) : 0);
         lastVer.set(part, vers[i] == null ? "0" : String(vers[i]));
       });
       PART_FIELDS.forEach((f, i) => {
@@ -357,7 +359,7 @@ function adopt(remote) {
 // never carries those fields (adopt() would otherwise replace the part's data).
 async function readPart(part) {
   const [blob, ver] = await redisCmd(["MGET", keyOf(part), verKeyOf(part)]);
-  blobBytes.set(part, blob ? blob.length : 0);
+  blobBytes.set(part, blob ? Buffer.byteLength(blob) : 0);
   const v = ver == null ? "0" : String(ver);
   if (part !== CORE) {
     const parsed = blob ? JSON.parse(blob) : {};
@@ -416,13 +418,13 @@ async function casSet(part, ver, blob) {
     if (casSupported) {
       if (!r) return false;
       lastVer.set(part, String(r));
-      blobBytes.set(part, blob.length);
+      blobBytes.set(part, Buffer.byteLength(blob));
       return true;
     }
   }
   await redisCmd(["SET", keyOf(part), blob]);
   lastVer.delete(part);
-  blobBytes.set(part, blob.length);
+  blobBytes.set(part, Buffer.byteLength(blob));
   return true;
 }
 
@@ -536,7 +538,7 @@ async function writeOnce() {
     return;
   }
   const blob = JSON.stringify(state);
-  lastBlobBytes = blob.length;
+  lastBlobBytes = Buffer.byteLength(blob);
   try {
     // Atomic-ish: write a temp file then rename, so a crash mid-write can't
     // corrupt the live state file (the old boot loader silently started fresh).
@@ -760,7 +762,10 @@ export const store = {
       lastSeen: now,
       // From an open endpoint, so kept small: a few short labels, nothing else.
       meters: Array.isArray(meters)
-        ? meters.slice(0, 4).map((m) => String(m ?? "").replace(/\p{C}/gu, "").trim().slice(0, 40)).filter(Boolean)
+        // Meter numbers only: letters, digits and the few separators they are written
+        // with. Any other character (a "€" is 3 bytes) let one call store 600 bytes,
+        // and 2000 wallets of that grew the roster past what one save may carry.
+        ? meters.slice(0, 4).map((m) => String(m ?? "").replace(/[^A-Za-z0-9 .\-_/]/g, "").trim().slice(0, 40)).filter(Boolean)
         : (prev?.meters || []),
     };
     // Bound the roster: drop the least-recently-seen beyond SEEN_MAX.
@@ -1191,7 +1196,7 @@ export const store = {
   // what has to fit in one request. The file backend writes one value.
   stateBytes: () => USE_REDIS && blobBytes.size
     ? Math.max(...blobBytes.values())
-    : (lastBlobBytes || (lastBlobBytes = JSON.stringify(state).length)),
+    : (lastBlobBytes || (lastBlobBytes = Buffer.byteLength(JSON.stringify(state)))),
   // Every stored value's size, for /health: which part is growing.
   stateParts: () => (USE_REDIS ? Object.fromEntries(blobBytes) : null),
   // A save stuck for half a minute counts as failing: a payout made now might
@@ -1201,11 +1206,15 @@ export const store = {
   // Single-use admin certificates: returns true the FIRST time a signature is seen,
   // false on any replay within the TTL. Prunes expired entries on each call so it
   // can't grow unbounded. Makes a captured admin cert non-replayable.
+  // At most USED_CERTS_MAX remembered: past that the certificate is refused as "can't
+  // check right now" (null), rather than the stored list growing with every request
+  // throwaway wallets can sign.
   consumeCert: (sig, ttlMs = 15 * 60 * 1000) => {
     if (!sig) return false;
     const now = Date.now();
     for (const [k, t] of Object.entries(state.usedCerts)) if (now - t > ttlMs) delete state.usedCerts[k];
     if (Object.prototype.hasOwnProperty.call(state.usedCerts, sig)) return false;
+    if (Object.keys(state.usedCerts).length >= USED_CERTS_MAX) return null;
     state.usedCerts[sig] = now; persist(); return true;
   },
 

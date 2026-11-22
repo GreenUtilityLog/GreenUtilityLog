@@ -30,6 +30,8 @@ import { inspectWallet, judgeWallet } from "./walletcheck.js";
 import { startCarryOver, carryOverWanted, carryOverDone, carryOverProblem } from "./carryover.js";
 
 const app = express();
+// No "X-Powered-By: Express" on every answer.
+app.disable("x-powered-by");
 
 // Express 4 doesn't catch a rejected promise from an async handler: it became an
 // unhandled rejection, and Node exits on those — one malformed request could take
@@ -93,6 +95,9 @@ const hits = new Map();
 // client sends, so that header is used when it holds an address. Elsewhere set
 // CLIENT_IP_HEADER to your proxy's header, or to "none" to use req.ip only.
 const CLIENT_IP_HEADER = String(process.env.CLIENT_IP_HEADER || "cf-connecting-ip").toLowerCase();
+// Said at boot: outside Render + Cloudflare a client can set this header itself and
+// every per-address limit is then its own choice.
+console.log(`[boot] client address from ${CLIENT_IP_HEADER === "none" ? `the connection (trust proxy ${Number(process.env.TRUST_PROXY_HOPS || 1)} hop)` : `the ${CLIENT_IP_HEADER} header — only safe behind a proxy that overwrites it (Cloudflare on Render); otherwise set CLIENT_IP_HEADER=none`}`);
 const looksLikeIp = (v) => /^[0-9a-f:.]{3,45}$/i.test(v) && (v.includes(".") || v.includes(":"));
 app.use((req, res, next) => {
   const fromHeader = CLIENT_IP_HEADER !== "none" ? String(req.get(CLIENT_IP_HEADER) || "").trim() : "";
@@ -124,39 +129,58 @@ setInterval(() => {
 // few dozen 20 MB uploads at once were enough to kill it, payouts in flight too.
 const photoJson = express.json({ limit: "8mb" });
 // And only a handful of them at once: each is buffered whole before any check.
-// Two per caller: six slow uploads from one address (a byte every few seconds, no
-// wallet needed) held every slot and turned all photo submissions away.
+// Two uploads per caller at a time, each with 30 s to arrive in full; the six
+// processing slots are taken only once a body HAS arrived. Six slow uploads (a
+// byte every ten seconds, no wallet needed) used to hold every slot for minutes
+// and turn all photo submissions away.
 let photoBodies = 0;
 const PHOTO_BODIES_MAX = Number(process.env.PHOTO_BODIES_MAX || 6);
 const PHOTO_BODIES_PER_IP = 2;
+const PHOTO_UPLOAD_MS = Number(process.env.PHOTO_UPLOAD_MS || 30000);
 const photoBodiesByIp = new Map();
-for (const path of ["/reward", "/ocr", "/meter/fix-basis"]) {
+const PHOTO_ROUTES = ["/reward", "/ocr", "/meter/fix-basis"];
+for (const path of PHOTO_ROUTES) {
   app.use(path, (req, res, next) => {
     if (req.method !== "POST") return next();
     const ip = req.rateKey || "unknown";
     const mine = photoBodiesByIp.get(ip) || 0;
     if (mine >= PHOTO_BODIES_PER_IP) return res.status(429).json({ error: "another photo from you is still being processed — wait for it to finish" });
-    if (photoBodies >= PHOTO_BODIES_MAX) return res.status(503).json({ error: "the server is busy — try again in a minute" });
-    photoBodies++;
     photoBodiesByIp.set(ip, mine + 1);
     let done = false;
     const release = () => {
       if (done) return;
-      done = true; photoBodies--;
+      done = true;
+      clearTimeout(deadline);
       const n = (photoBodiesByIp.get(ip) || 1) - 1;
       if (n > 0) photoBodiesByIp.set(ip, n); else photoBodiesByIp.delete(ip);
     };
+    // A body still arriving after the deadline is dropped, and its place with it.
+    const deadline = setTimeout(() => {
+      if (req.complete) return;
+      if (!res.headersSent) res.status(408).json({ error: "the photo took too long to arrive — try again on a better connection" });
+      req.destroy();
+      release();
+    }, PHOTO_UPLOAD_MS);
+    deadline.unref?.();
+    res.on("finish", release);
+    res.on("close", release);
+    next();
+  });
+  app.use(path, photoJson);
+  // Processing (the photo checks) is what the six slots are for.
+  app.use(path, (req, res, next) => {
+    if (req.method !== "POST") return next();
+    if (photoBodies >= PHOTO_BODIES_MAX) return res.status(503).json({ error: "the server is busy — try again in a minute" });
+    photoBodies++;
+    let done = false;
+    const release = () => { if (!done) { done = true; photoBodies--; } };
     res.on("finish", release);
     res.on("close", release);
     next();
   });
 }
-app.use("/reward", photoJson);
-app.use("/ocr", photoJson);
-// Also carries a photo: reconciling a meter's tariff registers demands the same
-// proof a payout does. Without this it would hit the 64 kB default and every
-// submission would fail on body size rather than on anything to do with the meter.
-app.use("/meter/fix-basis", photoJson);
+// (/meter/fix-basis carries a photo too: reconciling a meter's tariff registers
+// demands the same proof a payout does, so it takes the photo body size.)
 app.use(express.json({ limit: "64kb" }));
 // Express 5 leaves req.body undefined when a request carries no JSON body (v4 gave
 // {}). Every handler reads fields off it, so a body-less POST would throw and
@@ -675,6 +699,8 @@ async function accessOk(addr) {
   if (store.hasPass(addr)) return true;
   return PASSPORT_GRANTS_ACCESS ? isPerson(addr) : false;
 }
+// For requireBoundCert's `before`: the access check, answered as a refusal.
+const accessFirst = (addr) => async () => { const pb = await passBlock(addr); return pb ? { ok: false, code: 403, error: pb, needsPass: true } : null; };
 async function passBlock(addr) {
   if (accessMode() === "gm" && !isAdminWallet(addr)) {
     // One read of the chain for both the answer and the reason: reading it twice
@@ -780,11 +806,15 @@ function certSays(content, needle) {
 // can't take it again either. null: that storage couldn't be asked.
 async function spendCert(cert) {
   const key = certKey(cert);
-  if (!store.consumeCert(key, CERT_REPLAY_MS)) return false;
+  const local = store.consumeCert(key, CERT_REPLAY_MS);
+  if (local !== true) return local;   // false: used before; null: the list is full
   return store.takeOnce(`cert:${key}`, CERT_REPLAY_MS);
 }
 
-async function requireBoundCert(req, mustContain = []) {
+// The signature checks without spending the certificate: cheap, no storage write.
+// Used before anything costly (a chain read, a write), so a made-up address costs
+// nothing but a 401 — and by requireBoundCert, which spends it only after `before`.
+function checkBoundCert(req, mustContain = []) {
   if (!REQUIRE_CERT) return { ok: true };
   const cert = req.body.certificate;
   const c = verifyWalletCertificate({ certificate: cert, address: req.body.address });
@@ -803,6 +833,17 @@ async function requireBoundCert(req, mustContain = []) {
   if (says ? says.trim() !== `Network: ${NETWORK}` : NETWORK === "mainnet") {
     return { ok: false, code: 401, error: `this signature was not made for ${NETWORK} — reload the app and sign again` };
   }
+  return { ok: true };
+}
+// `before` runs after the signature checks and BEFORE the certificate is spent: the
+// access check and the like. A certificate is stored once spent, so spending it on
+// a request that is refused anyway let throwaway wallets grow that store.
+async function requireBoundCert(req, mustContain = [], before = null) {
+  const c = checkBoundCert(req, mustContain);
+  if (!c.ok) return c;
+  if (before) { const b = await before(); if (b) return b; }
+  if (!REQUIRE_CERT) return { ok: true };
+  const cert = req.body.certificate;
   const spent = await spendCert(cert);
   if (spent === null) return { ok: false, code: 503, error: "the server can't check this signature right now — please try again in a minute" };
   if (!spent) return { ok: false, code: 401, error: "signature already used — please sign again" };
@@ -1262,6 +1303,9 @@ app.post("/reward", async (req, res) => {
   // then the ban list — blocked wallets can never claim.
   if (!isAddr(req.body.address)) return res.status(400).json({ error: "invalid wallet address" });
   if (banned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
+  // A valid signature first (cheap): the access check reads the chain, and a
+  // made-up address shouldn't cost those reads.
+  { const pre = checkBoundCert(req); if (!pre.ok) return res.status(pre.code).json({ error: pre.error }); }
   { const pb = await passBlock(req.body.address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
 
   // 0a) Durable store must be loaded — otherwise cooldowns/hashes/baselines are blank
@@ -1531,11 +1575,10 @@ app.post("/meter/pair", async (req, res) => {
   {
     // Bound to what the app signs for linking, and single-use. A bare "any valid
     // signature by this wallet" also accepted one made for a different site.
-    const c = await requireBoundCert(req, ["Green Utility Log — link smart meter"]);
-    if (!c.ok) return res.status(c.code).json({ error: c.error });
+    // Only a wallet that may earn can pair: every pairing is state the server keeps.
+    const c = await requireBoundCert(req, ["Green Utility Log — link smart meter"], accessFirst(address));
+    if (!c.ok) return res.status(c.code).json({ error: c.error, ...(c.needsPass ? { needsPass: true } : {}) });
   }
-  // Only a wallet that may earn can pair: every pairing is state the server keeps.
-  { const pb = await passBlock(address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
   // Remember which utility this meter is, so the scheduled auto-submit pays it at
   // the right rate/bounds/cooldown instead of always assuming electric.
   const utility = pickUtility(req.body.utility);
@@ -1577,6 +1620,11 @@ app.post("/meter/pair", async (req, res) => {
 app.post("/meter/unpair", async (req, res) => {
   const address = String(req.body.address || "");
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
+  // Nothing stored for this wallet: nothing to delete, and no certificate spent
+  // (each spent one is stored for half an hour).
+  if (!store.getLinkByAddress(address) && !store.getLinkReading(address) && !store.getPowerfox(address) && !store.getTibber(address) && !store.getMojElektro(address)) {
+    return res.json({ ok: true, unpaired: false });
+  }
   {
     // Bound to what the app signs for linking, and single-use. A bare "any valid
     // signature by this wallet" also accepted one made for a different site.
@@ -1642,10 +1690,9 @@ app.post("/meter/powerfox/link", async (req, res) => {
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
   if (banned(address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
   {
-    const c = await requireBoundCert(req, ["Green Utility Log — link Powerfox"]);
-    if (!c.ok) return res.status(c.code).json({ error: c.error });
+    const c = await requireBoundCert(req, ["Green Utility Log — link Powerfox"], accessFirst(address));
+    if (!c.ok) return res.status(c.code).json({ error: c.error, ...(c.needsPass ? { needsPass: true } : {}) });
   }
-  { const pb = await passBlock(address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
   if (!linkAttemptOk(address, req.rateKey)) return res.status(429).json({ error: "too many attempts — try again in an hour" });
   const email = String(req.body.email || "").trim();
   const password = String(req.body.password || "");
@@ -1711,6 +1758,7 @@ app.post("/meter/powerfox/link", async (req, res) => {
 app.post("/meter/powerfox/unlink", async (req, res) => {
   const address = String(req.body.address || "");
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
+  if (!store.getPowerfox(address)) return res.json({ ok: true, unlinked: false });
   {
     const c = await requireBoundCert(req, ["Green Utility Log — unlink Powerfox"]);
     if (!c.ok) return res.status(c.code).json({ error: c.error });
@@ -1732,10 +1780,9 @@ app.post("/meter/tibber/link", async (req, res) => {
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
   if (banned(address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
   {
-    const c = await requireBoundCert(req, ["Green Utility Log — link Tibber"]);
-    if (!c.ok) return res.status(c.code).json({ error: c.error });
+    const c = await requireBoundCert(req, ["Green Utility Log — link Tibber"], accessFirst(address));
+    if (!c.ok) return res.status(c.code).json({ error: c.error, ...(c.needsPass ? { needsPass: true } : {}) });
   }
-  { const pb = await passBlock(address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
   if (!linkAttemptOk(address, req.rateKey)) return res.status(429).json({ error: "too many attempts — try again in an hour" });
   const tibberToken = String(req.body.tibberToken || "").trim();
   if (!/^[A-Za-z0-9._~+/=-]{20,400}$/.test(tibberToken)) {
@@ -1791,6 +1838,7 @@ const tibberHomeTakenBy = new Map();
 app.post("/meter/tibber/unlink", async (req, res) => {
   const address = String(req.body.address || "");
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
+  if (!store.getTibber(address)) return res.json({ ok: true, unlinked: false });
   {
     const c = await requireBoundCert(req, ["Green Utility Log — unlink Tibber"]);
     if (!c.ok) return res.status(c.code).json({ error: c.error });
@@ -1815,10 +1863,9 @@ app.post("/meter/mojelektro/link", async (req, res) => {
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
   if (banned(address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
   {
-    const c = await requireBoundCert(req, ["Green Utility Log — link MojElektro"]);
-    if (!c.ok) return res.status(c.code).json({ error: c.error });
+    const c = await requireBoundCert(req, ["Green Utility Log — link MojElektro"], accessFirst(address));
+    if (!c.ok) return res.status(c.code).json({ error: c.error, ...(c.needsPass ? { needsPass: true } : {}) });
   }
-  { const pb = await passBlock(address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
   if (!linkAttemptOk(address, req.rateKey)) return res.status(429).json({ error: "too many attempts — try again in an hour" });
   const mojToken = String(req.body.mojToken || "").trim();
   const usagePoint = String(req.body.usagePoint || "").trim();
@@ -1867,6 +1914,7 @@ app.post("/meter/mojelektro/link", async (req, res) => {
 app.post("/meter/mojelektro/unlink", async (req, res) => {
   const address = String(req.body.address || "");
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
+  if (!store.getMojElektro(address)) return res.json({ ok: true, unlinked: false });
   {
     const c = await requireBoundCert(req, ["Green Utility Log — unlink MojElektro"]);
     if (!c.ok) return res.status(c.code).json({ error: c.error });
@@ -2226,6 +2274,7 @@ async function settleMeterReading({ address, utility = "electric", meterNo }) {
 app.post("/reward-from-meter", async (req, res) => {
   if (!isAddr(req.body.address)) return res.status(400).json({ error: "invalid wallet address" });
   if (banned(req.body.address)) return res.status(403).json({ error: "this wallet is not allowed to claim" });
+  { const pre = checkBoundCert(req); if (!pre.ok) return res.status(pre.code).json({ error: pre.error }); }
   { const pb = await passBlock(req.body.address); if (pb) return res.status(403).json({ error: pb, needsPass: true }); }
   if (!store.ready()) return res.status(503).json({ error: notReadyMessage() });
   if (captchaEnabled()) {
@@ -2271,6 +2320,7 @@ app.post("/meter/rebaseline", async (req, res) => {
   if (!store.loaded()) return res.status(503).json({ error: notReadyMessage() });
   const address = String(req.body.address || "");
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
+  if (!store.getLinkByAddress(address)) return res.status(400).json({ error: "no reader paired — set up automatic readings first" });
   {
     const c = await requireBoundCert(req, ["confirm starting point correction"]);
     if (!c.ok) return res.status(c.code).json({ error: c.error });
