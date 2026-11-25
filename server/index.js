@@ -2107,6 +2107,9 @@ app.get("/meter/latest", (req, res) => {
     // automatically" instead of offering a button for something already done.
     lastPayout: link?.lastPayout || null,
     autoClaimOnPush: AUTO_CLAIM_ON_PUSH,
+    // This reading came too soon after the last one to be paid automatically: the
+    // payout waits for the reader's next one (the app says so, not "goes by itself").
+    waitsForNewer: !!(link?.meterNo && r && tooSoonAfterLast(r, utility, link.meterNo)),
     // When automatic payouts pause until the next photo (null: no limit, or no
     // photo-proven reading yet).
     photoDueAt: (() => {
@@ -2505,6 +2508,16 @@ app.post("/meter/fix-basis", async (req, res) => {
 //     enforced by settleMeterReading, exactly like the manual path.
 const AUTO_SUBMIT_MS = Number(process.env.AUTO_SUBMIT_MS || 0);
 let autoTickBusy = false;
+// The span an automatic payout waits for: the cooldown itself (20 h), owner's
+// choice. A reader sends at the cooldown's end (nextAt); one a moment early is
+// stored and the next hourly run of the bridge sends again.
+const AUTO_MIN_SPAN_MS = Number(process.env.AUTO_MIN_SPAN_MS ?? COOLDOWN_MS);
+function tooSoonAfterLast(latest, utility, meterNo) {
+  const prevAt = store.lastReadingAt(utility, String(meterNo || "").toLowerCase()) || 0;
+  // Newer than the last recorded reading (one already paid isn't "too soon"), but by less than the span.
+  const gap = Number(latest?.at) - prevAt;
+  return !!(AUTO_MIN_SPAN_MS > 0 && prevAt && gap > 0 && gap < AUTO_MIN_SPAN_MS);
+}
 // Settle a paired reader's latest reading without the owner tapping anything.
 // Same gates as /reward-from-meter apart from the signature, which a device can't
 // give: its token already binds the reading to the wallet.
@@ -2524,6 +2537,13 @@ async function autoSettle(link, why = "timer") {
     ? (store.lastReadingAt(utility, meterNo.toLowerCase()) || 0)
     : store.getCooldown(`${String(link.address).toLowerCase()}:${utility}`);
   if ((latest.at || 0) <= lastPaid) return null;
+  // Only a reading that covers most of a day. Paid the moment the cooldown ended,
+  // an automatic payout took whatever reading lay waiting: often one sent a few
+  // hours after the last, while the fresh one came minutes later. That paid one
+  // to five hours (pennies), then a day and a half capped at the maximum — a
+  // saving lost every other day. A reading too soon after the last waits for a
+  // newer one; the reader sends one when the cooldown ends (nextAt).
+  if (tooSoonAfterLast(latest, utility, meterNo)) return null;
   try {
     const r = await settleMeterReading({ address: link.address, utility, meterNo });
     if (r.ok) console.log(`[auto-pay:${why}] ${shortAddr(link.address)} ${r.recorded ? `recorded, no reward (${r.reason})` : `+${r.amount} B3TR (${r.txid})`}`);
