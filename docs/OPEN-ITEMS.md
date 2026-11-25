@@ -175,6 +175,9 @@ Met een foto kan elk land al meedoen. Voor elk nieuw land geldt eerst: een norm 
 - [ ] Bewust niet gedaan / restpunten: `/ocr` zonder handtekening (max 300 per dag, schade beperkt); foto's: meten tot de EXIF-tijd (te omzeilen door EXIF te strippen); negatieve besparing doorrekenen (keuze eigenaar: beloningsregel); overgezette meters een mainnet-foto laten maken (botst met "testers hoeven niets opnieuw"); domeinlijst op testnet-`/health` kan vervuild worden (alleen informatief); HA-YAML in de handleiding met `!secret` (20 talen); `/wallet/seen` wordt bij het laden twee keer aangeroepen; meterLinks-plafond alleen relevant in de stand "iedereen"
 - [ ] Op een echte telefoon nalopen: PDF delen in VeWorld, bevestigingsvensters (`window.confirm`) in VeWorld, Windows-installatie van `gul.js`
 
+## Uitbetaling over te korte periodes (25 november)
+- [x] De wekbeurt betaalde bij het einde van de wachttijd de stand die klaarlag, vaak een paar uur na de vorige opgenomen, terwijl de verse stand minuten later kwam: 0,36 en 0,16 B3TR voor 5 en 1 uur, en daartussen een afgetopte 4,00 over anderhalve dag. Een automatische uitbetaling wacht nu op een stand die minstens 90% van de wachttijd (18 uur) na de vorige is opgenomen; de app zegt dan "betaald zodra de volgende stand binnenkomt" en toont geen claimknop (`AUTO_MIN_SPAN_MS`)
+
 ## Bewust zo gelaten
 - Tijdverschuiving bij automatische standen: geaccepteerd risico (zie `docs/MAINNET.md`)
 - Captcha staat uit

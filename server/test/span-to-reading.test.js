@@ -27,7 +27,9 @@ const paid = async (srv) => (await srv.get(`/meter/latest?address=${WALLET}`, { 
 
 test("0.5 kWh read one hour after the last reading, settled 19.5 h later: no saving, nothing paid", async () => {
   // 0.5 kWh in one hour is a 12 kWh/day pace: above the 8 kWh target.
-  const srv = await startServer({ state: state({ readingAgoH: 20.5, takenAgoH: 19.5, reading: 1000.5 }) });
+  // The wait for a reading that covers most of a day (auto-span.test.js) is off
+  // here: this test is about where the span ends.
+  const srv = await startServer({ state: state({ readingAgoH: 20.5, takenAgoH: 19.5, reading: 1000.5 }), env: { AUTO_MIN_SPAN_MS: "0" } });
   try {
     const t = await srv.get("/cron/tick");
     assert.equal(t.status, 200, JSON.stringify(t.body));

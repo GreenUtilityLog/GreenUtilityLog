@@ -573,6 +573,9 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
   // A reading must be under 48 h old to be paid; older means the reader stopped.
   // A source that reports a day late (MojElektro) carries the meter's own time: up to four days is normal there.
   const readerFresh = !!(rd?.at && Date.now() - rd.at < (rd.meterTime ? 96 : 48) * 3600e3);
+  // Taken too soon after the last paid reading: the server waits for the reader's
+  // next one (a claim now would pay a few hours and start a new cooldown).
+  const waitsForNewer = !!latest?.waitsForNewer;
   // When the next reward can come: the server's own answer when we have it,
   // else the last payout plus the cooldown.
   const nextAt = Object.prototype.hasOwnProperty.call(SERVER_NEXT_AT, "electric")
@@ -593,7 +596,7 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
     if (photoPaused) steps.push({ day: "", time: t("today.now"), title: t("r.photoFirst.t"), sub: t("r.photoFirst.s"), done: false });
     else steps.push(nextAt > Date.now()
       ? { ...dayTime(nextAt), title: t("r.nextReward"), sub: t("r.sendsAfter"), done: false }
-      : { day: "", time: t("today.now"), title: t("r.nextReward"), sub: paidThis || !rd || !readerFresh ? t("r.paidNext") : t("r.canPay"), done: false });
+      : { day: "", time: t("today.now"), title: t("r.nextReward"), sub: paidThis || !rd || !readerFresh || waitsForNewer ? t("r.paidNext") : t("r.canPay"), done: false });
     return steps;
   })();
   const box = { margin: "0 14px 12px", padding: 12, background: T.ecoBg || T.waterBg, border: `1px solid ${T.ecoBorder || T.waterBorder}`, borderRadius: 10 };
@@ -675,7 +678,7 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
               ))}
               {/* Only when the server can pay it now: not during the cooldown (the
                   timeline then says when), and not for a reading too old to pay. */}
-              {!paidThis && !photoPaused && !(nextAt > Date.now()) && readerFresh && (
+              {!paidThis && !photoPaused && !(nextAt > Date.now()) && readerFresh && !waitsForNewer && (
                 <button disabled={busyAny} onClick={() => onAutoSubmit?.()} style={{ ...btn(T.eco || T.electric), width: "100%", marginTop: 10, opacity: busyAny ? .6 : 1 }}>
                   {busyAny ? t("r.submitting") : latest?.autoClaimOnPush ? t("r.claim") : t("r.submitNoPhoto")}
                 </button>
