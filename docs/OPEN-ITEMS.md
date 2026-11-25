@@ -4,7 +4,7 @@ De vaste lijst van wat nog moet, uit de audits (code, ontwerp, server) en uit
 gesprekken. Bijgewerkt bij elke PR die een punt afrondt: afgevinkt = klaar, met
 het PR-nummer erbij. Nieuwe punten komen onderaan hun groep.
 
-Laatst bijgewerkt: 2026-11-01.
+Laatst bijgewerkt: 2026-11-25.
 
 ## Ronde 1 — vóór mainnet (veiligheid en geld) ✅
 - [x] Opslag in delen, zodat één grote waarde niet alle uitbetalingen stillegt; invoer begrensd (#144)
@@ -171,12 +171,20 @@ Met een foto kan elk land al meedoen. Voor elk nieuw land geldt eerst: een norm 
 - [x] Server: 6 trage uploads blokkeerden alle foto-uitbetalingen; open `/wallet/seen` kon de opslag laten groeien; wegwerpwallets lieten gebruikte handtekeningen groeien; handtekening wordt nu eerst gecontroleerd, pas na de toegangscheck verbruikt, met plafond
 - [x] App: geen crash meer op oudere iPhones/Android (AbortSignal.timeout) of als een onderdeel niet laadt; crashscherm vertaald met herlaadknop; tijdlijn en Home-tegel van de uitlezer eerlijk; wisselen van wallet bewaart ieders meter; offline-wachtrij vraagt geen handtekeningen meer binnen de wachttijd; PDF via het deelmenu en jsPDF in de app zelf (cdnjs uit het beveiligingsbeleid); "Vergeet deze telefoon" voor iedereen; geen inzoomen op iOS; grotere tikvlakken; privacytekst noemt het walletadres
 - [x] Bridge: één foute meting legde de bridge voorgoed stil; logbestand nu privé zonder wachtwoorden; cron op een eigen minuut; waarschuwing bij fnm; `iwr -UseBasicParsing` voor Windows; versie 1.5.6
-- [x] CI: de add-on-controle kon nooit falen; nu vóór het buildscript, plus versieophoging verplicht bij een gewijzigde helper, standaardserver overal gelijk, testnet-build en gepubliceerde bestanden al bij de PR; `gul.js` wordt gepubliceerd vanuit een stap zonder npm; bridge-tests ook op Windows en macOS; sharp vastgepind
+- [x] CI: de add-on-controle kon nooit falen; nu vóór het buildscript, plus versieophoging verplicht bij een gewijzigde helper, standaardserver overal gelijk, testnet-build en gepubliceerde bestanden al bij de PR; `gul.js` wordt gepubliceerd vanuit een stap zonder npm; bridge-tests ook op Windows en macOS (sinds #215 alleen bij PR's die de bridge raken); sharp vastgepind
 - [ ] Bewust niet gedaan / restpunten: `/ocr` zonder handtekening (max 300 per dag, schade beperkt); foto's: meten tot de EXIF-tijd (te omzeilen door EXIF te strippen); negatieve besparing doorrekenen (keuze eigenaar: beloningsregel); overgezette meters een mainnet-foto laten maken (botst met "testers hoeven niets opnieuw"); domeinlijst op testnet-`/health` kan vervuild worden (alleen informatief); HA-YAML in de handleiding met `!secret` (20 talen); `/wallet/seen` wordt bij het laden twee keer aangeroepen; meterLinks-plafond alleen relevant in de stand "iedereen"
 - [ ] Op een echte telefoon nalopen: PDF delen in VeWorld, bevestigingsvensters (`window.confirm`) in VeWorld, Windows-installatie van `gul.js`
 
 ## Uitbetaling over te korte periodes (25 november)
 - [x] De wekbeurt betaalde bij het einde van de wachttijd de stand die klaarlag, vaak een paar uur na de vorige opgenomen, terwijl de verse stand minuten later kwam: 0,36 en 0,16 B3TR voor 5 en 1 uur, en daartussen een afgetopte 4,00 over anderhalve dag. Een automatische uitbetaling wacht nu op een stand die minstens de wachttijd (20 uur, keuze eigenaar) na de vorige is opgenomen; de app zegt dan "betaald zodra de volgende stand binnenkomt" en toont geen claimknop (`AUTO_MIN_SPAN_MS`)
+
+## Failmails en werkwijze (25 november)
+- [x] Server tests faalde één keer op main: twee testbestanden kregen dezelfde vrije poort en een test sprak de nep-Redis van een ander aan. Ook de server zelf meldde bij een bezette poort "listening" en stopte stil (Express 5); nu stopt hij met een foutcode, en de tests wachten op hun eigen server (#213)
+- [x] De branch werd tegelijk met een mislukte merge teruggezet, waardoor GitHub de PR sloot. Nu: `scripts/sync-after-merge.sh` weigert zolang de PR niet gemerged is, een hook blokkeert elke andere force-push, en `CLAUDE.md` legt de volgorde vast (#214)
+- [x] Geen macOS-machine vrij bij GitHub: de job werd na 15 minuten afgebroken en Server tests (waar Render op wacht) faalde op een commit zonder bridge-wijziging. De Windows/macOS-tests draaien nu alleen bij PR's die de bridge raken (`bridge-desktop.yml`); Linux test de bridge nog bij elke commit (#215)
+
+## Functies (25 november)
+- [x] Badges: van 6 naar 12 (Op gang, Jaarrond, Alleskunner, Klimaatheld, Eerste tientje, Podium erbij); een vergrendelde badge toont hoe ver je bent ("23 / 100"), bovenaan "5 van 12 verdiend"; Klimaatheld gebruikt hetzelfde CO₂-getal als de tegel op Voortgang (#215)
 
 ## Bewust zo gelaten
 - Tijdverschuiving bij automatische standen: geaccepteerd risico (zie `docs/MAINNET.md`)
