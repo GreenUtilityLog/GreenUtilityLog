@@ -176,7 +176,7 @@ Met een foto kan elk land al meedoen. Voor elk nieuw land geldt eerst: een norm 
 - [ ] Op een echte telefoon nalopen: PDF delen in VeWorld, bevestigingsvensters (`window.confirm`) in VeWorld, Windows-installatie van `gul.js`
 
 ## Uitbetaling over te korte periodes (25 november)
-- [x] De wekbeurt betaalde bij het einde van de wachttijd de stand die klaarlag, vaak een paar uur na de vorige opgenomen, terwijl de verse stand minuten later kwam: 0,36 en 0,16 B3TR voor 5 en 1 uur, en daartussen een afgetopte 4,00 over anderhalve dag. Een automatische uitbetaling wacht nu op een stand die minstens 90% van de wachttijd (18 uur) na de vorige is opgenomen; de app zegt dan "betaald zodra de volgende stand binnenkomt" en toont geen claimknop (`AUTO_MIN_SPAN_MS`)
+- [x] De wekbeurt betaalde bij het einde van de wachttijd de stand die klaarlag, vaak een paar uur na de vorige opgenomen, terwijl de verse stand minuten later kwam: 0,36 en 0,16 B3TR voor 5 en 1 uur, en daartussen een afgetopte 4,00 over anderhalve dag. Een automatische uitbetaling wacht nu op een stand die minstens de wachttijd (20 uur, keuze eigenaar) na de vorige is opgenomen; de app zegt dan "betaald zodra de volgende stand binnenkomt" en toont geen claimknop (`AUTO_MIN_SPAN_MS`)
 
 ## Bewust zo gelaten
 - Tijdverschuiving bij automatische standen: geaccepteerd risico (zie `docs/MAINNET.md`)

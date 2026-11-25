@@ -2508,9 +2508,10 @@ app.post("/meter/fix-basis", async (req, res) => {
 //     enforced by settleMeterReading, exactly like the manual path.
 const AUTO_SUBMIT_MS = Number(process.env.AUTO_SUBMIT_MS || 0);
 let autoTickBusy = false;
-// The span an automatic payout waits for (default 90% of the cooldown: a reader
-// sending at the cooldown's end with a clock a little off still counts).
-const AUTO_MIN_SPAN_MS = Number(process.env.AUTO_MIN_SPAN_MS ?? Math.round(COOLDOWN_MS * 0.9));
+// The span an automatic payout waits for: the cooldown itself (20 h), owner's
+// choice. A reader sends at the cooldown's end (nextAt); one a moment early is
+// stored and the next hourly run of the bridge sends again.
+const AUTO_MIN_SPAN_MS = Number(process.env.AUTO_MIN_SPAN_MS ?? COOLDOWN_MS);
 function tooSoonAfterLast(latest, utility, meterNo) {
   const prevAt = store.lastReadingAt(utility, String(meterNo || "").toLowerCase()) || 0;
   // Newer than the last recorded reading (one already paid isn't "too soon"), but by less than the span.

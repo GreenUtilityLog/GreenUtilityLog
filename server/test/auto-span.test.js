@@ -44,3 +44,15 @@ test("a reading five hours after the last: not paid by the wake-up; the app is t
     assert.equal(after.body.waitsForNewer, false);
   } finally { await srv.stop(); }
 });
+
+test("the line is the cooldown itself: a reading 19 hours after the last still waits", async () => {
+  const st = state();
+  // Taken 19 h after the last recorded reading (which was 25 h ago).
+  st.linkReadings[WALLET.toLowerCase()].at = Date.now() - 6 * H;
+  const srv = await startServer({ state: st, env: { AUTO_CLAIM_ON_PUSH: "on" } });
+  try {
+    const t = await srv.get("/cron/tick");
+    assert.equal(t.body.settled, 0, JSON.stringify(t.body));
+    assert.equal(srv.readState().readings[K], 1000);
+  } finally { await srv.stop(); }
+});
