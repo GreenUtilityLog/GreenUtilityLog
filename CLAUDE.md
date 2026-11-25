@@ -23,7 +23,10 @@ of the previous one has been read.
 6. Verify on main: Server tests, End-to-end, and Deploy to GitHub Pages
    (build → assemble → deploy) are all green for the merge commit.
 7. Dispatch `watchdog.yml` and read its SNAPSHOT annotation: `commit` must be the
-   merge commit, and there must be no error or warning annotations.
+   last commit that changed `server/` (`git log -1 --format=%h -- server`; Render
+   builds from `rootDir: server` and skips other commits), and there must be no
+   error or warning annotations. Wait a few minutes after a server change for the
+   deploy before reading it.
 8. Only then report done. Update `docs/OPEN-ITEMS.md` when something opens or closes.
 
 ## Never
