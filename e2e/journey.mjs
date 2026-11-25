@@ -521,6 +521,29 @@ await step("Progress with three weeks of readings: outlook and calendar", async 
   assert.match(await text(), /Niveau Druppel/, "the level follows the days");
   assert.match(await text(), /nog 28 dagen met een stand tot Vonk/, "days, not readings, count");
   assert.match(await page.locator('[data-chart="gm-next"]').innerText(), /nog 25\.000 B3TR nodig om te upgraden/, "the GM cost, in Dutch");
+
+  // Badges: twelve, the earned ones counted, and how far each locked one is.
+  const co2Tile = Number((/([\d.]+) kg\s*\|?\s*CO₂ vermeden/i.exec(await text()) || [])[1]);
+  await page.getByRole("tab", { name: "Badges" }).click(); await wait(500);
+  await page.locator('[data-badges="count"]').scrollIntoViewIfNeeded(); await shot("11d-nl-badges");
+  const badge = (id) => page.locator(`[data-badge="${id}"]`);
+  assert.equal(await page.locator("[data-badge]").count(), 12, "twelve badges");
+  const earned = await page.locator('[data-badge][data-earned="1"]').count();
+  assert.equal(await page.locator('[data-badges="count"]').innerText(), `${earned} van 12 verdiend`, "the count matches the earned badges");
+  for (const id of ["early", "10sub", "7day", "20day", "10b3tr"]) {
+    assert.equal(await badge(id).getAttribute("data-earned"), "1", `${id} earned (22 days, 22+ readings, 21+ B3TR)`);
+    assert.match(await badge(id).innerText(), /Verdiend ✓/);
+  }
+  for (const id of ["100sub", "365days", "kinds", "co2", "250b3tr"]) assert.equal(await badge(id).getAttribute("data-earned"), "0", `${id} still locked`);
+  assert.match(await badge("365days").innerText(), /Jaarrond[\s\S]*standen op 365 dagen[\s\S]*22 \/ 365/, "days with a reading, out of a year");
+  assert.match(await badge("kinds").innerText(), /Alleskunner[\s\S]*1 \/ 3/, "one kind of meter so far");
+  const n100 = Number((/(\d+) \/ 100/.exec(await badge("100sub").innerText()) || [])[1]);
+  assert.ok(n100 >= 22 && n100 < 100, `readings towards a hundred: ${n100}`);
+  // The climate badge counts the same CO₂ as the tile above it.
+  const kg = Number((/(\d+) \/ 100/.exec(await badge("co2").innerText()) || [])[1]);
+  assert.ok(co2Tile >= 25, `CO₂ tile: ${co2Tile} kg`);
+  assert.equal(kg, Math.floor(co2Tile), `the badge (${kg} kg) is the tile's number (${co2Tile} kg)`);
+  assert.equal(await badge("co2").getByRole("progressbar").getAttribute("aria-valuenow"), String(kg), "the bar matches");
 });
 
 await step("Italian: a language in its own file, fetched when picked and after a reload", async () => {
