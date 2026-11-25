@@ -27,7 +27,26 @@ of the previous one has been read.
    builds from `rootDir: server` and skips other commits), and there must be no
    error or warning annotations. Wait a few minutes after a server change for the
    deploy before reading it.
-8. Only then report done. Update `docs/OPEN-ITEMS.md` when something opens or closes.
+8. Run the loose-ends check below, unasked, and fix what it finds (through these
+   same steps). Only then report done.
+
+## Loose-ends check — before every "done", without being asked
+
+The owner should never have to ask "did you forget anything?". Go through every
+point and say in the report what was checked:
+
+- `docs/OPEN-ITEMS.md`: what this work opened or closed is in it, with the PR
+  number, and no older line contradicts it now. Bump "Laatst bijgewerkt".
+- Docs and rules that describe what changed (`CLAUDE.md`, README, help/FAQ in
+  `src/help.js`, comments in workflows) still say what is true now.
+- Anything new has actually run once: a new workflow (dispatch it), a script (run
+  it both ways), a hook (feed it a blocked and an allowed command).
+- No failed or cancelled workflow run since the work started
+  (`/actions/runs`); a failure there means a mail to the owner, so find out why.
+- No open pull request left behind, and the working branch equals main.
+- Every translated text exists in all languages (`node scripts/check-langs.mjs`).
+- What still waits on the owner (tests on their phone, choices, things only they
+  can fill in) is listed at the end of the report.
 
 ## Never
 

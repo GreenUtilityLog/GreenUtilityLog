@@ -182,6 +182,7 @@ Met een foto kan elk land al meedoen. Voor elk nieuw land geldt eerst: een norm 
 - [x] Server tests faalde één keer op main: twee testbestanden kregen dezelfde vrije poort en een test sprak de nep-Redis van een ander aan. Ook de server zelf meldde bij een bezette poort "listening" en stopte stil (Express 5); nu stopt hij met een foutcode, en de tests wachten op hun eigen server (#213)
 - [x] De branch werd tegelijk met een mislukte merge teruggezet, waardoor GitHub de PR sloot. Nu: `scripts/sync-after-merge.sh` weigert zolang de PR niet gemerged is, een hook blokkeert elke andere force-push, en `CLAUDE.md` legt de volgorde vast (#214)
 - [x] Geen macOS-machine vrij bij GitHub: de job werd na 15 minuten afgebroken en Server tests (waar Render op wacht) faalde op een commit zonder bridge-wijziging. De Windows/macOS-tests draaien nu alleen bij PR's die de bridge raken (`bridge-desktop.yml`); Linux test de bridge nog bij elke commit (#215)
+- [x] Eindcontrole vóór elk "klaar", ongevraagd: open punten, docs, nieuwe onderdelen echt gedraaid, geen mislukte runs, geen open PR's, alle talen, wat nog bij de eigenaar ligt (`CLAUDE.md`)
 
 ## Functies (25 november)
 - [x] Badges: van 6 naar 12 (Op gang, Jaarrond, Alleskunner, Klimaatheld, Eerste tientje, Podium erbij); een vergrendelde badge toont hoe ver je bent ("23 / 100"), bovenaan "5 van 12 verdiend"; Klimaatheld gebruikt hetzelfde CO₂-getal als de tegel op Voortgang (#215)
