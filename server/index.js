@@ -2850,7 +2850,14 @@ if (KEEP_AWAKE && SELF_URL) {
   console.log(`[keep-awake] calling ${SELF_URL}/cron/tick every ${Math.round(KEEP_AWAKE_MS / 60000)} min`);
 }
 
-const server = app.listen(PORT, () => {
+// Express 5 hands a bind error (EADDRINUSE, EACCES) to this callback instead of
+// throwing it: without the check the server logged "listening" and then exited 0,
+// so a failed start looked like a clean one.
+const server = app.listen(PORT, (err) => {
+  if (err) {
+    console.error(`[boot] could not listen on :${PORT} — ${err.code || err.message}`);
+    process.exit(1);
+  }
   console.log(`Reward distributor listening on :${PORT} (${NETWORK})`);
   // After the store has had a chance to load — grandfathering off an unread store
   // would issue passes against empty state and then persist that over the real data.

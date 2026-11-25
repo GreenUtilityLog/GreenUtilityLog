@@ -42,11 +42,12 @@ export async function startServer(opts = {}) {
   }
 }
 
-async function startServerOnce({ state = {}, env = {} } = {}) {
+// `port` is for start-server.test.js only: a port a stranger already holds.
+async function startServerOnce({ state = {}, env = {}, port: fixedPort } = {}) {
   const dir = mkdtempSync(join(tmpdir(), "gul-test-"));
   const stateFile = join(dir, "state.json");
   writeFileSync(stateFile, JSON.stringify(state));
-  const port = await freePort();
+  const port = fixedPort ?? await freePort();
 
   const child = spawn(process.execPath, ["index.js"], {
     cwd: SERVER_DIR,
@@ -94,10 +95,18 @@ async function startServerOnce({ state = {}, env = {} } = {}) {
     if (exited) {
       throw new Error(`server process exited during startup (code ${exited.code}, signal ${exited.signal}) on port ${port}\n${logs.join("")}`);
     }
-    try {
-      const r = await fetch(`${base}/health`);
-      if (r.ok) break;
-    } catch { /* not up yet */ }
+    // Up means OUR child said it is listening on this port: the listen callback runs
+    // only once the bind succeeded. /health answering is not enough on its own —
+    // between freePort() and the child's bind another test file's server (or its fake
+    // Redis/node, which answers any path with 200) can take the port, and the child
+    // only dies of EADDRINUSE after the stranger has already answered. That is how
+    // corrections.test.js once sent /meter/pair to double-pay.test.js's fake Redis.
+    if (logs.join("").includes(`listening on :${port} `)) {
+      try {
+        const r = await fetch(`${base}/health`);
+        if (r.ok) break;
+      } catch { /* not up yet */ }
+    }
     if (Date.now() > deadline) {
       child.kill("SIGKILL");
       throw new Error(`server did not start on ${port}\n${logs.join("")}`);
