@@ -95,19 +95,7 @@ jobs:
           node-version: ${{ matrix.node }}
       - run: node --test bridge/test.js
 
-  # Windows and macOS are where most people run the helper, and Linux was all CI
-  # ever ran it on. (The install tests that need cron skip themselves on Windows.)
-  bridge-desktop:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    # A test that hangs fails the job instead of holding it for hours.
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-      - run: node --test --test-force-exit --test-timeout=120000 bridge/test.js
+  # The Windows and macOS runs of these tests are in bridge-desktop.yml: on 25
+  # November no macOS runner was free, GitHub cancelled the job after 15 minutes,
+  # and this workflow, the check Render's deploy waits for, failed on a commit that
+  # didn't touch the bridge.

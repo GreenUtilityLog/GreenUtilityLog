@@ -3092,17 +3092,15 @@ const ECO_KWH_PER_CLAIM = 0.5;
 
 // part: "impact" = only the three impact tiles, "charts" = only the charts below
 // them (both used inside Progress); none = the whole screen.
-function ChartsScreen({ subs, T, part }) {
-  const [period, setPeriod] = useState("week"); // the saved-energy chart: "week" | "month"
-  const mono = "'SF Mono',Menlo,'Courier New',monospace";
+// Impact, the same model as the on-chain proofs: each reading against the target
+// over the days since that meter's previous reading. Shared by the Progress charts
+// and the climate badge, so both show the same number.
+function impactOf(subs) {
   const usageOf = (s) => { const u = parseFloat(s.cur) - parseFloat(s.prev); return Number.isFinite(u) && u > 0 ? +u.toFixed(2) : 0; };
   // Failed payouts saved nothing on record: they don't count (the cards below leave them out too).
   const meterSubs = subs.filter(s => s.type !== "eco" && s.status !== "failed" && usageOf(s) > 0);
   const ecoSubs   = subs.filter(s => s.type === "eco");
 
-  // ── Headline impact numbers (same model as the on-chain proofs) ────────────
-  const totalB3TR = earnedTotal(subs);
-  const ecoB3TR   = earnedTotal(ecoSubs);
   // Each reading is judged against the target over the days since that meter's
   // previous reading, exactly like the reward (and the on-chain proof). A meter's
   // first reading is its starting point and saves nothing. It used to be one day's
@@ -3139,6 +3137,16 @@ function ChartsScreen({ subs, T, part }) {
       kwhSaved += usageOf(s);
     }
   }
+  return { usageOf, meterSubs, ecoSubs, spanOfSub, savedOfSub, co2g, kwhSaved };
+}
+
+function ChartsScreen({ subs, T, part }) {
+  const [period, setPeriod] = useState("week"); // the saved-energy chart: "week" | "month"
+  const mono = "'SF Mono',Menlo,'Courier New',monospace";
+  const { usageOf, meterSubs, ecoSubs, spanOfSub, savedOfSub, co2g, kwhSaved } = impactOf(subs);
+  // ── Headline impact numbers (same model as the on-chain proofs) ────────────
+  const totalB3TR = earnedTotal(subs);
+  const ecoB3TR   = earnedTotal(ecoSubs);
   const streak = computeStreak(subs);
   const co2Label = co2g >= 1000 ? `${(co2g / 1000).toFixed(1)} kg` : `${Math.round(co2g)} g`;
 
@@ -3503,14 +3511,31 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
   const myIndex = board.findIndex(d => d.isMe);
   const myRank = myIndex + 1;
   
+  // Badges: what a wallet has done, from its own readings and the on-chain board.
+  // `have`/`need` show how far a locked one is (none for the ranks: a place isn't
+  // a count). Ladders run from a first step to a long haul, so there is always a
+  // next one within reach.
+  const readingsN = countReadings(subs);
+  const readingDays = countReadingDays(subs);
+  const meterKinds = new Set(subs.filter((s) => s.type !== "eco" && s.status !== "failed").map((s) => s.type)).size;
+  const co2kg = impactOf(subs).co2g / 1000;
+  const allTimeMe = allTimeFirst.findIndex((r) => r.isMe);
+  const onBoard = isLive && allTimeMe >= 0 && allTimeFirst[allTimeMe].b3tr > 0;
   const badges = [
-    { id: "early", name: t("b.early"), icon: "🚀", how: t("b.early.how"), unlocked: subs.length > 0 },
-    { id: "7day", name: t("b.week"), icon: "🔥", how: t("b.week.how"), unlocked: streak >= 7 },
-    { id: "100sub", name: t("b.century"), icon: "💯", how: t("b.century.how"), unlocked: countReadings(subs) >= 100 },
-    { id: "20day", name: t("b.legend"), icon: "👑", how: t("b.legend.how"), unlocked: streak >= 20 },
-    { id: "250b3tr", name: t("b.whale"), icon: "🐋", how: t("b.whale.how"), unlocked: b3tr >= 250 },
-    { id: "rank1", name: t("b.champ"), icon: "🏆", how: t("b.champ.how"), unlocked: isLive && allTimeFirst.length > 1 && !!allTimeFirst[0]?.isMe && allTimeFirst[0].b3tr > 0 },
-  ];
+    { id: "early", name: t("b.early"), icon: "🚀", how: t("b.early.how"), have: readingsN, need: 1 },
+    { id: "10sub", name: t("b.ten"), icon: "🌱", how: t("b.ten.how"), have: readingsN, need: 10 },
+    { id: "100sub", name: t("b.century"), icon: "💯", how: t("b.century.how"), have: readingsN, need: 100 },
+    { id: "7day", name: t("b.week"), icon: "🔥", how: t("b.week.how"), have: streak, need: 7 },
+    { id: "20day", name: t("b.legend"), icon: "👑", how: t("b.legend.how"), have: streak, need: 20 },
+    { id: "365days", name: t("b.year"), icon: "📅", how: t("b.year.how"), have: readingDays, need: 365 },
+    { id: "kinds", name: t("b.allround"), icon: "🧩", how: t("b.allround.how"), have: meterKinds, need: 3 },
+    { id: "co2", name: t("b.climate"), icon: "🌍", how: t("b.climate.how"), have: Math.floor(co2kg), need: 100 },
+    { id: "10b3tr", name: t("b.coin"), icon: "🪙", how: t("b.coin.how"), have: Math.floor(b3tr), need: 10 },
+    { id: "250b3tr", name: t("b.whale"), icon: "🐋", how: t("b.whale.how"), have: Math.floor(b3tr), need: 250 },
+    { id: "top3", name: t("b.podium"), icon: "🥉", how: t("b.podium.how"), unlocked: onBoard && allTimeFirst.length > 3 && allTimeMe < 3 },
+    { id: "rank1", name: t("b.champ"), icon: "🏆", how: t("b.champ.how"), unlocked: onBoard && allTimeFirst.length > 1 && allTimeMe === 0 },
+  ].map((b) => ({ ...b, unlocked: b.unlocked ?? b.have >= b.need }));
+  const earnedN = badges.filter((b) => b.unlocked).length;
   const [view, setView] = useState("usage");
   const label = { fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".8px", color: T.textSoft };
   const card = { background: T.card, border: `1px solid ${T.border}`, borderRadius: 10 };
@@ -3633,20 +3658,29 @@ function ProgressScreen({ b3tr, streak, subs, wallet, T }) {
         </div>
       </>)}
 
-      {view === "badges" && (
+      {view === "badges" && (<>
+        <div data-badges="count" style={{ margin: "0 14px 8px", fontSize: 12, fontWeight: 700, color: T.textSoft }}>{t("b.count", { n: earnedN, total: badges.length })}</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8, margin: "0 14px 12px" }}>
           {badges.map(b => (
-            <div key={b.id} style={{ background: T.card, border: b.unlocked ? `2px solid ${T.green3}` : `1px solid ${T.border}`, borderRadius: 10, padding: "12px 6px", textAlign: "center" }}>
+            <div key={b.id} data-badge={b.id} data-earned={b.unlocked ? "1" : "0"} style={{ background: T.card, border: b.unlocked ? `2px solid ${T.green3}` : `1px solid ${T.border}`, borderRadius: 10, padding: "12px 6px", textAlign: "center" }}>
               <div aria-hidden="true" style={{ position: "relative", display: "inline-block", fontSize: 26 }}>
                 <span style={{ opacity: b.unlocked ? 1 : .35, filter: b.unlocked ? "none" : "grayscale(1)" }}>{b.icon}</span>
                 {!b.unlocked && <span style={{ position: "absolute", right: -10, bottom: -4, fontSize: 13 }}>🔒</span>}
               </div>
               <div style={{ fontSize: 11, fontWeight: 700, color: b.unlocked ? T.text : T.textSoft, marginTop: 4 }}>{b.name}</div>
               <div style={{ fontSize: 10, color: T.textSoft, marginTop: 2 }}>{b.unlocked ? t("b.earned") : t("b.locked", { how: b.how })}</div>
+              {!b.unlocked && b.need > 1 && (
+                <div role="progressbar" aria-label={b.name} aria-valuemin={0} aria-valuemax={b.need} aria-valuenow={Math.min(b.have, b.need)} style={{ margin: "6px 8px 0" }}>
+                  <div style={{ height: 4, borderRadius: 999, background: T.bgAlt, overflow: "hidden" }}>
+                    <div style={{ width: `${Math.min(100, Math.floor((Math.max(0, b.have) / b.need) * 100))}%`, height: "100%", background: T.green3 }} />
+                  </div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: T.textMid, marginTop: 3 }}>{Math.min(b.have, b.need)} / {b.need}</div>
+                </div>
+              )}
             </div>
           ))}
         </div>
-      )}
+      </>)}
     </>
   );
 }

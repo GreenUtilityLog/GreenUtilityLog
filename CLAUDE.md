@@ -10,7 +10,11 @@ of the previous one has been read.
 1. Test the fix both ways: the new test fails without the fix and passes with it.
    Run the whole suite (`cd server && npm test`, and the app/e2e tests it touches).
 2. Commit and push the working branch, then open the pull request.
-3. Wait until **every** check on the head commit is completed and green.
+3. Wait until **every** check on the head commit is completed and green. A job
+   stuck in the queue (no runner, e.g. macOS) is not ours to wait out: cancel the
+   run yourself before GitHub fails it and mails the owner, then run it again.
+   Windows/macOS bridge tests run only on PRs that touch the bridge
+   (`bridge-desktop.yml`); Server tests is the check Render's deploy waits for.
 4. Squash merge with the **full 40-character** head SHA as `expectedHeadSha`.
    Read the result. Go on only if it says `merged: true`.
 5. Only then: `scripts/sync-after-merge.sh`. It refuses while the branch holds
