@@ -29,6 +29,11 @@
     "valtio": "1.13.2",
     "use-sync-external-store": "1.6.0",
     "ws": "^8.22.1",
-    "zod": "^4.6.7"
+    "zod": "^4.6.7",
+    "@walletconnect/sign-client": "2.23.10",
+    "@walletconnect/core": "2.23.10",
+    "@walletconnect/utils": "2.23.10",
+    "@walletconnect/types": "2.23.10",
+    "viem": "2.57.7"
   }
 }
