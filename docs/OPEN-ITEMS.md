@@ -4,7 +4,7 @@ De vaste lijst van wat nog moet, uit de audits (code, ontwerp, server) en uit
 gesprekken. Bijgewerkt bij elke PR die een punt afrondt: afgevinkt = klaar, met
 het PR-nummer erbij. Nieuwe punten komen onderaan hun groep.
 
-Laatst bijgewerkt: 2026-11-25.
+Laatst bijgewerkt: 2026-11-26.
 
 ## Ronde 1 — vóór mainnet (veiligheid en geld) ✅
 - [x] Opslag in delen, zodat één grote waarde niet alle uitbetalingen stillegt; invoer begrensd (#144)
