@@ -64,7 +64,10 @@ Laatst bijgewerkt: 2026-11-25.
 - [x] Dode code opruimen: `sendAndEarn`, `Toggle`, `B3TR_USD`, ongebruikt beheeronderdeel, `!REWARD_API`-takken en het directe on-chain-pad, 4 ongebruikte vertalingen; server: ongebruikte imports en sleutels (#162)
 - [x] Privacy: nieuwe vraag "Wat bewaren jullie over mij?" in Help (5 talen): blockchain, server, apparaatkenmerk, logins; Tesseract-taaldata komt van de eigen site, een scan praat met niemand anders (#166)
 - [x] Afhankelijkheden app: Vite 8 (bouwen 3 s i.p.v. 20 s), plugin-react 6, React 19; `ws` en `zod` via `overrides` (#163)
-- [ ] Nog open in `npm audit`: `decode-uri-component` via WalletConnect (`query-string` 7; de veilige versie is alleen ESM en breekt het) en `elliptic` in de Node-polyfills (laag) — wachten op een dapp-kit-update
+- [x] `decode-uri-component` via WalletConnect: WalletConnect 2.23.10 via `overrides` gebruikt `query-string` niet meer; `npm audit` voor de app 8 hoog → 0 (#218, verving #133)
+- [ ] WalletConnect-QR na #218 testen: op een computer **Connect → Wallet Connect**, de code scannen met VeWorld, verbinden en één handtekening zetten (vanuit de testomgeving niet bereikbaar). Lukt het niet: #218 terugdraaien
+- [ ] De WalletConnect-`overrides` in `package.json` weghalen zodra dapp-kit zelf een nieuwere WalletConnect meebrengt (2.3.3 zit nog op 2.19.2)
+- [ ] `elliptic` in de Node-polyfills (6× laag, alleen tijdens het bouwen, niet in de app)
 
 ## Server en koppelingen
 - [x] Transactie zonder ontvangstbewijs: elke minuut opnieuw gecontroleerd; na 15 min weg → melding voor de beheerder (#159)
