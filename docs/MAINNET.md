@@ -25,6 +25,19 @@ zetten en aan de toegangsregel te voldoen (GM NFT + Passport, zie stap 5).
 
 ---
 
+## Stand van zaken (27 november 2026)
+- Endorsement gehaald: 110/110, 10 ondersteuners; op VeBetterDAO mainnet "Ondersteund en actief".
+- App-naam op mainnet precies `Green Utility Log` → app-ID gelijk aan testnet
+  (`0x489c6c122157f3b1072c2565b0eb6cb734564e84d14c80b1a12e6834a075f71e`, de keccak256 van de naam,
+  nagerekend). Geen codewijziging nodig.
+- `CERT_DOMAINS` = `greenutilitylog.github.io` (gezien op testnet-`/health`, `certDomains.seen`).
+- `ADMIN_WALLETS` = `0x3a007383fce8dcccdb92cf9efe0e609a652a1f29,0xedd7e5e1be4066cdc892a059f586b9d7e8e4b0c7`
+  (allebei van de eigenaar; `0xedd7…b0c7` is de on-chain app-admin).
+- Nog te doen door de eigenaar: stap 1–3 in VeBetter (distributor, VTHO, pool uit, teamdeel),
+  een nieuwe Upstash-database en Anthropic-sleutel, dan stap 5 in Render.
+- Klaar voor stap 6: de handleiding zonder "testershandleiding / test-tokens" (20 talen), op de
+  werkbranch, gaat mee in de livegang-PR.
+
 ## Stap 1 — X2Earn Creator NFT (jij)
 Registreren op mainnet kan alleen vanuit een wallet met een **X2Earn Creator NFT**
 (het contract weigert anders: `X2EarnUnverifiedCreator`). Aanvragen bij VeBetterDAO.
