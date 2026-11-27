@@ -1,7 +1,7 @@
 {
  "_toc": "Na ovoj stranici",
  "name": "English",
- "kicker": "Vodič za testere",
+ "kicker": "Vodič",
  "h1": "Zarađuj bez fotografiranja brojila",
  "lede": "Inače za B3TR fotografiraš brojilo. Ako nešto u tvom domu već može očitati brojilo, može i poslati očitanje umjesto tebe — i više nikad ne moraš fotografirati. Za početak ispod pronađi svoju opremu.",
  "s_routes": "Koju opremu imaš?",
@@ -418,7 +418,7 @@
   ]
  ],
  "close": "Još uvijek zapinje? Pošalji poruku s onim što prikazuje kartica s dnevnikom (ili terminal) — obično točno piše što nedostaje.",
- "foot": "GreenUtilityLog · Vodič za testere · Testnet beta — testni tokeni, zasad bez stvarne vrijednosti.",
+ "foot": "GreenUtilityLog · Vodič · Nagrade u B3TR-u na VeChainu. Želiš li prvo nešto isprobati? <a href=\"https://greenutilitylog.github.io/GreenUtilityLog/testnet/\">Testna verzija</a> koristi testne tokene.",
  "s_pf": "Put D — Powerfox (poweropti)",
  "pf_intro": "Poweropti očitava tvoje brojilo i šalje ukupno stanje u Powerfox oblak. Ispod su tri načina da ga mi dobijemo — <strong>treba ti samo jedan</strong>. Ne znaš koji? Uzmi opciju 1.",
  "pf_first_t": "Najprije, u aplikaciji Powerfox",

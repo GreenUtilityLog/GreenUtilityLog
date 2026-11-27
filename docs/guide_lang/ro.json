@@ -1,7 +1,7 @@
 {
  "_toc": "Pe această pagină",
  "name": "English",
- "kicker": "Ghid pentru testeri",
+ "kicker": "Ghid",
  "h1": "Câștigă fără să-ți fotografiezi contorul",
  "lede": "De obicei îți fotografiezi contorul ca să câștigi B3TR. Dacă ceva din casa ta îți poate citi deja contorul, poate trimite citirea în locul tău — și nu mai faci nicio poză. Începe prin a-ți găsi mai jos configurația.",
  "s_routes": "Ce configurație ai?",
@@ -418,7 +418,7 @@
   ]
  ],
  "close": "Tot nu merge? Trimite un mesaj cu ce arată fila cu jurnalul (sau terminalul) — de obicei spune exact ce lipsește.",
- "foot": "GreenUtilityLog · Ghid pentru testeri · Testnet beta — tokenuri de test, deocamdată fără valoare reală.",
+ "foot": "GreenUtilityLog · Ghid · Recompense în B3TR pe VeChain. Vrei să încerci ceva mai întâi? <a href=\"https://greenutilitylog.github.io/GreenUtilityLog/testnet/\">Versiunea de test</a> folosește tokenuri de test.",
  "s_pf": "Varianta D — Powerfox (poweropti)",
  "pf_intro": "Un poweropti îți citește contorul și trimite totalul în cloudul Powerfox. Mai jos sunt trei moduri prin care ajunge la noi — <strong>îți trebuie doar unul</strong>. Nu știi pe care? Alege opțiunea 1.",
  "pf_first_t": "Mai întâi, în aplicația Powerfox",
