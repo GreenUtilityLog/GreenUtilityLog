@@ -1,7 +1,7 @@
 {
  "_toc": "Tällä sivulla",
  "name": "English",
- "kicker": "Testaajan opas",
+ "kicker": "Opas",
  "h1": "Ansaitse kuvaamatta mittariasi",
  "lede": "Tavallisesti kuvaat mittarisi ansaitaksesi B3TR-tokeneita. Jos kotonasi on jo jokin laite, joka osaa lukea mittarin, se voi lähettää lukeman puolestasi — eikä sinun tarvitse enää koskaan ottaa kuvaa. Aloita etsimällä oma tilanteesi alta.",
  "s_routes": "Millainen laitteisto sinulla on?",
@@ -418,7 +418,7 @@
   ]
  ],
  "close": "Vieläkin jumissa? Lähetä viesti, jossa kerrot, mitä Loki-välilehti (tai pääte) näyttää — siinä lukee yleensä tarkalleen, mikä puuttuu.",
- "foot": "GreenUtilityLog · Testaajan opas · Testnet-beta — testitokeneita, ei vielä todellista arvoa.",
+ "foot": "GreenUtilityLog · Opas · Palkkiot B3TR:nä VeChainissa. Haluatko kokeilla ensin? <a href=\"https://greenutilitylog.github.io/GreenUtilityLog/testnet/\">Testiversio</a> käyttää testitokeneita.",
  "s_pf": "Reitti D — Powerfox (poweropti)",
  "pf_intro": "Poweropti lukee mittarisi ja lähettää kokonaislukeman Powerfoxin pilveen. Alla on kolme tapaa saada se meille — <strong>tarvitset vain yhden</strong>. Etkö ole varma? Valitse vaihtoehto 1.",
  "pf_first_t": "Ensin Powerfox-sovelluksessa",

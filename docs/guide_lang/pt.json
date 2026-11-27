@@ -1,6 +1,6 @@
 {
  "name": "English",
- "kicker": "Guia para testadores",
+ "kicker": "Guia",
  "h1": "Ganha sem fotografar o teu contador",
  "lede": "Normalmente fotografas o teu contador para ganhar B3TR. Se já tens em casa algo que consegue ler o contador, pode enviar a leitura por ti — e nunca mais precisas de tirar fotos. Começa por encontrar a tua configuração abaixo.",
  "s_routes": "Qual é a tua configuração?",
@@ -417,7 +417,7 @@
   ]
  ],
  "close": "Continuas sem conseguir? Envia uma mensagem com o que o registo (ou o terminal) mostra — normalmente diz exatamente o que falta.",
- "foot": "GreenUtilityLog · Guia para testadores · Beta na Testnet — tokens de teste, ainda sem valor real.",
+ "foot": "GreenUtilityLog · Guia · Recompensas em B3TR na VeChain. Queres experimentar primeiro? A <a href=\"https://greenutilitylog.github.io/GreenUtilityLog/testnet/\">versão de teste</a> usa tokens de teste.",
  "s_pf": "Via D — Powerfox (poweropti)",
  "pf_intro": "Um poweropti lê o teu contador e envia o total para a cloud da Powerfox. Abaixo tens três formas de no-lo fazer chegar — <strong>só precisas de uma</strong>. Não tens a certeza? Escolhe a opção 1.",
  "pf_first_t": "Primeiro, na app Powerfox",
