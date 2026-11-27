@@ -498,6 +498,8 @@ export default {
     "r.p1": "Cititor P1",
     "r.paused": "📸 Plățile automate sunt pe pauză — fă o poză contorului (fila Contor) și pornesc din nou.",
     "r.photoDue": "📸 Fă o poză contorului înainte de {date} ca plățile automate să continue.",
+    "r.helperOld": "⚠️ Asistentul tău (gul.js{version}) este învechit. Rulează o dată linia de mai jos, în folderul cu gul.js: descarcă versiunea nouă și o configurează din nou. Tokenul și setările se păstrează. Pe Windows dispare și fereastra care se deschide în fiecare oră.",
+    "r.helperOldHa": "Folosești add-on-ul Home Assistant sau Docker? Actualizează-l pe acela (Home Assistant: Setări → Add-on-uri).",
     "r.timeline": "Cronologie",
     "r.received": "Citire primită",
     "r.received.sub": "{n} kWh de la cititorul tău",

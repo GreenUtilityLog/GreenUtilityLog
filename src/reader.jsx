@@ -649,6 +649,30 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
                     : t("r.photoDue", { date: fmtDay(Number(latest.photoDueAt)) })}
                 </div>
               )}
+              {/* The helper that sent this is out of date (the server tells from what it
+                  sends). Its owner can't know otherwise: an old one on Windows opened a
+                  window every hour, and the fix is the install line, run again. */}
+              {latest?.outdatedHelper && (() => {
+                const h = latest.outdatedHelper;
+                const win = `iwr -UseBasicParsing ${BRIDGE_JS_URL} -OutFile gul.js; node gul.js --install${INGEST_FLAG}`;
+                const nix = `curl -fsSL ${BRIDGE_JS_URL} -o gul.js && node gul.js --install${INGEST_FLAG}`;
+                const lines = h.os === "win32" ? [["Windows — PowerShell", win]] : h.os ? [["Mac · Linux · Raspberry Pi", nix]] : [["Windows — PowerShell", win], ["Mac · Linux · Raspberry Pi", nix]];
+                return (
+                  <div role="status" data-helper="outdated" style={{ marginTop: 8, padding: 10, borderRadius: 8, background: T.electricBg || T.bgAlt, border: `1px solid ${T.electric}` }}>
+                    <div style={{ fontSize: 11.5, fontWeight: 700, lineHeight: 1.5, color: T.text }}>{t("r.helperOld", { version: h.version ? ` ${h.version}` : "" })}</div>
+                    {lines.map(([cap, cmd], i) => (
+                      <div key={cap} style={{ marginTop: 8 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: T.textSoft, marginBottom: 3 }}>{cap}</div>
+                        <div style={{ ...mono, fontSize: 10.5, lineHeight: 1.45, padding: "6px 8px", background: T.bg, border: `1px solid ${T.border || T.waterBorder}`, borderRadius: 6, wordBreak: "break-all", color: T.text }}>{cmd}</div>
+                        <button type="button" onClick={() => copy(cmd, `helper${i}`)} style={{ marginTop: 5, padding: "6px 10px", fontSize: 11, fontWeight: 700, borderRadius: 6, border: "none", background: copied === `helper${i}` ? T.green3 : T.textSoft, color: "#fff", cursor: "pointer" }}>
+                          {copied === `helper${i}` ? t("r.copied") : t("r.copy")}
+                        </button>
+                      </div>
+                    ))}
+                    <div style={{ fontSize: 10.5, color: T.textSoft, marginTop: 8, lineHeight: 1.5 }}>{t("r.helperOldHa")}</div>
+                  </div>
+                );
+              })()}
               <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 8 }}>
                 <span style={{ ...mono, fontSize: 22, fontWeight: 800, color: T.text }}>{rd.reading}</span>
                 <span style={{ fontSize: 11, fontWeight: 700, color: T.textSoft }}>kWh</span>

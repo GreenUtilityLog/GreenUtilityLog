@@ -1993,9 +1993,9 @@ app.post("/meter-ingest", (req, res) => {
     meterNo: String(req.body.meterNo || link.meterNo || "").trim() || null,
     at: Date.now(),
     source: "push",
-    // Which bridge version sent it (gul.js sends GreenUtilityLog-bridge/x.y.z), so an
-    // admin can see who still runs an old one. Other readers send none.
-    ...(() => { const m = String(req.get("user-agent") || "").match(/GreenUtilityLog-bridge\/(\d{1,3}\.\d{1,3}\.\d{1,3})/); return m ? { client: `bridge ${m[1]}` } : {}; })(),
+    // Which bridge version sent it, and on what system, so the app can tell the
+    // owner of an old one to update it (helperStatus) and an admin can see it.
+    ...clientOf(req),
   });
   // When a reading can next be paid. The free-plan server sleeps between pushes,
   // so a reading that arrives during the cooldown is only paid when the NEXT one
@@ -2110,6 +2110,9 @@ app.get("/meter/latest", (req, res) => {
     // This reading came too soon after the last one to be paid automatically: the
     // payout waits for the reader's next one (the app says so, not "goes by itself").
     waitsForNewer: !!(link?.meterNo && r && tooSoonAfterLast(r, utility, link.meterNo)),
+    // The helper that sent this reading is out of date: the app asks its owner to
+    // run the install line again (null when it is current, or not gul.js).
+    outdatedHelper: helperStatus(r),
     // When automatic payouts pause until the next photo (null: no limit, or no
     // photo-proven reading yet).
     photoDueAt: (() => {
@@ -2135,6 +2138,38 @@ app.get("/meter/latest", (req, res) => {
 // binds meterNo→wallet and records the last reading). After that, pushes/syncs
 // can pay automatically. Reuses validateSubmission, so the same cooldown,
 // monotonicity, plausibility bounds and per-payout cap all still apply.
+// ── Is the owner's helper (gul.js) out of date? ──────────────────────────────
+// A helper installed before 30 October made a Windows task that opens a console
+// window every hour, and nothing told its owner that running the install line
+// again fixes it (the owner found out on 27 November). The app now says so.
+// gul.js sends "GreenUtilityLog-bridge/x.y.z (node vN; platform)" from 1.5.3 on;
+// before that it sent no User-Agent at all (a bare http.request), while every
+// other reader does (Home Assistant, curl, PowerShell, ESP firmware), so a push
+// without one is taken to be such an old helper.
+// The line: 1.5.6, the first where one bad reading no longer stops the helper
+// for good and its log keeps no passwords. Raise it only for a fault that a
+// re-install fixes, not for every release: each raise asks everyone to act.
+const BRIDGE_MIN = "1.5.6";
+const OLD_BRIDGE = "bridge <1.5.3";
+function clientOf(req) {
+  const ua = String(req.get("user-agent") || "");
+  const m = /GreenUtilityLog-bridge\/(\d{1,3}\.\d{1,3}\.\d{1,3})(?: \([^;)]{0,40}; ?(win32|darwin|linux|freebsd|openbsd)\))?/.exec(ua);
+  if (m) return { client: `bridge ${m[1]}`, ...(m[2] ? { os: m[2] } : {}) };
+  return ua.trim() ? {} : { client: OLD_BRIDGE };
+}
+const versionBelow = (a, b) => {
+  const x = a.split(".").map(Number), y = b.split(".").map(Number);
+  for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] < y[i];
+  return false;
+};
+// null, or { version (null when too old to say), os (null when unknown) }.
+function helperStatus(r) {
+  if (!r || r.source !== "push") return null;
+  if (r.client === OLD_BRIDGE) return { version: null, os: null };
+  const m = /^bridge (\d{1,3}\.\d{1,3}\.\d{1,3})$/.exec(String(r.client || ""));
+  return m && versionBelow(m[1], BRIDGE_MIN) ? { version: m[1], os: r.os || null } : null;
+}
+
 const METER_MAX_AGE_MS = Number(process.env.METER_MAX_AGE_MS || 48 * 60 * 60 * 1000);
 // A source that reports a day late (MojElektro) carries the meter's own time, and its
 // newest total can be two days old before the next one is published. Its payout is

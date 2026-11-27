@@ -48,7 +48,7 @@ const https = require("node:https");
 // Sent with every request as the User-Agent, so the server can tell which bridge
 // versions are still out there. The Home Assistant add-on carries the same number
 // (ha-addon/gul-bridge/config.yaml); CI checks they match.
-const BRIDGE_VERSION = "1.5.6";
+const BRIDGE_VERSION = "1.5.7";
 const USER_AGENT = `GreenUtilityLog-bridge/${BRIDGE_VERSION} (node ${process.versions.node}; ${process.platform})`;
 // No meter, reader or server answer is anywhere near this. A device or proxy that
 // streams without end used to fill the bridge's memory.
@@ -155,8 +155,50 @@ const READ_FLAGS = ["ip", "url", "tasmota", "field", "interval"];
 // bare --powerfox does not: that is the scheduled job asking for the saved account.
 const SOURCE_SETTINGS = { ip: "HW_IP", url: "READ_URL", tasmota: "TASMOTA_IP", powerfox: "GUL_POWERFOX_USER" };
 const sourceGivenNow = Object.entries(SOURCE_SETTINGS).some(([f, env]) => (FLAGS[f] && FLAGS[f] !== "1") || process.env[env]);
+// An install from before 16 October kept where to read only in its schedule: the
+// --ip/--url/--tasmota/--field/--interval flags on the scheduled task's or cron
+// line's command, not in the settings file. Running the install line again (what
+// the app asks of an out-of-date helper) then went back to HomeWizard discovery
+// and the reader at that address was no longer read. A re-install that finds no
+// saved reader takes them from the schedule it is about to replace.
+// The reader flags in a schedule's command: the Windows task's XML (schtasks
+// /Query /XML) or our cron line. '--k=v' is cron (single-quoted for sh, ' as '\'',
+// % as \%), "--k=v" or --k=v the Windows task.
+function scheduleReadFlags(text) {
+  let line = String(text || "");
+  if (/<Exec>|<Arguments>/.test(line)) {
+    const tag = (n) => (new RegExp(`<${n}>([\\s\\S]*?)</${n}>`).exec(line) || [])[1] || "";
+    line = `${tag("Command")} ${tag("Arguments")}`.replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&apos;/g, "'").replace(/&amp;/g, "&");
+  } else {
+    line = line.replace(/\\%/g, "%");
+  }
+  const found = {};
+  for (const k of READ_FLAGS) {
+    const m = new RegExp(`(?:^|\\s)(?:'--${k}=((?:[^']|'\\\\'')*)'|"--${k}=([^"]*)"|--${k}=(\\S+))`).exec(line);
+    if (m) found[k] = (m[1] !== undefined ? m[1].replace(/'\\''/g, "'") : m[2] ?? m[3]).trim();
+  }
+  return found;
+}
+function legacyScheduleRead() {
+  if (FLAGS.install !== "1" || (SAVED.read && typeof SAVED.read === "object")) return {};
+  let text = "";
+  try {
+    if (process.platform === "win32") {
+      const r = spawnSync("schtasks", ["/Query", "/TN", `GreenUtilityLog${SUFFIX}`, "/XML"], { encoding: "utf8", windowsHide: true });
+      if (r.status === 0) text = r.stdout || "";
+    } else {
+      const r = spawnSync("crontab", ["-l"], { encoding: "utf8" });
+      const mark = `# GreenUtilityLog${SUFFIX}`;
+      if (r.status === 0) text = (r.stdout || "").split("\n").find((l) => l.trimEnd().endsWith(mark)) || "";
+    }
+  } catch { return {}; }
+  const found = scheduleReadFlags(text);
+  // console, not log(): this runs while the file loads, before log exists.
+  if (Object.keys(found).length) console.log(`taking the reader settings of your earlier install from its schedule: ${Object.entries(found).map(([k, v]) => `--${k}=${v}`).join(" ")}`);
+  return found;
+}
 const SAVED_READ = (() => {
-  const r = SAVED.read && typeof SAVED.read === "object" ? { ...SAVED.read } : {};
+  const r = SAVED.read && typeof SAVED.read === "object" ? { ...SAVED.read } : legacyScheduleRead();
   if (sourceGivenNow) for (const k of [...Object.keys(SOURCE_SETTINGS), "field"]) delete r[k];
   return r;
 })();
@@ -918,4 +960,4 @@ async function main() {
 // three platforms to avoid failing silently.
 if (!process.env.GUL_NO_MAIN) main();
 
-module.exports = { buildQuery, parseARecords, skipName, readTotal, readGeneric };
+module.exports = { buildQuery, parseARecords, skipName, readTotal, readGeneric, scheduleReadFlags };

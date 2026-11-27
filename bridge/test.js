@@ -721,3 +721,54 @@ test("the log is readable by its owner only, and an address's user:password is b
     assert.doesNotMatch(readFileSync(join(dir, f), "utf8"), /secretpw/, `${f} has no password`);
   }
 });
+
+// ── A re-install keeps the reader of an install from before 16 October ──────────
+// Those kept where to read only in their schedule (--ip/--url/--tasmota/--field/
+// --interval on the task's or cron line's command), not in the settings file. The
+// app now asks the owner of an out-of-date helper to run the install line again,
+// which without this went back to HomeWizard discovery and stopped reading a
+// Tasmota head, a URL or a fixed address.
+test("the reader flags are read back from an old Windows task and an old cron line", async () => {
+  const xml = `<?xml version="1.0" encoding="UTF-16"?><Task><Actions Context="Author"><Exec><Command>"C:\\Program Files\\nodejs\\node.exe"</Command>`
+    + `<Arguments>"C:\\Users\\a b\\gul.js" --once --due --ip=192.168.1.60 --field=total_power_import_kwh --interval=3600 --url=http://10.0.0.5/cm?cmnd=Status%2010&amp;x=1</Arguments></Exec></Actions></Task>`;
+  const cron = "0 * * * * '/usr/bin/node' '/home/pi/gul.js' --once --due '--tasmota=192.168.1.70' '--url=http://h/cm?cmnd=Status\\%2010' '--field=it'\\''s' >/dev/null 2>&1 # GreenUtilityLog";
+  const code = `const { scheduleReadFlags: f } = require(${JSON.stringify(join(__dirname, "index.js"))});
+    console.log(JSON.stringify([f(process.env.A), f(process.env.B), f('"C:\\\\node.exe" "C:\\\\gul.js" --once --due'), f("")]));`;
+  const out = await new Promise((resolve) => {
+    const p = spawn(process.execPath, ["-e", code], { env: { ...process.env, GUL_NO_MAIN: "1", A: xml, B: cron } });
+    let o = ""; p.stdout.on("data", (c) => (o += c)); p.stderr.on("data", (c) => (o += c));
+    p.on("exit", () => resolve(o));
+  });
+  const [win, nix, none, empty] = JSON.parse(out.trim().split("\n").pop());
+  assert.deepEqual(win, { ip: "192.168.1.60", url: "http://10.0.0.5/cm?cmnd=Status%2010&x=1", field: "total_power_import_kwh", interval: "3600" });
+  assert.deepEqual(nix, { url: "http://h/cm?cmnd=Status%2010", tasmota: "192.168.1.70", field: "it's" });
+  assert.deepEqual(none, {}, "a task with no reader flags (HomeWizard discovery)");
+  assert.deepEqual(empty, {});
+});
+
+test("--install over an install from before 16 October keeps reading its Tasmota head", async () => {
+  if (process.platform === "win32") return;
+  const sb = sandbox("legacy");
+  let hits = 0;
+  const tasmota = await fake((req, res) => { hits++; res.end(JSON.stringify({ StatusSNS: { SML: { Total_in: 4321.5 } } })); });
+  const be = await recorder();
+  try {
+    // What such an install left: the token in the settings file, the reader only
+    // in the cron line (the format of that time, with the old cron mark).
+    let r = await sb.run(["--install", "--token=t-legacy", `--ingest=${be.url}`, `--tasmota=127.0.0.1:${tasmota.address().port}`]);
+    assert.equal(r.code, 0, r.out);
+    const mark = /# GreenUtilityLog\S*/.exec(sb.tab())[0];
+    sb.writeCfg({ token: "t-legacy" });
+    require("node:fs").writeFileSync(join(sb.dir, "crontab.txt"),
+      `0 * * * * '${process.execPath}' '${join(sb.dir, "gul.js")}' --once --due '--tasmota=127.0.0.1:${tasmota.address().port}' '--ingest=${be.url}' >/dev/null 2>&1 ${mark}\n`);
+    hits = 0;
+    // The app's line: no reader named.
+    r = await sb.run(["--install", `--ingest=${be.url}`]);
+    assert.equal(r.code, 0, r.out);
+    assert.match(r.out, /taking the reader settings of your earlier install from its schedule: --tasmota=127\.0\.0\.1:\d+/);
+    assert.equal(sb.cfg().read.tasmota, `127.0.0.1:${tasmota.address().port}`, "saved now, so the next re-install needs no schedule");
+    assert.equal(hits, 1, "the re-install read the Tasmota head");
+    assert.equal(be.seen.at(-1).reading, 4321.5);
+    assert.equal(sb.tab().split("\n").filter((l) => l.includes("# GreenUtilityLog")).length, 1, "one schedule, replaced");
+  } finally { tasmota.close(); be.srv.close(); }
+});

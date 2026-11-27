@@ -498,6 +498,8 @@ export default {
     "r.p1": "P1 okuyucu",
     "r.paused": "📸 Otomatik ödemeler duraklatıldı — sayacının bir fotoğrafını çek (Sayaç sekmesi), ödemeler yeniden başlasın.",
     "r.photoDue": "📸 Otomatik ödemelerin sürmesi için {date} tarihinden önce sayacının bir fotoğrafını çek.",
+    "r.helperOld": "⚠️ Yardımcın (gul.js{version}) güncel değil. Aşağıdaki satırı gul.js'nin bulunduğu klasörde bir kez çalıştır: yenisini indirir ve yeniden kurar. Token ve ayarların korunur. Windows'ta her saat açılan pencere de kaybolur.",
+    "r.helperOldHa": "Home Assistant eklentisini ya da Docker'ı mı kullanıyorsun? Onu güncelle (Home Assistant: Ayarlar → Eklentiler).",
     "r.timeline": "Zaman çizelgesi",
     "r.received": "Okuma alındı",
     "r.received.sub": "Okuyucundan {n} kWh",

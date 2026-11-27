@@ -498,6 +498,8 @@ export default {
     "r.p1": "P1-avläsare",
     "r.paused": "📸 Automatiska utbetalningar är pausade — ta ett foto av din mätare (fliken Mätare) så startar de igen.",
     "r.photoDue": "📸 Ta ett foto av din mätare före {date} så fortsätter de automatiska utbetalningarna.",
+    "r.helperOld": "⚠️ Din hjälpare (gul.js{version}) är föråldrad. Kör raden nedan en gång, i mappen där gul.js ligger: den hämtar den nya och installerar om den. Token och inställningar behålls. På Windows försvinner också fönstret som öppnas varje timme.",
+    "r.helperOldHa": "Använder du Home Assistant-tillägget eller Docker? Uppdatera det i stället (Home Assistant: Inställningar → Tillägg).",
     "r.timeline": "Tidslinje",
     "r.received": "Avläsning mottagen",
     "r.received.sub": "{n} kWh från din avläsare",
