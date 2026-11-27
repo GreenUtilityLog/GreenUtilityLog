@@ -109,7 +109,7 @@ Laatst bijgewerkt: 2026-11-27.
 ## Product en organisatie
 - [ ] Antwoord aan VeBetterDAO (beoordeling) versturen en opvolgen
 - [x] Creator NFT ontvangen; app-aanvraag op mainnet ingediend (17-11-2026)
-- [ ] Goedkeuring en endorsement afwachten
+- [x] Endorsement gehaald: 110/110 punten, 10 ondersteuners; op VeBetterDAO mainnet "Ondersteund en actief", doet mee aan de komende allocatierondes (27-11-2026)
 - [x] De server houdt zichzelf wakker: elke 11 min zijn eigen `/cron/tick` (`RENDER_EXTERNAL_URL`), geen aparte dienst (keuze eigenaar). De GitHub-wekker draaide maar ± 3 keer per dag. Bij de livegang `KEEP_AWAKE=off` op testnet (750 gratis uren)
 - [x] Elke wekbeurt betaalt ook standen die nog openstaan (een gemiste automatische uitbetaling wachtte tot de volgende push, een halve dag later)
 - [ ] Mainnet-stappen uit `docs/MAINNET.md` (serverwissel in Render, sleutels, `CERT_DOMAINS`, eerste week `MAX_PAYOUT_PER_SUBMISSION=1`)
