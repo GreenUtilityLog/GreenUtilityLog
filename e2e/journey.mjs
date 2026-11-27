@@ -18,7 +18,7 @@
 // other outside request is dropped.
 
 import { spawn } from "node:child_process";
-import { createServer } from "node:http";
+import { createServer, request as httpRequest } from "node:http";
 import { readFileSync, writeFileSync, mkdirSync, rmSync, mkdtempSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -422,6 +422,38 @@ await step("a reader: pair, push, and its reading appears", async () => {
   await wait(17000); // the card polls every 15 s
   await shot("07-reader");
   assert.match(await text(), /1005\.5/, "the pushed reading shows in the app");
+});
+
+await step("an out-of-date helper: the app says so, with the line that updates it", async () => {
+  const { token } = JSON.parse(lastCall("/meter/pair").body);
+  // The same reading again, as three different clients send it. `ua: null` sends no
+  // User-Agent at all, as gul.js did before 1.5.3.
+  const push = (ua) => new Promise((resolve, reject) => {
+    const body = JSON.stringify({ token, reading: 1005.5 });
+    const req = httpRequest(`http://127.0.0.1:${API_PORT}/meter-ingest`, { method: "POST", headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body), ...(ua ? { "User-Agent": ua } : {}) } }, (res) => { res.resume(); res.on("end", () => resolve(res.statusCode)); });
+    req.on("error", reject); req.end(body);
+  });
+  const notice = page.locator('[data-helper="outdated"]');
+  assert.equal(await push(null), 200);
+  await wait(17000); // the card polls every 15 s
+  await notice.scrollIntoViewIfNeeded(); await shot("07a-helper-outdated");
+  let n = await notice.innerText();
+  assert.match(n, /Your helper \(gul\.js\) is out of date/, "said, without a version it never sent");
+  assert.match(n, /window that opens every hour/);
+  assert.match(n, /iwr -UseBasicParsing \S+\/gul\.js -OutFile gul\.js; node gul\.js --install/, "the Windows line");
+  assert.match(n, /curl -fsSL \S+\/gul\.js -o gul\.js && node gul\.js --install/, "and the Mac/Linux line: the system isn't known");
+  assert.match(n, /Home Assistant add-on or Docker/);
+  assert.equal(await push("GreenUtilityLog-bridge/1.5.4 (node 22.11.0; win32)"), 200);
+  await wait(17000);
+  n = await notice.innerText();
+  assert.match(n, /Your helper \(gul\.js 1\.5\.4\) is out of date/, "with its version");
+  assert.match(n, /iwr -UseBasicParsing/, "the Windows line");
+  assert.doesNotMatch(n, /curl -fsSL/, "only the line for its own system");
+  // The reader as the e2e sends it (not gul.js): nothing to say.
+  const r = await fetch(`http://127.0.0.1:${API_PORT}/meter-ingest`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, reading: 1005.5 }) });
+  assert.equal(r.status, 200);
+  await wait(17000);
+  assert.equal(await notice.count(), 0, "gone once the reading comes from elsewhere");
 });
 
 await step("a reader whose payouts wait for a photo: the timeline says so, nothing to claim", async () => {

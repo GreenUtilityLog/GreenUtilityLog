@@ -498,6 +498,8 @@ export default {
     "r.p1": "Čtečka P1",
     "r.paused": "📸 Automatické výplaty jsou pozastavené — vyfoť jednou elektroměr (karta Elektroměr) a znovu se rozběhnou.",
     "r.photoDue": "📸 Vyfoť elektroměr před {date}, ať automatické výplaty pokračují.",
+    "r.helperOld": "⚠️ Tvůj pomocník (gul.js{version}) je zastaralý. Spusť jednou řádek níže ve složce s gul.js: stáhne nový a znovu ho nastaví. Token a nastavení zůstanou. Ve Windows zmizí i okno, které se otevírá každou hodinu.",
+    "r.helperOldHa": "Používáš doplněk Home Assistant nebo Docker? Aktualizuj raději ten (Home Assistant: Nastavení → Doplňky).",
     "r.timeline": "Časová osa",
     "r.received": "Stav přijat",
     "r.received.sub": "{n} kWh z tvé čtečky",

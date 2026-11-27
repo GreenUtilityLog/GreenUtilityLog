@@ -498,6 +498,8 @@ export default {
     "r.p1": "Čitalnik P1",
     "r.paused": "📸 Samodejna izplačila so ustavljena — enkrat fotografiraj svoj števec (zavihek Števec) in znova stečejo.",
     "r.photoDue": "📸 Pred {date} enkrat fotografiraj svoj števec, da se samodejna izplačila nadaljujejo.",
+    "r.helperOld": "⚠️ Tvoj pomočnik (gul.js{version}) je zastarel. Enkrat zaženi spodnjo vrstico v mapi, kjer je gul.js: prenese novega in ga znova nastavi. Žeton in nastavitve ostanejo. V Windows izgine tudi okno, ki se odpre vsako uro.",
+    "r.helperOldHa": "Uporabljaš dodatek za Home Assistant ali Docker? Posodobi raje tega (Home Assistant: Nastavitve → Dodatki).",
     "r.timeline": "Časovnica",
     "r.received": "Odčitek prejet",
     "r.received.sub": "{n} kWh s tvojega čitalnika",

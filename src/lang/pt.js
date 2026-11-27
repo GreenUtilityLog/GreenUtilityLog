@@ -498,6 +498,8 @@ export default {
     "r.p1": "Leitor P1",
     "r.paused": "📸 Os pagamentos automáticos estão em pausa — tira uma foto ao teu contador (separador Contador) e voltam a funcionar.",
     "r.photoDue": "📸 Tira uma foto ao teu contador antes de {date} para manter os pagamentos automáticos.",
+    "r.helperOld": "⚠️ O teu assistente (gul.js{version}) está desatualizado. Executa uma vez a linha abaixo, na pasta onde está o gul.js: transfere o novo e volta a configurá-lo. O token e as definições mantêm-se. No Windows, a janela que abre a cada hora também desaparece.",
+    "r.helperOldHa": "Usas o add-on do Home Assistant ou Docker? Atualiza-o em vez disso (Home Assistant: Definições → Add-ons).",
     "r.timeline": "Cronologia",
     "r.received": "Leitura recebida",
     "r.received.sub": "{n} kWh do teu leitor",

@@ -498,6 +498,8 @@ export default {
     "r.p1": "P1 čitač",
     "r.paused": "📸 Automatske isplate su pauzirane — snimi jednu fotografiju brojila (kartica Brojilo) i opet će krenuti.",
     "r.photoDue": "📸 Snimi jednu fotografiju brojila prije {date} kako bi se automatske isplate nastavile.",
+    "r.helperOld": "⚠️ Tvoj pomoćnik (gul.js{version}) je zastario. Jednom pokreni redak ispod, u mapi gdje je gul.js: preuzima novi i ponovno ga postavlja. Token i postavke ostaju. Na Windowsu nestaje i prozor koji se otvara svaki sat.",
+    "r.helperOldHa": "Koristiš Home Assistant dodatak ili Docker? Ažuriraj radije njega (Home Assistant: Postavke → Dodaci).",
     "r.timeline": "Vremenski tijek",
     "r.received": "Očitanje primljeno",
     "r.received.sub": "{n} kWh s tvog čitača",

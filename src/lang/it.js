@@ -498,6 +498,8 @@ export default {
     "r.p1": "Lettore P1",
     "r.paused": "📸 I pagamenti automatici sono sospesi — scatta una foto del contatore (scheda Contatore) e ripartono.",
     "r.photoDue": "📸 Scatta una foto del contatore entro il {date} per continuare a ricevere i pagamenti automatici.",
+    "r.helperOld": "⚠️ Il tuo helper (gul.js{version}) non è aggiornato. Esegui una volta la riga qui sotto, nella cartella di gul.js: scarica quello nuovo e lo reinstalla. Token e impostazioni restano. Su Windows sparisce anche la finestra che si apre ogni ora.",
+    "r.helperOldHa": "Usi l'add-on di Home Assistant o Docker? Aggiorna quello (Home Assistant: Impostazioni → Add-on).",
     "r.timeline": "Tempistica",
     "r.received": "Lettura ricevuta",
     "r.received.sub": "{n} kWh dal tuo lettore",

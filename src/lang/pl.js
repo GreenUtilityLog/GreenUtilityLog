@@ -498,6 +498,8 @@ export default {
     "r.p1": "Czytnik P1",
     "r.paused": "📸 Automatyczne wypłaty są wstrzymane — zrób jedno zdjęcie licznika (karta Licznik), a wznowią się.",
     "r.photoDue": "📸 Zrób jedno zdjęcie licznika przed {date}, aby automatyczne wypłaty trwały dalej.",
+    "r.helperOld": "⚠️ Twój pomocnik (gul.js{version}) jest nieaktualny. Uruchom raz poniższą linię w folderze z gul.js: pobierze nowy i skonfiguruje go ponownie. Token i ustawienia zostają. W Windows zniknie też okno otwierające się co godzinę.",
+    "r.helperOldHa": "Używasz dodatku Home Assistant lub Dockera? Zaktualizuj go zamiast tego (Home Assistant: Ustawienia → Dodatki).",
     "r.timeline": "Oś czasu",
     "r.received": "Odczyt odebrany",
     "r.received.sub": "{n} kWh z twojego czytnika",

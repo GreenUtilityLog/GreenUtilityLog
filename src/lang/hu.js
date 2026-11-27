@@ -498,6 +498,8 @@ export default {
     "r.p1": "P1-olvasó",
     "r.paused": "📸 Az automatikus kifizetések szünetelnek — készíts egy fotót a mérődről (Mérő fül), és újraindulnak.",
     "r.photoDue": "📸 Az automatikus kifizetések folytatásához készíts egy fotót a mérődről eddig: {date}.",
+    "r.helperOld": "⚠️ A segédprogramod (gul.js{version}) elavult. Futtasd egyszer az alábbi sort abban a mappában, ahol a gul.js van: letölti az újat és újra beállítja. A token és a beállítások megmaradnak. Windowson az óránként felugró ablak is eltűnik.",
+    "r.helperOldHa": "A Home Assistant-bővítményt vagy Dockert használod? Inkább azt frissítsd (Home Assistant: Beállítások → Bővítmények).",
     "r.timeline": "Idővonal",
     "r.received": "Mérőállás beérkezett",
     "r.received.sub": "{n} kWh a leolvasódtól",

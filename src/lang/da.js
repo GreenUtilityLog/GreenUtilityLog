@@ -498,6 +498,8 @@ export default {
     "r.p1": "P1-aflæser",
     "r.paused": "📸 Automatiske udbetalinger er sat på pause — tag ét billede af din måler (fanen Måler), så starter de igen.",
     "r.photoDue": "📸 Tag ét billede af din måler inden {date}, så de automatiske udbetalinger fortsætter.",
+    "r.helperOld": "⚠️ Din hjælper (gul.js{version}) er forældet. Kør linjen herunder én gang, i mappen hvor gul.js ligger: den henter den nye og sætter den op igen. Token og indstillinger bevares. På Windows forsvinder vinduet, der åbner hver time, også.",
+    "r.helperOldHa": "Bruger du Home Assistant-tilføjelsen eller Docker? Opdater den i stedet (Home Assistant: Indstillinger → Tilføjelser).",
     "r.timeline": "Tidslinje",
     "r.received": "Aflæsning modtaget",
     "r.received.sub": "{n} kWh fra din aflæser",

@@ -498,6 +498,8 @@ export default {
     "r.p1": "P1-lukija",
     "r.paused": "📸 Automaattiset maksut ovat tauolla — ota yksi kuva mittaristasi (Mittari-välilehti), niin ne jatkuvat.",
     "r.photoDue": "📸 Ota mittaristasi yksi kuva viimeistään {date}, niin automaattiset maksut jatkuvat.",
+    "r.helperOld": "⚠️ Apuohjelmasi (gul.js{version}) on vanhentunut. Aja alla oleva rivi kerran kansiossa, jossa gul.js on: se lataa uuden ja asentaa sen uudelleen. Tunnus ja asetukset säilyvät. Windowsissa myös joka tunti avautuva ikkuna lakkaa.",
+    "r.helperOldHa": "Käytätkö Home Assistant -lisäosaa tai Dockeria? Päivitä se sen sijaan (Home Assistant: Asetukset → Lisäosat).",
     "r.timeline": "Aikajana",
     "r.received": "Lukema vastaanotettu",
     "r.received.sub": "{n} kWh lukijaltasi",
