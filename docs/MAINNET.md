@@ -33,10 +33,6 @@ zetten en aan de toegangsregel te voldoen (GM NFT + Passport, zie stap 5).
 - `CERT_DOMAINS` = `greenutilitylog.github.io` (gezien op testnet-`/health`, `certDomains.seen`).
 - `ADMIN_WALLETS` = `0x3a007383fce8dcccdb92cf9efe0e609a652a1f29,0xedd7e5e1be4066cdc892a059f586b9d7e8e4b0c7`
   (allebei van de eigenaar; `0xedd7…b0c7` is de on-chain app-admin).
-- De eerste allocatieronde krijgt de app nog niets: de eigenaar stort zelf **2.500 B3TR** in de pot
-  (VeBetter mainnet → App-saldo → storten; niet via "Fund rewards pool" in ons adminpaneel zolang de app
-  nog testnet is). Eerste week hooguit ±70 B3TR nodig (max 1 per uitbetaling); ongebruikt saldo is weer op
-  te nemen naar de team-wallet.
 - Nog te doen door de eigenaar: stap 1–3 in VeBetter (distributor, VTHO, pool uit, teamdeel),
   een nieuwe Upstash-database en Anthropic-sleutel, dan stap 5 in Render.
 - Klaar voor stap 6: de handleiding zonder "testershandleiding / test-tokens" (20 talen), op de
