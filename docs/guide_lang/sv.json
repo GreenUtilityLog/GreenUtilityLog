@@ -1,7 +1,7 @@
 {
  "_toc": "På den här sidan",
  "name": "English",
- "kicker": "Guide för testare",
+ "kicker": "Guide",
  "h1": "Tjäna B3TR utan att fotografera mätaren",
  "lede": "Vanligtvis fotograferar du din mätare för att tjäna B3TR. Om något hemma hos dig redan kan läsa av mätaren kan det skicka in mätarställningen åt dig — och du behöver aldrig fotografera igen. Börja med att hitta din uppsättning nedan.",
  "s_routes": "Vilken uppsättning har du?",
@@ -418,7 +418,7 @@
   ]
  ],
  "close": "Fortfarande fast? Skicka ett meddelande med det som loggen (eller terminalen) visar — där står oftast exakt vad som saknas.",
- "foot": "GreenUtilityLog · Guide för testare · Testnet-beta — testtokens, inget verkligt värde än.",
+ "foot": "GreenUtilityLog · Guide · Belöningar i B3TR på VeChain.",
  "s_pf": "Väg D — Powerfox (poweropti)",
  "pf_intro": "En poweropti läser av din mätare och skickar totalen till Powerfox-molnet. Nedan finns tre sätt att få den till oss — <strong>du behöver bara ett</strong>. Osäker? Välj alternativ 1.",
  "pf_first_t": "Först, i Powerfox-appen",

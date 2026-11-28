@@ -1,7 +1,7 @@
 {
  "_toc": "Ezen az oldalon",
  "name": "English",
- "kicker": "Útmutató tesztelőknek",
+ "kicker": "Útmutató",
  "h1": "Keress úgy, hogy nem fotózod a mérődet",
  "lede": "Általában lefotózod a mérődet, hogy B3TR-t keress. Ha otthon már van valami, ami le tudja olvasni a mérőt, az elküldheti helyetted a mérőállást — és soha többé nem kell fotóznod. Először keresd meg lent, milyen eszközöd van.",
  "s_routes": "Milyen eszközöd van?",
@@ -418,7 +418,7 @@
   ]
  ],
  "close": "Még mindig elakadtál? Küldj egy üzenetet arról, mit mutat a Napló fül (vagy a terminál) — általában pontosan ott áll, mi hiányzik.",
- "foot": "GreenUtilityLog · Útmutató tesztelőknek · Testnet béta — teszttokenek, még nincs valódi értékük.",
+ "foot": "GreenUtilityLog · Útmutató · Jutalmak B3TR-ben a VeChainen.",
  "s_pf": "D útvonal — Powerfox (poweropti)",
  "pf_intro": "A poweropti leolvassa a mérődet, és elküldi az összesített állást a Powerfox felhőjébe. Lent három módját látod annak, hogyan jut el hozzánk — <strong>csak egy kell</strong>. Nem vagy biztos benne? Válaszd az 1. lehetőséget.",
  "pf_first_t": "Először a Powerfox appban",

@@ -17,7 +17,7 @@ services:
     maxShutdownDelaySeconds: 120
     envVars:
       - key: NETWORK
-        value: testnet
+        value: mainnet
       # Render runs behind Cloudflare, which sets this header to the real caller
       # and overwrites any value the caller sends (the rate limit keys on it).
       - key: CLIENT_IP_HEADER

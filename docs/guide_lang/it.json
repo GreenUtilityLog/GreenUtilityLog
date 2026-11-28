@@ -1,7 +1,7 @@
 {
  "_toc": "In questa pagina",
  "name": "English",
- "kicker": "Guida per i tester",
+ "kicker": "Guida",
  "h1": "Guadagna senza fotografare il contatore",
  "lede": "Di solito fotografi il contatore per guadagnare B3TR. Se in casa hai già qualcosa che legge il contatore, può inviare la lettura al posto tuo — e non dovrai più scattare foto. Comincia trovando qui sotto la tua situazione.",
  "s_routes": "Che configurazione hai?",
@@ -418,7 +418,7 @@
   ]
  ],
  "close": "Non riesci ad andare avanti? Mandaci un messaggio con quello che mostra il log (o il terminale) — di solito dice esattamente cosa manca.",
- "foot": "GreenUtilityLog · Guida per i tester · Beta su Testnet — token di prova, ancora senza valore reale.",
+ "foot": "GreenUtilityLog · Guida · Ricompense in B3TR su VeChain.",
  "s_pf": "Via D — Powerfox (poweropti)",
  "pf_intro": "Un poweropti legge il tuo contatore e invia il totale al cloud di Powerfox. Qui sotto ci sono tre modi per farlo arrivare a noi — <strong>te ne basta uno</strong>. Non sai quale? Scegli l'opzione 1.",
  "pf_first_t": "Prima, nell'app Powerfox",

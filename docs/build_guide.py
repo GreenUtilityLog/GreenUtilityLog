@@ -33,7 +33,7 @@ L = {}
 
 # ────────────────────────────────── ENGLISH ──────────────────────────────────
 L["en"] = dict(
-  name="English", kicker="Tester guide",
+  name="English", kicker="Setup guide",
   h1="Earn without photographing your meter",
   lede="Normally you photograph your meter to earn B3TR. If something in your home can already read the meter, it can send the reading for you — and you never photograph again. Start by finding your setup below.",
   s_routes="Which setup do you have?",
@@ -114,12 +114,12 @@ L["en"] = dict(
     ("already been corrected once", "A meter’s starting point can be corrected once — every correction wipes the usage since the last payout. If it is wrong again, ask an admin via Send Feedback in the app."),
   ],
   close="Still stuck? Send a message with what the Log tab (or terminal) shows — it usually says exactly what's missing.",
-  foot="GreenUtilityLog · Tester guide · Testnet beta — test tokens, no real-world value yet.",
+  foot="GreenUtilityLog · Setup guide · Rewards in B3TR on VeChain.",
 )
 
 # ──────────────────────────────── NEDERLANDS ─────────────────────────────────
 L["nl"] = dict(
-  name="Nederlands", kicker="Testershandleiding",
+  name="Nederlands", kicker="Handleiding",
   h1="Verdien zonder je meter te fotograferen",
   lede="Normaal fotografeer je je meter om B3TR te verdienen. Kan er thuis al iets je meter uitlezen, dan stuurt dát de stand door — en hoef jij nooit meer te fotograferen. Zoek hieronder je situatie op.",
   s_routes="Welke situatie heb jij?",
@@ -200,12 +200,12 @@ L["nl"] = dict(
     ("already been corrected once", "Het startpunt van een meter kan één keer worden gecorrigeerd — elke correctie wist het verbruik sinds de laatste uitbetaling. Klopt het weer niet, vraag het een admin via Send Feedback in de app."),
   ],
   close="Kom je er niet uit? Stuur een berichtje met wat er in het Log-tabblad (of de terminal) staat — daar staat meestal precies wat er mist.",
-  foot="GreenUtilityLog · Testershandleiding · Testnet-beta — test-tokens, nog geen echte waarde.",
+  foot="GreenUtilityLog · Handleiding · Beloningen in B3TR op VeChain.",
 )
 
 # ────────────────────────────────── DEUTSCH ──────────────────────────────────
 L["de"] = dict(
-  name="Deutsch", kicker="Tester-Anleitung",
+  name="Deutsch", kicker="Anleitung",
   h1="Verdienen, ohne den Zähler zu fotografieren",
   lede="Normalerweise fotografierst du deinen Zähler, um B3TR zu verdienen. Kann bei dir zu Hause schon etwas den Zähler auslesen, sendet das den Stand für dich — und du fotografierst nie wieder. Such unten deine Situation.",
   s_routes="Welche Situation hast du?",
@@ -286,12 +286,12 @@ L["de"] = dict(
     ("already been corrected once", "Der Startwert eines Zählers kann einmal korrigiert werden — jede Korrektur löscht den Verbrauch seit der letzten Auszahlung. Stimmt er wieder nicht, frag einen Admin über Send Feedback in der App."),
   ],
   close="Kommst du nicht weiter? Schick eine Nachricht mit dem Inhalt des Protokoll-Tabs (oder Terminals) — dort steht meist genau, was fehlt.",
-  foot="GreenUtilityLog · Tester-Anleitung · Testnet-Beta — Test-Token, noch kein realer Wert.",
+  foot="GreenUtilityLog · Anleitung · Belohnungen in B3TR auf VeChain.",
 )
 
 # ────────────────────────────────── FRANÇAIS ─────────────────────────────────
 L["fr"] = dict(
-  name="Français", kicker="Guide testeur",
+  name="Français", kicker="Guide",
   h1="Gagnez sans photographier votre compteur",
   lede="Normalement vous photographiez votre compteur pour gagner des B3TR. Si quelque chose chez vous sait déjà lire le compteur, il peut envoyer le relevé à votre place — et vous ne photographiez plus jamais. Trouvez votre cas ci-dessous.",
   s_routes="Quelle est votre situation ?",
@@ -372,12 +372,12 @@ L["fr"] = dict(
     ("already been corrected once", "Le point de départ d’un compteur ne peut être corrigé qu’une fois — chaque correction efface la consommation depuis le dernier paiement. S’il est de nouveau faux, demandez à un admin via Send Feedback dans l’app."),
   ],
   close="Toujours bloqué ? Envoyez un message avec le contenu de l'onglet Journal (ou du terminal) — il dit généralement exactement ce qui manque.",
-  foot="GreenUtilityLog · Guide testeur · Bêta testnet — jetons de test, sans valeur réelle.",
+  foot="GreenUtilityLog · Guide · Récompenses en B3TR sur VeChain.",
 )
 
 # ─────────────────────────────────── ESPAÑOL ─────────────────────────────────
 L["es"] = dict(
-  name="Español", kicker="Guía para testers",
+  name="Español", kicker="Guía",
   h1="Gana sin fotografiar tu contador",
   lede="Normalmente fotografías tu contador para ganar B3TR. Si algo en tu casa ya sabe leer el contador, puede enviar la lectura por ti — y no vuelves a fotografiar. Busca tu caso abajo.",
   s_routes="¿Cuál es tu caso?",
@@ -458,7 +458,7 @@ L["es"] = dict(
     ("already been corrected once", "El punto de partida de un contador solo se puede corregir una vez — cada corrección borra el consumo desde el último pago. Si vuelve a estar mal, pide ayuda a un admin con Send Feedback en la app."),
   ],
   close="¿Sigues atascado? Envía un mensaje con lo que muestra la pestaña Registro (o la terminal) — suele decir exactamente qué falta.",
-  foot="GreenUtilityLog · Guía para testers · Beta en testnet — tokens de prueba, sin valor real.",
+  foot="GreenUtilityLog · Guía · Recompensas en B3TR en VeChain.",
 )
 
 # ─────────────────────────────── ROUTE D: POWERFOX ───────────────────────────────

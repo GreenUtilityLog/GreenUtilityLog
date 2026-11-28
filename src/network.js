@@ -6,7 +6,11 @@ export const NETWORK = import.meta.env.VITE_NETWORK === "mainnet" ? "mainnet" : 
 // The testnet backend. A testnet build (and `npm run dev`) falls back to it. At
 // go-live the testnet moves to a server of its own and the current one becomes
 // mainnet (docs/MAINNET.md), so deploy.yml tells every build which one it is.
-const TESTNET_API = String(import.meta.env.VITE_TESTNET_API || "https://greenutilitylog-rewards.onrender.com").trim().replace(/\/$/, "");
+// The testnet server a build was told about, if any. Since the go-live (28 November
+// 2026) there is none: the server that was testnet is the mainnet server, and the
+// test copy is gone (owner's choice), so the main build names no testnet.
+const TESTNET_FROM_BUILD = String(import.meta.env.VITE_TESTNET_API || "").trim().replace(/\/$/, "");
+const TESTNET_API = TESTNET_FROM_BUILD || "https://greenutilitylog-rewards.onrender.com";
 const API_FROM_BUILD = String(import.meta.env.VITE_REWARD_API || "").trim().replace(/\/$/, "");
 // A mainnet build must never quietly talk to the testnet backend: payouts would go
 // out on the wrong chain (or not at all) while the app says "mainnet". deploy.yml
@@ -14,7 +18,7 @@ const API_FROM_BUILD = String(import.meta.env.VITE_REWARD_API || "").trim().repl
 // missing too (the testnet's own URL, given by the build: after go-live the old
 // testnet URL IS the mainnet server). Refuse to start, visibly — main.jsx's error page isn't installed yet
 // when this module runs, so write the message into #root ourselves.
-if (NETWORK === "mainnet" && (!API_FROM_BUILD || API_FROM_BUILD === TESTNET_API)) {
+if (NETWORK === "mainnet" && (!API_FROM_BUILD || (TESTNET_FROM_BUILD && API_FROM_BUILD === TESTNET_FROM_BUILD))) {
   const msg = "Build misconfigured: this is a MAINNET build but VITE_REWARD_API is "
     + (API_FROM_BUILD ? "the testnet backend" : "not set")
     + ". Set it to the mainnet reward backend (see docs/MAINNET.md) and rebuild.";

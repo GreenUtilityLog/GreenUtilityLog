@@ -70,16 +70,16 @@ jobs:
           git fetch --no-tags --depth=1 origin ${{ github.base_ref }}
           bash scripts/check-addon-bump.sh FETCH_HEAD
       - run: npm run build
-      # Everything else the deploy does: the testnet copy, and the static files it
-      # publishes alongside (a renamed one would only fail the deploy otherwise).
-      - name: Testnet copy and published files, as the deploy builds them
+      # Everything else the deploy does: the mainnet app as deploy.yml builds it, and
+      # the static files it publishes alongside (a renamed one would only fail the
+      # deploy otherwise).
+      - name: The app and published files, as the deploy builds them
         run: |
-          npx vite build --outDir /tmp/pages/testnet
+          npx vite build --outDir /tmp/pages
           bash scripts/pages-assets.sh /tmp/pages
         env:
-          VITE_BASE: /GreenUtilityLog/testnet/
-          VITE_NETWORK: testnet
-          VITE_TESTNET_BANNER: "1"
+          VITE_NETWORK: mainnet
+          VITE_REWARD_API: https://greenutilitylog-rewards.onrender.com
 
   # The bridge is downloaded as one loose gul.js and run on whatever Node the user
   # has — Debian/Raspberry Pi OS ship 18. It once failed to even start there.

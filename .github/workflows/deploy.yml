@@ -14,18 +14,14 @@ concurrency:
   group: pages
   cancel-in-progress: false
 
-# Two copies of the app from one codebase:
-#   /GreenUtilityLog/          the main app — the network in MAIN_NETWORK
-#   /GreenUtilityLog/testnet/  always testnet, for trying changes with test tokens
-# Going live on mainnet (docs/MAINNET.md, "Livegang"): the current server
-# becomes the mainnet server, so every installed reader keeps sending to it, and
-# the testnet moves to a new one. Then MAIN_NETWORK = mainnet, MAINNET_API = the
-# current server and TESTNET_API = the new testnet server. Until then both
-# copies are testnet.
+# The app at /GreenUtilityLog/, for the network in MAIN_NETWORK. Since the go-live
+# (28 November 2026) that is mainnet, with the server that was testnet: every
+# installed reader keeps sending to it. There is no testnet copy any more (owner's
+# choice, no testnet server); /GreenUtilityLog/testnet/ only sends people to the app
+# (scripts/pages-assets.sh). A test build still works locally: npm run dev.
 env:
-  MAIN_NETWORK: testnet
-  TESTNET_API: https://greenutilitylog-rewards.onrender.com
-  MAINNET_API: ""
+  MAIN_NETWORK: mainnet
+  MAINNET_API: https://greenutilitylog-rewards.onrender.com
 
 jobs:
   build:
@@ -45,20 +41,10 @@ jobs:
         run: npm run build
         env:
           VITE_NETWORK: ${{ env.MAIN_NETWORK }}
-          VITE_REWARD_API: ${{ env.MAIN_NETWORK == 'mainnet' && env.MAINNET_API || env.TESTNET_API }}
-          VITE_TESTNET_API: ${{ env.TESTNET_API }}
+          VITE_REWARD_API: ${{ env.MAINNET_API }}
       - name: Refuse a mainnet build without a mainnet backend
-        if: env.MAIN_NETWORK == 'mainnet' && (env.MAINNET_API == '' || env.MAINNET_API == env.TESTNET_API)
-        run: echo "MAIN_NETWORK is mainnet but MAINNET_API is empty or the same as TESTNET_API" && exit 1
-      - name: Build the testnet copy
-        run: npx vite build --outDir dist/testnet
-        env:
-          VITE_BASE: /GreenUtilityLog/testnet/
-          VITE_NETWORK: testnet
-          VITE_REWARD_API: ${{ env.TESTNET_API }}
-          VITE_TESTNET_API: ${{ env.TESTNET_API }}
-          VITE_TESTNET_BANNER: "1"
-          VITE_MAIN_APP_URL: ${{ env.MAIN_NETWORK == 'mainnet' && 'https://greenutilitylog.github.io/GreenUtilityLog/' || '' }}
+        if: env.MAIN_NETWORK == 'mainnet' && env.MAINNET_API == ''
+        run: echo "MAIN_NETWORK is mainnet but MAINNET_API is empty" && exit 1
       # The static files published alongside (404 page, og-image, share pages,
       # banners, icons): one script, also run on every PR (scripts/pages-assets.sh).
       - run: bash scripts/pages-assets.sh dist

@@ -1,7 +1,7 @@
 {
  "_toc": "Na tej strani",
  "name": "English",
- "kicker": "Vodnik za preizkuševalce",
+ "kicker": "Vodnik",
  "h1": "Služi brez fotografiranja števca",
  "lede": "Običajno za B3TR fotografiraš svoj števec. Če lahko kaj v tvojem domu števec že odčita, lahko odčitek pošlje namesto tebe — in fotografij ne potrebuješ več. Najprej spodaj poišči svojo postavitev.",
  "s_routes": "Kakšno postavitev imaš?",
@@ -418,7 +418,7 @@
   ]
  ],
  "close": "Še vedno ne gre? Pošlji sporočilo s tem, kar kaže zavihek z dnevnikom (ali terminal) — običajno natanko pove, kaj manjka.",
- "foot": "GreenUtilityLog · Vodnik za preizkuševalce · Testnet beta — testni žetoni, zaenkrat brez realne vrednosti.",
+ "foot": "GreenUtilityLog · Vodnik · Nagrade v B3TR na VeChainu.",
  "s_pf": "Pot D — Powerfox (poweropti)",
  "pf_intro": "Poweropti bere tvoj števec in pošilja skupno stanje v oblak Powerfox. Spodaj so trije načini, kako ga dobimo mi — <strong>potrebuješ samo enega</strong>. Ne veš, katerega? Izberi možnost 1.",
  "pf_first_t": "Najprej v aplikaciji Powerfox",

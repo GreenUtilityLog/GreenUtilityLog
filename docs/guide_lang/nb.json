@@ -1,7 +1,7 @@
 {
  "_toc": "På denne siden",
  "name": "English",
- "kicker": "Veiledning for testere",
+ "kicker": "Veiledning",
  "h1": "Tjen uten å ta bilde av måleren",
  "lede": "Vanligvis tar du bilde av måleren for å tjene B3TR. Har du allerede noe hjemme som kan lese av måleren, kan det sende målerstanden for deg – og du trenger aldri ta bilde igjen. Start med å finne oppsettet ditt nedenfor.",
  "s_routes": "Hvilket oppsett har du?",
@@ -418,7 +418,7 @@
   ]
  ],
  "close": "Står du fortsatt fast? Send en melding med det Logg-fanen (eller terminalen) viser – der står det som regel nøyaktig hva som mangler.",
- "foot": "GreenUtilityLog · Veiledning for testere · Testnet-beta – testtokens, ingen reell verdi ennå.",
+ "foot": "GreenUtilityLog · Veiledning · Belønninger i B3TR på VeChain.",
  "s_pf": "Rute D – Powerfox (poweropti)",
  "pf_intro": "En poweropti leser av måleren din og sender totalen til Powerfox-skyen. Nedenfor er tre måter å få den til oss på – <strong>du trenger bare én</strong>. Usikker? Velg alternativ 1.",
  "pf_first_t": "Først, i Powerfox-appen",
