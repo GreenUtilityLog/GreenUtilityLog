@@ -515,6 +515,7 @@ export default {
     "r.nextReward": "Prossima ricompensa possibile",
     "r.sendsAfter": "il tuo lettore invia alla prima ora dopo le",
     "r.paidNext": "pagata appena arriva la prossima lettura",
+    "r.waitsSpan": "pagato alla prima lettura del lettore dopo quest'ora (20 h dopo l'ultima pagata) — la invia da solo",
     "r.canPay": "questa lettura può essere pagata — avviene in automatico",
     "r.submitting": "Invio…",
     "r.claim": "Riscuoti ora",

@@ -515,6 +515,7 @@ export default {
     "r.nextReward": "Következő lehetséges jutalom",
     "r.sendsAfter": "a leolvasód az ezt követő első egész órában küld",
     "r.paidNext": "kifizetés, amint megérkezik a következő mérőállás",
+    "r.waitsSpan": "a leolvasó első, ezen időpont utáni állásánál fizetjük (20 órával a legutóbb kifizetett után) — magától küldi",
     "r.canPay": "ez a mérőállás kifizethető — automatikusan megy",
     "r.submitting": "Beküldés…",
     "r.claim": "Igénylés most",

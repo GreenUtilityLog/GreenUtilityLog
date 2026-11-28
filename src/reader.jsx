@@ -594,6 +594,9 @@ export default function SmartMeterCard({ wallet, setReading, T, onAutoSubmit, au
         : { title: t("r.recordedOnly"), sub: "" }) });
     steps.sort((a, b) => a.at - b.at);
     if (photoPaused) steps.push({ day: "", time: t("today.now"), title: t("r.photoFirst.t"), sub: t("r.photoFirst.s"), done: false });
+    // A reading too soon after the last paid one waits for one taken after this
+    // moment: said with the time, not as "now" (which read as "you can be paid now").
+    else if (waitsForNewer && Number(latest?.waitsUntil) > Date.now()) steps.push({ ...dayTime(Number(latest.waitsUntil)), title: t("r.nextReward"), sub: t("r.waitsSpan"), done: false });
     else steps.push(nextAt > Date.now()
       ? { ...dayTime(nextAt), title: t("r.nextReward"), sub: t("r.sendsAfter"), done: false }
       : { day: "", time: t("today.now"), title: t("r.nextReward"), sub: paidThis || !rd || !readerFresh || waitsForNewer ? t("r.paidNext") : t("r.canPay"), done: false });

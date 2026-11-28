@@ -515,6 +515,7 @@ export default {
     "r.nextReward": "Nästa möjliga belöning",
     "r.sendsAfter": "din avläsare skickar vid första hela timmen efter",
     "r.paidNext": "betalas ut så fort nästa avläsning kommer in",
+    "r.waitsSpan": "betalas vid avläsarens första avläsning efter den här tiden (20 tim efter den senast betalda) — den skickar den själv",
     "r.canPay": "den här avläsningen kan betalas ut — det sker automatiskt",
     "r.submitting": "Skickar in…",
     "r.claim": "Hämta nu",

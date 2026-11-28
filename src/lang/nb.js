@@ -515,6 +515,7 @@ export default {
     "r.nextReward": "Neste mulige belønning",
     "r.sendsAfter": "avleseren sender ved første hele time etterpå",
     "r.paidNext": "utbetales så snart neste målerstand kommer",
+    "r.waitsSpan": "utbetales ved avleserens første avlesning etter dette tidspunktet (20 t etter den sist utbetalte) — den sender den selv",
     "r.canPay": "denne målerstanden kan utbetales – det skjer automatisk",
     "r.submitting": "Sender inn …",
     "r.claim": "Hent nå",

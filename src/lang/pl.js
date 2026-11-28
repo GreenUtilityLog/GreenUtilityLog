@@ -515,6 +515,7 @@ export default {
     "r.nextReward": "Następna nagroda możliwa",
     "r.sendsAfter": "twój czytnik wysyła o pierwszej pełnej godzinie po",
     "r.paidNext": "wypłata, gdy tylko dotrze następny odczyt",
+    "r.waitsSpan": "wypłata przy pierwszym odczycie czytnika po tej godzinie (20 godz. po ostatnim wypłaconym) — wyśle go sam",
     "r.canPay": "ten odczyt można wypłacić — stanie się to automatycznie",
     "r.submitting": "Wysyłanie…",
     "r.claim": "Odbierz teraz",

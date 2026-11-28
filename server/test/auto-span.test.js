@@ -56,3 +56,31 @@ test("the line is the cooldown itself: a reading 19 hours after the last still w
     assert.equal(srv.readState().readings[K], 1000);
   } finally { await srv.stop(); }
 });
+
+test("the app is told from when a reading counts again: 20 h after the last paid one", async () => {
+  // The owner, 28 November: the timeline said "next reward possible — now" while the
+  // reading waited for a newer one. Last paid reading 8 h ago; the reader's reading
+  // came an hour ago, so the next one counts from 12 h from now.
+  const now = Date.now();
+  const st = state();
+  st.readingAts[K] = now - 8 * H;
+  st.cooldowns[`${WALLET.toLowerCase()}:electric`] = now - 8 * H;
+  st.linkReadings[WALLET.toLowerCase()].at = now - 1 * H;
+  const srv = await startServer({ state: st, env: { AUTO_CLAIM_ON_PUSH: "on" } });
+  try {
+    const l = (await srv.get(`/meter/latest?address=${WALLET}`, { "x-device-token": TOKEN })).body;
+    assert.equal(l.waitsForNewer, true);
+    assert.ok(Math.abs(l.waitsUntil - (now - 8 * H + 20 * H)) < 60_000, `waitsUntil ${new Date(l.waitsUntil).toISOString()}`);
+  } finally { await srv.stop(); }
+});
+
+test("nothing to wait for: no time given", async () => {
+  const st = state();
+  st.linkReadings[WALLET.toLowerCase()].at = Date.now() - 0.5 * H;   // 24.5 h after the last
+  const srv = await startServer({ state: st });
+  try {
+    const l = (await srv.get(`/meter/latest?address=${WALLET}`, { "x-device-token": TOKEN })).body;
+    assert.equal(l.waitsForNewer, false);
+    assert.equal(l.waitsUntil, null);
+  } finally { await srv.stop(); }
+});

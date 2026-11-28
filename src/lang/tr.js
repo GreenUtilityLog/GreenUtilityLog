@@ -515,6 +515,7 @@ export default {
     "r.nextReward": "Sonraki olası ödül",
     "r.sendsAfter": "okuyucun bundan sonraki ilk tam saatte gönderir",
     "r.paidNext": "bir sonraki okuma gelir gelmez ödenir",
+    "r.waitsSpan": "bu saatten sonraki ilk okuyucu değerinde ödenir (son ödenenden 20 saat sonra) — okuyucu bunu kendisi gönderir",
     "r.canPay": "bu okuma ödenebilir — otomatik olarak gider",
     "r.submitting": "Gönderiliyor…",
     "r.claim": "Şimdi al",

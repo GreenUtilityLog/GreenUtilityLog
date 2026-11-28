@@ -515,6 +515,7 @@ export default {
     "r.nextReward": "Următoarea recompensă posibilă",
     "r.sendsAfter": "cititorul tău trimite la prima oră fixă de după",
     "r.paidNext": "se plătește imediat ce sosește următoarea citire",
+    "r.waitsSpan": "plătit la prima citire a cititorului după această oră (la 20 h după ultima plătită) — o trimite singur",
     "r.canPay": "citirea asta poate fi plătită — se face automat",
     "r.submitting": "Se trimite…",
     "r.claim": "Revendică acum",

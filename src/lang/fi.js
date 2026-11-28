@@ -515,6 +515,7 @@ export default {
     "r.nextReward": "Seuraava palkkio mahdollinen",
     "r.sendsAfter": "lukijasi lähettää ensimmäisellä tasatunnilla tämän jälkeen:",
     "r.paidNext": "maksetaan heti, kun seuraava lukema saapuu",
+    "r.waitsSpan": "maksetaan lukijasi ensimmäisestä lukemasta tämän ajan jälkeen (20 h viimeksi maksetusta) — se lähettää sen itse",
     "r.canPay": "tämä lukema voidaan maksaa — se tapahtuu automaattisesti",
     "r.submitting": "Lähetetään…",
     "r.claim": "Lunasta nyt",

@@ -515,6 +515,7 @@ export default {
     "r.nextReward": "Další odměna možná",
     "r.sendsAfter": "tvoje čtečka odesílá v první hodině po",
     "r.paidNext": "vyplatí se, jakmile dorazí další stav",
+    "r.waitsSpan": "vyplaceno při prvním stavu tvé čtečky po tomto čase (20 h po posledním vyplaceném) — pošle ho sama",
     "r.canPay": "tento stav lze vyplatit — proběhne to automaticky",
     "r.submitting": "Odesílám…",
     "r.claim": "Vyzvednout",

@@ -2139,6 +2139,11 @@ app.get("/meter/latest", (req, res) => {
     // This reading came too soon after the last one to be paid automatically: the
     // payout waits for the reader's next one (the app says so, not "goes by itself").
     waitsForNewer: !!(link?.meterNo && r && tooSoonAfterLast(r, utility, link.meterNo)),
+    // And from when a reading counts again: 20 h (AUTO_MIN_SPAN_MS) after the last
+    // paid one. The app's timeline named "now" here while nothing could be paid yet
+    // (the owner, 28 November: "reward possible, but no reward").
+    waitsUntil: link?.meterNo && r && tooSoonAfterLast(r, utility, link.meterNo)
+      ? (store.lastReadingAt(utility, String(link.meterNo).toLowerCase()) || 0) + AUTO_MIN_SPAN_MS : null,
     // The helper that sent this reading is out of date: the app asks its owner to
     // run the install line again (null when it is current, or not gul.js).
     outdatedHelper: helperStatus(r),
