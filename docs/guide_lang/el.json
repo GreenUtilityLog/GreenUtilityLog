@@ -418,7 +418,7 @@
   ]
  ],
  "close": "Ακόμη δεν βγαίνει άκρη; Στείλε μας ένα μήνυμα με ό,τι δείχνει το log (ή το τερματικό) — συνήθως λέει ακριβώς τι λείπει.",
- "foot": "GreenUtilityLog · Οδηγός · Ανταμοιβές σε B3TR στο VeChain. Θέλεις να δοκιμάσεις πρώτα; Η <a href=\"https://greenutilitylog.github.io/GreenUtilityLog/testnet/\">δοκιμαστική έκδοση</a> χρησιμοποιεί δοκιμαστικά tokens.",
+ "foot": "GreenUtilityLog · Οδηγός · Ανταμοιβές σε B3TR στο VeChain.",
  "s_pf": "Διαδρομή D — Powerfox (poweropti)",
  "pf_intro": "Ένα poweropti διαβάζει τον μετρητή σου και στέλνει το σύνολο στο cloud του Powerfox. Παρακάτω υπάρχουν τρεις τρόποι να φτάσει σε εμάς — <strong>χρειάζεσαι μόνο έναν</strong>. Δεν ξέρεις ποιον; Διάλεξε την επιλογή 1.",
  "pf_first_t": "Πρώτα, στην εφαρμογή Powerfox",

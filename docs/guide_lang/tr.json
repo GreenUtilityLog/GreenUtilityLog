@@ -418,7 +418,7 @@
   ]
  ],
  "close": "Hâlâ takıldın mı? Log'un (veya terminalin) gösterdiğini bize mesajla gönder — genelde tam olarak neyin eksik olduğunu söyler.",
- "foot": "GreenUtilityLog · Rehber · VeChain üzerinde B3TR ödülleri. Önce bir şey denemek mi istiyorsun? <a href=\"https://greenutilitylog.github.io/GreenUtilityLog/testnet/\">Test sürümü</a> test token'ları kullanır.",
+ "foot": "GreenUtilityLog · Rehber · VeChain üzerinde B3TR ödülleri.",
  "s_pf": "Yol D — Powerfox (poweropti)",
  "pf_intro": "Bir poweropti sayacını okur ve toplamı Powerfox bulutuna gönderir. Bunu bize ulaştırmanın üç yolu aşağıda — <strong>yalnızca birine ihtiyacın var</strong>. Emin değil misin? Seçenek 1'i seç.",
  "pf_first_t": "Önce, Powerfox uygulamasında",

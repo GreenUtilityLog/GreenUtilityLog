@@ -25,6 +25,38 @@ zetten en aan de toegangsregel te voldoen (GM NFT + Passport, zie stap 5).
 
 ---
 
+## Gekozen route (28 november 2026): geen testnet meer
+De eigenaar gebruikt testnet niet meer. Daarom **geen nieuwe testnet-service (stap 5a vervalt)**
+en **geen testversie** van de app: `/GreenUtilityLog/testnet/` stuurt door naar de app. De huidige
+server wordt mainnet; alle uitlezers blijven daarheen sturen. Upstash: **dezelfde database**
+(gratis plan = één database), gescheiden door `STATE_KEY`; elke sleutel die de server schrijft
+begint daarmee (het foto-archief gebruikt de transactie-ID, per netwerk uniek).
+
+**Volgorde:** (1) Claude zet de livegang-PR klaar en wacht tot CI groen is → (2) de eigenaar doet
+5b in Render → (3) Claude merget de PR (de app wordt mainnet) en controleert `/health`.
+Tussen (2) en (3) weigert de app standen ("server is mainnet, app is testnet"): een paar minuten.
+
+**5b — Render → `greenutilitylog-rewards`:**
+- Settings: **Auto-Deploy: Off** (een wijziging gaat pas live met *Manual Deploy*), **Shutdown Delay 120 s**.
+- Environment, toevoegen of wijzigen:
+
+| Sleutel | Waarde |
+|---|---|
+| `NETWORK` | `mainnet` |
+| `STATE_KEY` | `greenutilitylog:mainnet` |
+| `CARRY_OVER_KEY` | `greenutilitylog:state` (stond `STATE_KEY` al ingevuld: díe oude waarde) |
+| `UPSTASH_REDIS_REST_URL` / `_TOKEN` | **laten staan** (zelfde database); `CARRY_OVER_URL`/`_TOKEN` niet nodig |
+| `ANTHROPIC_API_KEY` | de nieuwe sleutel `greenutilitylog-mainnet` |
+| `CERT_DOMAINS` | `greenutilitylog.github.io` |
+| `ADMIN_WALLETS` | `0x3a007383fce8dcccdb92cf9efe0e609a652a1f29,0xedd7e5e1be4066cdc892a059f586b9d7e8e4b0c7` |
+| `ALLOWED_ORIGIN` | `https://greenutilitylog.github.io` |
+| `MAX_PAYOUT_PER_SUBMISSION` | `1` (eerste week) |
+| `PHOTO_RETENTION_DAYS` | `7` (gedeelde database klein houden) |
+
+- **Laten staan:** `DISTRIBUTOR_PRIVATE_KEY`, `POWERFOX_SECRET`, `KEEP_AWAKE` (mainnet blijft wakker).
+- **Weghalen als ze er staan:** `REQUIRE_PASS`, `TESTNET_*`, `PAYOUTS_PAUSED`, en `NODE_URL` /
+  `DELEGATION_URL` als ze naar testnet wijzen.
+
 ## Stand van zaken (27 november 2026)
 - Endorsement gehaald: 110/110, 10 ondersteuners; op VeBetterDAO mainnet "Ondersteund en actief".
 - App-naam op mainnet precies `Green Utility Log` → app-ID gelijk aan testnet

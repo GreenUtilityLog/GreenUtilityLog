@@ -114,7 +114,7 @@ L["en"] = dict(
     ("already been corrected once", "A meter’s starting point can be corrected once — every correction wipes the usage since the last payout. If it is wrong again, ask an admin via Send Feedback in the app."),
   ],
   close="Still stuck? Send a message with what the Log tab (or terminal) shows — it usually says exactly what's missing.",
-  foot="GreenUtilityLog · Setup guide · Rewards in B3TR on VeChain. Want to try something first? The <a href=\"https://greenutilitylog.github.io/GreenUtilityLog/testnet/\">test version</a> uses test tokens.",
+  foot="GreenUtilityLog · Setup guide · Rewards in B3TR on VeChain.",
 )
 
 # ──────────────────────────────── NEDERLANDS ─────────────────────────────────
@@ -200,7 +200,7 @@ L["nl"] = dict(
     ("already been corrected once", "Het startpunt van een meter kan één keer worden gecorrigeerd — elke correctie wist het verbruik sinds de laatste uitbetaling. Klopt het weer niet, vraag het een admin via Send Feedback in de app."),
   ],
   close="Kom je er niet uit? Stuur een berichtje met wat er in het Log-tabblad (of de terminal) staat — daar staat meestal precies wat er mist.",
-  foot="GreenUtilityLog · Handleiding · Beloningen in B3TR op VeChain. Eerst iets uitproberen? De <a href=\"https://greenutilitylog.github.io/GreenUtilityLog/testnet/\">testversie</a> werkt met test-tokens.",
+  foot="GreenUtilityLog · Handleiding · Beloningen in B3TR op VeChain.",
 )
 
 # ────────────────────────────────── DEUTSCH ──────────────────────────────────
@@ -286,7 +286,7 @@ L["de"] = dict(
     ("already been corrected once", "Der Startwert eines Zählers kann einmal korrigiert werden — jede Korrektur löscht den Verbrauch seit der letzten Auszahlung. Stimmt er wieder nicht, frag einen Admin über Send Feedback in der App."),
   ],
   close="Kommst du nicht weiter? Schick eine Nachricht mit dem Inhalt des Protokoll-Tabs (oder Terminals) — dort steht meist genau, was fehlt.",
-  foot="GreenUtilityLog · Anleitung · Belohnungen in B3TR auf VeChain. Erst etwas ausprobieren? Die <a href=\"https://greenutilitylog.github.io/GreenUtilityLog/testnet/\">Testversion</a> nutzt Test-Token.",
+  foot="GreenUtilityLog · Anleitung · Belohnungen in B3TR auf VeChain.",
 )
 
 # ────────────────────────────────── FRANÇAIS ─────────────────────────────────
@@ -372,7 +372,7 @@ L["fr"] = dict(
     ("already been corrected once", "Le point de départ d’un compteur ne peut être corrigé qu’une fois — chaque correction efface la consommation depuis le dernier paiement. S’il est de nouveau faux, demandez à un admin via Send Feedback dans l’app."),
   ],
   close="Toujours bloqué ? Envoyez un message avec le contenu de l'onglet Journal (ou du terminal) — il dit généralement exactement ce qui manque.",
-  foot="GreenUtilityLog · Guide · Récompenses en B3TR sur VeChain. Envie d'essayer d'abord ? La <a href=\"https://greenutilitylog.github.io/GreenUtilityLog/testnet/\">version de test</a> utilise des jetons de test.",
+  foot="GreenUtilityLog · Guide · Récompenses en B3TR sur VeChain.",
 )
 
 # ─────────────────────────────────── ESPAÑOL ─────────────────────────────────
@@ -458,7 +458,7 @@ L["es"] = dict(
     ("already been corrected once", "El punto de partida de un contador solo se puede corregir una vez — cada corrección borra el consumo desde el último pago. Si vuelve a estar mal, pide ayuda a un admin con Send Feedback en la app."),
   ],
   close="¿Sigues atascado? Envía un mensaje con lo que muestra la pestaña Registro (o la terminal) — suele decir exactamente qué falta.",
-  foot="GreenUtilityLog · Guía · Recompensas en B3TR en VeChain. ¿Quieres probar algo primero? La <a href=\"https://greenutilitylog.github.io/GreenUtilityLog/testnet/\">versión de prueba</a> usa tokens de prueba.",
+  foot="GreenUtilityLog · Guía · Recompensas en B3TR en VeChain.",
 )
 
 # ─────────────────────────────── ROUTE D: POWERFOX ───────────────────────────────

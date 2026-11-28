@@ -418,7 +418,7 @@
   ]
  ],
  "close": "Még mindig elakadtál? Küldj egy üzenetet arról, mit mutat a Napló fül (vagy a terminál) — általában pontosan ott áll, mi hiányzik.",
- "foot": "GreenUtilityLog · Útmutató · Jutalmak B3TR-ben a VeChainen. Előbb kipróbálnál valamit? A <a href=\"https://greenutilitylog.github.io/GreenUtilityLog/testnet/\">tesztverzió</a> teszttokenekkel működik.",
+ "foot": "GreenUtilityLog · Útmutató · Jutalmak B3TR-ben a VeChainen.",
  "s_pf": "D útvonal — Powerfox (poweropti)",
  "pf_intro": "A poweropti leolvassa a mérődet, és elküldi az összesített állást a Powerfox felhőjébe. Lent három módját látod annak, hogyan jut el hozzánk — <strong>csak egy kell</strong>. Nem vagy biztos benne? Válaszd az 1. lehetőséget.",
  "pf_first_t": "Először a Powerfox appban",

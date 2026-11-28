@@ -417,7 +417,7 @@
   ]
  ],
  "close": "Pořád to nejde? Pošli zprávu s tím, co ukazuje log (nebo terminál) — obvykle tam přesně stojí, co chybí.",
- "foot": "GreenUtilityLog · Návod · Odměny v B3TR na VeChainu. Chceš si něco nejdřív vyzkoušet? <a href=\"https://greenutilitylog.github.io/GreenUtilityLog/testnet/\">Testovací verze</a> používá testovací tokeny.",
+ "foot": "GreenUtilityLog · Návod · Odměny v B3TR na VeChainu.",
  "s_pf": "Cesta D — Powerfox (poweropti)",
  "pf_intro": "Poweropti čte tvůj elektroměr a posílá celkový stav do cloudu Powerfox. Níže jsou tři způsoby, jak ho dostat k nám — <strong>stačí ti jeden</strong>. Nevíš? Vezmi možnost 1.",
  "pf_first_t": "Nejdřív v aplikaci Powerfox",
