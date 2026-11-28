@@ -723,6 +723,45 @@ await step("back on this wallet after another one: its own meter comes back, the
   } finally { await p2.close(); }
 });
 
+await step("a phone that lost its setup gets it back with one signature", async () => {
+  // As the owner's phone looked at the go-live (28 November): the same wallet, but
+  // no meter, starting point or reader token on the phone, while the server has all
+  // three. The registration screen offers to restore them instead of typing.
+  const a = ADDR.toLowerCase();
+  const p3 = await ctx.newPage();
+  let saved = null;
+  try {
+    await p3.goto(`http://127.0.0.1:${APP_PORT}/GreenUtilityLog/`, { waitUntil: "networkidle" }); await wait(800);
+    const token = await p3.evaluate((a) => localStorage.getItem(`gul_mtoken_${a}`), a);
+    assert.match(String(token), /^[0-9a-f]{48}$/, "the reader was paired earlier");
+    // Kept to put back if this step fails, so the steps after it aren't broken too.
+    saved = await p3.evaluate((a) => Object.fromEntries(["greenlog_meters", "greenlog_baselines", `greenlog_meters_${a}`, `greenlog_baselines_${a}`, `gul_mtoken_${a}`].map((k) => [k, localStorage.getItem(k)])), a);
+    await p3.evaluate((a) => {
+      for (const k of ["greenlog_meters", "greenlog_baselines", `greenlog_meters_${a}`, `greenlog_baselines_${a}`, `gul_mtoken_${a}`]) localStorage.removeItem(k);
+    }, a);
+    await p3.reload({ waitUntil: "networkidle" }); await wait(2500);
+    const card = p3.locator("[data-restore]");
+    // Two pages of this run poll the same server from one address, so its 30-a-minute
+    // limit can answer 429 here; the app asks again after 20 s (up to three times).
+    for (let i = 0; i < 70 && !(await card.count()); i++) await wait(1000);
+    assert.equal(await card.count(), 1, "the registration screen offers to restore");
+    await card.scrollIntoViewIfNeeded(); await p3.screenshot({ path: join(OUT, "12-restore-offer.png") }).catch(() => {});
+    await card.getByRole("button").click();
+    for (let i = 0; i < 30 && (await card.count()); i++) await wait(300);
+    assert.equal(await card.count(), 0, "registration closed after restoring");
+    const after = await p3.evaluate((a) => [localStorage.getItem("greenlog_meters"), localStorage.getItem("greenlog_baselines"), localStorage.getItem(`gul_mtoken_${a}`)], a);
+    assert.match(String(after[0]), /E1000/, "the meter number is back");
+    assert.match(String(after[1]), /"electric":"\d+(\.\d+)?"/, "with the server's last reading as the starting point");
+    assert.equal(after[2], token, "the same reader token: the reader keeps working");
+    const restore = lastCall("/wallet/restore");
+    assert.equal(restore?.status, 200, restore?.body);
+    saved = null;
+  } finally {
+    if (saved) await p3.evaluate((kv) => { for (const [k, v] of Object.entries(kv)) if (v != null) localStorage.setItem(k, v); }, saved).catch(() => {});
+    await p3.close();
+  }
+});
+
 await step("leaderboard: this week puts a newcomer first, all time the long-timer, with streaks", async () => {
   // Two other wallets on chain: one paid 40 B3TR a month ago (nothing this week),
   // one paid 1.5 B3TR today and 1.5 yesterday (a 2-day streak). This wallet has no

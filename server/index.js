@@ -2062,10 +2062,39 @@ app.post("/wallet/seen", async (req, res) => {
 // wallet's registered meters (number + utility). Anyone can ask for any address, so
 // it carries no readings: the number is what the app needs, and a reading history
 // per address is how someone learns when a household is away.
+// ── Restore a wallet's setup on a phone that has lost it ─────────────────────
+// The owner, 28 November: at the go-live the mainnet app on the same phone and the
+// same VeWorld started from nothing (the phone's carry-over found no testnet data),
+// so meter number, starting point and reader all had to be set up again, while the
+// server had carried all of it over. One signature brings it back: the meters this
+// wallet owns with their last reading (the starting point for the next one), and the
+// reader's device token (pairing again reuses it too, so the reader keeps working).
+// Readings and the token only go to the wallet that signs; /meter/registered gives
+// the meter numbers alone. Nothing to restore: answered without spending the
+// signature, so throwaway wallets can't grow the store of spent ones.
+app.post("/wallet/restore", async (req, res) => {
+  const address = String(req.body.address || "");
+  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
+  const NEEDLE = "Green Utility Log — restore my setup";
+  const meters = store.metersForWallet(address);
+  const link = store.getLinkByAddress(address);
+  const c = meters.length || link ? await requireBoundCert(req, [NEEDLE]) : checkBoundCert(req, [NEEDLE]);
+  if (!c.ok) return res.status(c.code).json({ error: c.error });
+  // Stored lower-case (the owner key); meter numbers are written in capitals, as on
+  // the meter, and the server matches them either way.
+  const up = (v) => (v ? String(v).toUpperCase() : null);
+  res.json({
+    ok: true,
+    meters: meters.map((m) => ({ utility: m.utility, meterNo: up(m.meterNo), last: m.last })),
+    reader: link ? { token: link.token, meterNo: up(link.meterNo), utility: link.utility || "electric" } : null,
+  });
+});
+
 app.get("/meter/registered", (req, res) => {
   const address = String(req.query.address || "");
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return res.status(400).json({ error: "invalid wallet address" });
-  res.json({ ok: true, meters: store.metersForWallet(address).map(({ utility, meterNo }) => ({ utility, meterNo, photoRegister: dueRegister(utility, meterNo) })) });
+  // Capitals, as on the meter (stored lower-case); the server matches either way.
+  res.json({ ok: true, meters: store.metersForWallet(address).map(({ utility, meterNo }) => ({ utility, meterNo: String(meterNo).toUpperCase(), photoRegister: dueRegister(utility, meterNo) })) });
 });
 
 // The app polls this to show / prefill the latest automatically-received reading.
