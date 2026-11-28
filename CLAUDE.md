@@ -27,6 +27,9 @@ of the previous one has been read.
    builds from `rootDir: server` and skips other commits), and there must be no
    error or warning annotations. Wait a few minutes after a server change for the
    deploy before reading it.
+   Don't dispatch it when you already know it will fail (an empty pot, a setting
+   the owner hasn't changed yet): every red run mails the owner. Ask for the
+   server's /health instead, or wait until the owner says the fix is in.
 8. Run the loose-ends check below, unasked, and fix what it finds (through these
    same steps). Only then report done.
 
