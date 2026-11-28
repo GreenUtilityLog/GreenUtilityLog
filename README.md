@@ -8,18 +8,21 @@ checks it and pays out on-chain.
 
 **Live app:** https://greenutilitylog.github.io/GreenUtilityLog/
 **Setup guide (readers, Home Assistant):** https://greenutilitylog.github.io/GreenUtilityLog/guide.html
-**Network:** VeChain testnet — B3TR here are test tokens.
+**Network:** VeChain mainnet since 28 November 2026 — real B3TR. (No testnet copy any more; a local `npm run dev` builds for testnet.)
 
 ---
 
 ## How rewards work
 
-- Only wallets with an **access pass** (from an admin) or a **VeBetterDAO passport**
-  that counts them as a person are paid; one meter belongs to one wallet, and
-  the same meter photographed for another wallet is refused.
+- Only VeBetterDAO members are paid: a **Galaxy Member NFT** (level 2 or higher)
+  that voted in the last round, held by the **main wallet** of a **VeBetterDAO
+  Passport** that counts it as a person, with no signals against it. One meter
+  belongs to one wallet, and the same meter photographed for another wallet is
+  refused.
 - One wallet per phone: the app sends a random install id and a hardware hash
   (hashes only); a second wallet on a phone that already had one paid is refused.
-- One reading per meter per ~day (20 h cooldown), **at most 4 B3TR** per reading.
+- One reading per meter per ~day (20 h cooldown), **at most 4 B3TR** per reading
+  (1 in the first week on mainnet).
 - A reader's reading (P1 / Home Assistant) is paid the moment it arrives — nothing
   to tap in the app.
 - Automatic payouts need one photo of the meter every 30 days; a photo can't be

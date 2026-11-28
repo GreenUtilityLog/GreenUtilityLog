@@ -117,7 +117,11 @@ Laatst bijgewerkt: 2026-11-28.
 - [x] Tijdlijn van de uitlezer zei "Volgende beloning mogelijk — nu" terwijl de stand wachtte op een nieuwere (20-uurgrens): de server geeft `waitsUntil`, de app toont dat tijdstip (#230)
 - [x] Pot gevuld: 500 B3TR (28-11); Render Auto-Deploy op "After CI Checks Pass"; server draait de restore- en tijdlijn-fix (e6b8eda)
 - [ ] Eerste echte uitbetaling controleren (eigen wallet, 29-11 's ochtends via de uitlezer; uitbetalen staat aan, geen pauze)
-- [ ] Mainnet-stappen uit `docs/MAINNET.md` (serverwissel in Render, sleutels, `CERT_DOMAINS`, eerste week `MAX_PAYOUT_PER_SUBMISSION=1`). Route 28-11 (keuze eigenaar): geen testnet meer, geen testversie, één Upstash-database met eigen `STATE_KEY`
+- [x] Mainnet-stappen uit `docs/MAINNET.md` (serverwissel in Render, sleutels, `CERT_DOMAINS`, eerste week `MAX_PAYOUT_PER_SUBMISSION=1`). Route 28-11 (keuze eigenaar): geen testnet meer, geen testversie, één Upstash-database met eigen `STATE_KEY` (#226)
+- [ ] Na de eerste week: `MAX_PAYOUT_PER_SUBMISSION` weghalen in Render (dan max 4 B3TR)
+- [ ] Teamdeel (team allocation, 10–15%) instellen in VeBetterDAO — de eigenaar vond de instelling nog niet
+- [ ] VeWorld app-hub: aanmelding staat klaar in `brand/app-hub/` (MAINNET.md stap 8)
+- [x] README en `docs/TESTING.md` (nu "Aan de slag") naar mainnet: toegangsregel, max 1 de eerste week, herstel-knop, geen testnet meer (#232)
 - [x] Testers hoeven bij de livegang niets opnieuw te doen (keuze eigenaar, 20-11-2026): de huidige server wordt mainnet (uitlezers blijven daarheen sturen), testnet krijgt een nieuwe server. De mainnet-server neemt bij de eerste start meters, beginstanden, uitlezer-tokens en cloudkoppelingen over (`CARRY_OVER_KEY`); de mainnet-app neemt op de telefoon meternummer, beginstand, token, telefoon-ID en taal over. Getest op de server (met tegenproef) en in de browser (testnet → zelfde telefoon op mainnet)
 - [ ] Grant-aanvraag VeBetter Grants (x2earn-spoor)
 - [x] Toegang mainnet volgens de regel van VeBetterDAO (morbidejs, 17-11-2026): hoofdwallet van het Passport (geen gekoppelde), geen signaleringen, gestemd in de vorige ronde met een GM NFT van niveau 2+ die nog in de wallet staat, plus Passport "is persoon". Elke regel apart getest; de app toont per regel wat ontbreekt (20 talen)
