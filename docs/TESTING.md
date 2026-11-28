@@ -1,22 +1,24 @@
-# 🧪 Green Utility Log — Testhandleiding
+# 🌱 Green Utility Log — Aan de slag
 
-Welkom bij de testronde! Met deze app verdien je **B3TR-tokens op het VeChain
-testnet** door foto's van je meterstanden in te sturen. Alles draait op het
-**testnet**, dus je gebruikt géén echt geld — de B3TR die je verdient zijn
-testtokens zonder echte waarde. Gewoon veilig uitproberen. 🙂
+Met deze app verdien je **echte B3TR op VeChain** als je minder stroom gebruikt.
+Je stuurt je meterstand in met een foto, of laat een uitlezer dat vanzelf doen.
+Sinds 28 november 2026 draait de app op **mainnet**: de B3TR zijn echt.
 
 **App:** https://greenutilitylog.github.io/GreenUtilityLog/
+**Handleiding voor uitlezers:** https://greenutilitylog.github.io/GreenUtilityLog/guide.html
 
 ---
 
 ## ✅ Wat heb je nodig?
 
-1. **Een VeChain-wallet** — bij voorkeur **VeWorld** (telefoon-app of browser-extensie).
+1. **VeWorld**, de VeChain-wallet (telefoon-app of browser-extensie), op **Mainnet**.
    - Download: https://www.veworld.net
-2. **VeWorld op "Testnet" gezet** (niet Mainnet) — zie stap 2 hieronder.
-
-3. **Een toegangspas** — stuur je wallet-adres naar de admin, die zet hem aan.
-   Heb je al een VeBetterDAO-passport die je als persoon telt, dan hoeft dat niet.
+2. **Lid van VeBetterDAO** — dezelfde regel als VeBetterDAO zelf hanteert:
+   - een **Galaxy Member NFT**, niveau 2 (Moon) of hoger;
+   - daarmee **gestemd in de vorige ronde** (blijf elke week stemmen);
+   - een **VeBetterDAO Passport** dat je als persoon telt, met deze wallet als
+     **hoofdwallet**, zonder signaleringen.
+   De app laat zien wat er eventueel nog ontbreekt.
 
 Gas (VTHO) heb je **niet** nodig: je zet alleen een handtekening, de uitbetaling
 doet de server.
@@ -25,74 +27,63 @@ doet de server.
 
 ## 🚀 Stap voor stap
 
-### 1. Open de app & koppel je wallet
-- Ga naar de app-link hierboven.
-- Tik op **Connect** (rechtsboven) en kies **VeWorld** of **WalletConnect**.
-- Op de telefoon: open de link in de **VeWorld-browser** voor de soepelste koppeling.
+### 1. Open de app en koppel je wallet
+- Open de app-link in de **browser van VeWorld** (op de telefoon het soepelst).
+- Tik op **Connect** en kies **VeWorld**.
 
-### 2. Zet VeWorld op Testnet
-- In VeWorld: **Instellingen → Netwerk → Testnet**.
+### 2. Registreer je meter
+- Op dit moment alleen **elektriciteit**.
+- De app vraagt je meternummer en de huidige stand (je startpunt).
+- **Al eerder ingesteld?** Dan staat er **"Herstel mijn instellingen"**: één
+  handtekening haalt je meter, startpunt en uitlezer terug, zonder typen.
 
-### 3. Registreer je meter
-- Op dit moment testen we **alleen elektriciteit** (gas/water/zon volgen later).
-- Bij de eerste keer vraagt de app je meternummer + huidige stand (de *baseline*).
-- Tip: je kunt een foto van de meter maken en de app vult de stand automatisch in.
+### 3. Stuur een stand in
+- **Met een foto:** tab **Meter → 📸 Foto**, maak een scherpe foto van je meter;
+  de app leest het getal mee.
+- **Automatisch:** tab **Meter → ⚡ Automatisch** — HomeWizard P1, Home Assistant,
+  Tasmota, Powerfox of Tibber. De handleiding hierboven legt elke route uit.
+  Automatische standen worden vanzelf uitbetaald; eens per 30 dagen is één foto nodig.
 
-### 4. Stuur een meterstand in
-- Ga naar **Submit** (📸) — je elektriciteitsmeter staat al geselecteerd.
-- Maak een **foto van je meter** — de app leest het getal en vult het in.
-- Controleer de stand en tik op insturen.
-- ⚠️ **Doe dit online.** Offline-inzendingen worden bij heraansluiten alsnog
-  verstuurd, maar test bij voorkeur met een werkende verbinding.
-
-### 5. Verdien B3TR 🎉
-- Je verdient **meer naarmate je mínder verbruikt** dan de zuinig-benchmark
-  (≈8 kWh per dag): `0,2 + (8 − verbruik) × 0,61`, met een maximum van **4 B3TR**
-  per inzending. Dit zijn **test-B3TR zonder echte waarde**.
-- Alle bedragen hangen af van de **wekelijkse B3TR van VeBetterDAO**: claimt
-  iedereen samen meer dan er die week is, dan krijgt iedereen hetzelfde
-  percentage. De app laat dat percentage zien bij je geschatte beloning.
-- **(Bijna) geen verbruik** (minder dan 0,1 kWh per dag) levert alleen de basis
-  van 0,2 op: dat is meestal een oude of dubbel ingevoerde stand, geen besparing.
-- Je **eerste** inzending legt alleen je startpunt vast en levert de basis (0,2)
-  op. Vanaf de tweede wordt je besparing betaald.
-- Bekijk je totaal op **Home** en je positie op de **Leaderboard** (🏆).
+### 4. Verdien B3TR 🎉
+- Je verdient voor wat je **onder 8 kWh per dag** blijft, over de periode sinds je
+  vorige stand: per kWh onder dat doel **0,61 B3TR**.
+- Hooguit **4 B3TR** per uitbetaling (de eerste week op mainnet **1**), en ongeveer
+  één uitbetaling per dag (20 uur ertussen).
+- Je **eerste** stand is alleen je startpunt; vanaf de tweede wordt je besparing betaald.
+- De B3TR komen uit de **wekelijkse pot van VeBetterDAO**, die afhangt van de
+  stemmen voor Green Utility Log. Is de pot kleiner dan wat iedereen samen
+  verdient, dan krijgt iedereen hetzelfde percentage.
 
 ---
 
 ## ❓ Veelgestelde vragen
 
-**Ik heb ingestuurd maar kreeg geen B3TR.**
-De meest voorkomende redenen:
-- De nieuwe stand is **lager** dan je vorige stand (een meter loopt nooit terug).
-- De stand die je intypte staat **niet op de foto** (de server leest de foto mee).
-- De **beloningspot is leeg** — vul 'm via het admin-paneel (🎁 Fund rewards pool).
-- Je zit nog in de **cooldown** (zie hieronder).
-- De foto leek hergebruikt — maak een **verse foto** van een echte meter.
-
-**Wat is de cooldown?**
-Je kunt per meter ongeveer **één keer per 20 uur** een beloning krijgen — zo blijft
-het eerlijk. Wie de dag daarna iets later insturt, zit er dus niet aan vast.
+**Ik kreeg geen B3TR.**
+- De stand is **lager** dan je vorige (een meter loopt nooit terug).
+- De stand die je intypte staat **niet op de foto**.
+- Je zit nog in de **20 uur** sinds je vorige uitbetaling; de tijdlijn bij de
+  uitlezer laat zien vanaf wanneer.
+- Je verbruikte **meer dan 8 kWh per dag**: dan is er geen besparing.
 
 **Mijn foto wordt geweigerd.**
-Gebruik een **echte, scherpe foto** van je eigen meter (goed licht, cijfers in beeld). Geen screenshots of foto's van een scherm.
+Gebruik een **echte, scherpe foto** van je eigen meter. Geen screenshots of foto's
+van een scherm.
 
-**Ik heb mijn browser geleegd / opnieuw verbonden — meters kwijt?**
-Met **dezelfde wallet** blijven je meters en baselines bewaard. Alleen een **andere wallet** start een nieuwe setup.
+**Nieuwe telefoon / app gewist?**
+Koppel dezelfde wallet en tik op **"Herstel mijn instellingen"**.
 
 **Mijn wallet wil niet koppelen.**
-Controleer of VeWorld op **Testnet** staat. Op de telefoon: gebruik de in-app browser of WalletConnect-QR.
+Staat VeWorld op **Mainnet**? Open de app in de VeWorld-browser.
 
-**Is dit echt geld?**
-Nee. Alles draait op het **testnet** — de B3TR zijn testtokens zonder echte waarde.
+**Een venster dat elk uur opent op mijn pc (Windows)?**
+Je helper is van vóór 30 oktober. De app laat dan een melding zien met de regel
+om hem bij te werken; je instellingen blijven bewaard.
 
 ---
 
 ## 🐞 Feedback & bugs melden
 
 In de app: **Profiel (👤) → Send Feedback**, of de **❓-knop** rechtsboven →
-**Send Feedback**. Je mailprogramma opent met je bericht en wat technische info
-(app-versie, scherm, apparaat) zodat we problemen makkelijk kunnen nabootsen.
-Er worden **geen** foto's of privésleutels meegestuurd.
+**Send Feedback**. Er worden **geen** foto's of privésleutels meegestuurd.
 
-Bedankt voor het testen! 💚
+Bedankt! 💚
