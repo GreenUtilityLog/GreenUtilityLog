@@ -33,6 +33,10 @@ zetten en aan de toegangsregel te voldoen (GM NFT + Passport, zie stap 5).
 - `CERT_DOMAINS` = `greenutilitylog.github.io` (gezien op testnet-`/health`, `certDomains.seen`).
 - `ADMIN_WALLETS` = `0x3a007383fce8dcccdb92cf9efe0e609a652a1f29,0xedd7e5e1be4066cdc892a059f586b9d7e8e4b0c7`
   (allebei van de eigenaar; `0xedd7…b0c7` is de on-chain app-admin).
+- Op mainnet is de **schatkist de admin-wallet** `0xedd7…b0c7` (niet de server-wallet zoals op testnet):
+  het teamdeel komt daar binnen, de sleutel staat niet op de server. De server rekent nergens op het
+  schatkist-adres. VTHO voor de server-wallet `0x1390…d7c2` stuurt de eigenaar zelf. De distributor
+  `0x1390…d7c2` stond al ingesteld.
 - De eerste allocatieronde krijgt de app nog niets: de eigenaar stort zelf **2.500 B3TR** in de pot
   (VeBetter mainnet → App-saldo → storten; niet via "Fund rewards pool" in ons adminpaneel zolang de app
   nog testnet is). Eerste week hooguit ±70 B3TR nodig (max 1 per uitbetaling); ongebruikt saldo is weer op
