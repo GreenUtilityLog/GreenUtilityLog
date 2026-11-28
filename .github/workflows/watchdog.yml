@@ -84,6 +84,10 @@ jobs:
           pool = (h.get("rewardBudget") or {}).get("poolB3TR")
           if pool is None: pool = h.get("rewardsPoolB3TR") if h.get("rewardsPoolEnabled") else h.get("poolB3TR")
           if pool is None: warn("could not read the B3TR pot from the chain")
+          # While payouts are paused on purpose (PAYOUTS_PAUSED) an empty pot refuses
+          # nothing more than the pause does: a warning, not an hourly failure mail.
+          # On 28 November the owner paused mainnet until Monday and filled it later.
+          elif pool <= 0 and h.get("payoutsPaused"): warn("the B3TR pot is empty (payouts are paused, so nothing is refused for it yet): fill it before resuming")
           elif pool <= 0: err("the B3TR pot is empty: every payout is refused until the next round")
           elif pool < float(os.environ["POOL_WARN"]): warn(f"the B3TR pot is low: {pool} B3TR left")
 
