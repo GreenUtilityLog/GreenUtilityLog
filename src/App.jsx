@@ -1884,7 +1884,7 @@ function IntroScreen({ onStart }) {
   );
 }
 
-function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, editMode, T }) {
+function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, editMode, canRestore, onRestore, restoring, T }) {
   const dlg = useDialog(null, t("reg.title.new"));
   // Which utilities this screen registers. Defaults to the required ones
   // (electric/gas/water); solar is added separately as an optional extra.
@@ -1958,6 +1958,13 @@ function BaselineOnboarding({ onDone, utils, existingBaselines, existingMeters, 
       <div className="ob-icon">{isSolarOnly ? "☀️" : "⚙️"}</div>
       <div className="ob-title" style={{color:T.text}}>{title}</div>
       <div className="ob-sub" style={{color:T.textMid}}>{sub}</div>
+      {canRestore && (
+        <div data-restore style={{width:"100%",maxWidth:320,boxSizing:"border-box",marginTop:16,padding:"12px 14px",borderRadius:10,background:T.green5||T.bgAlt,border:`1px solid ${T.green3||T.border}`,textAlign:"left"}}>
+          <div style={{fontSize:13,fontWeight:800,color:T.text}}>{t("reg.restore.t")}</div>
+          <div style={{fontSize:11.5,color:T.textMid,lineHeight:1.5,marginTop:4}}>{t("reg.restore.s")}</div>
+          <button type="button" className="ob-btn" onClick={onRestore} disabled={restoring} style={{marginTop:10,width:"100%",...(restoring?{opacity:.6,cursor:"wait"}:{})}}>{restoring ? "…" : t("reg.restore.btn")}</button>
+        </div>
+      )}
       <div style={{width:"100%",maxWidth:320,display:"flex",flexDirection:"column",gap:8,marginTop:20}}>
         {shown.map(u => {
           const needsMeter = required.includes(u);
@@ -4341,6 +4348,42 @@ export default function App() {
   // Open the meter registration overlay for a given set of utilities.
   const openRegistration = (utils = null, edit = false) => { setRegUtils(utils); setRegEdit(edit); setNeedsBaselines(true); };
   const closeRegistration = () => { setNeedsBaselines(false); setRegUtils(null); setRegEdit(false); };
+  // A phone that lost this wallet's setup (a new phone, cleared storage, or the
+  // go-live on 28 November: the mainnet app on the owner's phone found none of the
+  // testnet app's data) gets it back from the server with one signature: meter
+  // numbers, their last reading as the starting point, and the reader's token.
+  const restoreSetup = async () => {
+    if (!wallet) { openConnectModal(); return; }
+    setRestoring(true);
+    try {
+      const content = `Green Utility Log — restore my setup\nWallet: ${wallet}\nNetwork: ${NETWORK}\nTime: ${new Date().toISOString()}`;
+      const cert = await requestCertificate({ purpose: "identification", payload: { type: "text", content } }, { signer: wallet });
+      const certificate = { purpose: "identification", payload: { type: "text", content }, domain: cert.annex.domain, timestamp: cert.annex.timestamp, signer: cert.annex.signer, signature: cert.signature };
+      const res = await fetchT(`${REWARD_API.replace(/\/$/, "")}/wallet/restore`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: wallet, certificate }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || t("s.serviceErr", { status: res.status }));
+      const list = (Array.isArray(d.meters) ? d.meters : []).filter((m) => m && m.meterNo && UTILS.some((u) => u.id === m.utility));
+      if (!list.length && !d.reader) { showToast(t("reg.restore.none")); return; }
+      const nextM = { ...meters }, nextB = { ...baselines };
+      for (const m of list) {
+        nextM[m.utility] = String(m.meterNo);
+        if (m.last != null && Number.isFinite(Number(m.last))) nextB[m.utility] = String(m.last);
+      }
+      saveMeters(nextM); saveBaselines(nextB); setMeters(nextM); setBaselines(nextB);
+      if (d.reader?.token && validDeviceToken(d.reader.token)) {
+        try { localStorage.setItem(`gul_mtoken_${String(wallet).toLowerCase()}`, d.reader.token); } catch { /* no storage */ }
+      }
+      const complete = UTILS.filter((u) => !u.optional).every((u) => String(nextM[u.id] || "").trim() && String(nextB[u.id] || "").trim());
+      if (complete) closeRegistration();
+      showToast(t("reg.restore.ok"));
+    } catch (e) {
+      if (/reject|cancel|denied/i.test(String(e?.message || ""))) return;
+      showToast(e?.message ? `❌ ${e.message}` : t("reg.restore.fail"));
+    } finally { setRestoring(false); }
+  };
   const [meters, setMeters]         = useState({ electric:"", gas:"", water:"", solar:"" });
   // Access pass, reported by the backend on connect. `required:false` is the normal
   // case today — the gate is off unless REQUIRE_PASS is set.
@@ -4416,6 +4459,10 @@ export default function App() {
   // Which tariff register the server wants on the next photo, per utility (it
   // checks that the registers take turns — see /reward), refreshed after a payout.
   const [regHint, setRegHint]       = useState({});
+  // The server already knows a meter of this wallet (/meter/registered): the
+  // registration screen offers to restore the whole setup instead of typing it.
+  const [serverHasMeter, setServerHasMeter] = useState(false);
+  const [restoring, setRestoring] = useState(false);
   const [regTick, setRegTick]       = useState(0);
   // The server knows this meter has tariff registers (it says which to photograph
   // next): open the two-register fields instead of making the user find the box.
@@ -4429,15 +4476,20 @@ export default function App() {
   // — never overwrites a number the user typed themselves.
   useEffect(() => {
     if (!wallet) return;
-    let cancelled = false;
-    (async () => {
+    let cancelled = false, retry = null;
+    // Asked again when the server is busy (429: a per-address limit a few open tabs
+    // can reach) or down: without its answer the registration screen neither fills
+    // the meter number nor offers to restore the setup.
+    const load = async (attempt) => {
       try {
         const r = await fetchT(`${REWARD_API.replace(/\/$/, "")}/meter/registered?address=${wallet}`);
+        if (r.status === 429 || r.status >= 500) throw new Error(`server ${r.status}`);
         if (!r.ok) return;
         const d = await r.json().catch(() => ({}));
         const list = Array.isArray(d.meters) ? d.meters : [];
         if (cancelled) return;
         setRegHint(Object.fromEntries(list.filter(m => m.photoRegister).map(m => [m.utility, m.photoRegister])));
+        setServerHasMeter(list.length > 0);
         if (!list.length) return;
         setMeters(prev => {
           const next = { ...prev };
@@ -4449,9 +4501,12 @@ export default function App() {
           if (changed) { try { saveMeters(next); } catch { /* no storage */ } }
           return changed ? next : prev;
         });
-      } catch { /* offline — ignore */ }
-    })();
-    return () => { cancelled = true; };
+      } catch {
+        if (!cancelled && attempt < 3) retry = setTimeout(() => load(attempt + 1), 20000);
+      }
+    };
+    load(0);
+    return () => { cancelled = true; clearTimeout(retry); };
   }, [wallet, regTick]);
 
   // Bumped when RULES or SERVER_NEXT_AT (module-level, read by the helpers) change,
@@ -4658,7 +4713,7 @@ export default function App() {
     // "reconcile" card (which would sign for its meter with this wallet), what the
     // server said about its meters, and its token balance.
     setDualTariff(false); setRegLow(""); setRegNormal(""); setFixBasis(null);
-    setServerLast(null); setRegHint({}); setWalletB3tr(null);
+    setServerLast(null); setRegHint({}); setServerHasMeter(false); setWalletB3tr(null);
     setVerifyKey(k => k + 1);
     setTab("home");
 
@@ -5513,7 +5568,7 @@ export default function App() {
       {/* Not under the intro, nor under the wallet screen: its dialog took the
           keyboard focus and trapped Tab in fields nobody could see, so Next/Skip on
           the intro — and "Connect wallet" — were unreachable by keyboard. */}
-      {needsBaselines && !showIntro && wallet && <BaselineOnboarding onDone={(bl, mtrs) => { setBaselines(bl); setMeters(mtrs); closeRegistration(); }} utils={regUtils} editMode={regEdit} existingBaselines={baselines} existingMeters={meters} T={T} />}
+      {needsBaselines && !showIntro && wallet && <BaselineOnboarding onDone={(bl, mtrs) => { setBaselines(bl); setMeters(mtrs); closeRegistration(); }} utils={regUtils} editMode={regEdit} existingBaselines={baselines} existingMeters={meters} canRestore={serverHasMeter && !regEdit} onRestore={restoreSetup} restoring={restoring} T={T} />}
       {!onboarded && <Onboarding onDone={() => setOnboarded(true)} />}
       {showAdmin && isAdmin && <ChunkBoundary T={T}><Suspense fallback={<div role="status" style={{position:"fixed",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.4)",color:"#fff",zIndex:400}}>Loading…</div>}><AdminScreen onClose={() => setShowAdmin(false)} T={T} wallet={wallet} onFundPool={handleFundPool} onMoveToRewardsPool={handleMoveToRewardsPool} onDisableRewardsPool={handleDisableRewardsPool} onSetDistributionPaused={handleSetDistributionPaused} onAssignSignaler={handleAssignSignaler} onClaimB3TR={FAUCET_ENABLED ? handleClaimB3TR : null} onAdminApi={adminApi} onToast={showToast} /></Suspense></ChunkBoundary>}
       {showHelp && <HelpScreen onLang={changeLang} onClose={() => setShowHelp(false)} onFeedback={() => { setShowHelp(false); setShowFeedback(true); }} T={T} />}
