@@ -170,6 +170,8 @@ let boardLogs = null;
 let seenDelayMs = 0;
 // When set, /meter/latest says automatic payouts wait for a photo (the 30-day rule).
 let photoOverdue = false;
+// The server's answer for a reading too soon after the last paid one (AUTO_MIN_SPAN_MS).
+let spanWaitUntil = 0;
 // Outside requests: the API goes to the local server, the VeChain node to the
 // stand-in, the rest is dropped (fonts, WalletConnect, …) so the run needs no network.
 const GENESIS = { id: "0x000000000b2bce3c70bc649a02749e8687721b09ed2e15997f466536b20bb127", number: 0, timestamp: 1530014400, gasLimit: 10000000, parentID: "0xffffffff00000000000000000000000000000000000000000000000000000000", size: 170, beneficiary: "0x0000000000000000000000000000000000000000", gasUsed: 0, totalScore: 0, txsRoot: "0x" + "0".repeat(64), txsFeatures: 0, stateRoot: "0x" + "0".repeat(64), receiptsRoot: "0x" + "0".repeat(64), signer: "0x0000000000000000000000000000000000000000", isTrunk: true, transactions: [] };
@@ -191,6 +193,10 @@ await ctx.route((url) => !/^http:\/\/(127\.0\.0\.1|localhost)[:/]/.test(url.href
       if (photoOverdue && u.pathname === "/meter/latest") {
         const j = await res.json();
         return route.fulfill({ status: res.status(), contentType: "application/json", body: JSON.stringify({ ...j, photoDueAt: Date.now() - 86400000 }) });
+      }
+      if (spanWaitUntil && u.pathname === "/meter/latest") {
+        const j = await res.json();
+        return route.fulfill({ status: res.status(), contentType: "application/json", body: JSON.stringify({ ...j, waitsForNewer: true, waitsUntil: spanWaitUntil }) });
       }
       if (!/^\/(health|wallet\/seen|meter\/latest|meter\/registered)/.test(u.pathname)) {
         let body = ""; try { body = await res.text(); } catch {}
@@ -473,6 +479,20 @@ await step("a reader whose payouts wait for a photo: the timeline says so, nothi
   } finally { photoOverdue = false; }
   await wait(17000);
   assert.doesNotMatch(await text(), /First a photo of your meter/, "back to normal once a photo isn't due");
+});
+
+await step("a reading too soon after the last paid one: the timeline says from when, not \"now\"", async () => {
+  // The owner, 28 November: "Next reward possible — now" while nothing could be paid
+  // until a reading 20 h after the last paid one.
+  spanWaitUntil = Date.now() + 10 * 3600e3;
+  try {
+    await wait(17000); // the card polls every 15 s
+    await shot("07c-reader-span-wait");
+    const t = await text();
+    assert.match(t, /paid at your reader's first reading after this time/, "says what it waits for");
+    assert.doesNotMatch(t, /\bnow\W+Next reward possible/i, "not \"now\"");
+    assert.equal(await page.getByRole("button", { name: /^(Claim now|Submit)/ }).count(), 0, "nothing to claim");
+  } finally { spanWaitUntil = 0; }
 });
 
 await step("offline: a reading is queued, and sent when back online", async () => {

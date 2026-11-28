@@ -515,6 +515,7 @@ export default {
     "r.nextReward": "Sljedeća moguća nagrada",
     "r.sendsAfter": "tvoj čitač šalje u prvi puni sat nakon toga",
     "r.paidNext": "isplaćuje se čim stigne sljedeće očitanje",
+    "r.waitsSpan": "isplaćuje se uz prvo očitanje čitača nakon ovog vremena (20 h nakon zadnjeg isplaćenog) — šalje ga sam",
     "r.canPay": "ovo očitanje može se isplatiti — ide automatski",
     "r.submitting": "Šaljem…",
     "r.claim": "Preuzmi sada",
