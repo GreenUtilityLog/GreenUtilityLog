@@ -24,7 +24,8 @@ of the previous one has been read.
    (build → assemble → deploy) are all green for the merge commit.
 7. Dispatch `watchdog.yml` and read its SNAPSHOT annotation: `commit` must be the
    last commit that changed `server/` (`git log -1 --format=%h -- server`; Render
-   builds from `rootDir: server` and skips other commits), and there must be no
+   builds from `rootDir: server`, skips other commits, and deploys only after
+   the GitHub checks pass), and there must be no
    error or warning annotations. Wait a few minutes after a server change for the
    deploy before reading it.
    Don't dispatch it when you already know it will fail (an empty pot, a setting
