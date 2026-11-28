@@ -4,7 +4,7 @@ De vaste lijst van wat nog moet, uit de audits (code, ontwerp, server) en uit
 gesprekken. Bijgewerkt bij elke PR die een punt afrondt: afgevinkt = klaar, met
 het PR-nummer erbij. Nieuwe punten komen onderaan hun groep.
 
-Laatst bijgewerkt: 2026-11-27.
+Laatst bijgewerkt: 2026-11-28.
 
 ## Ronde 1 — vóór mainnet (veiligheid en geld) ✅
 - [x] Opslag in delen, zodat één grote waarde niet alle uitbetalingen stillegt; invoer begrensd (#144)
@@ -112,6 +112,8 @@ Laatst bijgewerkt: 2026-11-27.
 - [x] Endorsement gehaald: 110/110 punten, 10 ondersteuners; op VeBetterDAO mainnet "Ondersteund en actief", doet mee aan de komende allocatierondes (27-11-2026)
 - [x] De server houdt zichzelf wakker: elke 11 min zijn eigen `/cron/tick` (`RENDER_EXTERNAL_URL`), geen aparte dienst (keuze eigenaar). De GitHub-wekker draaide maar ± 3 keer per dag. Bij de livegang `KEEP_AWAKE=off` op testnet (750 gratis uren)
 - [x] Elke wekbeurt betaalt ook standen die nog openstaan (een gemiste automatische uitbetaling wachtte tot de volgende push, een halve dag later)
+- [x] Livegang mainnet (28-11-2026, #226): server op mainnet (`chainConfirmed`, distributor-rol, pool uit, toegang GM NFT + Passport, `CERT_DOMAINS`, max 1 B3TR, testgegevens overgenomen), app op mainnet, geen testversie meer
+- [ ] Maandag 30-11: `PAYOUTS_PAUSED` weghalen in Render (keuze eigenaar: uitbetalen pas vanaf maandag); vóór die tijd de pot vullen (2.500 B3TR), daarna één test-uitbetaling op de eigen wallet
 - [ ] Mainnet-stappen uit `docs/MAINNET.md` (serverwissel in Render, sleutels, `CERT_DOMAINS`, eerste week `MAX_PAYOUT_PER_SUBMISSION=1`). Route 28-11 (keuze eigenaar): geen testnet meer, geen testversie, één Upstash-database met eigen `STATE_KEY`
 - [x] Testers hoeven bij de livegang niets opnieuw te doen (keuze eigenaar, 20-11-2026): de huidige server wordt mainnet (uitlezers blijven daarheen sturen), testnet krijgt een nieuwe server. De mainnet-server neemt bij de eerste start meters, beginstanden, uitlezer-tokens en cloudkoppelingen over (`CARRY_OVER_KEY`); de mainnet-app neemt op de telefoon meternummer, beginstand, token, telefoon-ID en taal over. Getest op de server (met tegenproef) en in de browser (testnet → zelfde telefoon op mainnet)
 - [ ] Grant-aanvraag VeBetter Grants (x2earn-spoor)
