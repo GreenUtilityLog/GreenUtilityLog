@@ -37,7 +37,7 @@ begint daarmee (het foto-archief gebruikt de transactie-ID, per netwerk uniek).
 Tussen (2) en (3) weigert de app standen ("server is mainnet, app is testnet"): een paar minuten.
 
 **5b — Render → `greenutilitylog-rewards`:**
-- Settings: **Auto-Deploy: Off** (een wijziging gaat pas live met *Manual Deploy*), **Shutdown Delay 120 s**.
+- Settings: **Auto-Deploy: After CI Checks Pass** (gekozen 28-11: een wijziging gaat vanzelf live, maar pas als alle tests in GitHub groen zijn; wat al op main stond vóór die keuze: één keer *Manual Deploy*), **Shutdown Delay 120 s** (staat al in `render.yaml`).
 - Environment, toevoegen of wijzigen:
 
 | Sleutel | Waarde |
