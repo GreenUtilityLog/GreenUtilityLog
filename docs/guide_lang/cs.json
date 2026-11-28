@@ -1,6 +1,6 @@
 {
  "name": "English",
- "kicker": "Návod",
+ "kicker": "Návod pro testery",
  "h1": "Vydělávej bez focení elektroměru",
  "lede": "Normálně fotíš elektroměr a dostáváš za to B3TR. Pokud už něco u tebe doma umí elektroměr odečítat, může stav posílat za tebe — a už nikdy nemusíš fotit. Začni tím, že níže najdeš své zařízení.",
  "s_routes": "Co máš doma?",
@@ -417,7 +417,7 @@
   ]
  ],
  "close": "Pořád to nejde? Pošli zprávu s tím, co ukazuje log (nebo terminál) — obvykle tam přesně stojí, co chybí.",
- "foot": "GreenUtilityLog · Návod · Odměny v B3TR na VeChainu. Chceš si něco nejdřív vyzkoušet? <a href=\"https://greenutilitylog.github.io/GreenUtilityLog/testnet/\">Testovací verze</a> používá testovací tokeny.",
+ "foot": "GreenUtilityLog · Návod pro testery · Beta na testnetu — testovací tokeny, zatím bez skutečné hodnoty.",
  "s_pf": "Cesta D — Powerfox (poweropti)",
  "pf_intro": "Poweropti čte tvůj elektroměr a posílá celkový stav do cloudu Powerfox. Níže jsou tři způsoby, jak ho dostat k nám — <strong>stačí ti jeden</strong>. Nevíš? Vezmi možnost 1.",
  "pf_first_t": "Nejdřív v aplikaci Powerfox",

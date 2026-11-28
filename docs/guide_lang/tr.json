@@ -1,7 +1,7 @@
 {
  "_toc": "Bu sayfada",
  "name": "English",
- "kicker": "Rehber",
+ "kicker": "Test kullanıcısı rehberi",
  "h1": "Sayacını fotoğraflamadan kazan",
  "lede": "Normalde B3TR kazanmak için sayacının fotoğrafını çekersin. Evinde sayacı zaten okuyabilen bir şey varsa, okumayı senin yerine o gönderebilir — ve bir daha fotoğraf çekmen gerekmez. Önce aşağıdan kendi düzenini bul.",
  "s_routes": "Sende hangi düzen var?",
@@ -418,7 +418,7 @@
   ]
  ],
  "close": "Hâlâ takıldın mı? Log'un (veya terminalin) gösterdiğini bize mesajla gönder — genelde tam olarak neyin eksik olduğunu söyler.",
- "foot": "GreenUtilityLog · Rehber · VeChain üzerinde B3TR ödülleri. Önce bir şey denemek mi istiyorsun? <a href=\"https://greenutilitylog.github.io/GreenUtilityLog/testnet/\">Test sürümü</a> test token'ları kullanır.",
+ "foot": "GreenUtilityLog · Test kullanıcısı rehberi · Testnet beta — test token'ları, henüz gerçek bir değeri yok.",
  "s_pf": "Yol D — Powerfox (poweropti)",
  "pf_intro": "Bir poweropti sayacını okur ve toplamı Powerfox bulutuna gönderir. Bunu bize ulaştırmanın üç yolu aşağıda — <strong>yalnızca birine ihtiyacın var</strong>. Emin değil misin? Seçenek 1'i seç.",
  "pf_first_t": "Önce, Powerfox uygulamasında",

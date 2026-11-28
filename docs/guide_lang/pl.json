@@ -1,6 +1,6 @@
 {
  "name": "English",
- "kicker": "Poradnik",
+ "kicker": "Poradnik dla testerów",
  "h1": "Zarabiaj bez fotografowania licznika",
  "lede": "Zwykle fotografujesz licznik, żeby zarabiać B3TR. Jeśli coś w twoim domu już potrafi odczytać licznik, może wysyłać odczyty za ciebie — i już nigdy nie musisz robić zdjęć. Zacznij od znalezienia swojej konfiguracji poniżej.",
  "s_routes": "Jaką masz konfigurację?",
@@ -417,7 +417,7 @@
   ]
  ],
  "close": "Nadal nie działa? Wyślij wiadomość z tym, co pokazuje log (albo terminal) — zwykle jest tam dokładnie napisane, czego brakuje.",
- "foot": "GreenUtilityLog · Poradnik · Nagrody w B3TR na VeChain. Chcesz najpierw coś wypróbować? <a href=\"https://greenutilitylog.github.io/GreenUtilityLog/testnet/\">Wersja testowa</a> używa tokenów testowych.",
+ "foot": "GreenUtilityLog · Poradnik dla testerów · Beta w testnecie — tokeny testowe, na razie bez realnej wartości.",
  "s_pf": "Droga D — Powerfox (poweropti)",
  "pf_intro": "Poweropti odczytuje twój licznik i wysyła stan do chmury Powerfox. Poniżej są trzy sposoby, żeby trafił do nas — <strong>wystarczy jeden</strong>. Nie wiesz, który wybrać? Weź opcję 1.",
  "pf_first_t": "Najpierw w aplikacji Powerfox",
