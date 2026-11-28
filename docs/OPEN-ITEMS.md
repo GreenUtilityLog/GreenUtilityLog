@@ -123,6 +123,7 @@ Laatst bijgewerkt: 2026-11-27.
 - [x] Licentie van MIT naar AGPL-3.0-only: openbaar blijven (HACS, add-on, Pages, CI), maar wie de code als dienst draait moet zijn aanpassingen ook openbaar maken. Versies t/m `85d062e` blijven MIT
 - [ ] Naam "Green Utility Log" als merk vastleggen (BOIP, Benelux) — overwegen; eventueel met een jurist
 - [ ] Normen per land (nu één norm van 8 kWh per dag)
+- [ ] Idee (eigenaar, 28-11-2026: voorlopig niet): beloning per dag i.p.v. per periode — (8 − verbruik per dag) × 0,61 × hele dagen (afgerond, min. 1). Dan hangt een uitbetaling niet meer af van hoe lang de periode toevallig was (27 nov ± 28 u: 4,00; 28 nov ± 24 u: 3,34 bij minder verbruik), en een gemiste dag telt nog mee tot het plafond van 4. Op de chain moet `savedKwh` dan meeveranderen
 - [x] Eigen app-niveaus terug, op aantal inzendingen (niet op B3TR): Druppel 💧 (0), Vonk ⚡ (50), Vlam 🔥 (200), Zonnestraal ☀️ (500), Groene centrale 🌍 (1000), geteld in dagen met een stand (meer meters gaat niet sneller); één ladder met water, stroom, gas en zon; eerst planten, op verzoek energie en strenger; op Home, Voortgang (met balk naar het volgende niveau) en Profiel
 - [x] Voortgang: bespaarde energie per week/maand (met gemiddeld verbruik per dag t.o.v. de norm), inzendkalender van 12 weken, en een vooruitblik per jaar op basis van de laatste 30 dagen (na minstens een week)
 - [x] Voortgang rekent met de besparing waarop de server uitbetaalde (ook als de telefoon de vorige stand niet kent) (#175)
