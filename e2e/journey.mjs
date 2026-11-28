@@ -576,6 +576,16 @@ await step("Progress with three weeks of readings: outlook and calendar", async 
   assert.ok(co2Tile >= 25, `CO₂ tile: ${co2Tile} kg`);
   assert.equal(kg, Math.floor(co2Tile), `the badge (${kg} kg) is the tile's number (${co2Tile} kg)`);
   assert.equal(await badge("co2").getByRole("progressbar").getAttribute("aria-valuenow"), String(kg), "the bar matches");
+
+  // History: each payout with the period it covers and the use per day over it.
+  // Without the period a smaller number that paid less looked wrong (the owner,
+  // 28 November: 2.56 kWh paid less than 2.68 kWh, over 24 h against 28 h).
+  await page.locator(".bnav button").nth(3).click(); await wait(600);
+  await page.getByRole("button", { name: /geschiedenis/i }).first().click(); await wait(1200);
+  await shot("11e-nl-history-span");
+  const hist = await text();
+  assert.match(hist, /5\.00 kWh · 24 u/, "the period next to the usage (a day: in hours)");
+  assert.match(hist, /5\.00 kWh\/dag/, "and the use per day over it");
 });
 
 await step("Italian: a language in its own file, fetched when picked and after a reload", async () => {

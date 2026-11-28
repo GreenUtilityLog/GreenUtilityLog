@@ -2512,6 +2512,13 @@ function HistItem({ s, T }) {
   // Tapping a paid submission opens the real transaction on the block explorer —
   // one-tap on-chain proof (VeWorld's own Activity tab won't show these, because
   // the user's wallet never signs the payout; the distributor does).
+  // The period the reading covers (the server's span, also on chain) and the use per
+  // day over it. The reward is the saving below 8 kWh a day over that period, so
+  // without it a smaller number paid less and looked wrong (28 November: 2.56 kWh
+  // in 24 h paid less than 2.68 kWh in 28 h, rightly: 2.55 a day against 2.30).
+  const spanD = !isEco && Number.isFinite(used) && Number(s.days) > 0 ? Number(s.days) : 0;
+  const spanTxt = spanD ? (spanD * 24 < 47.5 ? t("h.span.h", { n: Math.max(1, Math.round(spanD * 24)) }) : t("h.span.d", { n: +spanD.toFixed(1) })) : "";
+  const perDay = spanD ? t("h.perDay", { n: (used / spanD).toFixed(2), unit: util.unit }) : "";
   const txUrl = s.txHash ? `${EXPLORER}/transactions/${s.txHash}` : null;
   const Row = txUrl ? "a" : "div";
   const rowLink = txUrl ? { href: txUrl, target: "_blank", rel: "noopener noreferrer", style: { color: "inherit", textDecoration: "none", cursor: "pointer" } } : {};
@@ -2524,8 +2531,8 @@ function HistItem({ s, T }) {
       <div className="hinfo">
         {/* What was used, then when — the meter number only as its last digits,
             so rows line up instead of wrapping on a 17-character number. */}
-        <div className="htitle">{utilName(s.type)} · <span style={{textTransform:"none",letterSpacing:0,fontWeight:700,color:T.textMid}}>{delta}{util.unit && delta !== "—" ? ` ${util.unit}` : ""}</span></div>
-        <div className="hdate">{fmtDay(s.date)}{s.meterNo ? <span title={s.meterNo}> · {t("h.meter", { n: String(s.meterNo).slice(-4) })}</span> : null}{txUrl ? <span> · tx ↗</span> : null}</div>
+        <div className="htitle">{utilName(s.type)} · <span style={{textTransform:"none",letterSpacing:0,fontWeight:700,color:T.textMid,whiteSpace:"nowrap"}}>{delta}{util.unit && delta !== "—" ? ` ${util.unit}` : ""}</span>{spanTxt ? <> · <span style={{textTransform:"none",letterSpacing:0,fontWeight:700,color:T.textMid,whiteSpace:"nowrap"}}>{spanTxt}</span></> : null}</div>
+        <div className="hdate"><span style={{ whiteSpace: "nowrap" }}>{fmtDay(s.date)}</span>{perDay ? <> · <span data-perday style={{ whiteSpace: "nowrap" }}>{perDay}</span></> : null}{s.meterNo ? <> · <span title={s.meterNo} style={{ whiteSpace: "nowrap" }}>{t("h.meter", { n: String(s.meterNo).slice(-4) })}</span></> : null}{txUrl ? <> · <span style={{ whiteSpace: "nowrap" }}>tx ↗</span></> : null}</div>
       </div>
       {/* A reading recorded without a reward (no kWh saved, or a first reading) has
           no amount to show; a failed payout's amount was never received. */}
